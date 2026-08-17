@@ -1,0 +1,35 @@
+<!--
+  Cole no Supabase → Authentication → Emails → Templates.
+  O href usa token_hash (não ConfirmationURL) para o clique no Gmail
+  não depender do cookie PKCE do navegador que pediu o link.
+-->
+
+<!-- Confirm sign up — assunto: Entre no GRID — sem senha -->
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#0B1A2E;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <img src="https://grid.mundopodium.com.br/brand/grid-email.png" alt="GRID · Mundo Pódium" width="240" style="display:block;border:0;width:240px;height:auto;margin:0 0 20px;" />
+      <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="background:#12263F;border-radius:16px;padding:32px 32px 28px;">
+        <tr>
+          <td>
+            <p style="margin:0 0 8px;font:12px Arial,sans-serif;color:#F5B301;letter-spacing:2px;text-transform:uppercase;">Acesso</p>
+            <h1 style="margin:0 0 12px;font:800 22px Arial,sans-serif;color:#ffffff;">Sua vaga no grid</h1>
+            <p style="margin:0 0 24px;font:16px Arial,sans-serif;color:#C5CDD8;line-height:1.5;">
+              Clique para entrar. Sem senha. O link vale por pouco tempo.
+            </p>
+            <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=signup" style="display:inline-block;background:#F5B301;color:#0B1A2E;font:800 14px Arial,sans-serif;text-decoration:none;padding:14px 28px;border-radius:12px;">
+              Entrar no GRID
+            </a>
+            <p style="margin:28px 0 0;font:12px Arial,sans-serif;color:#7A8494;line-height:1.4;">
+              Se não pediu este acesso, ignore o e-mail.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Magic link or OTP — assunto: Seu link para entrar no GRID
+     Mesmo HTML, só troque o href para type=magiclink: -->
+<!-- {{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink -->
