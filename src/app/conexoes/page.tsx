@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { Copy, Trash2 } from "lucide-react";
@@ -29,7 +29,7 @@ type CreateResponse = {
   webhook_secret: string;
 };
 
-export default function ConexoesPage() {
+function ConexoesInner() {
   const qc = useQueryClient();
   const formRef = useRef<HTMLDivElement>(null);
   const kindFromUrl = parseConexoesKind(useSearchParams().get("kind"));
@@ -282,5 +282,19 @@ export default function ConexoesPage() {
         })}
       </div>
     </AppShell>
+  );
+}
+
+export default function ConexoesPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell title="Conexões" back={BACK.box}>
+          <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+        </AppShell>
+      }
+    >
+      <ConexoesInner />
+    </Suspense>
   );
 }
