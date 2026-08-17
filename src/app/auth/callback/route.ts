@@ -8,8 +8,12 @@ export async function GET(request: Request) {
   const next = safeInternalPath(searchParams.get("next"), "/entrar?go=1");
   if (code) {
     const supabase = await createClient();
-    if (supabase) {
-      await supabase.auth.exchangeCodeForSession(code);
+    if (!supabase) {
+      return NextResponse.redirect(`${origin}/entrar?error=config`);
+    }
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      return NextResponse.redirect(`${origin}/entrar?error=session`);
     }
   }
   return NextResponse.redirect(`${origin}${next}`);

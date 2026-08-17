@@ -15,6 +15,27 @@ import { COPY } from "@/lib/copy";
 import { isPaymentNext, safeInternalPath } from "@/lib/auth/next-path";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const AUTH_TIMEOUT_MS = 20_000;
+
+async function readAuthJson<T extends { error?: string }>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Não foi possível entrar");
+  }
+}
+
+function authFailMessage(err: unknown): string {
+  if (err instanceof DOMException && err.name === "TimeoutError") {
+    return "Demorou demais. Tente de novo.";
+  }
+  if (err instanceof Error && err.name === "TimeoutError") {
+    return "Demorou demais. Tente de novo.";
+  }
+  return "Não foi possível entrar";
+}
 
 function EntrarInner() {
   const router = useRouter();
@@ -51,6 +72,9 @@ function EntrarInner() {
     if (searchParams.get("go") === "1") {
       void lightsOutThenGo();
     }
+    if (searchParams.get("error")) {
+      setNotice("Não foi possível concluir o acesso. Tente de novo.");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -59,51 +83,67 @@ function EntrarInner() {
     if (loading) return;
     setLoading(true);
     setNotice(null);
-    const res = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, next }),
-    });
-    const json = (await res.json()) as {
-      mock?: boolean;
-      magic?: boolean;
-      error?: string;
-      next?: string;
-    };
-    if (!res.ok) {
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, next }),
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      });
+      const json = await readAuthJson<{
+        mock?: boolean;
+        magic?: boolean;
+        error?: string;
+        next?: string;
+      }>(res);
+      if (!res.ok) {
+        setNotice(json.error ?? "Não foi possível entrar");
+        return;
+      }
+      if (json.magic) {
+        setNotice(COPY.loginMagic);
+        return;
+      }
+      localStorage.setItem("grid_mock_session", "1");
+      await lightsOutThenGo(json.next ?? next);
+    } catch (err) {
+      setNotice(authFailMessage(err));
+    } finally {
       setLoading(false);
-      setNotice(json.error ?? "Não foi possível entrar");
-      return;
     }
-    if (json.magic) {
-      setLoading(false);
-      setNotice(COPY.loginMagic);
-      return;
-    }
-    localStorage.setItem("grid_mock_session", "1");
-    await lightsOutThenGo(json.next ?? next);
   }
 
   async function google() {
     if (loading) return;
     setLoading(true);
-    const res = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "google", next }),
-    });
-    const json = (await res.json()) as { mock?: boolean; url?: string; error?: string };
-    if (json.mock) {
-      localStorage.setItem("grid_mock_session", "1");
-      await lightsOutThenGo();
-      return;
+    setNotice(null);
+    let leaving = false;
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "google", next }),
+        signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
+      });
+      const json = await readAuthJson<{ mock?: boolean; url?: string; error?: string }>(
+        res,
+      );
+      if (json.mock) {
+        localStorage.setItem("grid_mock_session", "1");
+        await lightsOutThenGo();
+        return;
+      }
+      if (json.url) {
+        leaving = true;
+        window.location.href = json.url;
+        return;
+      }
+      setNotice(json.error ?? "Google indisponível nesta demonstração");
+    } catch (err) {
+      setNotice(authFailMessage(err));
+    } finally {
+      if (!leaving) setLoading(false);
     }
-    if (json.url) {
-      window.location.href = json.url;
-      return;
-    }
-    setLoading(false);
-    setNotice(json.error ?? "Google indisponível nesta demonstração");
   }
 
   return (
