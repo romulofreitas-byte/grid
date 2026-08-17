@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Download } from "lucide-react";
+import { usePaywall } from "@/components/PaywallDialog";
+import { parseBillingGate } from "@/lib/billing/paywall";
 import { cn } from "@/lib/utils";
 
 export function ExportDownload({
@@ -18,22 +19,32 @@ export function ExportDownload({
   className?: string;
   wrapperClassName?: string;
 }) {
+  const { openPaywall } = usePaywall();
   const [error, setError] = useState<string | null>(null);
-  const [needed, setNeeded] = useState<number | null>(null);
 
   async function run() {
     setError(null);
     const res = await fetch(`/api/export/${searchId}?format=${format}`);
-    if (res.status === 402) {
-      const json = (await res.json()) as { needed?: number; available?: number };
-      setNeeded(json.needed ?? null);
-      setError(
-        `Faltam créditos (${json.available ?? 0} disponíveis). Recarregue ou mude de plano.`,
-      );
-      return;
-    }
     if (!res.ok) {
-      setError("Não foi possível exportar");
+      const json: unknown = await res.json().catch(() => ({}));
+      const gate = parseBillingGate(res.status, json);
+      if (gate) {
+        openPaywall({
+          kind: gate.kind,
+          feature: "export",
+          needed: gate.needed,
+          available: gate.available,
+        });
+        return;
+      }
+      const message =
+        typeof json === "object" &&
+        json !== null &&
+        "error" in json &&
+        typeof json.error === "string"
+          ? json.error
+          : "Não foi possível exportar";
+      setError(message);
       return;
     }
     const blob = await res.blob();
@@ -65,11 +76,7 @@ export function ExportDownload({
       </button>
       {error ? (
         <span className="max-w-xs text-right text-[11px] text-podium-yellow">
-          {error}{" "}
-          <Link href="/planos" className="font-bold underline">
-            Ver planos
-          </Link>
-          {needed != null ? ` · ${needed} créditos` : null}
+          {error}
         </span>
       ) : null}
     </span>

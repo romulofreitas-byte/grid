@@ -73,35 +73,37 @@ export default function PlanosPage() {
         })}
       </div>
 
-      <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
-      <p className="mt-3 max-w-2xl text-sm text-podium-gray">
-        Pacotes não expiram e não substituem o plano. O custo por crédito é
-        pior que a assinatura — serve para o meio do mês.
-      </p>
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {PACKS.map((pack) => (
-          <GlassCard key={pack.sku} className="flex flex-col p-5">
-            <h3 className="text-lg font-extrabold">{pack.nome}</h3>
-            <p className="mt-1 text-sm text-podium-muted">{pack.tagline}</p>
-            <p className="mt-4 text-2xl font-extrabold text-podium-yellow">
-              {formatBrl(pack.priceCents)}
-            </p>
-            <ul className="mt-3 flex-1 space-y-2 text-sm text-podium-gray">
-              {pack.highlights.map((h) => (
-                <li key={h} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                  {h}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href={checkoutHref(pack.sku)}
-              className="mt-6 inline-flex justify-center rounded-xl border border-white/15 py-3 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
-            >
-              Recarregar
-            </Link>
-          </GlassCard>
-        ))}
+      <div id="recarga" className="scroll-mt-20">
+        <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
+        <p className="mt-3 max-w-2xl text-sm text-podium-gray">
+          Pacotes não expiram e não substituem o plano. O custo por crédito é
+          pior que a assinatura — serve para o meio do mês.
+        </p>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {PACKS.map((pack) => (
+            <GlassCard key={pack.sku} className="flex flex-col p-5">
+              <h3 className="text-lg font-extrabold">{pack.nome}</h3>
+              <p className="mt-1 text-sm text-podium-muted">{pack.tagline}</p>
+              <p className="mt-4 text-2xl font-extrabold text-podium-yellow">
+                {formatBrl(pack.priceCents)}
+              </p>
+              <ul className="mt-3 flex-1 space-y-2 text-sm text-podium-gray">
+                {pack.highlights.map((h) => (
+                  <li key={h} className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
+                    {h}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={checkoutHref(pack.sku)}
+                className="mt-6 inline-flex justify-center rounded-xl border border-white/15 py-3 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+              >
+                Recarregar
+              </Link>
+            </GlassCard>
+          ))}
+        </div>
       </div>
 
       <GlassCard className="mt-10 p-5">

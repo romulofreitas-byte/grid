@@ -15,9 +15,16 @@ import { PositionBadge } from "@/components/PositionBadge";
 import { SaveListDialog } from "@/components/SaveListDialog";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SelectToggle } from "@/components/SelectToggle";
+import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
 import { gridBack, largadaEditHref, leadHref, parseGridFrom } from "@/lib/back";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
+import {
+  blockQualifyIfFree,
+  isBillingGateError,
+  throwIfBillingGate,
+} from "@/lib/billing/paywall";
+import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { sealLabel } from "@/lib/contact-confidence";
 import { formatCnae, formatPhone } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
@@ -140,6 +147,8 @@ export default function GridPage() {
   const searchId = params.searchId;
   const from = parseGridFrom(searchParams.get("from"));
   const qc = useQueryClient();
+  const { openPaywall } = usePaywall();
+  const billingQuery = useBillingMe();
   const [listName, setListName] = useState("");
   const [renamed, setRenamed] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -225,11 +234,7 @@ export default function GridPage() {
         charged?: number;
         skipped?: number;
       };
-      if (res.status === 402) {
-        throw new Error(
-          `Faltam créditos (${body.available ?? 0} disponíveis). Recarregue ou mude de plano.`,
-        );
-      }
+      throwIfBillingGate(res.status, body, openPaywall, "crm_push");
       if (!res.ok) throw new Error(body.error ?? "Não foi possível enviar");
       return body;
     },
@@ -244,9 +249,12 @@ export default function GridPage() {
       );
       void qc.invalidateQueries({ queryKey: ["integration-jobs", searchId] });
       void qc.invalidateQueries({ queryKey: ["profile"] });
-      void qc.invalidateQueries({ queryKey: ["billing"] });
+      void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
     },
-    onError: (err: Error) => setCreditHint(err.message),
+    onError: (err: Error) => {
+      if (isBillingGateError(err)) return;
+      setCreditHint(err.message);
+    },
   });
 
   const jobsQuery = useQuery({
@@ -271,9 +279,7 @@ export default function GridPage() {
         body: JSON.stringify({ searchId, ...body }),
       });
       const json = (await res.json()) as { error?: string; upgradeUrl?: string };
-      if (res.status === 402 || res.status === 403) {
-        throw new Error(json.error ?? "Créditos insuficientes");
-      }
+      throwIfBillingGate(res.status, json, openPaywall, "qualify");
       if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
       return json;
     },
@@ -284,12 +290,20 @@ export default function GridPage() {
       void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
       void qc.invalidateQueries({ queryKey: ["grid", searchId] });
       void qc.invalidateQueries({ queryKey: ["profile"] });
-      void qc.invalidateQueries({ queryKey: ["billing"] });
+      void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
     },
     onError: (err: Error) => {
+      if (isBillingGateError(err)) return;
       setCreditHint(err.message);
     },
   });
+
+  function requestQualify(body: EnrichBody) {
+    if (blockQualifyIfFree(billingQuery.data?.balance.enrichAllowed, openPaywall)) {
+      return;
+    }
+    enrichMutation.mutate(body);
+  }
 
   const query = useInfiniteQuery({
     queryKey: ["grid", searchId],
@@ -368,10 +382,6 @@ export default function GridPage() {
   }
 
   function activateRow(row: GridRow) {
-    if (selected.size > 0 && !row.hasAudit) {
-      toggleRow(row);
-      return;
-    }
     router.push(leadHref(row.cnpj, searchId, from));
   }
 
@@ -481,9 +491,7 @@ export default function GridPage() {
             type="button"
             title={`${ENRICH_CREDIT_COST} créditos cada`}
             disabled={enrichMutation.isPending || unaudited === 0}
-            onClick={() =>
-              enrichMutation.mutate({ scope: "first_unaudited" })
-            }
+            onClick={() => requestQualify({ scope: "first_unaudited" })}
             className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
           >
             Qualificar os 50 primeiros
@@ -492,9 +500,7 @@ export default function GridPage() {
             <button
               type="button"
               disabled={enrichMutation.isPending || unaudited === 0}
-              onClick={() =>
-                enrichMutation.mutate({ scope: "all_unaudited" })
-              }
+              onClick={() => requestQualify({ scope: "all_unaudited" })}
               className="rounded-xl border border-podium-yellow/40 px-3 py-2 text-xs font-bold text-podium-yellow"
             >
               Confirmar {unaudited} · {allCost} créditos
@@ -574,19 +580,7 @@ export default function GridPage() {
         </div>
       </div>
       {creditHint ? (
-        <p className="mb-4 text-sm text-podium-yellow">
-          {creditHint}
-          {creditHint.includes("Faltam créditos") ||
-          creditHint.includes("Créditos insuficientes") ||
-          creditHint.includes("Treino livre") ? (
-            <>
-              {" "}
-              <Link href="/planos" className="font-bold underline">
-                Ver planos
-              </Link>
-            </>
-          ) : null}
-        </p>
+        <p className="mb-4 text-sm text-podium-yellow">{creditHint}</p>
       ) : null}
 
       <SaveListDialog
@@ -638,6 +632,29 @@ export default function GridPage() {
         </GlassCard>
       ) : (
         <>
+      {unaudited > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <button
+            type="button"
+            disabled={markingAll}
+            onClick={() => void markAllUnaudited()}
+            className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+          >
+            {markingAll
+              ? "Selecionando…"
+              : `Selecionar tudo (${unaudited} só na Receita)`}
+          </button>
+          <button
+            type="button"
+            disabled={selectedCount === 0}
+            onClick={() => setSelected(new Set())}
+            className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+          >
+            Desmarcar tudo
+          </button>
+        </div>
+      ) : null}
+
       <GlassCard className="hidden hover:translate-y-0 lg:block">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
@@ -813,19 +830,6 @@ export default function GridPage() {
         })}
       </div>
 
-      {unaudited > visibleUnaudited.length ? (
-        <button
-          type="button"
-          disabled={markingAll}
-          onClick={() => void markAllUnaudited()}
-          className="mt-4 text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
-        >
-          {markingAll
-            ? "Selecionando…"
-            : `Selecionar as ${unaudited} só na Receita da lista`}
-        </button>
-      ) : null}
-
       {query.hasNextPage && (
         <button
           type="button"
@@ -879,9 +883,7 @@ export default function GridPage() {
               <button
                 type="button"
                 disabled={enrichMutation.isPending || selectedCount === 0}
-                onClick={() =>
-                  enrichMutation.mutate({ cnpjs: [...selected] })
-                }
+                onClick={() => requestQualify({ cnpjs: [...selected] })}
                 className="rounded-xl bg-podium-yellow px-4 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
               >
                 {enrichMutation.isPending

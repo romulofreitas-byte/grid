@@ -12,6 +12,7 @@ import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { COPY } from "@/lib/copy";
 import { BACK } from "@/lib/back";
 import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
+import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import {
   CALL_GOAL_OPTIONS,
   DEFAULT_CALL_GOAL,
@@ -19,16 +20,8 @@ import {
   isTratamento,
   profileReadiness,
 } from "@/lib/pilot-profile";
-import type { BillingOrder, BillingSubscription, CreditBalance, LedgerEntry } from "@/lib/billing/types";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-type BillingMe = {
-  balance: CreditBalance;
-  subscription: BillingSubscription | null;
-  orders: BillingOrder[];
-  ledger: LedgerEntry[];
-};
 
 const fieldClass =
   "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
@@ -43,13 +36,7 @@ export default function ContaPage() {
     },
   });
 
-  const billingQuery = useQuery({
-    queryKey: ["billing-me"],
-    queryFn: async () => {
-      const res = await fetch("/api/billing/me");
-      return (await res.json()) as BillingMe;
-    },
-  });
+  const billingQuery = useBillingMe();
 
   const save = useMutation({
     mutationFn: async (body: Partial<Profile>) => {
@@ -69,7 +56,7 @@ export default function ContaPage() {
       const json = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? "Não foi possível cancelar");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["billing-me"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY }),
   });
 
   const p = profileQuery.data;

@@ -18,6 +18,13 @@ import { PositionBadge } from "@/components/PositionBadge";
 import { SectionTitle } from "@/components/SectionTitle";
 import { leadBack, leadHref, parseGridFrom } from "@/lib/back";
 import {
+  blockQualifyIfFree,
+  isBillingGateError,
+  throwIfBillingGate,
+} from "@/lib/billing/paywall";
+import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
+import { usePaywall } from "@/components/PaywallDialog";
+import {
   formatCapital,
   formatCnpj,
   formatDateBr,
@@ -73,6 +80,8 @@ export default function LeadPage() {
   const from = parseGridFrom(searchParams.get("from"));
   const back = leadBack(searchId, searchParams.get("from"));
   const qc = useQueryClient();
+  const { openPaywall } = usePaywall();
+  const billingQuery = useBillingMe();
   const [script, setScript] = useState("");
   const [copied, setCopied] = useState(false);
   const [editingScript, setEditingScript] = useState(false);
@@ -240,9 +249,7 @@ export default function LeadPage() {
         }),
       });
       const json = (await res.json()) as { error?: string };
-      if (res.status === 402 || res.status === 403) {
-        throw new Error(json.error ?? "Não foi possível qualificar");
-      }
+      throwIfBillingGate(res.status, json, openPaywall, "qualify");
       if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
       return json;
     },
@@ -253,7 +260,7 @@ export default function LeadPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["lead", params.cnpj] });
       void qc.invalidateQueries({ queryKey: ["lead-stream", params.cnpj] });
-      void qc.invalidateQueries({ queryKey: ["billing"] });
+      void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
       if (searchId) {
         void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
         void qc.invalidateQueries({ queryKey: ["grid", searchId] });
@@ -261,6 +268,7 @@ export default function LeadPage() {
     },
     onError: (err: Error) => {
       setQualifyQueued(false);
+      if (isBillingGateError(err)) return;
       setQualifyError(err.message);
     },
   });
@@ -670,7 +678,17 @@ export default function LeadPage() {
             }
             qualifyPending={qualifyMutation.isPending}
             qualifyError={qualifyError}
-            onQualify={() => qualifyMutation.mutate()}
+            onQualify={() => {
+              if (
+                blockQualifyIfFree(
+                  billingQuery.data?.balance.enrichAllowed,
+                  openPaywall,
+                )
+              ) {
+                return;
+              }
+              qualifyMutation.mutate();
+            }}
             mapsUrl={mapsUrl}
             goldenMinute={d.goldenMinute}
           />

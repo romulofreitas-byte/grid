@@ -2,7 +2,6 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ExternalLink, MapPin } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { AuditLogo } from "@/components/AuditLogo";
 import { GlassCard } from "@/components/GlassCard";
@@ -369,11 +368,6 @@ export function DigitalAuditPanel({
     defaultAuditSelection(signals),
   );
   const [logosOpen, setLogosOpen] = useState(!compact);
-  const showUpgrade =
-    Boolean(qualifyError) &&
-    (qualifyError!.includes("Créditos") ||
-      qualifyError!.includes("plano") ||
-      qualifyError!.includes("Treino livre"));
 
   useEffect(() => {
     setSelectedId(defaultAuditSelection(signals));
@@ -412,17 +406,7 @@ export function DigitalAuditPanel({
             {COPY.qualificarFichaLead}
           </p>
           {qualifyError ? (
-            <p className="mt-3 text-sm text-amber-400">
-              {qualifyError}
-              {showUpgrade ? (
-                <>
-                  {" "}
-                  <Link href="/planos" className="font-bold underline">
-                    Ver planos
-                  </Link>
-                </>
-              ) : null}
-            </p>
+            <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
           ) : null}
           <button
             type="button"

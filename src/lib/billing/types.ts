@@ -84,6 +84,13 @@ export type CreditBalance = {
   enrichAllowed: boolean;
 };
 
+export type BillingMe = {
+  balance: CreditBalance;
+  subscription: BillingSubscription | null;
+  orders: BillingOrder[];
+  ledger: LedgerEntry[];
+};
+
 export type NormalizedPaymentEvent = {
   provider: BillingProvider;
   providerEventId: string;

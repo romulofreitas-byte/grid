@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { debitExport } from "@/lib/billing/service";
+import { insufficientCreditsPayload } from "@/lib/billing/paywall";
 import { InsufficientCreditsError } from "@/lib/billing/types";
 import { getRepo } from "@/lib/data";
 import { drainIntegrationJobs } from "@/lib/integrations/process-job";
@@ -49,12 +50,7 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof InsufficientCreditsError) {
       return NextResponse.json(
-        {
-          error: "Créditos insuficientes",
-          needed: err.needed,
-          available: err.available,
-          upgradeUrl: "/planos",
-        },
+        insufficientCreditsPayload(err.needed, err.available),
         { status: 402 },
       );
     }
