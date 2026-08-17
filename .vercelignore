@@ -1,0 +1,9 @@
+tmp
+.env*
+.env.local
+node_modules
+.vercel
+2026-08
+scripts/ingest/data
+*.zip
+.DS_Store

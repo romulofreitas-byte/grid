@@ -1,0 +1,744 @@
+import { formatPhone } from "@/lib/format";
+import { parseInstagramHandle } from "@/lib/instagram";
+import type { LeadEnrichment } from "@/lib/types";
+
+export type AuditGroup = "presenca" | "ferramentas";
+
+export type AuditSignal = {
+  id: string;
+  group: AuditGroup;
+  name: string;
+  logo: string;
+  initials: string;
+  accent: string;
+  found: boolean;
+  unverified: boolean;
+  href: string | null;
+  openLabel: string | null;
+  value: string;
+  hint: string;
+  note?: string;
+  links: Array<{ label: string; href: string }>;
+};
+
+export const AUDIT_GROUPS: Array<{
+  id: AuditGroup;
+  label: string;
+  hint: string;
+}> = [
+  {
+    id: "presenca",
+    label: "Presença",
+    hint: "Onde a empresa aparece — site, redes e WhatsApp.",
+  },
+  {
+    id: "ferramentas",
+    label: "Ferramentas",
+    hint: "O que o site usa. Qualifica o lead — não abre a ligação.",
+  },
+];
+
+const MARK = {
+  site: {
+    name: "Site",
+    logo: "/audit/site.svg",
+    initials: "ST",
+    accent: "#F5B301",
+  },
+  instagram: {
+    name: "Instagram",
+    logo: "/audit/instagram.svg",
+    initials: "IG",
+    accent: "#E4405F",
+  },
+  facebook: {
+    name: "Facebook",
+    logo: "/audit/facebook.svg",
+    initials: "FB",
+    accent: "#1877F2",
+  },
+  linkedin: {
+    name: "LinkedIn",
+    logo: "/audit/linkedin.svg",
+    initials: "in",
+    accent: "#0A66C2",
+  },
+  youtube: {
+    name: "YouTube",
+    logo: "/audit/youtube.svg",
+    initials: "YT",
+    accent: "#FF0000",
+  },
+  whatsapp: {
+    name: "WhatsApp",
+    logo: "/audit/whatsapp.svg",
+    initials: "WA",
+    accent: "#25D366",
+  },
+  atualizacao: {
+    name: "Atualização",
+    logo: "/audit/freshness.svg",
+    initials: "©",
+    accent: "#C5CDD8",
+  },
+  metaPixel: {
+    name: "Meta Pixel",
+    logo: "/audit/meta.svg",
+    initials: "M",
+    accent: "#0081FB",
+  },
+  gtm: {
+    name: "GTM",
+    logo: "/audit/gtm.svg",
+    initials: "GT",
+    accent: "#246FDB",
+  },
+  ga4: {
+    name: "GA4",
+    logo: "/audit/ga4.svg",
+    initials: "GA",
+    accent: "#E37400",
+  },
+  googleAds: {
+    name: "Google Ads",
+    logo: "/audit/google-ads.svg",
+    initials: "AW",
+    accent: "#4285F4",
+  },
+  tiktok: {
+    name: "TikTok",
+    logo: "/audit/tiktok.svg",
+    initials: "TT",
+    accent: "#FE2C55",
+  },
+  rdStation: {
+    name: "RD Station",
+    logo: "/integrations/rdstation.svg",
+    initials: "RD",
+    accent: "#19C1CE",
+  },
+  hotjar: {
+    name: "Hotjar",
+    logo: "/audit/hotjar.svg",
+    initials: "HJ",
+    accent: "#FF3C00",
+  },
+  clarity: {
+    name: "Clarity",
+    logo: "/audit/clarity.svg",
+    initials: "CL",
+    accent: "#6144D6",
+  },
+} as const;
+
+const PLATFORM_MARK: Record<
+  string,
+  { name: string; logo: string; initials: string; accent: string }
+> = {
+  WordPress: {
+    name: "WordPress",
+    logo: "/audit/wordpress.svg",
+    initials: "WP",
+    accent: "#21759B",
+  },
+  Wix: {
+    name: "Wix",
+    logo: "/audit/wix.svg",
+    initials: "WX",
+    accent: "#0C6EFC",
+  },
+  Shopify: {
+    name: "Shopify",
+    logo: "/audit/shopify.svg",
+    initials: "Sh",
+    accent: "#96BF48",
+  },
+  VTEX: {
+    name: "VTEX",
+    logo: "/audit/vtex.svg",
+    initials: "VX",
+    accent: "#F71963",
+  },
+  Nuvemshop: {
+    name: "Nuvemshop",
+    logo: "/audit/nuvemshop.svg",
+    initials: "Nv",
+    accent: "#2D3277",
+  },
+  Tray: {
+    name: "Tray",
+    logo: "/audit/tray.svg",
+    initials: "Tr",
+    accent: "#FF6A00",
+  },
+};
+
+const CHAT_MARK: Record<
+  string,
+  { name: string; logo: string; initials: string; accent: string }
+> = {
+  Tawk: {
+    name: "Tawk",
+    logo: "/audit/chat.svg",
+    initials: "Tk",
+    accent: "#03A84E",
+  },
+  JivoChat: {
+    name: "JivoChat",
+    logo: "/audit/chat.svg",
+    initials: "JV",
+    accent: "#3B82F6",
+  },
+  Blip: {
+    name: "Blip",
+    logo: "/audit/chat.svg",
+    initials: "Bl",
+    accent: "#1E90FF",
+  },
+  Zendesk: {
+    name: "Zendesk",
+    logo: "/audit/chat.svg",
+    initials: "Zd",
+    accent: "#03363D",
+  },
+  Movidesk: {
+    name: "Movidesk",
+    logo: "/audit/chat.svg",
+    initials: "Mv",
+    accent: "#6C5CE7",
+  },
+};
+
+const GENERIC_PLATFORM = {
+  name: "Plataforma",
+  logo: "/audit/site.svg",
+  initials: "PL",
+  accent: "#7A8494",
+};
+
+const GENERIC_CHAT = {
+  name: "Chat",
+  logo: "/audit/chat.svg",
+  initials: "CH",
+  accent: "#25D366",
+};
+
+function signal(
+  partial: Omit<AuditSignal, "links"> & { links?: AuditSignal["links"] },
+): AuditSignal {
+  return { links: [], ...partial };
+}
+
+function absUrl(raw: string | undefined, host: string): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("http")) return trimmed;
+  if (trimmed.startsWith("@")) return `https://${host}/${trimmed.slice(1)}`;
+  return `https://${host}/${trimmed.replace(/^\/+/, "")}`;
+}
+
+function siteHref(domain: string | null): string | null {
+  if (!domain) return null;
+  return `https://${domain.replace(/^https?:\/\//, "")}`;
+}
+
+function adsLibraryUrl(raw: string | undefined): string | null {
+  const handle = parseInstagramHandle(raw);
+  if (!handle) return null;
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q=${encodeURIComponent(
+    `@${handle}`,
+  )}`;
+}
+
+function whatsappHref(raw: string | null): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+function whatsappValue(raw: string | null): string {
+  if (!raw) return "NÃO ENCONTRADO";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length >= 12) {
+    const rest = digits.slice(2);
+    return formatPhone(rest.slice(0, 2), rest.slice(2)) ?? digits;
+  }
+  return digits || raw;
+}
+
+function instagramValue(raw: string | undefined): string {
+  if (!raw) return "NÃO ENCONTRADO";
+  const handle = parseInstagramHandle(raw);
+  return handle ? `@${handle}` : raw;
+}
+
+function siteNote(e: LeadEnrichment): string | undefined {
+  if (e.osm?.matched === true) {
+    return e.osm.attribution
+      ? `dados de contato conferidos com OpenStreetMap · ${e.osm.attribution}`
+      : "dados de contato conferidos com OpenStreetMap";
+  }
+  if (e.osm?.matched === false) {
+    const base =
+      "OpenStreetMap tem outro número — conferir na ficha. O número do OSM não entra no export.";
+    return e.osm.attribution ? `${base} · ${e.osm.attribution}` : base;
+  }
+  return undefined;
+}
+
+function paidMediaHint(found: boolean): string {
+  return found
+    ? "Já investe em anúncio (sinal no HTML, não é prova de verba)."
+    : "Sem sinal de mídia paga no HTML.";
+}
+
+export function isAuditGap(signal: AuditSignal): boolean {
+  return !signal.found && !signal.unverified;
+}
+
+export function isAuditLive(signal: AuditSignal): boolean {
+  return signal.found && !signal.unverified;
+}
+
+export function auditSummary(signals: AuditSignal[]): {
+  live: number;
+  gaps: number;
+  unverified: number;
+} {
+  let live = 0;
+  let gaps = 0;
+  let unverified = 0;
+  for (const s of signals) {
+    if (isAuditLive(s)) live += 1;
+    else if (isAuditGap(s)) gaps += 1;
+    else unverified += 1;
+  }
+  return { live, gaps, unverified };
+}
+
+export function defaultAuditSelection(signals: AuditSignal[]): string {
+  return (
+    signals.find(isAuditGap)?.id ??
+    signals.find((s) => s.id === "site")?.id ??
+    signals[0]?.id ??
+    "site"
+  );
+}
+
+const PENDING_VALUE = "—";
+const PENDING_HINT = "Qualifique para cruzar este ativo.";
+
+const SCAN_HOME_IDS = [
+  "instagram",
+  "facebook",
+  "linkedin",
+  "youtube",
+  "whatsapp",
+  "metaPixel",
+  "gtm",
+  "ga4",
+  "googleAds",
+  "tiktok",
+  "rdStation",
+  "hotjar",
+  "clarity",
+  "chat",
+  "plataforma",
+] as const;
+
+/** Tiles currently being read, based on the last completed enrichment stage. */
+export function scanningSignalIds(
+  stage: LeadEnrichment["stage"] | null | undefined,
+  qualifying: boolean,
+): string[] {
+  if (!qualifying) return [];
+  if (!stage || stage === "domain") return ["site"];
+  if (stage === "home") return [...SCAN_HOME_IDS];
+  if (stage === "site") return ["atualizacao"];
+  return [];
+}
+
+function pendingSignal(
+  id: string,
+  group: AuditGroup,
+  mark: { name: string; logo: string; initials: string; accent: string },
+): AuditSignal {
+  return signal({
+    id,
+    group,
+    ...mark,
+    found: false,
+    unverified: true,
+    href: null,
+    openLabel: null,
+    value: PENDING_VALUE,
+    hint: PENDING_HINT,
+  });
+}
+
+export function emptyAuditSignals(): AuditSignal[] {
+  return [
+    pendingSignal("site", "presenca", MARK.site),
+    pendingSignal("instagram", "presenca", MARK.instagram),
+    pendingSignal("facebook", "presenca", MARK.facebook),
+    pendingSignal("linkedin", "presenca", MARK.linkedin),
+    pendingSignal("youtube", "presenca", MARK.youtube),
+    pendingSignal("whatsapp", "presenca", MARK.whatsapp),
+    pendingSignal("atualizacao", "presenca", MARK.atualizacao),
+    pendingSignal("metaPixel", "ferramentas", MARK.metaPixel),
+    pendingSignal("gtm", "ferramentas", MARK.gtm),
+    pendingSignal("ga4", "ferramentas", MARK.ga4),
+    pendingSignal("googleAds", "ferramentas", MARK.googleAds),
+    pendingSignal("tiktok", "ferramentas", MARK.tiktok),
+    pendingSignal("rdStation", "ferramentas", MARK.rdStation),
+    pendingSignal("hotjar", "ferramentas", MARK.hotjar),
+    pendingSignal("clarity", "ferramentas", MARK.clarity),
+    pendingSignal("chat", "ferramentas", GENERIC_CHAT),
+    pendingSignal("plataforma", "ferramentas", GENERIC_PLATFORM),
+  ];
+}
+
+export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
+  const confirmed = e.domain_status === "confirmado";
+  const year = new Date().getFullYear();
+  const copyright = e.freshness.copyrightYear;
+  const hasMeasurement = e.tech.metaPixel || e.tech.gtm;
+  const hasPaidSignal = e.tech.metaPixel || e.tech.googleAds;
+  const igAds = adsLibraryUrl(e.socials.instagram);
+  const platform =
+    (e.tech.plataforma && PLATFORM_MARK[e.tech.plataforma]) || GENERIC_PLATFORM;
+  const chat = (e.tech.chat && CHAT_MARK[e.tech.chat]) || GENERIC_CHAT;
+
+  const siteHint =
+    e.domain_status === "confirmado"
+      ? "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
+      : e.domain_status === "nao_confirmado"
+        ? "Achei este domínio, mas ainda sem confirmação de que é da empresa."
+        : "Sem site encontrado — dá para abrir a ligação por isso.";
+
+  const atualizacao =
+    !confirmed
+      ? {
+          found: false,
+          unverified: true,
+          value: "NÃO VERIFICADO",
+          hint: "Só lemos o rodapé quando o site está confirmado.",
+        }
+      : typeof copyright === "number" && copyright <= year - 2
+        ? {
+            found: false,
+            unverified: false,
+            value: `rodapé com ${copyright}`,
+            hint: `Rodapé ainda em ${copyright}.`,
+          }
+        : typeof copyright === "number"
+          ? {
+              found: true,
+              unverified: false,
+              value: `rodapé com ${copyright}`,
+              hint: "Rodapé recente.",
+            }
+          : {
+              found: false,
+              unverified: true,
+              value: "NÃO ENCONTRADO",
+              hint: "Não achei o ano no rodapé.",
+            };
+
+  return [
+    signal({
+      id: "site",
+      group: "presenca",
+      ...MARK.site,
+      found: e.domain_status !== "nao_encontrado",
+      unverified: e.domain_status === "nao_confirmado",
+      href: siteHref(e.domain),
+      openLabel: e.domain ? "Abrir site" : null,
+      value: e.domain ?? "NÃO ENCONTRADO",
+      hint: siteHint,
+      note: siteNote(e),
+    }),
+    signal({
+      id: "instagram",
+      group: "presenca",
+      ...MARK.instagram,
+      found: Boolean(e.socials.instagram),
+      unverified: !confirmed && !e.socials.instagram,
+      href: absUrl(e.socials.instagram, "instagram.com"),
+      openLabel: e.socials.instagram ? "Abrir Instagram" : null,
+      value: instagramValue(e.socials.instagram),
+      hint: e.socials.instagram
+        ? "Perfil linkado no site."
+        : confirmed
+          ? "Site sem Instagram linkado."
+          : "Só conferimos redes quando o site está confirmado.",
+      links: igAds
+        ? [{ label: "Biblioteca de Anúncios", href: igAds }]
+        : [],
+    }),
+    signal({
+      id: "facebook",
+      group: "presenca",
+      ...MARK.facebook,
+      found: Boolean(e.socials.facebook),
+      unverified: !e.socials.facebook,
+      href: absUrl(e.socials.facebook, "facebook.com"),
+      openLabel: e.socials.facebook ? "Abrir Facebook" : null,
+      value: e.socials.facebook ?? "NÃO ENCONTRADO",
+      hint: e.socials.facebook
+        ? "Página linkada no site."
+        : "Facebook não apareceu nos links do site.",
+    }),
+    signal({
+      id: "linkedin",
+      group: "presenca",
+      ...MARK.linkedin,
+      found: Boolean(e.socials.linkedin),
+      unverified: !e.socials.linkedin,
+      href: absUrl(e.socials.linkedin, "linkedin.com"),
+      openLabel: e.socials.linkedin ? "Abrir LinkedIn" : null,
+      value: e.socials.linkedin ?? "NÃO ENCONTRADO",
+      hint: e.socials.linkedin
+        ? "Perfil linkado no site."
+        : "LinkedIn não apareceu nos links do site.",
+    }),
+    signal({
+      id: "youtube",
+      group: "presenca",
+      ...MARK.youtube,
+      found: Boolean(e.socials.youtube),
+      unverified: !e.socials.youtube,
+      href: absUrl(e.socials.youtube, "youtube.com"),
+      openLabel: e.socials.youtube ? "Abrir YouTube" : null,
+      value: e.socials.youtube ?? "NÃO ENCONTRADO",
+      hint: e.socials.youtube
+        ? "Canal linkado no site."
+        : "YouTube não apareceu nos links do site.",
+    }),
+    signal({
+      id: "whatsapp",
+      group: "presenca",
+      ...MARK.whatsapp,
+      found: Boolean(e.whatsapp),
+      unverified: !confirmed && !e.whatsapp,
+      href: whatsappHref(e.whatsapp),
+      openLabel: e.whatsapp ? "Abrir WhatsApp" : null,
+      value: whatsappValue(e.whatsapp),
+      hint: e.whatsapp
+        ? "Canal de WhatsApp no site."
+        : confirmed
+          ? "não achei um canal de WhatsApp no site de vocês."
+          : "Só conferimos WhatsApp do site quando o domínio está confirmado.",
+    }),
+    signal({
+      id: "atualizacao",
+      group: "presenca",
+      ...MARK.atualizacao,
+      found: atualizacao.found,
+      unverified: atualizacao.unverified,
+      href: siteHref(e.domain),
+      openLabel: e.domain ? "Abrir site" : null,
+      value: atualizacao.value,
+      hint: atualizacao.hint,
+    }),
+    signal({
+      id: "metaPixel",
+      group: "ferramentas",
+      ...MARK.metaPixel,
+      found: confirmed && e.tech.metaPixel,
+      unverified: !confirmed || (confirmed && !e.tech.metaPixel && hasMeasurement),
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.metaPixel
+          ? "pixel detectado"
+          : "sem pixel",
+      hint: !confirmed
+        ? "Só conferimos pixel quando o site está confirmado."
+        : e.tech.metaPixel
+          ? paidMediaHint(true)
+          : hasMeasurement
+            ? "GTM no ar; Meta Pixel não apareceu no HTML."
+            : "Site no ar sem mensuração — dá para abrir a ligação por isso.",
+    }),
+    signal({
+      id: "gtm",
+      group: "ferramentas",
+      ...MARK.gtm,
+      found: confirmed && e.tech.gtm,
+      unverified: !confirmed || (confirmed && !e.tech.gtm && hasMeasurement),
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.gtm
+          ? "GTM detectado"
+          : "sem GTM",
+      hint: !confirmed
+        ? "Só conferimos GTM quando o site está confirmado."
+        : e.tech.gtm
+          ? "Google Tag Manager no HTML."
+          : hasMeasurement
+            ? "Pixel no ar; GTM não apareceu no HTML."
+            : "Site no ar sem mensuração — dá para abrir a ligação por isso.",
+    }),
+    signal({
+      id: "ga4",
+      group: "ferramentas",
+      ...MARK.ga4,
+      found: confirmed && e.tech.ga4,
+      unverified: !confirmed || !e.tech.ga4,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.ga4
+          ? "GA4 detectado"
+          : "sem GA4",
+      hint: !confirmed
+        ? "Só conferimos GA4 quando o site está confirmado."
+        : e.tech.ga4
+          ? "Google Analytics 4 no HTML."
+          : "GA4 não apareceu no HTML.",
+    }),
+    signal({
+      id: "googleAds",
+      group: "ferramentas",
+      ...MARK.googleAds,
+      found: confirmed && e.tech.googleAds,
+      unverified: !confirmed || (confirmed && !e.tech.googleAds && hasPaidSignal),
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.googleAds
+          ? "tag AW detectada"
+          : "sem tag AW",
+      hint: !confirmed
+        ? "Só conferimos mídia paga quando o site está confirmado."
+        : e.tech.googleAds
+          ? paidMediaHint(true)
+          : hasPaidSignal
+            ? "Pixel no ar; tag do Google Ads não apareceu."
+            : paidMediaHint(false),
+    }),
+    signal({
+      id: "tiktok",
+      group: "ferramentas",
+      ...MARK.tiktok,
+      found: confirmed && e.tech.tiktokPixel,
+      unverified: !confirmed || !e.tech.tiktokPixel,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.tiktokPixel
+          ? "pixel detectado"
+          : "sem pixel",
+      hint: !confirmed
+        ? "Só conferimos o pixel do TikTok quando o site está confirmado."
+        : e.tech.tiktokPixel
+          ? "Pixel do TikTok no HTML."
+          : "Pixel do TikTok não apareceu no HTML.",
+    }),
+    signal({
+      id: "rdStation",
+      group: "ferramentas",
+      ...MARK.rdStation,
+      found: confirmed && e.tech.rdStation,
+      unverified: !confirmed || !e.tech.rdStation,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.rdStation
+          ? "RD Station detectado"
+          : "sem RD Station",
+      hint: !confirmed
+        ? "Só conferimos RD Station quando o site está confirmado."
+        : e.tech.rdStation
+          ? "Script da RD Station no HTML."
+          : "RD Station não apareceu no HTML.",
+    }),
+    signal({
+      id: "hotjar",
+      group: "ferramentas",
+      ...MARK.hotjar,
+      found: confirmed && e.tech.hotjar,
+      unverified: !confirmed || !e.tech.hotjar,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.hotjar
+          ? "Hotjar detectado"
+          : "sem Hotjar",
+      hint: !confirmed
+        ? "Só conferimos Hotjar quando o site está confirmado."
+        : e.tech.hotjar
+          ? "Hotjar no HTML."
+          : "Hotjar não apareceu no HTML.",
+    }),
+    signal({
+      id: "clarity",
+      group: "ferramentas",
+      ...MARK.clarity,
+      found: confirmed && e.tech.clarity,
+      unverified: !confirmed || !e.tech.clarity,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.clarity
+          ? "Clarity detectado"
+          : "sem Clarity",
+      hint: !confirmed
+        ? "Só conferimos Clarity quando o site está confirmado."
+        : e.tech.clarity
+          ? "Microsoft Clarity no HTML."
+          : "Clarity não apareceu no HTML.",
+    }),
+    signal({
+      id: "chat",
+      group: "ferramentas",
+      name: e.tech.chat ?? chat.name,
+      logo: chat.logo,
+      initials: chat.initials,
+      accent: chat.accent,
+      found: confirmed && Boolean(e.tech.chat),
+      unverified: !confirmed || !e.tech.chat,
+      href: null,
+      openLabel: null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.chat ?? "NÃO ENCONTRADO",
+      hint: !confirmed
+        ? "Só conferimos chat no site quando o domínio está confirmado."
+        : e.tech.chat
+          ? `Widget ${e.tech.chat} no site.`
+          : "Nenhum chat no HTML.",
+    }),
+    signal({
+      id: "plataforma",
+      group: "ferramentas",
+      name: e.tech.plataforma ?? platform.name,
+      logo: platform.logo,
+      initials: platform.initials,
+      accent: platform.accent,
+      found: confirmed && Boolean(e.tech.plataforma),
+      unverified: !confirmed || !e.tech.plataforma,
+      href: siteHref(e.domain),
+      openLabel: e.domain && e.tech.plataforma ? "Abrir site" : null,
+      value: !confirmed
+        ? "NÃO VERIFICADO"
+        : e.tech.plataforma ?? "NÃO ENCONTRADO",
+      hint: !confirmed
+        ? "Só identificamos a plataforma quando o site está confirmado."
+        : e.tech.plataforma
+          ? `Site em ${e.tech.plataforma}.`
+          : "Não identifiquei a plataforma.",
+    }),
+  ];
+}

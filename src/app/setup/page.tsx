@@ -1,0 +1,338 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { AppShell } from "@/components/AppShell";
+import { GlassCard } from "@/components/GlassCard";
+import { Hint } from "@/components/Hint";
+import { PhotoPicker } from "@/components/PhotoPicker";
+import { ScriptPreview } from "@/components/ScriptPreview";
+import { SectionTitle } from "@/components/SectionTitle";
+import { BACK } from "@/lib/back";
+import { COPY } from "@/lib/copy";
+import {
+  CALL_GOAL_OPTIONS,
+  DEFAULT_CALL_GOAL,
+  DEFAULT_MEETING_MINUTES,
+  isTratamento,
+} from "@/lib/pilot-profile";
+import type { Profile, Tratamento } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const STEPS = ["Capacete", "Pista", "Oferta", "Volta"] as const;
+
+type Draft = {
+  como_chama: string;
+  tratamento: Tratamento;
+  empresa_usuario: string;
+  cidade_usuario: string;
+  especialidade: string;
+  area: string;
+  promessa: string;
+  duracao_reuniao: number;
+  meta_ligacoes_dia: number;
+};
+
+function draftFrom(p: Profile): Draft {
+  return {
+    como_chama: p.como_chama ?? p.nome?.split(/\s+/)[0] ?? "",
+    tratamento: isTratamento(p.tratamento) ? p.tratamento : "o",
+    empresa_usuario: p.empresa_usuario ?? "",
+    cidade_usuario: p.cidade_usuario ?? "",
+    especialidade: p.especialidade ?? "",
+    area: p.area ?? "",
+    promessa: p.promessa ?? "",
+    duracao_reuniao: p.duracao_reuniao || DEFAULT_MEETING_MINUTES,
+    meta_ligacoes_dia: p.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
+  };
+}
+
+const fieldClass =
+  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
+
+export default function SetupPage() {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState<Draft | null>(null);
+
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile");
+      if (!res.ok) throw new Error("profile");
+      return (await res.json()) as Profile;
+    },
+  });
+
+  const profile = profileQuery.data;
+  const form = draft ?? (profile ? draftFrom(profile) : null);
+
+  const save = useMutation({
+    mutationFn: async (body: Partial<Profile>) => {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("save");
+      return (await res.json()) as Profile;
+    },
+    onSuccess: (p) => {
+      qc.setQueryData(["profile"], p);
+    },
+  });
+
+  const previewProfile = useMemo(() => {
+    if (!profile || !form) return null;
+    return { ...profile, ...form };
+  }, [profile, form]);
+
+  async function persist(extra: Partial<Profile> = {}) {
+    if (!form) return;
+    await save.mutateAsync({ ...form, ...extra });
+  }
+
+  async function skip() {
+    await save.mutateAsync({
+      onboarding_completed_at: new Date().toISOString(),
+    });
+    router.push("/box");
+  }
+
+  async function finish() {
+    await persist({ onboarding_completed_at: new Date().toISOString() });
+    router.push("/box");
+  }
+
+  if (!profile || !form || !previewProfile) {
+    return (
+      <AppShell title="Capacete" back={BACK.box}>
+        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell title="Capacete" back={BACK.box}>
+      <div className="mx-auto max-w-2xl">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+          Volta de formação {step + 1}/{STEPS.length}
+        </p>
+        <SectionTitle className="mt-2">Monte o capacete</SectionTitle>
+        <Hint className="mt-2">
+          Esses dados entram na Anatomia da Ligação. Pular deixa o script genérico.
+        </Hint>
+
+        <div className="mt-5 flex gap-2">
+          {STEPS.map((label, i) => (
+            <div key={label} className="flex-1">
+              <div
+                className={cn(
+                  "h-1 rounded-full",
+                  i <= step ? "bg-podium-yellow" : "bg-white/10",
+                )}
+              />
+              <p className="mt-1 hidden text-[10px] uppercase tracking-wider text-podium-muted sm:block">
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <GlassCard className="mt-6 space-y-5 p-5" highlight>
+          {step === 0 ? (
+            <>
+              <PhotoPicker
+                profile={profile}
+                onUploaded={(p) => qc.setQueryData(["profile"], p)}
+              />
+              <label className="block text-sm text-podium-gray">
+                Como você se chama na ligação
+                <Hint className="mt-0.5">{COPY.comoChama}</Hint>
+                <input
+                  value={form.como_chama}
+                  onChange={(e) =>
+                    setDraft({ ...form, como_chama: e.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+              <fieldset>
+                <legend className="text-sm text-podium-gray">
+                  Aqui é…
+                  <Hint className="mt-0.5">{COPY.tratamento}</Hint>
+                </legend>
+                <div className="mt-2 flex gap-2">
+                  {(["o", "a", "e"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDraft({ ...form, tratamento: t })}
+                      className={cn(
+                        "rounded-xl border px-4 py-2 text-sm font-bold",
+                        form.tratamento === t
+                          ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                          : "border-white/10 text-podium-gray",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </>
+          ) : null}
+
+          {step === 1 ? (
+            <>
+              <label className="block text-sm text-podium-gray">
+                Empresa
+                <input
+                  value={form.empresa_usuario}
+                  onChange={(e) =>
+                    setDraft({ ...form, empresa_usuario: e.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm text-podium-gray">
+                Cidade
+                <input
+                  value={form.cidade_usuario}
+                  onChange={(e) =>
+                    setDraft({ ...form, cidade_usuario: e.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+            </>
+          ) : null}
+
+          {step === 2 ? (
+            <>
+              <label className="block text-sm text-podium-gray">
+                Especialidade
+                <Hint className="mt-0.5">{COPY.especialidade}</Hint>
+                <input
+                  value={form.especialidade}
+                  onChange={(e) =>
+                    setDraft({ ...form, especialidade: e.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm text-podium-gray">
+                Área
+                <Hint className="mt-0.5">{COPY.area}</Hint>
+                <input
+                  value={form.area}
+                  onChange={(e) => setDraft({ ...form, area: e.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm text-podium-gray">
+                Promessa
+                <Hint className="mt-0.5">{COPY.promessa}</Hint>
+                <input
+                  value={form.promessa}
+                  onChange={(e) =>
+                    setDraft({ ...form, promessa: e.target.value })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm text-podium-gray">
+                Duração da reunião (minutos)
+                <input
+                  type="number"
+                  min={5}
+                  max={120}
+                  value={form.duracao_reuniao}
+                  onChange={(e) =>
+                    setDraft({
+                      ...form,
+                      duracao_reuniao: Number(e.target.value),
+                    })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+            </>
+          ) : null}
+
+          {step === 3 ? (
+            <>
+              <p className="text-sm text-podium-gray">Meta de ligações no dia</p>
+              <div className="flex flex-wrap gap-2">
+                {CALL_GOAL_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setDraft({ ...form, meta_ligacoes_dia: n })}
+                    className={cn(
+                      "rounded-xl border px-4 py-2 text-sm font-bold",
+                      form.meta_ligacoes_dia === n
+                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                        : "border-white/10 text-podium-gray",
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-podium-white">
+                Roteiro pronto. O Box passa a cobrar a volta — ligar, não só
+                montar lista.
+              </p>
+            </>
+          ) : null}
+
+          <ScriptPreview profile={previewProfile} />
+        </GlassCard>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => void skip()}
+            className="text-sm text-podium-muted hover:text-podium-white"
+          >
+            Pular por agora
+          </button>
+          <div className="flex gap-2">
+            {step > 0 ? (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s - 1)}
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray"
+              >
+                Voltar
+              </button>
+            ) : null}
+            {step < STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void persist();
+                  setStep((s) => s + 1);
+                }}
+                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy"
+              >
+                Continuar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void finish()}
+                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy"
+              >
+                Ir para o Box
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </AppShell>
+  );
+}

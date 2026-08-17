@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+:root {
+  --podium-navy: #0b1a2e;
+  --podium-panel: #12263f;
+  --podium-panel-2: #183250;
+  --podium-yellow: #f5b301;
+  --podium-white: #ffffff;
+  --podium-gray: #c5cdd8;
+  --podium-muted: #7a8494;
+  --podium-success: #22c55e;
+  --background: var(--podium-navy);
+  --foreground: var(--podium-white);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-podium-navy: var(--podium-navy);
+  --color-podium-panel: var(--podium-panel);
+  --color-podium-panel-2: var(--podium-panel-2);
+  --color-podium-yellow: var(--podium-yellow);
+  --color-podium-white: var(--podium-white);
+  --color-podium-gray: var(--podium-gray);
+  --color-podium-muted: var(--podium-muted);
+  --color-podium-success: var(--podium-success);
+  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--podium-muted) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--podium-muted);
+  border-radius: 999px;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--podium-navy);
+  color: var(--podium-white);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--podium-yellow) 40%, transparent);
+  color: var(--podium-navy);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+.race-grid {
+  background-image:
+    linear-gradient(to right, rgba(245, 179, 1, 0.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.race-grid-move {
+  animation: grid-drift 16s linear infinite;
+}
+
+@keyframes grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 48px;
+  }
+}
+
+@keyframes recommend-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 179, 1, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 179, 1, 0);
+  }
+}
+
+.recommend-pulse {
+  animation: recommend-pulse 1.8s ease-in-out infinite;
+}
+
+.recommend-pulse-once {
+  animation: recommend-pulse 1.8s ease-in-out 1;
+}
+
+@keyframes qr-scan-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 179, 1, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(245, 179, 1, 0);
+  }
+}
+
+.pix-qr-ring {
+  animation: qr-scan-ring 1.8s ease-in-out infinite;
+}
+
+.podium-checkered {
+  height: 12px;
+  transform-origin: left center;
+  background: repeating-conic-gradient(
+      var(--podium-navy) 0% 25%,
+      var(--podium-yellow) 0% 50%
+    )
+    0 0 / 12px 12px;
+  animation: podium-flag 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes podium-flag {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.podium-check-path {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: podium-check-draw 0.55s 0.2s ease forwards;
+}
+
+@keyframes podium-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes telemetry-run {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+
+.telemetry-bar {
+  height: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--podium-yellow) 22%, transparent);
+}
+
+.telemetry-bar::after {
+  content: "";
+  display: block;
+  height: 100%;
+  width: 28%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--podium-yellow),
+    transparent
+  );
+  box-shadow: 0 0 12px rgba(245, 179, 1, 0.55);
+  animation: telemetry-run 1.1s ease-in-out infinite;
+}
+
+@keyframes audit-gap-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, #fbbf24 35%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, #fbbf24 80%, transparent);
+  }
+}
+
+.audit-gap-pulse {
+  animation: audit-gap-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes audit-scan-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, #f5b301 35%, transparent);
+    background-color: color-mix(in srgb, #f5b301 4%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, #f5b301 85%, transparent);
+    background-color: color-mix(in srgb, #f5b301 12%, transparent);
+  }
+}
+
+.audit-scan-pulse {
+  animation: audit-scan-pulse 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .race-grid-move,
+  .recommend-pulse,
+  .recommend-pulse-once,
+  .pix-qr-ring,
+  .podium-checkered,
+  .podium-check-path,
+  .telemetry-bar::after,
+  .audit-gap-pulse,
+  .audit-scan-pulse {
+    animation: none;
+  }
+
+  .audit-gap-pulse {
+    animation: none;
+    border-color: color-mix(in srgb, #fbbf24 55%, transparent);
+  }
+
+  .pix-qr-ring {
+    box-shadow: 0 0 0 2px rgba(245, 179, 1, 0.35);
+  }
+
+  .podium-checkered {
+    opacity: 1;
+    clip-path: none;
+  }
+
+  .podium-check-path {
+    stroke-dashoffset: 0;
+  }
+
+  .telemetry-bar::after {
+    width: 100%;
+    background: var(--podium-yellow);
+  }
+
+  html:has(body) .motion-safe-lift {
+    transform: none !important;
+  }
+}

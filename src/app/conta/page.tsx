@@ -1,0 +1,347 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AppShell } from "@/components/AppShell";
+import { GlassCard } from "@/components/GlassCard";
+import { Hint } from "@/components/Hint";
+import { PhotoPicker } from "@/components/PhotoPicker";
+import { ScriptPreview } from "@/components/ScriptPreview";
+import { SectionTitle } from "@/components/SectionTitle";
+import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
+import { COPY } from "@/lib/copy";
+import { BACK } from "@/lib/back";
+import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
+import {
+  CALL_GOAL_OPTIONS,
+  DEFAULT_CALL_GOAL,
+  displayName,
+  isTratamento,
+  profileReadiness,
+} from "@/lib/pilot-profile";
+import type { BillingOrder, BillingSubscription, CreditBalance, LedgerEntry } from "@/lib/billing/types";
+import type { Profile } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+type BillingMe = {
+  balance: CreditBalance;
+  subscription: BillingSubscription | null;
+  orders: BillingOrder[];
+  ledger: LedgerEntry[];
+};
+
+const fieldClass =
+  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
+
+export default function ContaPage() {
+  const qc = useQueryClient();
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile");
+      return (await res.json()) as Profile;
+    },
+  });
+
+  const billingQuery = useQuery({
+    queryKey: ["billing-me"],
+    queryFn: async () => {
+      const res = await fetch("/api/billing/me");
+      return (await res.json()) as BillingMe;
+    },
+  });
+
+  const save = useMutation({
+    mutationFn: async (body: Partial<Profile>) => {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      return (await res.json()) as Profile;
+    },
+    onSuccess: (p) => qc.setQueryData(["profile"], p),
+  });
+
+  const cancel = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/billing/cancel", { method: "POST" });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Não foi possível cancelar");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["billing-me"] }),
+  });
+
+  const p = profileQuery.data;
+  const billing = billingQuery.data;
+  const ready = p ? profileReadiness(p) : 0;
+
+  const fillCard = "hover:translate-y-0";
+
+  return (
+    <AppShell fill title="Conta" back={BACK.box}>
+      <SectionTitle className="shrink-0">Conta</SectionTitle>
+      {!p ? (
+        <div className="mt-6 min-h-0 flex-1 animate-pulse rounded-2xl bg-white/5" />
+      ) : (
+        <div className="mt-6 grid min-h-0 flex-1 gap-6 lg:grid-cols-2 lg:grid-rows-1">
+          <GlassCard className={cn("flex h-full flex-col space-y-4 p-6 md:p-8", fillCard)}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                  Capacete
+                </p>
+                <p className="mt-1 text-sm text-podium-muted">
+                  {ready}% pronto · entra na Anatomia da Ligação
+                </p>
+              </div>
+              <Link
+                href="/setup"
+                className="text-xs font-bold text-podium-yellow hover:underline"
+              >
+                Ritual de setup →
+              </Link>
+            </div>
+
+            <PhotoPicker
+              profile={p}
+              onUploaded={(next) => qc.setQueryData(["profile"], next)}
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/conexoes"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+              >
+                Conexões
+              </Link>
+              <Link
+                href="/planos"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+              >
+                Planos
+              </Link>
+              <Link
+                href="/admin/nichos"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-muted hover:border-white/20 hover:text-podium-white"
+              >
+                Admin
+              </Link>
+            </div>
+
+            <label className="block text-sm text-podium-gray">
+              Nome completo
+              <input
+                defaultValue={p.nome ?? ""}
+                onBlur={(e) => save.mutate({ nome: e.target.value })}
+                className={fieldClass}
+              />
+            </label>
+            <label className="block text-sm text-podium-gray">
+              Como se chama na ligação
+              <Hint className="mt-0.5">{COPY.comoChama}</Hint>
+              <input
+                defaultValue={p.como_chama ?? ""}
+                onBlur={(e) => save.mutate({ como_chama: e.target.value })}
+                className={fieldClass}
+              />
+            </label>
+            <fieldset>
+              <legend className="text-sm text-podium-gray">
+                Aqui é…
+                <Hint className="mt-0.5">{COPY.tratamento}</Hint>
+              </legend>
+              <div className="mt-2 flex gap-2">
+                {(["o", "a", "e"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => save.mutate({ tratamento: t })}
+                    className={cn(
+                      "rounded-xl border px-4 py-2 text-sm font-bold",
+                      (p.tratamento ?? "o") === t
+                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                        : "border-white/10 text-podium-gray",
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            {(
+              [
+                ["empresa_usuario", "Empresa", null],
+                ["cidade_usuario", "Cidade", null],
+                ["especialidade", "Especialidade", COPY.especialidade],
+                ["area", "Área", COPY.area],
+                ["promessa", "Promessa", COPY.promessa],
+              ] as const
+            ).map(([key, label, hint]) => (
+              <label key={key} className="block text-sm text-podium-gray">
+                {label}
+                {hint ? <Hint className="mt-0.5">{hint}</Hint> : null}
+                <input
+                  defaultValue={p[key] ?? ""}
+                  onBlur={(e) => save.mutate({ [key]: e.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+            ))}
+            <label className="block text-sm text-podium-gray">
+              Duração da reunião (minutos)
+              <input
+                type="number"
+                min={5}
+                max={120}
+                defaultValue={p.duracao_reuniao}
+                onBlur={(e) =>
+                  save.mutate({ duracao_reuniao: Number(e.target.value) })
+                }
+                className={fieldClass}
+              />
+            </label>
+            <div>
+              <p className="text-sm text-podium-gray">Meta de ligações no dia</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CALL_GOAL_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => save.mutate({ meta_ligacoes_dia: n })}
+                    className={cn(
+                      "rounded-xl border px-4 py-2 text-sm font-bold",
+                      (p.meta_ligacoes_dia || DEFAULT_CALL_GOAL) === n
+                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                        : "border-white/10 text-podium-gray",
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ScriptPreview profile={p} />
+            <Hint>{COPY.anatomiaDaLigacao}</Hint>
+            <p className="pt-2 text-sm text-podium-muted">
+              Discador, VOIP e CRM ficam em{" "}
+              <Link href="/conexoes" className="font-bold text-podium-yellow">
+                Conexões
+              </Link>
+              .
+            </p>
+          </GlassCard>
+
+          <div className="flex h-full min-h-0 flex-col gap-4">
+            <GlassCard className={cn("shrink-0 p-6", fillCard)} highlight>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                Cobrança
+              </p>
+              <p className="mt-3 text-4xl font-extrabold text-podium-yellow md:text-5xl">
+                {(billing?.balance.total ?? p.creditos).toLocaleString("pt-BR")}
+              </p>
+              <p className="mt-1 text-sm text-podium-muted">
+                {billing?.balance.plan ?? 0} do plano · {billing?.balance.pack ?? 0} de
+                recarga
+              </p>
+              {billing?.subscription?.cancelAtPeriodEnd ? (
+                <p className="mt-2 text-xs text-podium-yellow">
+                  Cancela no fim do ciclo.
+                </p>
+              ) : null}
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Link
+                  href="/planos"
+                  className="rounded-xl bg-podium-yellow px-4 py-2.5 text-xs font-extrabold text-podium-navy"
+                >
+                  Trocar plano / Recarregar
+                </Link>
+                {billing?.subscription &&
+                billing.subscription.status === "active" &&
+                !billing.subscription.cancelAtPeriodEnd ? (
+                  <button
+                    type="button"
+                    onClick={() => cancel.mutate()}
+                    className="rounded-xl border border-white/15 px-4 py-2.5 text-xs font-bold text-podium-gray"
+                  >
+                    Cancelar no fim do ciclo
+                  </button>
+                ) : null}
+              </div>
+            </GlassCard>
+
+            <GlassCard className={cn("flex min-h-0 flex-1 flex-col p-6", fillCard)}>
+              <p className="shrink-0 text-sm font-bold">Faturas</p>
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {(billing?.orders ?? []).slice(0, 8).length === 0 ? (
+                  <p className="text-sm text-podium-muted">Nenhuma fatura ainda.</p>
+                ) : (
+                  (billing?.orders ?? []).slice(0, 8).map((o) => {
+                    const item = getCatalogItem(o.sku);
+                    return (
+                      <div
+                        key={o.id}
+                        className="flex items-center justify-between gap-2 text-sm text-podium-gray"
+                      >
+                        <span>
+                          {item?.nome ?? o.sku} · {o.method}
+                        </span>
+                        <span>
+                          {formatBrl(o.amountCents)} · {o.status}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </GlassCard>
+
+            <GlassCard className={cn("flex min-h-0 flex-1 flex-col p-6", fillCard)}>
+              <p className="shrink-0 text-sm font-bold">Últimos créditos</p>
+              <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {(billing?.ledger ?? []).slice(0, 8).length === 0 ? (
+                  <p className="text-sm text-podium-muted">Sem movimentos.</p>
+                ) : (
+                  (billing?.ledger ?? []).slice(0, 8).map((e) => (
+                    <div
+                      key={e.id}
+                      className="flex items-center justify-between text-sm text-podium-gray"
+                    >
+                      <span>{e.reason}</span>
+                      <span>
+                        {e.type === "debit" ? "−" : "+"}
+                        {e.amount}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </GlassCard>
+
+            <GlassCard className={cn("shrink-0 p-6", fillCard)}>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                Dúvidas e suporte
+              </p>
+              <p className="mt-2 text-sm text-podium-gray">
+                Respostas rápidas antes de chamar o atendimento.
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/duvidas"
+                  className="rounded-xl border border-white/15 px-4 py-2.5 text-xs font-bold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+                >
+                  Ver dúvidas
+                </Link>
+                <SupportWhatsAppButton
+                  name={displayName(p)}
+                  pathname="/conta"
+                  className="px-4 py-2.5 text-xs"
+                />
+              </div>
+            </GlassCard>
+          </div>
+        </div>
+      )}
+    </AppShell>
+  );
+}

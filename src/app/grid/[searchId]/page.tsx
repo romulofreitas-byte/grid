@@ -1,0 +1,899 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookmarkPlus, Check, Send, SlidersHorizontal } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
+import { CallButton } from "@/components/CallButton";
+import { ContactSealBadge } from "@/components/ContactSeal";
+import { EmptyValue } from "@/components/EmptyValue";
+import { FilterSummary } from "@/components/FilterSummary";
+import { GlassCard } from "@/components/GlassCard";
+import { PositionBadge } from "@/components/PositionBadge";
+import { SaveListDialog } from "@/components/SaveListDialog";
+import { SectionTitle } from "@/components/SectionTitle";
+import { SelectToggle } from "@/components/SelectToggle";
+import { COPY } from "@/lib/copy";
+import { gridBack, largadaEditHref, leadHref, parseGridFrom } from "@/lib/back";
+import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
+import { sealLabel } from "@/lib/contact-confidence";
+import { formatCnae, formatPhone } from "@/lib/format";
+import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
+import { ExportDownload } from "@/components/ExportDownload";
+import { pickCallConnection } from "@/lib/integrations/call-target";
+import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import type { IntegrationJobRecord } from "@/lib/integrations/records";
+import { cn } from "@/lib/utils";
+
+async function fetchPage(searchId: string, cursor: number) {
+  const res = await fetch(`/api/grid/${searchId}?cursor=${cursor}&limit=50`, {
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error("Não foi possível carregar o grid");
+  return res.json() as Promise<{
+    rows: GridRow[];
+    nextCursor: number | null;
+    total: number;
+    unaudited: number;
+  }>;
+}
+
+type EnrichBody = {
+  cnpjs?: string[];
+  scope?: "first_unaudited" | "all_unaudited";
+};
+
+function isInteractiveTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("a, button, input"))
+  );
+}
+
+function jobChip(status: GridRow["enrichmentStatus"]) {
+  if (status === "pending") return "na fila";
+  if (status === "running") return "cruzando";
+  if (status === "done" || status === "skipped") return "cruzado";
+  if (status === "failed") return "não deu";
+  return null;
+}
+
+function rowSourceLabel(row: GridRow): string {
+  return jobChip(row.enrichmentStatus) ?? (row.hasAudit ? "Cruzado" : "Receita");
+}
+
+function RowSourceStatus({
+  row,
+  className,
+}: {
+  row: GridRow;
+  className?: string;
+}) {
+  const label = rowSourceLabel(row);
+  const crossed = label === "Cruzado" || label === "cruzado";
+  return (
+    <p
+      className={cn(
+        "text-[10px] uppercase tracking-wide",
+        crossed ? "text-podium-yellow" : "text-podium-muted",
+        className,
+      )}
+    >
+      {label}
+    </p>
+  );
+}
+
+function GridRowActions({
+  row,
+  searchId,
+  from,
+  callConnection,
+  selected,
+  onToggle,
+}: {
+  row: GridRow;
+  searchId: string;
+  from: ReturnType<typeof parseGridFrom>;
+  callConnection: ReturnType<typeof pickCallConnection>;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
+  const name = row.nomeFantasia || row.razaoSocial;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <SelectToggle
+        pressed={selected}
+        disabled={row.hasAudit}
+        onToggle={onToggle}
+        idleLabel="Selecionar"
+        pressedLabel="Selecionada"
+        ariaLabel={
+          selected ? `Selecionada ${name}` : `Selecionar ${name}`
+        }
+      />
+      <Link
+        href={leadHref(row.cnpj, searchId, from)}
+        className="inline-flex h-9 items-center rounded-xl bg-podium-yellow px-3 text-xs font-extrabold text-podium-navy hover:brightness-110"
+      >
+        Abrir
+      </Link>
+      <CallButton
+        telHref={telHref}
+        connection={callConnection}
+        cnpj={row.cnpj}
+        searchId={searchId}
+        to={row.telefone ? `+55${row.telefone}` : undefined}
+        variant="grid"
+      />
+    </div>
+  );
+}
+
+export default function GridPage() {
+  const params = useParams<{ searchId: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchId = params.searchId;
+  const from = parseGridFrom(searchParams.get("from"));
+  const qc = useQueryClient();
+  const [listName, setListName] = useState("");
+  const [renamed, setRenamed] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
+  const [connectionId, setConnectionId] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const searchQuery = useQuery({
+    queryKey: ["search", searchId],
+    queryFn: async () => {
+      const res = await fetch(`/api/search/${searchId}`);
+      if (!res.ok) throw new Error("Busca não encontrada");
+      return (await res.json()) as Search;
+    },
+  });
+
+  const search = searchQuery.data;
+
+  useEffect(() => {
+    if (search?.nome) setListName(search.nome);
+  }, [search?.nome]);
+
+  const saveMutation = useMutation<Search, Error, { nome: string; saved?: boolean }>({
+    mutationFn: async (body) => {
+      const res = await fetch(`/api/search/${searchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Não foi possível salvar");
+      return (await res.json()) as Search;
+    },
+    onSuccess: (data, variables) => {
+      qc.setQueryData(["search", searchId], data);
+      setSaveOpen(false);
+      if (variables.saved == null) {
+        setRenamed(true);
+        setTimeout(() => setRenamed(false), 1800);
+      }
+    },
+  });
+
+  const connectionsQuery = useQuery({
+    queryKey: ["integration-connections"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/connections");
+      if (!res.ok) return { connections: [] as IntegrationConnectionPublic[] };
+      return (await res.json()) as { connections: IntegrationConnectionPublic[] };
+    },
+  });
+  const callConnection = pickCallConnection(
+    connectionsQuery.data?.connections ?? [],
+  );
+
+  const pushJobsQuery = useQuery({
+    queryKey: ["integration-jobs", searchId],
+    queryFn: async () => {
+      const res = await fetch(`/api/integrations/jobs?searchId=${searchId}`);
+      return (await res.json()) as { jobs: IntegrationJobRecord[] };
+    },
+    refetchInterval: (q) => {
+      const list = q.state.data?.jobs ?? [];
+      return list.some((j) => j.status === "pending" || j.status === "running")
+        ? 3000
+        : false;
+    },
+  });
+
+  const [creditHint, setCreditHint] = useState<string | null>(null);
+
+  const pushMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch("/api/integrations/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchId, connectionId: id }),
+      });
+      const body = (await res.json()) as {
+        error?: string;
+        needed?: number;
+        available?: number;
+        charged?: number;
+        skipped?: number;
+      };
+      if (res.status === 402) {
+        throw new Error(
+          `Faltam créditos (${body.available ?? 0} disponíveis). Recarregue ou mude de plano.`,
+        );
+      }
+      if (!res.ok) throw new Error(body.error ?? "Não foi possível enviar");
+      return body;
+    },
+    onSuccess: (body) => {
+      setCreditHint(
+        body.charged
+          ? `${body.charged} crédito(s) nesta lista` +
+              (body.skipped ? ` · ${body.skipped} já estavam pagos` : "")
+          : body.skipped
+            ? "Já estava pago — reenvio grátis"
+            : null,
+      );
+      void qc.invalidateQueries({ queryKey: ["integration-jobs", searchId] });
+      void qc.invalidateQueries({ queryKey: ["profile"] });
+      void qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+    onError: (err: Error) => setCreditHint(err.message),
+  });
+
+  const jobsQuery = useQuery({
+    queryKey: ["enrich-jobs", searchId],
+    queryFn: async () => {
+      const res = await fetch(`/api/enrich?searchId=${searchId}`);
+      return (await res.json()) as { jobs: EnrichmentJob[] };
+    },
+    refetchInterval: (q) => {
+      const list = q.state.data?.jobs ?? [];
+      return list.some((j) => j.status === "pending" || j.status === "running")
+        ? 3000
+        : false;
+    },
+  });
+
+  const enrichMutation = useMutation({
+    mutationFn: async (body: EnrichBody) => {
+      const res = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ searchId, ...body }),
+      });
+      const json = (await res.json()) as { error?: string; upgradeUrl?: string };
+      if (res.status === 402 || res.status === 403) {
+        throw new Error(json.error ?? "Créditos insuficientes");
+      }
+      if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
+      return json;
+    },
+    onSuccess: () => {
+      setCreditHint(null);
+      setSelected(new Set());
+      setConfirmAll(false);
+      void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
+      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      void qc.invalidateQueries({ queryKey: ["profile"] });
+      void qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+    onError: (err: Error) => {
+      setCreditHint(err.message);
+    },
+  });
+
+  const query = useInfiniteQuery({
+    queryKey: ["grid", searchId],
+    queryFn: ({ pageParam }) => fetchPage(searchId, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
+
+  const jobs = jobsQuery.data?.jobs ?? [];
+  const doneJobs = jobs.filter((j) => j.status === "done" || j.status === "skipped").length;
+  const failedJobs = jobs.filter((j) => j.status === "failed").length;
+  const activeJobs = jobs.filter(
+    (j) => j.status === "pending" || j.status === "running",
+  ).length;
+
+  const jobByCnpj = useMemo(() => {
+    const map = new Map<string, EnrichmentJob>();
+    for (const job of jobs) map.set(job.cnpj, job);
+    return map;
+  }, [jobs]);
+
+  const rows = useMemo(() => {
+    const raw = query.data?.pages.flatMap((p) => p.rows) ?? [];
+    return raw.map((row) => {
+      const job = jobByCnpj.get(row.cnpj);
+      if (!job) return row;
+      const done = job.status === "done" || job.status === "skipped";
+      return {
+        ...row,
+        enrichmentStatus: job.status,
+        hasAudit: done ? true : row.hasAudit,
+      };
+    });
+  }, [query.data, jobByCnpj]);
+
+  const total = query.data?.pages[0]?.total ?? 0;
+  const unaudited = query.data?.pages[0]?.unaudited ?? 0;
+
+  const visibleUnaudited = useMemo(
+    () => rows.filter((r) => !r.hasAudit),
+    [rows],
+  );
+  const selectedCount = selected.size;
+  const allVisibleSelected =
+    visibleUnaudited.length > 0 &&
+    visibleUnaudited.every((r) => selected.has(r.cnpj));
+  const selectedCost = selectedCount * ENRICH_CREDIT_COST;
+  const allCost = unaudited * ENRICH_CREDIT_COST;
+
+  const prevDoneJobs = useRef<number | null>(null);
+  useEffect(() => {
+    prevDoneJobs.current = null;
+  }, [searchId]);
+  useEffect(() => {
+    if (jobs.length === 0) return;
+    if (prevDoneJobs.current == null) {
+      prevDoneJobs.current = doneJobs;
+      return;
+    }
+    if (doneJobs <= prevDoneJobs.current) return;
+    prevDoneJobs.current = doneJobs;
+    void qc.invalidateQueries(
+      { queryKey: ["grid", searchId] },
+      { cancelRefetch: false },
+    );
+  }, [doneJobs, jobs.length, qc, searchId]);
+
+  function toggleRow(row: GridRow) {
+    if (row.hasAudit) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(row.cnpj)) next.delete(row.cnpj);
+      else next.add(row.cnpj);
+      return next;
+    });
+  }
+
+  function activateRow(row: GridRow) {
+    if (selected.size > 0 && !row.hasAudit) {
+      toggleRow(row);
+      return;
+    }
+    router.push(leadHref(row.cnpj, searchId, from));
+  }
+
+  function onRowClick(e: MouseEvent, row: GridRow) {
+    if (isInteractiveTarget(e.target)) return;
+    activateRow(row);
+  }
+
+  function toggleVisible() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const r of visibleUnaudited) next.delete(r.cnpj);
+      } else {
+        for (const r of visibleUnaudited) next.add(r.cnpj);
+      }
+      return next;
+    });
+  }
+
+  async function markAllUnaudited() {
+    setMarkingAll(true);
+    try {
+      const res = await fetch(`/api/grid/${searchId}?unauditedIds=1`);
+      const json = (await res.json()) as { cnpjs?: string[] };
+      setSelected(new Set(json.cnpjs ?? []));
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  return (
+    <AppShell title="Grid" back={gridBack(from, searchId)}>
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <SectionTitle>Grid de resultados</SectionTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            {searchQuery.isLoading ? (
+              <div className="h-9 w-28 animate-pulse rounded-xl bg-white/5" />
+            ) : search?.saved ? (
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSaveOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-podium-success/15 px-3 py-2 text-xs font-bold text-podium-success hover:bg-podium-success/25"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {renamed ? "Nome atualizado" : COPY.listaSalva}
+                </button>
+                <Link
+                  href="/listas"
+                  className="text-xs font-bold text-podium-muted hover:text-podium-yellow"
+                >
+                  Minhas listas
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSaveOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110"
+              >
+                <BookmarkPlus className="h-3.5 w-3.5" />
+                {COPY.salvarLista}
+              </button>
+            )}
+            <Link
+              href={largadaEditHref(searchId, from)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {COPY.ajustarNichoQualidade}
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-baseline gap-1.5 rounded-xl bg-white/5 px-3 py-1.5">
+            <span className="text-lg font-extrabold tabular-nums leading-none">
+              {total}
+            </span>
+            <span className="text-xs font-bold text-podium-muted">leads</span>
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-1.5">
+            <span className="inline-flex items-center justify-center rounded-lg bg-podium-yellow px-2 py-0.5 text-xs font-bold text-podium-navy">
+              P1
+            </span>
+            <span className="text-xs font-bold text-podium-gray">
+              {COPY.gridLigarOrdem}
+            </span>
+          </span>
+          {search?.filtros ? (
+            <FilterSummary filters={search.filtros} className="contents" />
+          ) : null}
+        </div>
+
+        {jobs.length > 0 ? (
+          <p className="text-xs text-podium-gray">
+            Qualificando {doneJobs}/{jobs.length}
+            {failedJobs ? ` · ${failedJobs} falhas` : ""}
+            {activeJobs ? " · em andamento" : ""}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            title={`${ENRICH_CREDIT_COST} créditos cada`}
+            disabled={enrichMutation.isPending || unaudited === 0}
+            onClick={() =>
+              enrichMutation.mutate({ scope: "first_unaudited" })
+            }
+            className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
+          >
+            Qualificar os 50 primeiros
+          </button>
+          {confirmAll ? (
+            <button
+              type="button"
+              disabled={enrichMutation.isPending || unaudited === 0}
+              onClick={() =>
+                enrichMutation.mutate({ scope: "all_unaudited" })
+              }
+              className="rounded-xl border border-podium-yellow/40 px-3 py-2 text-xs font-bold text-podium-yellow"
+            >
+              Confirmar {unaudited} · {allCost} créditos
+            </button>
+          ) : (
+            <button
+              type="button"
+              title={`${ENRICH_CREDIT_COST} créditos cada`}
+              disabled={unaudited === 0}
+              onClick={() => setConfirmAll(true)}
+              className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
+            >
+              Qualificar a lista inteira ({unaudited})
+            </button>
+          )}
+          {(() => {
+            const destinations = (connectionsQuery.data?.connections ?? []).filter(
+              (c) => c.status === "active" && c.provider === "webhook",
+            );
+            const pushJobs = pushJobsQuery.data?.jobs ?? [];
+            const lastPush = pushJobs[0];
+            if (destinations.length === 0) {
+              return (
+                <Link
+                  href="/conexoes"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Conectar envio
+                </Link>
+              );
+            }
+            return (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={connectionId || destinations[0]?.id || ""}
+                  onChange={(e) => setConnectionId(e.target.value)}
+                  className="rounded-xl border border-white/15 bg-podium-panel px-3 py-2 text-xs text-podium-white"
+                >
+                  {destinations.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.display_name ?? c.provider}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={pushMutation.isPending || rows.length === 0}
+                  onClick={() =>
+                    pushMutation.mutate(connectionId || destinations[0]!.id)
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Enviar
+                </button>
+                {lastPush ? (
+                  <span className="text-[11px] text-podium-muted">
+                    {lastPush.status === "done"
+                      ? "enviado"
+                      : lastPush.status === "failed"
+                        ? lastPush.last_error ?? "falhou"
+                        : "enviando"}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })()}
+          {(["xlsx", "csv", "pdf"] as const).map((fmt) => (
+            <ExportDownload
+              key={fmt}
+              searchId={searchId}
+              format={fmt}
+              label={fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}
+            />
+          ))}
+        </div>
+      </div>
+      {creditHint ? (
+        <p className="mb-4 text-sm text-podium-yellow">
+          {creditHint}
+          {creditHint.includes("Faltam créditos") ||
+          creditHint.includes("Créditos insuficientes") ||
+          creditHint.includes("Treino livre") ? (
+            <>
+              {" "}
+              <Link href="/planos" className="font-bold underline">
+                Ver planos
+              </Link>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      <SaveListDialog
+        open={saveOpen}
+        saved={Boolean(search?.saved)}
+        name={listName}
+        pending={saveMutation.isPending}
+        error={saveMutation.isError ? saveMutation.error.message : null}
+        onClose={() => {
+          setSaveOpen(false);
+          saveMutation.reset();
+          if (search?.nome) setListName(search.nome);
+        }}
+        onNameChange={setListName}
+        onSubmit={() =>
+          saveMutation.mutate({
+            nome: listName.trim(),
+            ...(search?.saved ? {} : { saved: true }),
+          })
+        }
+      />
+
+      {query.isLoading ? (
+        <div className="space-y-3">
+          <div className="h-64 animate-pulse rounded-2xl bg-white/5" />
+          <div className="h-24 animate-pulse rounded-2xl bg-white/5 lg:hidden" />
+        </div>
+      ) : query.isError && !query.data ? (
+        <GlassCard className="p-5 text-sm text-podium-muted">
+          <p>Não foi possível carregar a lista. Tente de novo.</p>
+          <button
+            type="button"
+            onClick={() => void query.refetch()}
+            className="mt-3 inline-flex items-center rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110"
+          >
+            Tentar de novo
+          </button>
+        </GlassCard>
+      ) : rows.length === 0 ? (
+        <GlassCard className="p-5 text-sm text-podium-muted">
+          <p>{COPY.gridEmptyAdjust}</p>
+          <Link
+            href={largadaEditHref(searchId, from)}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {COPY.ajustarNichoQualidade}
+          </Link>
+        </GlassCard>
+      ) : (
+        <>
+      <GlassCard className="hidden hover:translate-y-0 lg:block">
+        <table className="w-full table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[18rem]" />
+            <col className="w-[4.5rem]" />
+            <col />
+            <col className="w-[11.5rem]" />
+            <col className="w-[16rem]" />
+          </colgroup>
+          <thead className="sticky top-14 z-20 border-b border-white/10 bg-podium-panel/95 text-xs uppercase tracking-wide text-podium-muted backdrop-blur-xl">
+            <tr>
+              <th className="px-2 py-3">
+                <div className="flex flex-col items-start gap-1">
+                  <span>Ações</span>
+                  <SelectToggle
+                    variant="text"
+                    pressed={allVisibleSelected}
+                    disabled={visibleUnaudited.length === 0}
+                    onToggle={toggleVisible}
+                    idleLabel="Selecionar visíveis"
+                    pressedLabel="Limpar visíveis"
+                  />
+                </div>
+              </th>
+              <th className="px-2 py-3">Pos.</th>
+              <th className="px-3 py-3">Empresa</th>
+              <th className="px-3 py-3">Telefone</th>
+              <th className="px-3 py-3">Decisor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const ddd = row.telefone?.slice(0, 2) ?? null;
+              const tel = row.telefone?.slice(2) ?? null;
+              const cnae = formatCnae(row.cnaeCodigo);
+              const name = row.nomeFantasia || row.razaoSocial;
+              return (
+                <tr
+                  key={row.cnpj}
+                  onClick={(e) => onRowClick(e, row)}
+                  className={cn(
+                    "cursor-pointer border-b border-white/5 hover:bg-white/[0.03]",
+                    selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
+                  )}
+                >
+                  <td className="px-2 py-3 align-middle">
+                    <GridRowActions
+                      row={row}
+                      searchId={searchId}
+                      from={from}
+                      callConnection={callConnection}
+                      selected={selected.has(row.cnpj)}
+                      onToggle={() => toggleRow(row)}
+                    />
+                  </td>
+                  <td className="px-2 py-3 align-middle">
+                    <PositionBadge position={row.gridPosition} score={row.gridScore} />
+                    <RowSourceStatus row={row} className="mt-1" />
+                  </td>
+                  <td className="min-w-0 px-3 py-3 align-middle">
+                    <p
+                      className="truncate font-bold"
+                      title={
+                        row.nomeFantasia
+                          ? `${row.nomeFantasia} · ${row.razaoSocial}`
+                          : row.razaoSocial
+                      }
+                    >
+                      {name}
+                    </p>
+                    <p
+                      className="truncate text-xs text-podium-muted"
+                      title={row.cnaeDescricao}
+                    >
+                      {row.municipio}/{row.uf}
+                      {cnae ? ` · ${cnae}` : ""}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3 align-middle">
+                    {formatPhone(ddd, tel) ? (
+                      <div className="min-w-0">
+                        <p className="font-medium tabular-nums">
+                          {formatPhone(ddd, tel)}
+                        </p>
+                        <ContactSealBadge
+                          compact
+                          seal={row.seal}
+                          label={sealLabel(row.seal, row.sharedCount)}
+                          className="mt-0.5"
+                        />
+                      </div>
+                    ) : (
+                      <EmptyValue />
+                    )}
+                  </td>
+                  <td className="px-3 py-3 align-middle">
+                    <p className="break-words leading-snug">
+                      {row.decisorNome ?? <EmptyValue />}
+                    </p>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </GlassCard>
+
+      <div className="space-y-3 lg:hidden">
+        {rows.map((row) => {
+          const ddd = row.telefone?.slice(0, 2) ?? null;
+          const tel = row.telefone?.slice(2) ?? null;
+          const cnae = formatCnae(row.cnaeCodigo);
+          const name = row.nomeFantasia || row.razaoSocial;
+          return (
+            <GlassCard
+              key={row.cnpj}
+              highlight={selected.has(row.cnpj)}
+              onClick={(e) => onRowClick(e, row)}
+              className={cn(
+                "relative cursor-pointer p-4 hover:translate-y-0",
+                selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
+              )}
+            >
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <p
+                    className="truncate font-bold"
+                    title={
+                      row.nomeFantasia
+                        ? `${row.nomeFantasia} · ${row.razaoSocial}`
+                        : row.razaoSocial
+                    }
+                  >
+                    {name}
+                  </p>
+                  <PositionBadge position={row.gridPosition} score={row.gridScore} />
+                </div>
+                <RowSourceStatus row={row} />
+                <p
+                  className="mt-1 truncate text-xs text-podium-muted"
+                  title={row.cnaeDescricao}
+                >
+                  {row.municipio}/{row.uf}
+                  {cnae ? ` · ${cnae}` : ""}
+                </p>
+                <p className="mt-2 text-sm tabular-nums">
+                  {formatPhone(ddd, tel) ?? <EmptyValue />}
+                </p>
+                {formatPhone(ddd, tel) ? (
+                  <ContactSealBadge
+                    compact
+                    seal={row.seal}
+                    label={sealLabel(row.seal, row.sharedCount)}
+                    className="mt-0.5"
+                  />
+                ) : null}
+                <p className="mt-1 break-words text-sm text-podium-gray">
+                  Decisor: {row.decisorNome ?? "NÃO ENCONTRADO"}
+                </p>
+                <div className="mt-3">
+                  <GridRowActions
+                    row={row}
+                    searchId={searchId}
+                    from={from}
+                    callConnection={callConnection}
+                    selected={selected.has(row.cnpj)}
+                    onToggle={() => toggleRow(row)}
+                  />
+                </div>
+              </div>
+            </GlassCard>
+          );
+        })}
+      </div>
+
+      {unaudited > visibleUnaudited.length ? (
+        <button
+          type="button"
+          disabled={markingAll}
+          onClick={() => void markAllUnaudited()}
+          className="mt-4 text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+        >
+          {markingAll
+            ? "Selecionando…"
+            : `Selecionar as ${unaudited} só na Receita da lista`}
+        </button>
+      ) : null}
+
+      {query.hasNextPage && (
+        <button
+          type="button"
+          onClick={() => query.fetchNextPage()}
+          className={cn(
+            "mt-6 w-full rounded-xl border border-white/15 py-3 text-sm font-bold text-podium-gray",
+            selectedCount > 0 || unaudited > 0 ? "mb-24" : undefined,
+          )}
+        >
+          Carregar mais
+        </button>
+      )}
+        </>
+      )}
+
+      {unaudited > 0 ? <div className="h-24" aria-hidden /> : null}
+
+      {unaudited > 0 ? (
+        <div className="fixed inset-x-0 bottom-16 z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-3 backdrop-blur-xl lg:bottom-0">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-podium-gray">
+              {selectedCount > 0 ? (
+                <>
+                  <span className="font-extrabold text-podium-white">
+                    {selectedCount}
+                  </span>{" "}
+                  selecionada{selectedCount === 1 ? "" : "s"} ·{" "}
+                  {ENRICH_CREDIT_COST} créditos cada ·{" "}
+                  <span className="font-extrabold text-podium-yellow">
+                    {selectedCost} créditos
+                  </span>
+                </>
+              ) : (
+                <>
+                  Selecione quem cruzar com o site
+                  {" · "}
+                  {ENRICH_CREDIT_COST} créditos cada
+                </>
+              )}
+            </p>
+            <div className="flex gap-2">
+              {selectedCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-bold text-podium-gray"
+                >
+                  Limpar
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={enrichMutation.isPending || selectedCount === 0}
+                onClick={() =>
+                  enrichMutation.mutate({ cnpjs: [...selected] })
+                }
+                className="rounded-xl bg-podium-yellow px-4 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
+              >
+                {enrichMutation.isPending
+                  ? "Qualificando…"
+                  : selectedCount > 0
+                    ? `Qualificar ${selectedCount}`
+                    : "Qualificar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </AppShell>
+  );
+}
