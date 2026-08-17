@@ -1,6 +1,7 @@
-# Supabase
-.branches
-.temp
+# Circle audience export (PII — seed locally, never commit)
+*audience_list.csv/
+*audience_list.csv.zip
+
 
 # dotenvx
 .env.keys
