@@ -55,7 +55,9 @@ export const COPY = {
   qualificarBeneficioDigital:
     "Cards dos ativos: site, redes e lacunas pra cruzar o lead — não o pitch",
   boxSemLista:
-    "Monte a lista, qualifique as empresas, depois ligue. Salvar a lista não substitui ligar.",
+    "Salve a lista para abrir a pista. Qualificar e ligar vêm na volta — salvar não substitui ligar.",
+  boxPistaFechada: "Pista fechada",
+  boxEstrutura: "Estrutura",
   ajustarBusca: "Ajustar busca",
   ajustar: "Ajustar",
   ajustarNichoQualidade: "Ajustar nicho e qualidade",

@@ -9,6 +9,12 @@ export const BACK = {
 
 export const largadaNovaHref = "/largada?nova=1";
 
+export type ConexoesKind = "crm" | "dialer" | "voip" | "webhook";
+
+export function conexoesHref(kind?: ConexoesKind) {
+  return kind ? `/conexoes?kind=${kind}` : "/conexoes";
+}
+
 export type GridFrom = "box" | "largada" | "listas";
 
 export function parseGridFrom(value: string | null): GridFrom {

@@ -3,10 +3,12 @@ import { cn } from "@/lib/utils";
 export function VoltaRing({
   hoje,
   meta,
+  muted = false,
   className,
 }: {
   hoje: number;
   meta: number;
+  muted?: boolean;
   className?: string;
 }) {
   const r = 38;
@@ -28,14 +30,19 @@ export function VoltaRing({
           cy="50"
           r={r}
           fill="none"
-          stroke="#F5B301"
+          stroke={muted ? "rgba(255,255,255,0.22)" : "#F5B301"}
           strokeWidth="8"
           strokeDasharray={`${c * pct} ${c}`}
           strokeLinecap="round"
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="text-xl font-extrabold leading-none text-podium-yellow">
+        <p
+          className={cn(
+            "text-xl font-extrabold leading-none",
+            muted ? "text-podium-muted" : "text-podium-yellow",
+          )}
+        >
           {hoje}/{meta}
         </p>
         <p className="mt-1 text-[10px] uppercase tracking-wider text-podium-muted">

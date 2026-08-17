@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BACK,
+  conexoesHref,
   gridBack,
   largadaEditHref,
   largadaNovaHref,
@@ -33,5 +34,13 @@ describe("largada hrefs", () => {
   it("keeps Box/Listas back without rewriting to nova lista", () => {
     expect(gridBack("box", "abc")).toEqual(BACK.box);
     expect(gridBack("listas")).toEqual(BACK.listas);
+  });
+});
+
+describe("conexoesHref", () => {
+  it("deep-links CRM and VoIP", () => {
+    expect(conexoesHref()).toBe("/conexoes");
+    expect(conexoesHref("crm")).toBe("/conexoes?kind=crm");
+    expect(conexoesHref("voip")).toBe("/conexoes?kind=voip");
   });
 });

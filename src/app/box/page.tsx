@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Flag } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BoxDayCta } from "@/components/BoxDayCta";
+import { BoxEstrutura } from "@/components/BoxEstrutura";
 import { GlassCard } from "@/components/GlassCard";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { SaveListButton } from "@/components/SaveListButton";
@@ -9,11 +10,14 @@ import { SearchListCard } from "@/components/SearchListCard";
 import { SectionTitle } from "@/components/SectionTitle";
 import { VoltaRing } from "@/components/VoltaRing";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
+import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { getRepo } from "@/lib/data";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
-import { hasScriptIdentity, needsHelmetSetup, displayName } from "@/lib/pilot-profile";
+import { needsHelmetSetup, displayName } from "@/lib/pilot-profile";
+import { toPublicConnection } from "@/lib/integrations/records";
 import { COPY } from "@/lib/copy";
+import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import type { Search } from "@/lib/types";
 
@@ -66,17 +70,27 @@ export default async function BoxPage() {
   if (needsHelmetSetup(profile)) redirect("/setup");
   const billing = await getBalance(session.id);
   const stats = await repo.getPilotStats(session.id);
-  const [recent, savedPreview] = await Promise.all([
+  const [recent, savedPreview, connectionRows] = await Promise.all([
     repo.listRecentSearches(profile.id, { limit: BOX_PREVIEW_LIMIT }),
     repo.listSearches(profile.id, { limit: BOX_PREVIEW_LIMIT + 1 }),
+    repo.listIntegrationConnections(session.id),
   ]);
   const hasMoreSaved = savedPreview.length > BOX_PREVIEW_LIMIT;
   const savedCount = hasMoreSaved
     ? (await repo.listSearches(profile.id)).length
     : savedPreview.filter((s) => s.saved).length;
-  const next = stats.proximaFicha;
+  const connections = connectionRows.map((row) => toPublicConnection(row));
+  const unsavedSearch = recent.find((s) => !s.saved) ?? null;
+  const estrutura = buildBoxEstrutura({
+    savedCount,
+    hasUnsavedSearch: Boolean(unsavedSearch),
+    profile,
+    billing,
+    connections,
+  });
+  const next = estrutura.pistaAberta ? stats.proximaFicha : null;
   const name = displayName(profile);
-  const helmetReady = hasScriptIdentity(profile);
+  const pistaAberta = estrutura.pistaAberta;
 
   return (
     <AppShell title="Box">
@@ -89,57 +103,62 @@ export default async function BoxPage() {
           </div>
         </div>
 
-        {!helmetReady ? (
-          <GlassCard className="border-podium-yellow/30 p-5" highlight>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-              Capacete
-            </p>
-            <p className="mt-2 text-lg font-extrabold">
-              Complete o capacete — o roteiro ainda está genérico
-            </p>
-            <p className="mt-1 text-sm text-podium-gray">
-              Nome, empresa e especialidade entram na Anatomia da Ligação.
-            </p>
-            <Link
-              href="/setup"
-              className="mt-4 inline-flex rounded-xl bg-podium-yellow px-4 py-2 text-sm font-extrabold text-podium-navy"
-            >
-              Completar agora
-            </Link>
-          </GlassCard>
-        ) : null}
+        <BoxEstrutura
+          slots={estrutura.slots}
+          defaultOpen={estrutura.nextGap}
+          unsavedSearch={unsavedSearch}
+        />
 
-        <GlassCard className="p-8 md:p-10" highlight>
+        <GlassCard className="p-8 md:p-10" highlight={pistaAberta}>
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
                 Trabalho do dia
               </p>
               <h2 className="mt-3 max-w-xl text-3xl font-extrabold leading-tight md:text-4xl">
-                {next
-                  ? stats.hoje === 0
-                    ? `Ligar o P${next.gridPosition}`
-                    : "Continuar a volta"
-                  : "Criar e qualificar lista"}
+                {!pistaAberta
+                  ? COPY.boxPistaFechada
+                  : next
+                    ? stats.hoje === 0
+                      ? `Ligar o P${next.gridPosition}`
+                      : "Continuar a volta"
+                    : "Criar e qualificar lista"}
               </h2>
               <p className="mt-3 max-w-lg text-sm text-podium-gray md:text-base">
-                {next
-                  ? `${next.nome}. Salvar a lista não substitui ligar.`
-                  : COPY.boxSemLista}
+                {!pistaAberta
+                  ? COPY.boxSemLista
+                  : next
+                    ? `${next.nome}. Ligar conta a volta.`
+                    : "A lista salva não tem P novo. Monte outra ou volte no grid."}
               </p>
-              <BoxDayCta next={next} hoje={stats.hoje} />
+              <BoxDayCta
+                next={next}
+                hoje={stats.hoje}
+                pistaAberta={pistaAberta}
+                unsavedSearch={unsavedSearch}
+                connections={connections}
+              />
               {next ? (
                 <Link
                   href={largadaNovaHref}
                   className="mt-4 ml-0 inline-flex items-center gap-2 text-sm font-bold text-podium-gray hover:text-podium-yellow md:ml-4"
                 >
                   <Flag className="h-4 w-4" />
-                  Nova lista
+                  {COPY.novaLista}
                 </Link>
               ) : null}
             </div>
-            <div className="flex items-center gap-5">
-              <VoltaRing hoje={stats.hoje} meta={stats.meta} />
+            <div
+              className={cn(
+                "flex items-center gap-5",
+                !pistaAberta && "opacity-40",
+              )}
+            >
+              <VoltaRing
+                hoje={stats.hoje}
+                meta={stats.meta}
+                muted={!pistaAberta}
+              />
               <div>
                 <p className="text-sm text-podium-gray">Sequência</p>
                 <p className="mt-1 text-2xl font-extrabold text-podium-yellow">

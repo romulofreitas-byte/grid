@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import { Flag, Phone } from "lucide-react";
 import { CallButton } from "@/components/CallButton";
+import { SaveListButton } from "@/components/SaveListButton";
+import { COPY } from "@/lib/copy";
 import { leadHref, largadaNovaHref } from "@/lib/back";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
@@ -13,22 +14,41 @@ import type { NextCallLead } from "@/lib/types";
 export function BoxDayCta({
   next,
   hoje,
+  pistaAberta,
+  unsavedSearch,
+  connections,
 }: {
   next: NextCallLead | null;
   hoje: number;
+  pistaAberta: boolean;
+  unsavedSearch: { id: string; nome: string } | null;
+  connections: IntegrationConnectionPublic[];
 }) {
   const router = useRouter();
-  const connectionsQuery = useQuery({
-    queryKey: ["integration-connections"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/connections");
-      if (!res.ok) return { connections: [] as IntegrationConnectionPublic[] };
-      return (await res.json()) as { connections: IntegrationConnectionPublic[] };
-    },
-  });
-  const callConnection = pickCallConnection(
-    connectionsQuery.data?.connections ?? [],
-  );
+  const callConnection = pickCallConnection(connections);
+
+  if (!pistaAberta) {
+    if (unsavedSearch) {
+      return (
+        <div className="mt-8">
+          <SaveListButton
+            searchId={unsavedSearch.id}
+            nome={unsavedSearch.nome}
+            variant="cockpit"
+          />
+        </div>
+      );
+    }
+    return (
+      <Link
+        href={largadaNovaHref}
+        className="mt-8 inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
+      >
+        <Flag className="h-5 w-5" />
+        {COPY.novaLista}
+      </Link>
+    );
+  }
 
   if (!next) {
     return (
@@ -37,7 +57,7 @@ export function BoxDayCta({
         className="mt-8 inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
       >
         <Flag className="h-5 w-5" />
-        Nova lista
+        {COPY.novaLista}
       </Link>
     );
   }

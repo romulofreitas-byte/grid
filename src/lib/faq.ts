@@ -29,7 +29,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é Box, Nova lista e Grid?",
     answer:
-      "Box é a home. Nova lista é onde você escolhe nicho e região. Grid é o resultado na ordem de quem ligar primeiro. No grid, marque as empresas e clique em Qualificar.",
+      "Box é a home. A pista do dia só abre com uma lista salva. Nova lista é onde você escolhe nicho e região. Grid é o resultado na ordem de quem ligar primeiro. No grid, marque as empresas e clique em Qualificar.",
     links: [
       { href: "/box", label: "Abrir o Box" },
       { href: largadaNovaHref, label: "Nova lista" },
@@ -62,7 +62,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Qual a diferença entre Minhas listas e Não salvas?",
     answer:
-      "Toda busca vira um grid. Minhas listas são as que você guardou para ligar de novo. Não salvas são as recentes que ainda não foram. Salvar ou tirar só decide em qual seção a busca aparece — o grid, a ordem e os status continuam. Excluir apaga de vez.",
+      "Toda busca vira um grid. Minhas listas são as que você guardou para ligar de novo — e são elas que abrem a pista no Box. Não salvas são as recentes que ainda não foram. Salvar ou tirar só decide em qual seção a busca aparece — o grid, a ordem e os status continuam. Excluir apaga de vez.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {

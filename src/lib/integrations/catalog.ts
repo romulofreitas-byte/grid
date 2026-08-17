@@ -263,6 +263,24 @@ export function catalogKindLabel(kind: IntegrationKind): string {
   );
 }
 
+export function parseConexoesKind(
+  value: string | null | undefined,
+): IntegrationKind | null {
+  if (
+    value === "crm" ||
+    value === "dialer" ||
+    value === "voip" ||
+    value === "webhook"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+export function firstCatalogIdForKind(kind: IntegrationKind): string {
+  return catalogItemsByKind(kind)[0]?.id ?? "webhook";
+}
+
 export function resolveCatalogItem(
   catalogId: string | null | undefined,
   displayName: string | null | undefined,

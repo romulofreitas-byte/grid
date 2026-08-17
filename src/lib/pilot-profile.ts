@@ -77,7 +77,17 @@ function filled(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
-export function hasScriptIdentity(profile: Profile): boolean {
+export type ScriptIdentity = Pick<
+  Profile,
+  | "como_chama"
+  | "nome"
+  | "empresa_usuario"
+  | "cidade_usuario"
+  | "especialidade"
+  | "area"
+>;
+
+export function hasScriptIdentity(profile: ScriptIdentity): boolean {
   const name = filled(profile.como_chama) || filled(profile.nome);
   return (
     name &&

@@ -5,13 +5,16 @@ import { useState } from "react";
 import { BookmarkPlus } from "lucide-react";
 import { SaveListDialog } from "@/components/SaveListDialog";
 import { COPY } from "@/lib/copy";
+import { cn } from "@/lib/utils";
 
 export function SaveListButton({
   searchId,
   nome,
+  variant = "compact",
 }: {
   searchId: string;
   nome: string;
+  variant?: "compact" | "cockpit";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -40,6 +43,8 @@ export function SaveListButton({
     }
   }
 
+  const cockpit = variant === "cockpit";
+
   return (
     <>
       <button
@@ -49,9 +54,14 @@ export function SaveListButton({
           setError(null);
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110"
+        className={cn(
+          "inline-flex items-center font-extrabold text-podium-navy hover:brightness-110",
+          cockpit
+            ? "justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base"
+            : "gap-1.5 rounded-xl bg-podium-yellow px-3 py-2 text-xs",
+        )}
       >
-        <BookmarkPlus className="h-3.5 w-3.5" />
+        <BookmarkPlus className={cockpit ? "h-5 w-5" : "h-3.5 w-3.5"} />
         {COPY.salvarLista}
       </button>
       <SaveListDialog

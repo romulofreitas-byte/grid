@@ -986,11 +986,8 @@ export const mockRepo: GridRepo = {
   async findNextCallLead(userId): Promise<NextCallLead | null> {
     const store = getMockStore();
     const searches = store.searches
-      .filter((s) => s.user_id === userId)
-      .sort((a, b) => {
-        if (a.saved !== b.saved) return a.saved ? -1 : 1;
-        return b.created_at.localeCompare(a.created_at);
-      });
+      .filter((s) => s.user_id === userId && s.saved)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
     for (const search of searches) {
       const lead = store.saved_leads
         .filter((l) => l.search_id === search.id && l.status === "novo")

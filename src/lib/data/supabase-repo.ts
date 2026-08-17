@@ -2032,11 +2032,12 @@ export const supabaseRepo: GridRepo = {
          select s.id
          from searches s
          where s.user_id = $1
+           and s.saved = true
            and exists (
              select 1 from saved_leads sl
              where sl.search_id = s.id and sl.status = 'novo'
            )
-         order by s.saved desc, s.created_at desc
+         order by s.created_at desc
          limit 1
        )
        select sl.cnpj, sl.search_id, sl.grid_position,

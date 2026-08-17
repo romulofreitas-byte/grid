@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { Copy, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
@@ -14,7 +15,9 @@ import {
   CATALOG_SECTIONS,
   catalogItemsByKind,
   catalogKindLabel,
+  firstCatalogIdForKind,
   getCatalogItem,
+  parseConexoesKind,
   resolveCatalogItem,
   type IntegrationCatalogItem,
 } from "@/lib/integrations/catalog";
@@ -29,7 +32,10 @@ type CreateResponse = {
 export default function ConexoesPage() {
   const qc = useQueryClient();
   const formRef = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState("webhook");
+  const kindFromUrl = parseConexoesKind(useSearchParams().get("kind"));
+  const [selectedId, setSelectedId] = useState(
+    kindFromUrl ? firstCatalogIdForKind(kindFromUrl) : "webhook",
+  );
   const [url, setUrl] = useState("");
   const [name, setName] = useState("Webhook");
   const [callerId, setCallerId] = useState("");
@@ -96,6 +102,13 @@ export default function ConexoesPage() {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
+
+  useEffect(() => {
+    if (!kindFromUrl) return;
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }, [kindFromUrl]);
 
   return (
     <AppShell title="Conexões" back={BACK.box}>
