@@ -3,17 +3,12 @@
 export const COPY = {
   landingPromessa:
     "Escolha o nicho. Saia com a lista na ordem de quem ligar — telefone da empresa e sócio que decide.",
-  landingPrimeiraVez: "Crie a conta. Depois você diz quem é e o que vende.",
-  loginSub:
-    "E-mail e senha. Na sequência você monta o capacete — a lista vem depois.",
-  loginPainel:
-    "Primeiro o capacete — como você se apresenta. Depois a nova lista, com nicho e cidade. O Box cobra a volta.",
-  loginConfirm:
-    "Abra o e-mail — é o único passo. Depois entre com a senha. Se este e-mail já tem conta, entre ou recupere a senha.",
+  landingPrimeiraVez: "Crie a conta. Depois você monta o capacete.",
+  loginConfirm: "Confirme o e-mail para acessar o GRID.",
   loginRecover:
     "Se houver conta neste e-mail, você recebe o link para definir a senha.",
-  loginAluno:
-    "Aluno Mundo Pódium? Use o mesmo e-mail da plataforma. A senha é do GRID. Depois ative o cupom em Planos.",
+  boxPlatformCoupon:
+    "Você assina o Mundo Pódium. Ative o Piloto com o cupom no checkout.",
   cnae: "Código da atividade da empresa na Receita.",
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outras portas",
@@ -62,6 +57,7 @@ export const COPY = {
     "Salve a lista para abrir a pista. Qualificar e ligar vêm na volta — salvar não substitui ligar.",
   boxPistaFechada: "Pista fechada",
   boxEstrutura: "Estrutura",
+  boxPularEtapa: "Pular etapa",
   ajustarBusca: "Ajustar busca",
   ajustar: "Ajustar",
   ajustarNichoQualidade: "Ajustar nicho e qualidade",

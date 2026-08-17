@@ -36,6 +36,7 @@ yarn-error.log*
 
 # dumps
 /tmp/
+/data/platform-audience.csv
 
 # Receita Federal dumps (multi-GB)
 *.zip

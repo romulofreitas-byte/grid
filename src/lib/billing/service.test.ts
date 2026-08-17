@@ -20,7 +20,7 @@ beforeEach(() => {
   delete process.env.ASAAS_API_KEY;
   delete process.env.STRIPE_SECRET_KEY;
   delete process.env.CIRCLE_API_KEY;
-  process.env.BILLING_PLATFORM_COUPON = "PODIUM";
+  process.env.BILLING_PLATFORM_COUPON = "PILOTOPODIUM";
   resetBillingMemory();
 });
 
@@ -125,7 +125,7 @@ describe("billing service", () => {
       nome: "Rômulo",
       sku: "membro_plataforma",
       method: "pix",
-      coupon: "PODIUM",
+      coupon: "PILOTOPODIUM",
     });
     expect(order.status).toBe("paid");
     const bal = await getBalance(profileId);

@@ -40,7 +40,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "Como entro no GRID?",
     answer:
-      "Crie a conta com e-mail e senha. Mandamos um e-mail de confirmação — só esse. Depois entre com a senha. Google também vale. Se você já acessou pelo link antigo, use Esqueci a senha para definir uma.",
+      "Crie a conta com e-mail e senha. Confirme o e-mail para acessar o GRID. Se já tem conta, entre. Se entrou pelo link antigo, use Esqueci a senha.",
     links: [{ href: "/entrar", label: "Entrar" }],
   },
   {
@@ -129,7 +129,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      "Quem já assina a plataforma entra no nível Piloto sem pagar de novo. Crie a conta no GRID com o mesmo e-mail. A senha é do GRID, não a do Circle. No checkout, use o cupom da Plataforma.",
+      "Quem já assina a plataforma entra no Piloto sem pagar de novo. Use o mesmo e-mail do cadastro. No Box, ative com o cupom PILOTOPODIUM.",
     links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Flag } from "lucide-react";
+import { BoxPlatformCouponBanner } from "@/components/BoxPlatformCouponBanner";
 import { AppShell } from "@/components/AppShell";
 import { BoxDayCta } from "@/components/BoxDayCta";
 import { BoxEstrutura } from "@/components/BoxEstrutura";
@@ -14,6 +15,10 @@ import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { getRepo } from "@/lib/data";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
+import {
+  isPlatformSubscriber,
+  shouldShowPlatformCouponBanner,
+} from "@/lib/platform/subscribers";
 import { needsHelmetSetup, displayName } from "@/lib/pilot-profile";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { COPY } from "@/lib/copy";
@@ -69,6 +74,11 @@ export default async function BoxPage() {
   const profile = await repo.getProfile(session.id);
   if (needsHelmetSetup(profile)) redirect("/setup");
   const billing = await getBalance(session.id);
+  const platformSubscriber = await isPlatformSubscriber(session.email);
+  const showPlatformCoupon = shouldShowPlatformCouponBanner(
+    platformSubscriber,
+    billing.plano,
+  );
   const stats = await repo.getPilotStats(session.id);
   const [recent, savedPreview, connectionRows] = await Promise.all([
     repo.listRecentSearches(profile.id, { limit: BOX_PREVIEW_LIMIT }),
@@ -102,6 +112,8 @@ export default async function BoxPage() {
             <h1 className="mt-1 text-3xl font-extrabold">{name}</h1>
           </div>
         </div>
+
+        {showPlatformCoupon ? <BoxPlatformCouponBanner /> : null}
 
         <BoxEstrutura
           slots={estrutura.slots}

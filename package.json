@@ -13,7 +13,7 @@
     "db:apply-app": "tsx scripts/db/apply-app.ts",
     "seed:presets": "tsx scripts/seed/presets.ts",
     "seed:pg-mock": "tsx scripts/seed/pg-from-mock.ts",
-    "seed:mock": "tsx scripts/seed/mock-rf.ts",
+    "seed:platform-audience": "tsx scripts/seed/platform-audience.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "worker:dev": "tsx worker/index.ts",

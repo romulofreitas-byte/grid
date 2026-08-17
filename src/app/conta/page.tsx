@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
@@ -62,6 +63,20 @@ export default function ContaPage() {
   const p = profileQuery.data;
   const billing = billingQuery.data;
   const ready = p ? profileReadiness(p) : 0;
+
+  useEffect(() => {
+    if (!p) return;
+    const hash = window.location.hash.slice(1);
+    if (hash !== "promessa" && hash !== "meta") return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("audit-gap-pulse");
+    const timer = window.setTimeout(() => {
+      el.classList.remove("audit-gap-pulse");
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [p?.id]);
 
   const fillCard = "hover:translate-y-0";
 
@@ -165,7 +180,14 @@ export default function ContaPage() {
                 ["promessa", "Promessa", COPY.promessa],
               ] as const
             ).map(([key, label, hint]) => (
-              <label key={key} className="block text-sm text-podium-gray">
+              <label
+                key={key}
+                id={key === "promessa" ? "promessa" : undefined}
+                className={cn(
+                  "block scroll-mt-24 rounded-xl text-sm text-podium-gray",
+                  key === "promessa" && "p-1",
+                )}
+              >
                 {label}
                 {hint ? <Hint className="mt-0.5">{hint}</Hint> : null}
                 <input
@@ -188,7 +210,7 @@ export default function ContaPage() {
                 className={fieldClass}
               />
             </label>
-            <div>
+            <div id="meta" className="scroll-mt-24 rounded-xl p-1">
               <p className="text-sm text-podium-gray">Meta de ligações no dia</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {CALL_GOAL_OPTIONS.map((n) => (

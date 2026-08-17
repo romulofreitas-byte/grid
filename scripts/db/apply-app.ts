@@ -16,6 +16,7 @@ const FILES = [
   "supabase/migrations/20260818000000_cockpit.sql",
   "supabase/migrations/20260820000000_lead_enrichment_people.sql",
   "supabase/migrations/20260821000000_lead_enrichment_stage.sql",
+  "supabase/migrations/20260822000000_platform_subscribers.sql",
 ] as const;
 
 async function main(): Promise<void> {
@@ -63,7 +64,7 @@ async function main(): Promise<void> {
            'credit_lots','credit_ledger','billing_orders','billing_subscriptions',
            'billing_customers','payment_events','billed_cnpjs','treasury_transfers',
            'call_events','integration_connections','integration_jobs',
-           'integration_events','integration_external_ids'
+           'integration_events','integration_external_ids','platform_subscribers'
          )
        order by table_name`,
     );

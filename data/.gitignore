@@ -1,0 +1,2 @@
+# Audience Circle (não versionar — use o zip em supabase/ e rode pnpm seed:platform-audience)
+platform-audience.csv

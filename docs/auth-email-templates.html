@@ -2,16 +2,9 @@
   Cole no Supabase hospedado → Authentication → Emails → Templates.
   O href usa token_hash (não ConfirmationURL) para o clique no Gmail
   não depender do cookie PKCE do navegador que pediu o link.
-
-  Checklist do dashboard (o app não altera isso sozinho):
-  1. Authentication → Providers → Email: Confirm email = ON
-  2. Magic link / OTP de login = OFF (o GRID não chama mais signInWithOtp)
-  3. Colar Confirm signup e Reset password abaixo
-  4. Minimum password length = 8
-  5. Redirect URLs incluem https://grid.mundopodium.com.br/auth/callback
 -->
 
-<!-- Confirm sign up — assunto: Confirme sua conta no GRID -->
+<!-- Confirm sign up — assunto: Confirme o e-mail para acessar o GRID -->
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#0B1A2E;padding:32px 16px;">
   <tr>
     <td align="center">
@@ -19,10 +12,8 @@
       <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="background:#12263F;border-radius:16px;padding:32px 32px 28px;">
         <tr>
           <td>
-            <p style="margin:0 0 8px;font:12px Arial,sans-serif;color:#F5B301;letter-spacing:2px;text-transform:uppercase;">Acesso</p>
-            <h1 style="margin:0 0 12px;font:800 22px Arial,sans-serif;color:#ffffff;">Confirme sua conta no GRID</h1>
             <p style="margin:0 0 24px;font:16px Arial,sans-serif;color:#C5CDD8;line-height:1.5;">
-              Este é o único e-mail. Depois entre com a senha que você escolheu. O link vale por pouco tempo.
+              Confirme o e-mail para acessar o GRID.
             </p>
             <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=signup" style="display:inline-block;background:#F5B301;color:#0B1A2E;font:800 14px Arial,sans-serif;text-decoration:none;padding:14px 28px;border-radius:12px;">
               Confirmar e-mail
@@ -45,10 +36,8 @@
       <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="background:#12263F;border-radius:16px;padding:32px 32px 28px;">
         <tr>
           <td>
-            <p style="margin:0 0 8px;font:12px Arial,sans-serif;color:#F5B301;letter-spacing:2px;text-transform:uppercase;">Acesso</p>
-            <h1 style="margin:0 0 12px;font:800 22px Arial,sans-serif;color:#ffffff;">Defina sua senha no GRID</h1>
             <p style="margin:0 0 24px;font:16px Arial,sans-serif;color:#C5CDD8;line-height:1.5;">
-              Clique para escolher a senha dos próximos acessos. O link vale por pouco tempo.
+              Clique para definir a senha dos próximos acessos.
             </p>
             <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=recovery" style="display:inline-block;background:#F5B301;color:#0B1A2E;font:800 14px Arial,sans-serif;text-decoration:none;padding:14px 28px;border-radius:12px;">
               Definir senha

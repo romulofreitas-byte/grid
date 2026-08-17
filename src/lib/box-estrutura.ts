@@ -8,8 +8,8 @@ import { hasScriptIdentity } from "@/lib/pilot-profile";
 import type { Profile } from "@/lib/types";
 
 export const BOX_SLOT_IDS = [
-  "lista",
   "capacete",
+  "lista",
   "oferta",
   "meta",
   "ligar",
@@ -74,15 +74,6 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
 
   const slots: BoxSlot[] = [
     {
-      id: "lista",
-      label: "Lista",
-      done: pistaAberta,
-      title: "Salve uma lista",
-      body: "A pista só abre com lista guardada. Qualificar e ligar vêm na volta.",
-      href: largadaNovaHref,
-      cta: input.hasUnsavedSearch ? COPY.salvarLista : COPY.novaLista,
-    },
-    {
       id: "capacete",
       label: "Capacete",
       done: helmetReady,
@@ -92,12 +83,21 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       cta: "Completar capacete",
     },
     {
+      id: "lista",
+      label: "Lista",
+      done: pistaAberta,
+      title: "Salve uma lista",
+      body: "A pista só abre com lista guardada. Qualificar e ligar vêm na volta.",
+      href: largadaNovaHref,
+      cta: input.hasUnsavedSearch ? COPY.salvarLista : COPY.novaLista,
+    },
+    {
       id: "oferta",
       label: "Oferta",
       done: ofertaReady,
       title: "Escreva a oferta",
       body: "Uma linha do que você entrega — entra no convite da reunião.",
-      href: "/conta",
+      href: "/conta#promessa",
       cta: "Escrever oferta",
     },
     {
@@ -106,7 +106,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       done: metaReady,
       title: "Defina a meta",
       body: "Quantas ligações fecham a volta hoje. O anel só faz sentido com o capacete pronto.",
-      href: "/conta",
+      href: "/conta#meta",
       cta: "Definir meta",
     },
     {

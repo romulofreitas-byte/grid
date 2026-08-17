@@ -71,7 +71,7 @@ function slotMap(
 }
 
 describe("buildBoxEstrutura", () => {
-  it("keeps the seven lights in gate order and opens lista first", () => {
+  it("keeps the seven lights in gate order and opens capacete first", () => {
     const { slots, nextGap, pistaAberta } = buildBoxEstrutura({
       savedCount: 0,
       hasUnsavedSearch: false,
@@ -80,10 +80,21 @@ describe("buildBoxEstrutura", () => {
       connections: [],
     });
     expect(slots.map((s) => s.id)).toEqual([...BOX_SLOT_IDS]);
-    expect(nextGap).toBe("lista");
+    expect(nextGap).toBe("capacete");
     expect(pistaAberta).toBe(false);
     expect(slots.find((s) => s.id === "lista")?.cta).toBe(COPY.novaLista);
     expect(slots.find((s) => s.id === "lista")?.href).toBe(largadaNovaHref);
+  });
+
+  it("opens lista after capacete is ready", () => {
+    const { nextGap } = buildBoxEstrutura({
+      savedCount: 0,
+      hasUnsavedSearch: false,
+      profile: helmet(),
+      billing: { total: 25, plano: "free" },
+      connections: [],
+    });
+    expect(nextGap).toBe("lista");
   });
 
   it("opens the pista only with a saved list", () => {
@@ -221,5 +232,17 @@ describe("buildBoxEstrutura", () => {
     });
     expect(ready.nextGap).toBeNull();
     expect(ready.slots.every((s) => s.done)).toBe(true);
+  });
+
+  it("deep-links oferta and meta to conta anchors", () => {
+    const { byId } = slotMap({
+      savedCount: 0,
+      hasUnsavedSearch: false,
+      profile: profile(),
+      billing: { total: 25, plano: "free" },
+      connections: [],
+    });
+    expect(byId.oferta.href).toBe("/conta#promessa");
+    expect(byId.meta.href).toBe("/conta#meta");
   });
 });

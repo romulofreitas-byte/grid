@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
@@ -90,21 +90,41 @@ export default function SetupPage() {
   }, [profile, form]);
 
   async function persist(extra: Partial<Profile> = {}) {
-    if (!form) return;
-    await save.mutateAsync({ ...form, ...extra });
+    if (!form) return false;
+    try {
+      await save.mutateAsync({ ...form, ...extra });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async function skip() {
-    await save.mutateAsync({
-      onboarding_completed_at: new Date().toISOString(),
-    });
-    router.push("/box");
+    try {
+      await save.mutateAsync({
+        onboarding_completed_at: new Date().toISOString(),
+      });
+      router.push("/box");
+    } catch {
+      /* keep on page */
+    }
   }
 
   async function finish() {
-    await persist({ onboarding_completed_at: new Date().toISOString() });
-    router.push("/box");
+    const ok = await persist({ onboarding_completed_at: new Date().toISOString() });
+    if (ok) router.push("/box");
   }
+
+  async function advance() {
+    const ok = await persist();
+    if (ok) setStep((s) => s + 1);
+  }
+
+  useEffect(() => {
+    router.prefetch("/box");
+  }, [router]);
+
+  const busy = save.isPending;
 
   if (!profile || !form || !previewProfile) {
     return (
@@ -295,17 +315,19 @@ export default function SetupPage() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
+            disabled={busy}
             onClick={() => void skip()}
-            className="text-sm text-podium-muted hover:text-podium-white"
+            className="text-sm text-podium-muted hover:text-podium-white disabled:opacity-40"
           >
-            Pular por agora
+            {busy ? "Salvando…" : "Pular por agora"}
           </button>
           <div className="flex gap-2">
             {step > 0 ? (
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => setStep((s) => s - 1)}
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray"
+                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray disabled:opacity-40"
               >
                 Voltar
               </button>
@@ -313,21 +335,20 @@ export default function SetupPage() {
             {step < STEPS.length - 1 ? (
               <button
                 type="button"
-                onClick={() => {
-                  void persist();
-                  setStep((s) => s + 1);
-                }}
-                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy"
+                disabled={busy}
+                onClick={() => void advance()}
+                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
               >
-                Continuar
+                {busy ? "Salvando…" : "Continuar"}
               </button>
             ) : (
               <button
                 type="button"
+                disabled={busy}
                 onClick={() => void finish()}
-                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy"
+                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
               >
-                Ir para o Box
+                {busy ? "Salvando…" : "Ir para o Box"}
               </button>
             )}
           </div>

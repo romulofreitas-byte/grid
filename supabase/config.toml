@@ -245,7 +245,7 @@ otp_expiry = 3600
 
 # Uncomment to customize email template
 [auth.email.template.confirmation]
-subject = "Confirme sua conta no GRID"
+subject = "Confirme o e-mail para acessar o GRID"
 content_path = "./templates/confirmation.html"
 
 [auth.email.template.recovery]

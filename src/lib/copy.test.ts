@@ -5,13 +5,12 @@ describe("COPY login", () => {
   it("does not advertise passwordless or magic link", () => {
     const blob = [
       COPY.landingPrimeiraVez,
-      COPY.loginSub,
       COPY.loginConfirm,
       COPY.loginRecover,
-      COPY.loginAluno,
+      COPY.boxPlatformCoupon,
     ].join(" ");
     expect(blob.toLowerCase()).not.toMatch(/sem senha/);
     expect(blob.toLowerCase()).not.toMatch(/magic/);
-    expect(COPY.loginConfirm).toMatch(/único passo/);
+    expect(COPY.loginConfirm).toMatch(/Confirme o e-mail para acessar o GRID/);
   });
 });
