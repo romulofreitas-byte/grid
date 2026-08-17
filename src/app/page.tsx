@@ -61,7 +61,7 @@ export default function LandingPage() {
               href={signedIn ? "/box" : "/entrar"}
               className="rounded-xl bg-podium-yellow px-6 py-3 text-sm font-bold text-podium-navy transition hover:brightness-110"
             >
-              {signedIn ? "Ir ao Box" : "Começar — só o e-mail"}
+              {signedIn ? "Ir ao Box" : "Começar"}
             </Link>
             <Link
               href="/planos"

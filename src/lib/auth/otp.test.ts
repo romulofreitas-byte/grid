@@ -6,6 +6,7 @@ describe("parseEmailOtpType", () => {
     expect(parseEmailOtpType("email")).toBe("email");
     expect(parseEmailOtpType("magiclink")).toBe("magiclink");
     expect(parseEmailOtpType("signup")).toBe("signup");
+    expect(parseEmailOtpType("recovery")).toBe("recovery");
   });
 
   it("rejects unknown values", () => {

@@ -120,14 +120,18 @@ alter table integration_jobs enable row level security;
 alter table integration_events enable row level security;
 alter table integration_external_ids enable row level security;
 
+drop policy if exists "integration_connections_own" on integration_connections;
 create policy "integration_connections_own" on integration_connections
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "integration_jobs_own" on integration_jobs;
 create policy "integration_jobs_own" on integration_jobs
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "integration_events_own" on integration_events;
 create policy "integration_events_own" on integration_events
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "integration_external_ids_own" on integration_external_ids;
 create policy "integration_external_ids_own" on integration_external_ids
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

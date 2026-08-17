@@ -17,10 +17,19 @@ export function safeInternalPath(
   if (value.includes("://")) return fallback;
   if (value.includes("\\")) return fallback;
   if (/[\0\r\n]/.test(value)) return fallback;
-  if (value.startsWith("/entrar") && !value.startsWith("/entrar?go=1")) {
+  if (value.startsWith("/entrar") && !isAllowedEntrarPath(value)) {
     return fallback;
   }
   return value;
+}
+
+function isAllowedEntrarPath(value: string): boolean {
+  return (
+    value === "/entrar?go=1" ||
+    value.startsWith("/entrar?go=1&") ||
+    value === "/entrar?definir=1" ||
+    value.startsWith("/entrar?definir=1&")
+  );
 }
 
 export function isPaymentNext(path: string): boolean {

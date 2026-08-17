@@ -18,6 +18,7 @@ describe("safeInternalPath", () => {
     expect(safeInternalPath(null)).toBe("/box");
     expect(safeInternalPath("/entrar?next=/pagar")).toBe("/box");
     expect(safeInternalPath("/entrar?go=1")).toBe("/entrar?go=1");
+    expect(safeInternalPath("/entrar?definir=1")).toBe("/entrar?definir=1");
   });
 });
 

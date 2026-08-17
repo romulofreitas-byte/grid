@@ -25,6 +25,14 @@ describe("conexoes FAQ", () => {
   });
 });
 
+describe("acesso FAQ", () => {
+  it("describes password signup and recovery for old magic-link users", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "acesso");
+    expect(item?.answer).toMatch(/e-mail e senha/i);
+    expect(item?.answer).toMatch(/Esqueci a senha/);
+  });
+});
+
 describe("faqGrouped", () => {
   it("keeps category order and drops empty groups", () => {
     const selos = FAQ_ITEMS.filter((item) => item.id === "selos");

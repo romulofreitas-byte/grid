@@ -63,7 +63,7 @@ A base RF de MG+SP costuma passar dos **500 MB do Free** — o plano Pro é o ca
 
 Ingestão nova da RF também pode apontar para o mesmo `DATABASE_URL` (`pnpm ingest --ufs=MG,SP`).
 
-Auth: magic link + Google quando as chaves existem. Sem chaves, `/entrar` continua no mock.
+Auth: e-mail + senha (1 confirmação no cadastro) e Google quando as chaves existem. Sem chaves, `/entrar` continua no mock.
 
 Docker (`docker compose up -d`) fica só para dev/offline.
 

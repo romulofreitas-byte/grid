@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Apply additive app schema (billing + cockpit) to an existing Postgres/Supabase.
+ * Apply additive app schema (integrations + billing + cockpit) to an existing Postgres/Supabase.
  * Safe to re-run: IF NOT EXISTS / DROP POLICY IF EXISTS.
  *
  *   pnpm db:apply-app
@@ -11,6 +11,7 @@ import path from "node:path";
 import { getDatabaseUrl, REPO_ROOT } from "../ingest/config";
 
 const FILES = [
+  "supabase/migrations/20260816000000_integrations.sql",
   "supabase/migrations/20260817000000_billing.sql",
   "supabase/migrations/20260818000000_cockpit.sql",
   "supabase/migrations/20260820000000_lead_enrichment_people.sql",
@@ -61,7 +62,8 @@ async function main(): Promise<void> {
          and table_name in (
            'credit_lots','credit_ledger','billing_orders','billing_subscriptions',
            'billing_customers','payment_events','billed_cnpjs','treasury_transfers',
-           'call_events'
+           'call_events','integration_connections','integration_jobs',
+           'integration_events','integration_external_ids'
          )
        order by table_name`,
     );

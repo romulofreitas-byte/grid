@@ -3,13 +3,17 @@
 export const COPY = {
   landingPromessa:
     "Escolha o nicho. Saia com a lista na ordem de quem ligar — telefone da empresa e sócio que decide.",
-  landingPrimeiraVez: "Sem senha. Depois você diz quem é e o que vende.",
+  landingPrimeiraVez: "Crie a conta. Depois você diz quem é e o que vende.",
   loginSub:
-    "Sem senha. Na sequência você monta o capacete — a lista vem depois.",
+    "E-mail e senha. Na sequência você monta o capacete — a lista vem depois.",
   loginPainel:
     "Primeiro o capacete — como você se apresenta. Depois a nova lista, com nicho e cidade. O Box cobra a volta.",
-  loginMagic:
-    "Abra o e-mail. O link te leva a configurar o perfil — ainda não é a lista.",
+  loginConfirm:
+    "Abra o e-mail — é o único passo. Depois entre com a senha. Se este e-mail já tem conta, entre ou recupere a senha.",
+  loginRecover:
+    "Se houver conta neste e-mail, você recebe o link para definir a senha.",
+  loginAluno:
+    "Aluno Mundo Pódium? Use o mesmo e-mail da plataforma. A senha é do GRID. Depois ative o cupom em Planos.",
   cnae: "Código da atividade da empresa na Receita.",
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outras portas",
