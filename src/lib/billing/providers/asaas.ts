@@ -1,10 +1,11 @@
 import type { PaymentMethod } from "@/lib/billing/catalog";
+import {
+  asaasAccessToken,
+  requireBillingWebhookSecret,
+  webhookSecretsEqual,
+} from "@/lib/billing/webhook-guard";
 import type { BillingOrder, NormalizedPaymentEvent } from "@/lib/billing/types";
-import type {
-  ChargeResult,
-  PaymentProvider,
-  ProviderCustomer,
-} from "@/lib/billing/providers/types";
+import type { PaymentProvider } from "@/lib/billing/providers/types";
 
 function baseUrl(): string {
   return (
@@ -140,17 +141,23 @@ export const asaasProvider: PaymentProvider = {
 
   async parseWebhook(req: Request, rawBody: string): Promise<NormalizedPaymentEvent | null> {
     const token = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
-    const header =
-      req.headers.get("asaas-access-token") ?? req.headers.get("access_token");
-    if (token && header !== token) {
+    requireBillingWebhookSecret("ASAAS_WEBHOOK_TOKEN", token);
+    const header = asaasAccessToken(req);
+    if (token && !webhookSecretsEqual(token, header)) {
       throw new Error("Webhook Asaas não autorizado");
     }
-    const body = JSON.parse(rawBody) as {
+    if (!rawBody.trim()) return null;
+    let body: {
       id?: string;
       event?: string;
       payment?: { id?: string; subscription?: string; status?: string };
       subscription?: { id?: string };
     };
+    try {
+      body = JSON.parse(rawBody) as typeof body;
+    } catch {
+      return null;
+    }
     const eventId = body.id ?? `${body.event ?? "asaas"}-${body.payment?.id ?? crypto.randomUUID()}`;
     const event = body.event ?? "";
     const paymentId = body.payment?.id;
