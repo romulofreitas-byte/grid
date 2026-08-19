@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { debitEnrich } from "@/lib/billing/service";
+import { debitEnrich, getBalance, getBillingStore } from "@/lib/billing/service";
 import {
   insufficientCreditsPayload,
   planRequiredPayload,
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
   const chargeable = (await repo.classifyEnrichmentCnpjs(cnpjs)).chargeable;
   try {
     if (chargeable.length) {
-      await debitEnrich(userId, chargeable.length, searchId);
+      await debitEnrich(userId, chargeable, searchId);
     }
   } catch (err) {
     if (err instanceof EnrichmentNotAllowedError) {
@@ -89,13 +89,19 @@ export async function GET(req: Request) {
   const cnpj = searchParams.get("cnpj");
   const repo = getRepo();
   if (cnpj) {
-    const [enrichment, job] = await Promise.all([
+    const [enrichment, job, store, balance] = await Promise.all([
       repo.getEnrichment(cnpj),
       repo.getLatestEnrichmentJob(cnpj),
+      getBillingStore(),
+      getBalance(gated.userId),
     ]);
+    const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+    const showEnrichment = await store.isCnpjBilled(gated.userId, digits, "enrich");
+    const visible = isEnrichmentVisible(enrichment);
     return NextResponse.json({
-      enrichment: isEnrichmentVisible(enrichment) ? enrichment : null,
+      enrichment: visible && showEnrichment ? enrichment : null,
       jobStatus: job?.status ?? null,
+      enrichAllowed: balance.enrichAllowed,
     });
   }
   if (!searchId) {
