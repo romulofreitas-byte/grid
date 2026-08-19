@@ -27,7 +27,8 @@ import {
   escapeIlike,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
-import { LOCAL_USER_ID, query } from "@/lib/data/pg";
+import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
+import { LOCAL_USER_ID, isUndefinedTableError, query, querySearch } from "@/lib/data/pg";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import {
   gridRowFromSnapshot,
@@ -50,6 +51,7 @@ import type {
   Company,
   CompanySearchHit,
   ContactInfo,
+  CountResult,
   DomainStatus,
   EnrichmentJob,
   EnrichmentJobStatus,
@@ -76,6 +78,7 @@ import { DEFAULT_FILTERS } from "@/lib/types";
 
 const COUNT_CAP = 10000;
 const RESULT_CAP = 1000;
+const CANDIDATE_CAP = 5000;
 
 const CAPITALS: Record<string, string> = {
   AC: "Rio Branco",
@@ -107,9 +110,7 @@ const CAPITALS: Record<string, string> = {
   TO: "Palmas",
 };
 
-const FREE_EMAIL_SQL = CONTACT_RULES_SQL();
-
-function CONTACT_RULES_SQL(): string {
+function freeEmailSql(alias: string): string {
   const needles = [
     "gmail",
     "hotmail",
@@ -122,9 +123,14 @@ function CONTACT_RULES_SQL(): string {
     "live.com",
   ];
   return needles
-    .map((n) => `lower(split_part(e.email, '@', 2)) like ${sqlLiteral("%" + n + "%")}`)
+    .map(
+      (n) =>
+        `lower(split_part(${alias}.email, '@', 2)) like ${sqlLiteral("%" + n + "%")}`,
+    )
     .join(" or ");
 }
+
+const FREE_EMAIL_SQL = freeEmailSql("e");
 
 function sqlLiteral(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
@@ -383,7 +389,10 @@ function buildMatchFrom(filters: SearchFilters): string {
   return parts.join("\n  ");
 }
 
-function buildFilterSql(filters: SearchFilters, allowedCnaes: Set<string> | null): FilterSql {
+function buildStructuralFilterSql(
+  filters: SearchFilters,
+  allowedCnaes: Set<string> | null,
+): FilterSql {
   const params: unknown[] = [];
   const clauses: string[] = ["1=1"];
   const add = (fragment: string, value: unknown) => {
@@ -408,6 +417,138 @@ function buildFilterSql(filters: SearchFilters, allowedCnaes: Set<string> | null
   if (filters.municipioIds.length) {
     add("e.municipio_id = any(?::int[])", filters.municipioIds);
   }
+  clauses.push(`not exists (
+    select 1 from opt_outs o
+    where o.documento in (e.cnpj, e.cnpj_basico)
+  )`);
+
+  return { sql: clauses.join("\n    and "), params };
+}
+
+type MunicipioCountRow = {
+  municipio_id: number;
+  nome: string;
+  uf: string;
+  total: number;
+};
+
+function mapMunicipioCountRows(
+  rows: MunicipioCountRow[] | null | undefined,
+): CountResult["porMunicipio"] {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((m) => ({
+    municipio_id: Number(m.municipio_id),
+    nome: m.nome,
+    uf: trimChar(m.uf),
+    total: Number(m.total),
+  }));
+}
+
+async function fetchTopMunicipiosPreview(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+): Promise<CountResult["porMunicipio"]> {
+  const { sql, params } = buildStructuralFilterSql(filters, allowed);
+  const limitParam = params.length + 1;
+  const { rows } = await query<{ por_municipio: MunicipioCountRow[] | null }>(
+    `with matched as (
+       select e.municipio_id
+       from establishments e
+       where ${sql}
+       limit $${limitParam}
+     ),
+     top_mun as (
+       select m.municipio_id,
+              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
+              coalesce(r.uf, '') as uf,
+              count(*)::int as total
+       from matched m
+       left join ref_municipio r on r.id = m.municipio_id
+       group by 1, 2, 3
+       order by total desc
+       limit 5
+     )
+     select coalesce(
+       (select json_agg(json_build_object(
+         'municipio_id', t.municipio_id,
+         'nome', t.nome,
+         'uf', t.uf,
+         'total', t.total
+       ) order by t.total desc) from top_mun t),
+       '[]'::json
+     ) as por_municipio`,
+    [...params, COUNT_CAP],
+  );
+  const munRows = rows[0]?.por_municipio;
+  return mapMunicipioCountRows(Array.isArray(munRows) ? munRows : []);
+}
+
+async function countTotalPreviewLegacy(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+): Promise<CountResult> {
+  let total: number;
+  let capped: boolean;
+
+  if (canFastCountPreview(filters, allowed) && (await hasCnaeUfCount())) {
+    const params: unknown[] = [[...allowed!]];
+    let ufSql = "";
+    if (filters.ufs.length) {
+      params.push(filters.ufs);
+      ufSql = ` and uf = any($${params.length}::text[])`;
+    }
+    const { rows } = await query<{ n: number }>(
+      `select coalesce(sum(n), 0)::int as n
+       from cnae_uf_count
+       where cnae_principal = any($1::text[])${ufSql}`,
+      params,
+    );
+    const raw = Number(rows[0]?.n ?? 0);
+    capped = raw > COUNT_CAP;
+    total = capped ? COUNT_CAP : raw;
+  } else {
+    const { sql, params } = buildStructuralFilterSql(filters, allowed);
+    const limitParam = params.length + 1;
+    const { rows } = await query<{ n: number }>(
+      `with matched as (
+         select 1
+         from establishments e
+         where ${sql}
+         limit $${limitParam}
+       )
+       select count(*)::int as n from matched`,
+      [...params, COUNT_CAP + 1],
+    );
+    const raw = Number(rows[0]?.n ?? 0);
+    capped = raw > COUNT_CAP;
+    total = capped ? COUNT_CAP : raw;
+  }
+
+  const porMunicipio =
+    filters.ufs.length > 0 || filters.municipioIds.length > 0
+      ? await fetchTopMunicipiosPreview(filters, allowed)
+      : [];
+
+  return {
+    total,
+    capped,
+    comTelefone: 0,
+    comEmail: 0,
+    comDecisor: 0,
+    porMunicipio,
+  };
+}
+
+function buildFilterSql(filters: SearchFilters, allowedCnaes: Set<string> | null): FilterSql {
+  const structural = buildStructuralFilterSql(filters, allowedCnaes);
+  const params = [...structural.params];
+  const clauses = structural.sql.split("\n    and ");
+
+  const add = (fragment: string, value: unknown) => {
+    params.push(value);
+    clauses.push(fragment.replace("?", `$${params.length}`));
+  };
+
   if (filters.soMatriz) clauses.push("e.is_matriz = true");
   if (filters.portes.length) add("c.porte = any(?::text[])", filters.portes);
   if (filters.capitalMin != null) {
@@ -447,21 +588,264 @@ function buildFilterSql(filters: SearchFilters, allowedCnaes: Set<string> | null
       "exists (select 1 from partners p where p.cnpj_basico = e.cnpj_basico)",
     );
   }
-  clauses.push(`not exists (
-    select 1 from opt_outs o
-    where o.documento in (e.cnpj, e.cnpj_basico)
-  )`);
 
   return { sql: clauses.join("\n    and "), params };
 }
 
-function canFastCount(filters: SearchFilters, allowed: Set<string> | null): boolean {
+function buildFlatMatchFrom(filters: SearchFilters): string {
+  if (!filters.soEnriquecidas) return "";
+  return `left join lead_enrichment le on le.cnpj = es.cnpj
+    and le.expires_at > now()
+    and (le.stage is null or le.stage = 'complete')`;
+}
+
+function buildFlatStructuralFilterSql(
+  filters: SearchFilters,
+  allowedCnaes: Set<string> | null,
+): FilterSql {
+  const params: unknown[] = [];
+  const clauses: string[] = ["es.opted_out = false"];
+  const add = (fragment: string, value: unknown) => {
+    params.push(value);
+    clauses.push(fragment.replace("?", `$${params.length}`));
+  };
+
+  if (filters.cnpjs?.length) {
+    add(
+      "es.cnpj = any(?::char(14)[])",
+      filters.cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")),
+    );
+  }
+  if (allowedCnaes) {
+    if (allowedCnaes.has("__none__") || allowedCnaes.size === 0) {
+      clauses.push("false");
+    } else {
+      add("es.cnae_principal = any(?::text[])", [...allowedCnaes]);
+    }
+  }
+  if (filters.ufs.length) add("es.uf = any(?::text[])", filters.ufs);
+  if (filters.municipioIds.length) {
+    add("es.municipio_id = any(?::int[])", filters.municipioIds);
+  }
+
+  return { sql: clauses.join("\n    and "), params };
+}
+
+function buildFlatFilterSql(
+  filters: SearchFilters,
+  allowedCnaes: Set<string> | null,
+): FilterSql {
+  const structural = buildFlatStructuralFilterSql(filters, allowedCnaes);
+  const params = [...structural.params];
+  const clauses = structural.sql.split("\n    and ");
+
+  const add = (fragment: string, value: unknown) => {
+    params.push(value);
+    clauses.push(fragment.replace("?", `$${params.length}`));
+  };
+
+  if (filters.soMatriz) clauses.push("es.is_matriz = true");
+  if (filters.portes.length) add("es.porte = any(?::text[])", filters.portes);
+  if (filters.capitalMin != null) {
+    add("coalesce(es.capital_social, 0) >= ?", filters.capitalMin);
+  }
+  if (filters.capitalMax != null) {
+    add("coalesce(es.capital_social, 0) <= ?", filters.capitalMax);
+  }
+  if (filters.idadeMinimaAnos > 0) {
+    add(
+      "es.data_inicio is not null and es.data_inicio <= (current_date - make_interval(years => ?::int))",
+      filters.idadeMinimaAnos,
+    );
+  }
+  if (filters.excluirSimples) clauses.push("es.opcao_simples = false");
+  if (filters.ocultarTelefonesCompartilhados) {
+    clauses.push("es.phone_verdict is distinct from 'contabilidade'");
+  }
+  if (filters.soEnriquecidas) clauses.push("le.cnpj is not null");
+  if (filters.ocultarEmailsGratuitos) {
+    clauses.push("(es.email is null or not es.email_livre)");
+  }
+  if (filters.ocultarEnderecosCompartilhados) {
+    clauses.push("es.endereco_compartilhado = false");
+  }
+  if (filters.exigirEmailProprio) clauses.push("es.email_proprio = true");
+  if (filters.exigirDecisor) clauses.push("es.tem_decisor = true");
+
+  return { sql: clauses.join("\n    and "), params };
+}
+
+function scoreProxyOrderSql(alias = "es"): string {
+  return `(
+    (case when ${alias}.tem_decisor then 7 else 0 end) +
+    (case when ${alias}.telefone1 is not null then 5 else 0 end) +
+    (case when ${alias}.phone_verdict = 'proprio' then 10
+          when ${alias}.phone_verdict = 'contabilidade' then -5
+          else 3 end) +
+    (case when ${alias}.email_proprio then 5 else 0 end) +
+    (case when ${alias}.is_matriz then 1 else 0 end)
+  ) desc, ${alias}.cnpj`;
+}
+
+async function fetchTopMunicipiosFlat(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+): Promise<CountResult["porMunicipio"]> {
+  const { sql, params } = buildFlatStructuralFilterSql(filters, allowed);
+  const limitParam = params.length + 1;
+  const { rows } = await querySearch<{ por_municipio: MunicipioCountRow[] | null }>(
+    `with matched as (
+       select es.municipio_id
+       from establishments_search es
+       where ${sql}
+       limit $${limitParam}
+     ),
+     top_mun as (
+       select m.municipio_id,
+              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
+              coalesce(r.uf, '') as uf,
+              count(*)::int as total
+       from matched m
+       left join ref_municipio r on r.id = m.municipio_id
+       group by 1, 2, 3
+       order by total desc
+       limit 5
+     )
+     select coalesce(
+       (select json_agg(json_build_object(
+         'municipio_id', t.municipio_id,
+         'nome', t.nome,
+         'uf', t.uf,
+         'total', t.total
+       ) order by t.total desc) from top_mun t),
+       '[]'::json
+     ) as por_municipio`,
+    [...params, COUNT_CAP],
+  );
+  const munRows = rows[0]?.por_municipio;
+  return mapMunicipioCountRows(Array.isArray(munRows) ? munRows : []);
+}
+
+async function countViaFlatTable(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+  includeStats: boolean,
+): Promise<CountResult> {
+  const { sql, params } = buildFlatFilterSql(filters, allowed);
+  const joinSql = buildFlatMatchFrom(filters);
+  const limitParam = params.length + 1;
+
+  if (!includeStats) {
+    const { rows } = await querySearch<{ n: number }>(
+      `with matched as (
+         select 1
+         from establishments_search es
+         ${joinSql}
+         where ${sql}
+         limit $${limitParam}
+       )
+       select count(*)::int as n from matched`,
+      [...params, COUNT_CAP + 1],
+    );
+    const raw = Number(rows[0]?.n ?? 0);
+    const capped = raw > COUNT_CAP;
+    const porMunicipio =
+      filters.ufs.length > 0 || filters.municipioIds.length > 0
+        ? await fetchTopMunicipiosFlat(filters, allowed)
+        : [];
+    return {
+      total: capped ? COUNT_CAP : raw,
+      capped,
+      comTelefone: 0,
+      comEmail: 0,
+      comDecisor: 0,
+      porMunicipio,
+    };
+  }
+
+  const { rows } = await querySearch<{
+    total_probe: number;
+    com_telefone: number;
+    com_email: number;
+    com_decisor: number;
+    por_municipio: MunicipioCountRow[] | null;
+  }>(
+    `with matched as (
+       select es.telefone1, es.email, es.tem_decisor, es.municipio_id
+       from establishments_search es
+       ${joinSql}
+       where ${sql}
+       limit $${limitParam}
+     ),
+     capped_matched as (
+       select * from matched
+       limit ${COUNT_CAP}
+     ),
+     stats as (
+       select
+         (select count(*)::int from matched) as total_probe,
+         count(*) filter (where telefone1 is not null)::int as com_telefone,
+         count(*) filter (where email is not null)::int as com_email,
+         count(*) filter (where tem_decisor)::int as com_decisor
+       from capped_matched
+     ),
+     top_mun as (
+       select m.municipio_id,
+              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
+              coalesce(r.uf, '') as uf,
+              count(*)::int as total
+       from capped_matched m
+       left join ref_municipio r on r.id = m.municipio_id
+       group by 1, 2, 3
+       order by total desc
+       limit 5
+     )
+     select
+       s.total_probe,
+       s.com_telefone,
+       s.com_email,
+       s.com_decisor,
+       coalesce(
+         (select json_agg(json_build_object(
+           'municipio_id', t.municipio_id,
+           'nome', t.nome,
+           'uf', t.uf,
+           'total', t.total
+         ) order by t.total desc) from top_mun t),
+         '[]'::json
+       ) as por_municipio
+     from stats s`,
+    [...params, COUNT_CAP + 1],
+  );
+  const row = rows[0];
+  const raw = Number(row?.total_probe ?? 0);
+  const capped = raw > COUNT_CAP;
+  const munRows = Array.isArray(row?.por_municipio) ? row.por_municipio : [];
+  return {
+    total: capped ? COUNT_CAP : raw,
+    capped,
+    comTelefone: Number(row?.com_telefone ?? 0),
+    comEmail: Number(row?.com_email ?? 0),
+    comDecisor: Number(row?.com_decisor ?? 0),
+    porMunicipio: mapMunicipioCountRows(munRows),
+  };
+}
+
+function canFastCountStructural(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+): boolean {
   if (!allowed || allowed.has("__none__") || allowed.size === 0) return false;
   if (filters.cnpjs?.length) return false;
   if (filters.municipioIds.length) return false;
   if (filters.portes.length) return false;
   if (filters.capitalMin != null || filters.capitalMax != null) return false;
   if (filters.idadeMinimaAnos > 0) return false;
+  return true;
+}
+
+function canFastCount(filters: SearchFilters, allowed: Set<string> | null): boolean {
+  if (!canFastCountStructural(filters, allowed)) return false;
   if (filters.soMatriz) return false;
   if (filters.excluirSimples) return false;
   if (filters.exigirEmailProprio || filters.exigirDecisor) return false;
@@ -471,6 +855,10 @@ function canFastCount(filters: SearchFilters, allowed: Set<string> | null): bool
   if (filters.soEnriquecidas) return false;
   if (filters.ocultarTelefonesCompartilhados) return false;
   return true;
+}
+
+function canFastCountPreview(filters: SearchFilters, allowed: Set<string> | null): boolean {
+  return canFastCountStructural(filters, allowed);
 }
 
 const REF_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -484,6 +872,7 @@ type GridRefCache = {
   presets?: Timed<NichePreset[]>;
   presetCnaes?: Timed<NichePresetCnae[]>;
   cnaeUfCount?: Timed<boolean>;
+  establishmentsSearch?: Timed<boolean>;
 };
 
 const globalForCache = globalThis as typeof globalThis & {
@@ -572,6 +961,165 @@ async function hasCnaeUfCount(): Promise<boolean> {
     }
     throw err;
   }
+}
+
+function logSearchDuration(op: string, started: number, extra?: Record<string, unknown>) {
+  const ms = Date.now() - started;
+  console.log(JSON.stringify({ event: "search_timing", op, ms, ...extra }));
+  if (ms > 5000) {
+    console.warn(JSON.stringify({ event: "search_slow", op, ms, ...extra }));
+  }
+}
+
+async function hasEstablishmentsSearch(): Promise<boolean> {
+  const hit = cacheGet(refCache().establishmentsSearch);
+  if (hit != null) return hit;
+  try {
+    const { rows } = await querySearch("select 1 from establishments_search limit 1");
+    const ok = rows.length > 0;
+    refCache().establishmentsSearch = cacheSet(ok);
+    return ok;
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "";
+    if (code === "42P01") {
+      refCache().establishmentsSearch = cacheSet(false);
+      return false;
+    }
+    throw err;
+  }
+}
+
+async function countCached(
+  filters: SearchFilters,
+  mode: "total" | "full",
+  allowed: Set<string> | null,
+): Promise<CountResult> {
+  const key = countCacheKey(filters, mode, allowed);
+  const cached = await getCountCache(key);
+  if (cached) {
+    logSearchDuration("count", Date.now(), { mode, cache: true });
+    return cached;
+  }
+
+  const started = Date.now();
+  const useFlat = await hasEstablishmentsSearch();
+  let result: CountResult;
+  if (useFlat) {
+    result = await countViaFlatTable(filters, allowed, mode === "full");
+  } else if (mode === "total") {
+    result = await countTotalPreviewLegacy(filters, allowed);
+  } else {
+    result = await countFullLegacy(filters, allowed);
+  }
+
+  logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
+  await setCountCache(key, result);
+  return result;
+}
+
+async function countFullLegacy(
+  filters: SearchFilters,
+  allowed: Set<string> | null,
+): Promise<CountResult> {
+  const useFast = canFastCount(filters, allowed);
+  if (useFast && (await hasCnaeUfCount())) {
+    const params: unknown[] = [[...allowed!]];
+    let ufSql = "";
+    if (filters.ufs.length) {
+      params.push(filters.ufs);
+      ufSql = ` and uf = any($${params.length}::text[])`;
+    }
+    const { rows } = await query<{ n: number }>(
+      `select coalesce(sum(n), 0)::int as n
+       from cnae_uf_count
+       where cnae_principal = any($1::text[])${ufSql}`,
+      params,
+    );
+    const total = Number(rows[0]?.n ?? 0);
+    const capped = total > COUNT_CAP;
+    return {
+      total: capped ? COUNT_CAP : total,
+      capped,
+      comTelefone: 0,
+      comEmail: 0,
+      comDecisor: 0,
+      porMunicipio: [],
+    };
+  }
+  const { sql, params } = buildFilterSql(filters, allowed);
+  const fromSql = buildMatchFrom(filters);
+  const limitParam = params.length + 1;
+  const { rows } = await query<{
+    total_probe: number;
+    com_telefone: number;
+    com_email: number;
+    com_decisor: number;
+    por_municipio: MunicipioCountRow[] | null;
+  }>(
+    `with matched as (
+       select e.cnpj, e.cnpj_basico, e.municipio_id, e.telefone1, e.email
+       ${fromSql}
+       where ${sql}
+       limit $${limitParam}
+     ),
+     capped_matched as (
+       select * from matched
+       limit ${COUNT_CAP}
+     ),
+     stats as (
+       select
+         (select count(*)::int from matched) as total_probe,
+         count(*) filter (where telefone1 is not null)::int as com_telefone,
+         count(*) filter (where email is not null)::int as com_email,
+         (
+           select count(*)::int from capped_matched m
+           where exists (select 1 from partners p where p.cnpj_basico = m.cnpj_basico)
+         ) as com_decisor
+       from capped_matched
+     ),
+     top_mun as (
+       select m.municipio_id,
+              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
+              coalesce(r.uf, '') as uf,
+              count(*)::int as total
+       from capped_matched m
+       left join ref_municipio r on r.id = m.municipio_id
+       group by 1, 2, 3
+       order by total desc
+       limit 5
+     )
+     select
+       s.total_probe,
+       s.com_telefone,
+       s.com_email,
+       s.com_decisor,
+       coalesce(
+         (select json_agg(json_build_object(
+           'municipio_id', t.municipio_id,
+           'nome', t.nome,
+           'uf', t.uf,
+           'total', t.total
+         ) order by t.total desc) from top_mun t),
+         '[]'::json
+       ) as por_municipio
+     from stats s`,
+    [...params, COUNT_CAP + 1],
+  );
+  const row = rows[0];
+  const raw = Number(row?.total_probe ?? 0);
+  const capped = raw > COUNT_CAP;
+  const munRows = Array.isArray(row?.por_municipio) ? row.por_municipio : [];
+  return {
+    total: capped ? COUNT_CAP : raw,
+    capped,
+    comTelefone: Number(row?.com_telefone ?? 0),
+    comEmail: Number(row?.com_email ?? 0),
+    comDecisor: Number(row?.com_decisor ?? 0),
+    porMunicipio: mapMunicipioCountRows(munRows),
+  };
 }
 
 async function countCnaesByCode(
@@ -1266,7 +1814,32 @@ function mapCompanySearchHit(r: CompanyHitRow): CompanySearchHit {
     cnaeCodigo: trimChar(r.cnae_principal) || null,
     cnaeDescricao: r.cnae_descricao ?? "NÃO ENCONTRADO",
     telefone: r.ddd1 && r.telefone1 ? `${r.ddd1}${r.telefone1}` : null,
+    decisorNome: null,
   };
+}
+
+async function attachDecisorsToCompanyHits(
+  hits: CompanySearchHit[],
+): Promise<CompanySearchHit[]> {
+  if (!hits.length) return hits;
+  const basicos = [...new Set(hits.map((h) => h.cnpj.slice(0, 8)))];
+  const quals = await loadQuals();
+  const { rows } = await query(
+    `select * from partners where cnpj_basico = any($1::char(8)[])`,
+    [basicos],
+  );
+  const byBasico = new Map<string, Partner[]>();
+  for (const row of rows) {
+    const p = mapPartner(row);
+    const list = byBasico.get(p.cnpj_basico) ?? [];
+    list.push(p);
+    byBasico.set(p.cnpj_basico, list);
+  }
+  return hits.map((h) => {
+    const partners = byBasico.get(h.cnpj.slice(0, 8)) ?? [];
+    const decisor = pickDecisor(partners, quals);
+    return { ...h, decisorNome: decisor?.nome ?? null };
+  });
 }
 
 function companySearchExtraSql(
@@ -1541,10 +2114,16 @@ export const supabaseRepo: GridRepo = {
     const limit = opts?.limit ?? COMPANY_SEARCH_LIMIT;
     const ufs = opts?.ufs ?? [];
     const soMatriz = Boolean(opts?.soMatriz);
+    const started = Date.now();
+    let hits: CompanySearchHit[];
     if (isCompanyCnpjQuery(queryText)) {
-      return searchCompaniesByCnpj(queryText, ufs, soMatriz, limit);
+      hits = await searchCompaniesByCnpj(queryText, ufs, soMatriz, limit);
+    } else {
+      hits = await searchCompaniesByName(queryText, ufs, soMatriz, limit);
     }
-    return searchCompaniesByName(queryText, ufs, soMatriz, limit);
+    const withDecisor = await attachDecisorsToCompanyHits(hits);
+    logSearchDuration("searchCompanies", started, { n: withDecisor.length });
+    return withDecisor;
   },
 
   async listMunicipios(ufs, q = "") {
@@ -1603,128 +2182,49 @@ export const supabaseRepo: GridRepo = {
     return countPresetsInRegion(presetIds, ufs);
   },
 
-  async count(filters) {
+  async count(filters, mode = "full") {
     const allowed = await resolveAllowedCnaes(filters);
-    if (canFastCount(filters, allowed) && (await hasCnaeUfCount())) {
-      const params: unknown[] = [[...allowed!]];
-      let ufSql = "";
-      if (filters.ufs.length) {
-        params.push(filters.ufs);
-        ufSql = ` and uf = any($${params.length}::text[])`;
-      }
-      const { rows } = await query<{ n: number }>(
-        `select coalesce(sum(n), 0)::int as n
-         from cnae_uf_count
-         where cnae_principal = any($1::text[])${ufSql}`,
-        params,
-      );
-      const total = Number(rows[0]?.n ?? 0);
-      const capped = total > COUNT_CAP;
-      return {
-        total: capped ? COUNT_CAP : total,
-        capped,
-        comTelefone: 0,
-        comEmail: 0,
-        comDecisor: 0,
-        porMunicipio: [],
-      };
-    }
-    const { sql, params } = buildFilterSql(filters, allowed);
-    const fromSql = buildMatchFrom(filters);
-    const limitParam = params.length + 1;
-    const { rows } = await query<{
-      total_probe: number;
-      com_telefone: number;
-      com_email: number;
-      com_decisor: number;
-      por_municipio: Array<{
-        municipio_id: number;
-        nome: string;
-        uf: string;
-        total: number;
-      }> | null;
-    }>(
-      `with matched as (
-         select e.cnpj, e.cnpj_basico, e.municipio_id, e.telefone1, e.email
-         ${fromSql}
-         where ${sql}
-         limit $${limitParam}
-       ),
-       capped_matched as (
-         select * from matched
-         limit ${COUNT_CAP}
-       ),
-       stats as (
-         select
-           (select count(*)::int from matched) as total_probe,
-           count(*) filter (where telefone1 is not null)::int as com_telefone,
-           count(*) filter (where email is not null)::int as com_email,
-           (
-             select count(*)::int from capped_matched m
-             where exists (select 1 from partners p where p.cnpj_basico = m.cnpj_basico)
-           ) as com_decisor
-         from capped_matched
-       ),
-       top_mun as (
-         select m.municipio_id,
-                coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
-                coalesce(r.uf, '') as uf,
-                count(*)::int as total
-         from capped_matched m
-         left join ref_municipio r on r.id = m.municipio_id
-         group by 1, 2, 3
-         order by total desc
-         limit 5
-       )
-       select
-         s.total_probe,
-         s.com_telefone,
-         s.com_email,
-         s.com_decisor,
-         coalesce(
-           (select json_agg(json_build_object(
-             'municipio_id', t.municipio_id,
-             'nome', t.nome,
-             'uf', t.uf,
-             'total', t.total
-           ) order by t.total desc) from top_mun t),
-           '[]'::json
-         ) as por_municipio
-       from stats s`,
-      [...params, COUNT_CAP + 1],
-    );
-    const row = rows[0];
-    const raw = Number(row?.total_probe ?? 0);
-    const capped = raw > COUNT_CAP;
-    const munRows = Array.isArray(row?.por_municipio) ? row.por_municipio : [];
-    return {
-      total: capped ? COUNT_CAP : raw,
-      capped,
-      comTelefone: Number(row?.com_telefone ?? 0),
-      comEmail: Number(row?.com_email ?? 0),
-      comDecisor: Number(row?.com_decisor ?? 0),
-      porMunicipio: munRows.map((m) => ({
-        municipio_id: Number(m.municipio_id),
-        nome: m.nome,
-        uf: trimChar(m.uf),
-        total: Number(m.total),
-      })),
-    };
+    return countCached(filters, mode, allowed);
   },
 
   async runSearch(userId, nome, filters) {
     const allowed = await resolveAllowedCnaes(filters);
     const profile = await scoreProfileForFilters(filters);
-    const { sql, params } = buildFilterSql(filters, allowed);
-    const fromSql = buildMatchFrom(filters);
-    const limitParams = [...params, RESULT_CAP];
-    const { rows } = await query(
-      `select e.* ${fromSql}
-       where ${sql}
-       order by e.cnpj
-       limit $${limitParams.length}`,
-      limitParams,
-    );
+    const useFlat = await hasEstablishmentsSearch();
+    let rows: Record<string, unknown>[];
+    const started = Date.now();
+    if (useFlat) {
+      const { sql, params } = buildFlatFilterSql(filters, allowed);
+      const joinSql = buildFlatMatchFrom(filters);
+      const limitParam = params.length + 1;
+      const result = await querySearch(
+        `select e.*
+         from establishments_search es
+         join establishments e on e.cnpj = es.cnpj
+         ${joinSql}
+         where ${sql}
+         order by ${scoreProxyOrderSql("es")}
+         limit $${limitParam}`,
+        [...params, CANDIDATE_CAP],
+      );
+      rows = result.rows;
+    } else {
+      const { sql, params } = buildFilterSql(filters, allowed);
+      const fromSql = buildMatchFrom(filters);
+      const limitParam = params.length + 1;
+      const result = await querySearch(
+        `select e.* ${fromSql}
+         where ${sql}
+         order by e.cnpj
+         limit $${limitParam}`,
+        [...params, CANDIDATE_CAP],
+      );
+      rows = result.rows;
+    }
+    logSearchDuration("runSearch.candidates", started, {
+      flat: useFlat,
+      n: rows.length,
+    });
     const ests = rows.map(mapEstablishment);
     const packed = await fetchByCnpjs(
       ests.map((e) => e.cnpj),
@@ -1784,7 +2284,8 @@ export const supabaseRepo: GridRepo = {
         (x): x is { est: Establishment; score: number; snapshot: GridRowSnapshot } =>
           !!x,
       )
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score)
+      .slice(0, RESULT_CAP);
 
     const inserted = await query(
       `insert into searches (user_id, nome, filtros, total_found, saved)
@@ -1825,31 +2326,41 @@ export const supabaseRepo: GridRepo = {
   },
 
   async listSearches(userId, opts) {
-    const params: unknown[] = [userId];
-    let limitSql = "";
-    if (opts?.limit != null) {
-      params.push(opts.limit);
-      limitSql = ` limit $${params.length}`;
+    try {
+      const params: unknown[] = [userId];
+      let limitSql = "";
+      if (opts?.limit != null) {
+        params.push(opts.limit);
+        limitSql = ` limit $${params.length}`;
+      }
+      const { rows } = await query(
+        `select * from searches where user_id = $1 and saved = true order by created_at desc${limitSql}`,
+        params,
+      );
+      return rows.map(mapSearch);
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
     }
-    const { rows } = await query(
-      `select * from searches where user_id = $1 and saved = true order by created_at desc${limitSql}`,
-      params,
-    );
-    return rows.map(mapSearch);
   },
 
   async listRecentSearches(userId, opts) {
-    const params: unknown[] = [userId];
-    let limitSql = "";
-    if (opts?.limit != null) {
-      params.push(opts.limit);
-      limitSql = ` limit $${params.length}`;
+    try {
+      const params: unknown[] = [userId];
+      let limitSql = "";
+      if (opts?.limit != null) {
+        params.push(opts.limit);
+        limitSql = ` limit $${params.length}`;
+      }
+      const { rows } = await query(
+        `select * from searches where user_id = $1 order by created_at desc${limitSql}`,
+        params,
+      );
+      return rows.map(mapSearch);
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
     }
-    const { rows } = await query(
-      `select * from searches where user_id = $1 order by created_at desc${limitSql}`,
-      params,
-    );
-    return rows.map(mapSearch);
   },
 
   async saveSearch(searchId, patch) {
@@ -2063,18 +2574,30 @@ export const supabaseRepo: GridRepo = {
 
   async getPilotStats(userId) {
     const profile = await this.getProfile(userId);
-    const { rows } = await query(
-      `select created_at from call_events where user_id = $1`,
-      [userId],
-    );
-    const stamps = rows.map((r) => isoStr(r.created_at));
-    const today = saoPauloDay(new Date());
-    return {
-      hoje: stamps.filter((iso) => saoPauloDay(iso) === today).length,
-      meta: profile.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
-      sequencia: callStreak(stamps),
-      proximaFicha: await this.findNextCallLead(userId),
-    };
+    try {
+      const { rows } = await query(
+        `select created_at from call_events where user_id = $1`,
+        [userId],
+      );
+      const stamps = rows.map((r) => isoStr(r.created_at));
+      const today = saoPauloDay(new Date());
+      return {
+        hoje: stamps.filter((iso) => saoPauloDay(iso) === today).length,
+        meta: profile.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
+        sequencia: callStreak(stamps),
+        proximaFicha: await this.findNextCallLead(userId),
+      };
+    } catch (err) {
+      if (isUndefinedTableError(err)) {
+        return {
+          hoje: 0,
+          meta: profile.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
+          sequencia: 0,
+          proximaFicha: null,
+        };
+      }
+      throw err;
+    }
   },
 
   async saveNicheCuradoria(presetId, rows) {
@@ -2389,11 +2912,16 @@ export const supabaseRepo: GridRepo = {
   },
 
   async listIntegrationConnections(userId) {
-    const { rows } = await query(
-      `select * from integration_connections where user_id = $1 order by created_at desc`,
-      [userId],
-    );
-    return rows.map(mapIntegrationConnection);
+    try {
+      const { rows } = await query(
+        `select * from integration_connections where user_id = $1 order by created_at desc`,
+        [userId],
+      );
+      return rows.map(mapIntegrationConnection);
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
   },
 
   async getIntegrationConnection(id) {

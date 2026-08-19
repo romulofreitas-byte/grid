@@ -1,5 +1,5 @@
 import { hasLiveDatabase } from "@/lib/data";
-import { query } from "@/lib/data/pg";
+import { isUndefinedTableError, query } from "@/lib/data/pg";
 
 export function normalizeSubscriberEmail(raw: string | null | undefined): string | null {
   const email = raw?.trim().toLowerCase();
@@ -12,11 +12,16 @@ export async function isPlatformSubscriber(
 ): Promise<boolean> {
   const normalized = normalizeSubscriberEmail(email);
   if (!normalized || !hasLiveDatabase()) return false;
-  const { rows } = await query<{ email: string }>(
-    `select email from platform_subscribers where email = $1 limit 1`,
-    [normalized],
-  );
-  return rows.length > 0;
+  try {
+    const { rows } = await query<{ email: string }>(
+      `select email from platform_subscribers where email = $1 limit 1`,
+      [normalized],
+    );
+    return rows.length > 0;
+  } catch (err) {
+    if (isUndefinedTableError(err)) return false;
+    throw err;
+  }
 }
 
 /** Banner no Box: assinante na base e ainda sem plano membro_plataforma. */

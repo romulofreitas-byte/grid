@@ -1,4 +1,5 @@
 import { getDataSource, hasLiveDatabase } from "@/lib/data";
+import { isUndefinedTableError } from "@/lib/data/pg";
 import {
   ENRICH_CREDIT_COST,
   EXPORT_CREDIT_COST,
@@ -11,6 +12,7 @@ import {
   type PlanDefinition,
 } from "@/lib/billing/catalog";
 import { parseDocumento } from "@/lib/billing/document";
+import { isPlatformSubscriber } from "@/lib/platform/subscribers";
 import { memoryBillingStore } from "@/lib/billing/memory-store";
 import { mockProvider } from "@/lib/billing/providers/mock";
 import {
@@ -143,26 +145,40 @@ async function grantLot(
 }
 
 export async function ensureStartingCredits(profileId: string): Promise<CreditBalance> {
-  const store = await getBillingStore();
-  const lots = await store.listOpenLots(profileId);
-  const live = lots.filter((l) => lotOpen(l));
-  const sub = await store.getActiveSubscription(profileId);
-  if (sub && (sub.status === "active" || sub.status === "trialing")) {
+  try {
+    const store = await getBillingStore();
+    const lots = await store.listOpenLots(profileId);
+    const live = lots.filter((l) => lotOpen(l));
+    const sub = await store.getActiveSubscription(profileId);
+    if (sub && (sub.status === "active" || sub.status === "trialing")) {
+      return syncCache(store, profileId);
+    }
+    if (live.some((l) => l.source === "plan_grant")) {
+      return syncCache(store, profileId);
+    }
+    const free = getCatalogItem("free") as PlanDefinition;
+    await grantLot(store, {
+      profileId,
+      qty: free.credits,
+      source: "plan_grant",
+      expiresAt: monthEnd(),
+      orderId: null,
+      reason: "grant_free_period",
+    });
     return syncCache(store, profileId);
+  } catch (err) {
+    if (isUndefinedTableError(err)) {
+      const free = getCatalogItem("free") as PlanDefinition;
+      return {
+        total: free.credits,
+        plan: free.credits,
+        pack: 0,
+        plano: "free",
+        enrichAllowed: false,
+      };
+    }
+    throw err;
   }
-  if (live.some((l) => l.source === "plan_grant")) {
-    return syncCache(store, profileId);
-  }
-  const free = getCatalogItem("free") as PlanDefinition;
-  await grantLot(store, {
-    profileId,
-    qty: free.credits,
-    source: "plan_grant",
-    expiresAt: monthEnd(),
-    orderId: null,
-    reason: "grant_free_period",
-  });
-  return syncCache(store, profileId);
 }
 
 export async function getBalance(profileId: string): Promise<CreditBalance> {
@@ -191,6 +207,13 @@ export async function createCheckout(input: {
     const coupon = process.env.BILLING_PLATFORM_COUPON?.trim();
     if (!coupon || input.coupon?.trim() !== coupon) {
       throw new BillingError("Cupom da Plataforma inválido", 403);
+    }
+    const subscribed = await isPlatformSubscriber(input.email);
+    if (!subscribed) {
+      throw new BillingError(
+        "Cupom válido só para assinantes Mundo Pódium com o mesmo e-mail do cadastro",
+        403,
+      );
     }
     const order: BillingOrder = {
       id: crypto.randomUUID(),
@@ -610,13 +633,25 @@ export async function debitExport(
 
 export async function debitEnrich(
   profileId: string,
-  count: number,
+  cnpjs: string[],
   searchId: string | null,
 ): Promise<CreditBalance> {
   const balance = await getBalance(profileId);
   if (!balance.enrichAllowed) throw new EnrichmentNotAllowedError();
-  const needed = count * ENRICH_CREDIT_COST;
-  return debitCredits(profileId, needed, "enrich", searchId);
+  const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")))];
+  const store = await getBillingStore();
+  const toCharge: string[] = [];
+  for (const cnpj of unique) {
+    if (!(await store.isCnpjBilled(profileId, cnpj, "enrich"))) toCharge.push(cnpj);
+  }
+  const needed = toCharge.length * ENRICH_CREDIT_COST;
+  const result = needed
+    ? await debitCredits(profileId, needed, "enrich", searchId)
+    : await getBalance(profileId);
+  for (const cnpj of toCharge) {
+    await store.markCnpjBilled(profileId, cnpj, "enrich", searchId);
+  }
+  return result;
 }
 
 export async function cancelSubscription(profileId: string): Promise<void> {

@@ -84,6 +84,16 @@ export async function endPool(): Promise<void> {
   }
 }
 
+/** Postgres 42P01 — table missing (migrations not applied). */
+export function isUndefinedTableError(err: unknown): boolean {
+  return Boolean(
+    err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code?: string }).code === "42P01",
+  );
+}
+
 export type SqlQuery = <T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],
