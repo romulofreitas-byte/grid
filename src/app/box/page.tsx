@@ -68,6 +68,23 @@ function BoxSearchCard({
 }
 
 export default async function BoxPage() {
+  try {
+    return await BoxPageInner();
+  } catch (err) {
+    console.error("box_page_error", err);
+    const message = err instanceof Error ? err.message : "erro desconhecido";
+    return (
+      <AppShell title="Box">
+        <GlassCard className="p-8">
+          <p className="text-lg font-bold">Não deu para carregar o Box.</p>
+          <p className="mt-3 text-sm text-podium-gray">{message}</p>
+        </GlassCard>
+      </AppShell>
+    );
+  }
+}
+
+async function BoxPageInner() {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   const repo = getRepo();

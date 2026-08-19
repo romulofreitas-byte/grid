@@ -12,20 +12,28 @@ function isLocalDatabaseHost(url: string): boolean {
     const host = new URL(url).hostname;
     return host === "localhost" || host === "127.0.0.1" || host === "::1";
   } catch {
-    return true;
+    return /localhost|127\.0\.0\.1/.test(url);
   }
 }
 
 /** pg 8.16+ treats URL sslmode=require as verify-full and ignores Pool.ssl. */
 function connectionStringForPool(url: string): string {
+  const stripped = url
+    .replace(/[?&]sslmode=[^&]*/gi, "")
+    .replace(/[?&]sslrootcert=[^&]*/gi, "")
+    .replace(/\?&/, "?")
+    .replace(/&&+/g, "&")
+    .replace(/\?$/, "")
+    .replace(/&$/, "");
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(stripped);
     parsed.searchParams.delete("sslmode");
     parsed.searchParams.delete("sslrootcert");
     parsed.searchParams.set("uselibpqcompat", "true");
     return parsed.toString();
   } catch {
-    return url;
+    const joiner = stripped.includes("?") ? "&" : "?";
+    return `${stripped}${joiner}uselibpqcompat=true`;
   }
 }
 
