@@ -416,6 +416,8 @@ export type CompanySearchHit = {
   cnaeCodigo: string | null;
   cnaeDescricao: string;
   telefone: string | null;
+  /** Decisor do QSA (pickDecisor) — exibido no card, não é busca por sócio. */
+  decisorNome: string | null;
 };
 
 export type GridRowSnapshot = {
@@ -432,6 +434,8 @@ export type GridRowSnapshot = {
   decisorNome: string | null;
   porte: string | null;
 };
+
+export type CountMode = "total" | "full";
 
 export type CountResult = {
   total: number;
