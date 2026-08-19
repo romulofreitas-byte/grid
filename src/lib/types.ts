@@ -417,7 +417,7 @@ export type CompanySearchHit = {
   cnaeDescricao: string;
   telefone: string | null;
   /** Decisor do QSA (pickDecisor) — exibido no card, não é busca por sócio. */
-  decisorNome: string | null;
+  decisorNome?: string | null;
 };
 
 export type GridRowSnapshot = {
