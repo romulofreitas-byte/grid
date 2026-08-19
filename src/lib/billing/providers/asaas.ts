@@ -5,7 +5,11 @@ import {
   webhookSecretsEqual,
 } from "@/lib/billing/webhook-guard";
 import type { BillingOrder, NormalizedPaymentEvent } from "@/lib/billing/types";
-import type { PaymentProvider } from "@/lib/billing/providers/types";
+import type {
+  ChargeResult,
+  PaymentProvider,
+  ProviderCustomer,
+} from "@/lib/billing/providers/types";
 
 function baseUrl(): string {
   return (
