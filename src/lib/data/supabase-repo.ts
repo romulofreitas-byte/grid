@@ -51,6 +51,7 @@ import type {
   Company,
   CompanySearchHit,
   ContactInfo,
+  CountMode,
   CountResult,
   DomainStatus,
   EnrichmentJob,
@@ -2182,7 +2183,7 @@ export const supabaseRepo: GridRepo = {
     return countPresetsInRegion(presetIds, ufs);
   },
 
-  async count(filters, mode = "full") {
+  async count(filters: SearchFilters, mode: CountMode = "full") {
     const allowed = await resolveAllowedCnaes(filters);
     return countCached(filters, mode, allowed);
   },
