@@ -2,6 +2,7 @@ export const AUTH_ACTIONS = [
   "login",
   "signup",
   "recover",
+  "resend",
   "google",
   "password",
 ] as const;
@@ -17,6 +18,7 @@ export function parseAuthAction(body: {
     body.action === "login" ||
     body.action === "signup" ||
     body.action === "recover" ||
+    body.action === "resend" ||
     body.action === "password"
   ) {
     return body.action;

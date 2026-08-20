@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   callbackErrorQuery,
   entrarNoticeForError,
+  isDuplicateSignupUser,
+  loginConfirmNotice,
   loginErrorMessage,
   postVerifyPath,
   signupErrorMessage,
@@ -9,13 +11,30 @@ import {
 
 describe("loginErrorMessage", () => {
   it("asks to confirm when email is not confirmed", () => {
-    expect(loginErrorMessage("Email not confirmed")).toMatch(/Confirme o e-mail/);
+    expect(loginErrorMessage("Email not confirmed")).toMatch(/caixa de entrada/);
   });
 
   it("hides whether the email exists and points old magic-link users to recovery", () => {
     expect(loginErrorMessage("Invalid login credentials")).toMatch(
       /Esqueci a senha/,
     );
+  });
+});
+
+describe("isDuplicateSignupUser", () => {
+  it("treats empty identities as an existing account", () => {
+    expect(isDuplicateSignupUser({ identities: [] })).toBe(true);
+    expect(isDuplicateSignupUser({ identities: null })).toBe(true);
+    expect(isDuplicateSignupUser({ identities: [{ id: "1" }] })).toBe(false);
+    expect(isDuplicateSignupUser(null)).toBe(false);
+  });
+});
+
+describe("loginConfirmNotice", () => {
+  it("cites the address and does not ask to guess the email", () => {
+    expect(loginConfirmNotice("ada@grid.dev")).toMatch(/ada@grid.dev/);
+    expect(loginConfirmNotice("ada@grid.dev")).toMatch(/caixa de entrada/);
+    expect(loginConfirmNotice("")).toMatch(/caixa de entrada/);
   });
 });
 

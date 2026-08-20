@@ -4,7 +4,8 @@ export const COPY = {
   landingPromessa:
     "Escolha o nicho. Saia com a lista na ordem de quem ligar — telefone da empresa e sócio que decide.",
   landingPrimeiraVez: "Crie a conta. Depois você monta o capacete.",
-  loginConfirm: "Confirme o e-mail para acessar o GRID.",
+  loginConfirm:
+    "Enviamos um link de confirmação. Olhe a caixa de entrada e o spam. Se o e-mail estiver errado, volte e crie a conta de novo. Se já tem conta, entre.",
   loginRecover:
     "Se houver conta neste e-mail, você recebe o link para definir a senha.",
   boxPlatformCoupon:

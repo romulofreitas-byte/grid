@@ -6,6 +6,7 @@ describe("parseAuthAction", () => {
     expect(parseAuthAction({ action: "login" })).toBe("login");
     expect(parseAuthAction({ action: "signup" })).toBe("signup");
     expect(parseAuthAction({ action: "recover" })).toBe("recover");
+    expect(parseAuthAction({ action: "resend" })).toBe("resend");
     expect(parseAuthAction({ action: "password" })).toBe("password");
   });
 

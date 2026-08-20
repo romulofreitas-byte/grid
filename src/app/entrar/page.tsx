@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { BACK } from "@/lib/back";
 import { COPY } from "@/lib/copy";
-import { entrarNoticeForError } from "@/lib/auth/messages";
+import { entrarNoticeForError, loginConfirmNotice } from "@/lib/auth/messages";
 import { isPaymentNext, safeInternalPath } from "@/lib/auth/next-path";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
 
@@ -61,6 +61,7 @@ function EntrarInner() {
   const [phase, setPhase] = useState<LightsPhase>("idle");
   const [litCount, setLitCount] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [mode, setMode] = useState<Mode>(() => modeFromParams(searchParams));
   const next = safeInternalPath(searchParams.get("next"));
   const paying = isPaymentNext(next);
@@ -99,7 +100,10 @@ function EntrarInner() {
   }, [searchParams]);
 
   function switchMode(nextMode: Mode, options?: { keepNotice?: boolean }) {
-    if (!options?.keepNotice) setNotice(null);
+    if (!options?.keepNotice) {
+      setNotice(null);
+      setAwaitingConfirm(false);
+    }
     setPassword("");
     setPasswordConfirm("");
     setMode(nextMode);
@@ -125,6 +129,7 @@ function EntrarInner() {
       mock?: boolean;
       confirm?: boolean;
       recover?: boolean;
+      existing?: boolean;
       url?: string;
       error?: string;
       next?: string;
@@ -172,10 +177,14 @@ function EntrarInner() {
       });
       if (!res.ok) {
         setNotice(json.error ?? "Não foi possível entrar");
+        if (json.existing) {
+          switchMode("login", { keepNotice: true });
+        }
         return;
       }
       if (json.confirm) {
-        setNotice(COPY.loginConfirm);
+        setAwaitingConfirm(true);
+        setNotice(loginConfirmNotice(email));
         switchMode("login", { keepNotice: true });
         return;
       }
@@ -221,6 +230,28 @@ function EntrarInner() {
       setNotice(authFailMessage(err));
     } finally {
       if (!leaving) setLoading(false);
+    }
+  }
+
+  async function resendConfirm() {
+    if (loading || !email.trim()) return;
+    setLoading(true);
+    try {
+      const { res, json } = await postAuth({
+        action: "resend",
+        email,
+        next,
+      });
+      if (!res.ok) {
+        setNotice(json.error ?? "Não foi possível reenviar");
+        return;
+      }
+      setAwaitingConfirm(true);
+      setNotice(loginConfirmNotice(email));
+    } catch (err) {
+      setNotice(authFailMessage(err));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -329,7 +360,19 @@ function EntrarInner() {
               </label>
             ) : null}
             {notice ? (
-              <p className="text-sm text-podium-yellow">{notice}</p>
+              <div className="space-y-2">
+                <p className="text-sm text-podium-yellow">{notice}</p>
+                {awaitingConfirm ? (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => void resendConfirm()}
+                    className="text-sm font-bold text-podium-gray hover:text-podium-white disabled:opacity-60"
+                  >
+                    Reenviar link
+                  </button>
+                ) : null}
+              </div>
             ) : null}
             <button
               type="submit"

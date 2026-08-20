@@ -11,6 +11,6 @@ describe("COPY login", () => {
     ].join(" ");
     expect(blob.toLowerCase()).not.toMatch(/sem senha/);
     expect(blob.toLowerCase()).not.toMatch(/magic/);
-    expect(COPY.loginConfirm).toMatch(/Confirme o e-mail para acessar o GRID/);
+    expect(COPY.loginConfirm).toMatch(/caixa de entrada e o spam/);
   });
 });

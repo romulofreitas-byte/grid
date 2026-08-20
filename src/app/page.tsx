@@ -63,6 +63,14 @@ export default function LandingPage() {
             >
               {signedIn ? "Ir ao Box" : "Começar"}
             </Link>
+            {!signedIn ? (
+              <Link
+                href="/entrar?modo=entrar"
+                className="text-sm font-bold text-podium-muted hover:text-podium-white"
+              >
+                Já tenho conta
+              </Link>
+            ) : null}
             <Link
               href="/planos"
               className="text-sm font-bold text-podium-muted hover:text-podium-white"

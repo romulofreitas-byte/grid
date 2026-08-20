@@ -1,9 +1,23 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { COPY } from "@/lib/copy";
+
+export function isDuplicateSignupUser(
+  user: { identities?: unknown[] | null } | null | undefined,
+): boolean {
+  if (!user) return false;
+  return !Array.isArray(user.identities) || user.identities.length === 0;
+}
+
+export function loginConfirmNotice(email: string): string {
+  const trimmed = email.trim();
+  if (!trimmed) return COPY.loginConfirm;
+  return `Enviamos um link para ${trimmed}. Olhe a caixa de entrada e o spam. Se o endereço estiver errado, volte e crie a conta de novo. Se já tem conta, entre.`;
+}
 
 export function loginErrorMessage(raw: string | undefined): string {
   const msg = (raw ?? "").toLowerCase();
   if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
-    return "Confirme o e-mail antes de entrar. É o único e-mail que enviamos no cadastro.";
+    return "Confirme o e-mail antes de entrar. Olhe a caixa de entrada e o spam.";
   }
   if (msg.includes("invalid login") || msg.includes("invalid credentials")) {
     return "E-mail ou senha incorretos. Se você entrou pelo link do e-mail, use Esqueci a senha.";

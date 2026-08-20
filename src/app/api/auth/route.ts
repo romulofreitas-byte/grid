@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { parseAuthAction } from "@/lib/auth/actions";
 import { guardPublicApi } from "@/lib/auth/api-guard";
 import {
+  isDuplicateSignupUser,
   loginErrorMessage,
   signupErrorMessage,
 } from "@/lib/auth/messages";
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
       if (action === "recover") {
         return json({ mock: true, ok: true, recover: true });
       }
+      if (action === "resend") {
+        return json({ mock: true, ok: true, confirm: true });
+      }
       return json({ mock: true, ok: true, next: dest });
     }
     if (!supabase) {
@@ -88,6 +92,16 @@ export async function POST(req: NextRequest) {
       return json({ ok: true, recover: true });
     }
 
+    if (action === "resend") {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo: callbackUrl(callbackNext) },
+      });
+      if (error) console.error("auth resend:", error.message);
+      return json({ ok: true, confirm: true });
+    }
+
     const passwordError = validatePassword(body.password);
     if (passwordError) return json({ error: passwordError }, 400);
     const password = body.password as string;
@@ -103,6 +117,12 @@ export async function POST(req: NextRequest) {
       }
       if (data.session) {
         return json({ ok: true, next: dest });
+      }
+      if (isDuplicateSignupUser(data.user)) {
+        return json(
+          { error: signupErrorMessage("already registered"), existing: true },
+          400,
+        );
       }
       return json({ ok: true, confirm: true });
     }
