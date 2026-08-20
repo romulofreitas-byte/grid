@@ -1427,6 +1427,42 @@ function scoreRow(
   return { score, decisorNome: decisor?.nome ?? null };
 }
 
+async function loadRefsForEstablishments(ests: Establishment[]): Promise<{
+  mun: Map<number, RefMunicipio>;
+  cnae: Map<string, RefCnae>;
+}> {
+  const munIds = [...new Set(ests.map((e) => e.municipio_id))];
+  const codes = cnaeChar7Params(ests.map((e) => e.cnae_principal));
+  const [munRes, cnaeRes] = await Promise.all([
+    munIds.length
+      ? query<{ id: number; nome: string; uf: string }>(
+          "select id, nome, uf from ref_municipio where id = any($1::int[])",
+          [munIds],
+        )
+      : Promise.resolve({ rows: [] as Array<{ id: number; nome: string; uf: string }> }),
+    codes.length
+      ? query<{ codigo: string; descricao: string }>(
+          "select codigo, descricao from ref_cnae where codigo = any($1::char(7)[])",
+          [codes],
+        )
+      : Promise.resolve({ rows: [] as Array<{ codigo: string; descricao: string }> }),
+  ]);
+  return {
+    mun: new Map(
+      munRes.rows.map((m) => [
+        Number(m.id),
+        { id: Number(m.id), nome: String(m.nome), uf: trimChar(m.uf) },
+      ]),
+    ),
+    cnae: new Map(
+      cnaeRes.rows.map((c) => {
+        const codigo = trimChar(c.codigo);
+        return [codigo, { codigo, descricao: String(c.descricao ?? "") }];
+      }),
+    ),
+  };
+}
+
 async function fetchByCnpjs(
   cnpjs: string[],
   preloadedEsts?: Establishment[],
@@ -1451,32 +1487,32 @@ async function fetchByCnpjs(
         .map((b) => b.replace(/\D/g, "").padStart(8, "0")),
     ),
   ];
-  const [estRes, companyRes, partRes, quals, munList, cnaeList, enrRes] =
-    await Promise.all([
-      preloadedEsts
-        ? Promise.resolve(null)
-        : query(
-            `select * from establishments where cnpj = any($1::char(14)[])`,
-            [padded],
-          ),
-      query(
-        `select * from companies where cnpj_basico = any($1::char(8)[])`,
-        [basicos],
-      ),
-      query(
-        `select * from partners where cnpj_basico = any($1::char(8)[])`,
-        [basicos],
-      ),
-      loadQuals(),
-      loadRefMunicipios(),
-      loadRefCnaes(),
-      query(
-        `select * from lead_enrichment where cnpj = any($1::char(14)[])`,
+  const estsP = preloadedEsts
+    ? Promise.resolve(preloadedEsts)
+    : query(
+        `select * from establishments where cnpj = any($1::char(14)[])`,
         [padded],
-      ),
-    ]);
-
-  const ests = preloadedEsts ?? estRes!.rows.map(mapEstablishment);
+      ).then((r) => r.rows.map(mapEstablishment));
+  const refsP = preloadedEsts
+    ? loadRefsForEstablishments(preloadedEsts)
+    : estsP.then(loadRefsForEstablishments);
+  const [ests, companyRes, partRes, quals, enrRes, refs] = await Promise.all([
+    estsP,
+    query(
+      `select * from companies where cnpj_basico = any($1::char(8)[])`,
+      [basicos],
+    ),
+    query(
+      `select * from partners where cnpj_basico = any($1::char(8)[])`,
+      [basicos],
+    ),
+    loadQuals(),
+    query(
+      `select * from lead_enrichment where cnpj = any($1::char(14)[])`,
+      [padded],
+    ),
+    refsP,
+  ]);
   const companies = new Map<string, Company>();
   for (const r of companyRes.rows) {
     const company = mapCompany(r);
@@ -1494,8 +1530,8 @@ async function fetchByCnpjs(
     companies,
     partners,
     quals,
-    mun: new Map(munList.map((m) => [m.id, m])),
-    cnae: new Map(cnaeList.map((c) => [c.codigo, c])),
+    mun: refs.mun,
+    cnae: refs.cnae,
     enrichment: new Map(
       enrRes.rows.map((r) => {
         const row = mapEnrichment(r);
@@ -1639,17 +1675,68 @@ async function rowsFromReceita(
   return out;
 }
 
+async function searchSlugsFor(searchId: string): Promise<{
+  presetSlug: string | null;
+  parentSlug: string | null;
+}> {
+  const [searchRes, presets] = await Promise.all([
+    query("select * from searches where id = $1", [searchId]),
+    loadPresets(),
+  ]);
+  const search = searchRes.rows[0] ? mapSearch(searchRes.rows[0]) : undefined;
+  return slugsFromSearch(search?.filtros, presets);
+}
+
 async function dossierOf(cnpj: string, searchId?: string): Promise<LeadDossier | null> {
-  const packed = await fetchByCnpjs([cnpj]);
+  const started = Date.now();
+  const padded = digitsCnpj(cnpj);
+  const packed = await fetchByCnpjs([padded]);
   const est = packed.ests[0];
   if (!est) return null;
   const company = packed.companies.get(est.cnpj_basico);
   if (!company) return null;
   const partners = packed.partners.get(est.cnpj_basico) ?? [];
-  const meta = await phoneMeta([
-    { ddd: est.ddd1, tel: est.telefone1 },
-    { ddd: est.ddd2, tel: est.telefone2 },
+  const email = est.email;
+
+  const [meta, savedRes, emailRow, addrRow, jobRes, slugs] = await Promise.all([
+    phoneMeta([
+      { ddd: est.ddd1, tel: est.telefone1 },
+      { ddd: est.ddd2, tel: est.telefone2 },
+    ]),
+    searchId
+      ? query(
+          "select * from saved_leads where search_id = $1 and cnpj = $2::char(14)",
+          [searchId, padded],
+        )
+      : query(
+          "select * from saved_leads where cnpj = $1::char(14) order by created_at desc limit 1",
+          [padded],
+        ),
+    email
+      ? query<{ qtd: number }>(
+          "select qtd_empresas as qtd from email_usage where email = lower($1)",
+          [email],
+        )
+      : Promise.resolve({ rows: [] as Array<{ qtd: number }> }),
+    est.cep && est.logradouro && est.numero
+      ? query<{ qtd: number }>(
+          `select qtd_empresas as qtd from address_usage
+           where cep = $1 and logradouro = $2 and numero = $3`,
+          [est.cep, est.logradouro, est.numero],
+        )
+      : Promise.resolve({ rows: [] as Array<{ qtd: number }> }),
+    query(
+      `select * from enrichment_jobs
+       where cnpj = $1::char(14)
+       order by created_at desc
+       limit 1`,
+      [padded],
+    ),
+    searchId
+      ? searchSlugsFor(searchId)
+      : Promise.resolve({ presetSlug: null as string | null, parentSlug: null as string | null }),
   ]);
+
   const enrichmentRaw = packed.enrichment.get(est.cnpj) ?? null;
   const enrichment = isEnrichmentVisible(enrichmentRaw) ? enrichmentRaw : null;
 
@@ -1665,73 +1752,32 @@ async function dossierOf(cnpj: string, searchId?: string): Promise<LeadDossier |
     contacts = contactsFromEnrichmentPhones(enrichment.phones);
   }
 
-  const savedRes = searchId
-    ? await query(
-        "select * from saved_leads where search_id = $1 and cnpj = $2",
-        [searchId, cnpj],
-      )
-    : await query(
-        "select * from saved_leads where cnpj = $1 order by created_at desc limit 1",
-        [cnpj],
-      );
   const saved = savedRes.rows[0];
-  const email = est.email;
-  const emailCount = email
-    ? (
-        await query<{ qtd: number }>(
-          "select qtd_empresas as qtd from email_usage where email = lower($1)",
-          [email],
-        )
-      ).rows[0]?.qtd ?? 1
-    : 0;
+  const emailCount = email ? Number(emailRow.rows[0]?.qtd ?? 1) : 0;
   const addrCount =
     est.cep && est.logradouro && est.numero
-      ? (
-          await query<{ qtd: number }>(
-            `select qtd_empresas as qtd from address_usage
-             where cep = $1 and logradouro = $2 and numero = $3`,
-            [est.cep, est.logradouro, est.numero],
-          )
-        ).rows[0]?.qtd ?? 1
+      ? Number(addrRow.rows[0]?.qtd ?? 1)
       : 0;
   const decisorPartner = pickDecisor(partners, packed.quals);
   const cnaeDescricao =
     packed.cnae.get(est.cnae_principal)?.descricao ?? "NÃO ENCONTRADO";
   const municipioNome =
     packed.mun.get(est.municipio_id)?.nome ?? "NÃO ENCONTRADO";
-
-  let presetSlug: string | null = null;
-  let parentSlug: string | null = null;
-  if (searchId) {
-    const searchRes = await query("select * from searches where id = $1", [searchId]);
-    const search = searchRes.rows[0] ? mapSearch(searchRes.rows[0]) : undefined;
-    const presets = await loadPresets();
-    const slugs = slugsFromSearch(search?.filtros, presets);
-    presetSlug = slugs.presetSlug;
-    parentSlug = slugs.parentSlug;
-  }
   const market = resolveMarketBrief({
-    presetSlug,
-    parentSlug,
+    presetSlug: slugs.presetSlug,
+    parentSlug: slugs.parentSlug,
     cnaeDescricao,
     municipioNome,
   });
   const pontePack = resolveMarketPackForPonte({
-    presetSlug,
-    parentSlug,
+    presetSlug: slugs.presetSlug,
+    parentSlug: slugs.parentSlug,
     cnaeDescricao,
     municipioNome,
   });
-  const jobRes = await query(
-    `select * from enrichment_jobs
-     where cnpj = $1
-     order by created_at desc
-     limit 1`,
-    [cnpj],
-  );
   const latestJob = jobRes.rows[0] ? mapJob(jobRes.rows[0]) : null;
 
-  return {
+  const dossier: LeadDossier = {
     establishment: est,
     company,
     cnaeDescricao,
@@ -1766,6 +1812,8 @@ async function dossierOf(cnpj: string, searchId?: string): Promise<LeadDossier |
     market,
     goldenMinute: buildGoldenMinute(enrichment, pontePack),
   };
+  logSearchDuration("dossier", started, { searchId: Boolean(searchId) });
+  return dossier;
 }
 
 function byteaToB64(value: unknown): string {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
@@ -15,6 +15,12 @@ import {
   type RecentCompany,
 } from "@/lib/recent-companies";
 import type { CompanySearchHit } from "@/lib/types";
+import {
+  companyHitToPreview,
+  fetchLeadDossier,
+  leadPreviewKey,
+  leadQueryKey,
+} from "@/lib/lead-query";
 import { cn } from "@/lib/utils";
 
 const ALL_UFS = [
@@ -38,11 +44,32 @@ function CompanyRow({
   hit: Pick<
     CompanySearchHit,
     "cnpj" | "razaoSocial" | "nomeFantasia" | "municipio" | "uf"
-  > & { decisorNome?: string | null };
+  > & {
+    decisorNome?: string | null;
+    telefone?: string | null;
+    cnaeDescricao?: string;
+  };
   onOpen: () => void;
 }) {
+  const qc = useQueryClient();
+  function warm() {
+    qc.setQueryData(leadPreviewKey(hit.cnpj), companyHitToPreview(hit));
+    void qc.prefetchQuery({
+      queryKey: leadQueryKey(hit.cnpj),
+      queryFn: () => fetchLeadDossier(hit.cnpj),
+      staleTime: 30_000,
+    });
+  }
   return (
-    <Link href={`/lead/${hit.cnpj}?from=empresas`} onClick={onOpen}>
+    <Link
+      href={`/lead/${hit.cnpj}?from=empresas`}
+      onClick={() => {
+        warm();
+        onOpen();
+      }}
+      onPointerEnter={warm}
+      onFocus={warm}
+    >
       <GlassCard className="mb-2 px-4 py-3 hover:bg-white/[0.03]">
         <div className="flex items-baseline justify-between gap-3">
           <p className="min-w-0 truncate font-bold">

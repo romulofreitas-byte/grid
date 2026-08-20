@@ -8,6 +8,7 @@ import {
   callViaLabel,
   type CallConnectionPick,
 } from "@/lib/integrations/call-target";
+import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { cn } from "@/lib/utils";
 
 export function CallButton({
@@ -47,7 +48,7 @@ export function CallButton({
     },
     onSuccess: () => {
       onCalled?.();
-      qc.invalidateQueries({ queryKey: ["lead", cnpj] });
+      qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(cnpj)] });
       qc.invalidateQueries({ queryKey: ["pilot-stats"] });
       qc.invalidateQueries({ queryKey: ["integration-jobs"] });
     },

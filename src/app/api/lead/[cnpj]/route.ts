@@ -18,24 +18,26 @@ export async function GET(
   const cnpj = normalizeCnpj(rawCnpj);
   const { searchParams } = new URL(req.url);
   const searchId = searchParams.get("searchId") ?? undefined;
-  if (searchId) {
-    const { getSearchForUser } = await import("@/lib/auth/search-access");
-    const owned = await getSearchForUser(gated.userId, searchId);
-    if (!owned) {
-      return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
-    }
-  }
   const repo = getRepo();
-  const dossier = await repo.getDossier(cnpj, searchId);
+  const [owned, dossier, profile, balance, enriched] = await Promise.all([
+    searchId
+      ? import("@/lib/auth/search-access").then(({ getSearchForUser }) =>
+          getSearchForUser(gated.userId, searchId),
+        )
+      : Promise.resolve(true as const),
+    repo.getDossier(cnpj, searchId),
+    repo.getProfile(gated.userId),
+    getBalance(gated.userId),
+    getBillingStore().then((store) =>
+      store.isCnpjBilled(gated.userId, cnpj, "enrich"),
+    ),
+  ]);
+  if (searchId && !owned) {
+    return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
+  }
   if (!dossier) {
     return NextResponse.json({ error: "NÃO ENCONTRADO" }, { status: 404 });
   }
-  const [profile, balance, store] = await Promise.all([
-    repo.getProfile(gated.userId),
-    getBalance(gated.userId),
-    getBillingStore(),
-  ]);
-  const enriched = await store.isCnpjBilled(gated.userId, cnpj, "enrich");
   const safe = redactDossier(dossier, {
     showEnrichment: enriched,
     showContacts: balance.enrichAllowed,

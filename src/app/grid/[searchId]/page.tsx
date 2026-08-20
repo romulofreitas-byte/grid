@@ -26,8 +26,15 @@ import {
 } from "@/lib/billing/paywall";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { sealLabel } from "@/lib/contact-confidence";
+import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
+import {
+  fetchLeadDossier,
+  gridRowToPreview,
+  leadPreviewKey,
+  leadQueryKey,
+} from "@/lib/lead-query";
 import { ExportDownload } from "@/components/ExportDownload";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
@@ -100,6 +107,7 @@ function GridRowActions({
   callConnection,
   selected,
   onToggle,
+  onWarm,
 }: {
   row: GridRow;
   searchId: string;
@@ -107,9 +115,10 @@ function GridRowActions({
   callConnection: ReturnType<typeof pickCallConnection>;
   selected: boolean;
   onToggle: () => void;
+  onWarm: () => void;
 }) {
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
-  const name = row.nomeFantasia || row.razaoSocial;
+  const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
   return (
     <div className="flex flex-wrap items-center gap-1">
       <SelectToggle
@@ -124,6 +133,9 @@ function GridRowActions({
       />
       <Link
         href={leadHref(row.cnpj, searchId, from)}
+        onPointerEnter={onWarm}
+        onFocus={onWarm}
+        onClick={onWarm}
         className="inline-flex h-9 items-center rounded-xl bg-podium-yellow px-3 text-xs font-extrabold text-podium-navy hover:brightness-110"
       >
         Abrir
@@ -381,7 +393,17 @@ export default function GridPage() {
     });
   }
 
+  function warmLead(row: GridRow) {
+    qc.setQueryData(leadPreviewKey(row.cnpj), gridRowToPreview(row));
+    void qc.prefetchQuery({
+      queryKey: leadQueryKey(row.cnpj, searchId),
+      queryFn: () => fetchLeadDossier(row.cnpj, searchId),
+      staleTime: 30_000,
+    });
+  }
+
   function activateRow(row: GridRow) {
+    warmLead(row);
     router.push(leadHref(row.cnpj, searchId, from));
   }
 
@@ -690,11 +712,12 @@ export default function GridPage() {
               const ddd = row.telefone?.slice(0, 2) ?? null;
               const tel = row.telefone?.slice(2) ?? null;
               const cnae = formatCnae(row.cnaeCodigo);
-              const name = row.nomeFantasia || row.razaoSocial;
+              const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
               return (
                 <tr
                   key={row.cnpj}
                   onClick={(e) => onRowClick(e, row)}
+                  onPointerEnter={() => warmLead(row)}
                   className={cn(
                     "cursor-pointer border-b border-white/5 hover:bg-white/[0.03]",
                     selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
@@ -708,6 +731,7 @@ export default function GridPage() {
                       callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
                       onToggle={() => toggleRow(row)}
+                      onWarm={() => warmLead(row)}
                     />
                   </td>
                   <td className="px-2 py-3 align-middle">
@@ -767,12 +791,13 @@ export default function GridPage() {
           const ddd = row.telefone?.slice(0, 2) ?? null;
           const tel = row.telefone?.slice(2) ?? null;
           const cnae = formatCnae(row.cnaeCodigo);
-          const name = row.nomeFantasia || row.razaoSocial;
+          const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
           return (
             <GlassCard
               key={row.cnpj}
               highlight={selected.has(row.cnpj)}
               onClick={(e) => onRowClick(e, row)}
+              onPointerEnter={() => warmLead(row)}
               className={cn(
                 "relative cursor-pointer p-4 hover:translate-y-0",
                 selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
@@ -822,6 +847,7 @@ export default function GridPage() {
                     callConnection={callConnection}
                     selected={selected.has(row.cnpj)}
                     onToggle={() => toggleRow(row)}
+                    onWarm={() => warmLead(row)}
                   />
                 </div>
               </div>

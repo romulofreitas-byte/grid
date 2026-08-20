@@ -44,7 +44,14 @@ import type {
 } from "@/lib/types";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
+import {
+  fetchLeadDossier,
+  leadPreviewKey,
+  leadQueryKey,
+  type LeadPreview,
+} from "@/lib/lead-query";
 import {
   anatomyBeatsFromScript,
   buildOpeningScript,
@@ -71,6 +78,65 @@ function pickPrimary(contacts: ContactInfo[]): ContactInfo | null {
 
 function contactKey(c: ContactInfo, i: number) {
   return `${c.ddd}-${c.telefone}-${i}`;
+}
+
+function LeadPreviewShell({
+  preview,
+  back,
+}: {
+  preview: LeadPreview;
+  back: ReturnType<typeof leadBack>;
+}) {
+  const ddd = preview.telefone?.slice(0, 2) ?? null;
+  const tel = preview.telefone?.slice(2) ?? null;
+  const phone = formatPhone(ddd, tel);
+  const cityLine = [preview.municipio, preview.uf].filter(Boolean).join(" · ");
+  return (
+    <AppShell fill title="Ficha" back={back}>
+      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
+        <GlassCard className="p-6">
+          <p className="text-xs uppercase tracking-wide text-podium-gray">Fale com</p>
+          <p className="mt-1 text-2xl font-extrabold text-podium-yellow">
+            {preview.decisorNome ?? "Sem sócio no quadro"}
+          </p>
+          {phone ? (
+            <div className="mt-5 rounded-2xl border border-podium-yellow/25 bg-podium-yellow/5 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-podium-muted">
+                Ligar agora
+              </p>
+              <p className="mt-1 text-xl font-extrabold">{phone}</p>
+              {preview.seal ? (
+                <ContactSealBadge
+                  seal={preview.seal}
+                  label=""
+                  compact
+                  className="mt-1"
+                />
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-podium-muted">Carregando contato…</p>
+          )}
+        </GlassCard>
+        <GlassCard className="p-6 md:p-8">
+          <h1 className="text-2xl font-extrabold">
+            {displayCompanyName(preview.nomeFantasia, preview.razaoSocial)}
+          </h1>
+          {preview.nomeFantasia ? (
+            <p className="text-sm text-podium-muted">{preview.razaoSocial}</p>
+          ) : null}
+          <p className="mt-2 text-sm text-podium-gray">{cityLine || <EmptyValue />}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-podium-gray">
+            {preview.cnaeDescricao}
+          </p>
+          <p className="mt-1 text-sm tabular-nums text-podium-muted">
+            {formatCnpj(preview.cnpj)}
+          </p>
+          <div className="mt-6 h-24 animate-pulse rounded-xl bg-white/5" />
+        </GlassCard>
+      </div>
+    </AppShell>
+  );
 }
 
 export default function LeadPage() {
@@ -103,15 +169,9 @@ export default function LeadPage() {
   }, [params.cnpj]);
 
   const dossierQuery = useQuery({
-    queryKey: ["lead", params.cnpj, searchId],
-    queryFn: async () => {
-      const qs = searchId ? `?searchId=${searchId}` : "";
-      const res = await fetch(`/api/lead/${params.cnpj}${qs}`);
-      if (!res.ok) throw new Error("Lead não encontrado");
-      return (await res.json()) as LeadDossier & {
-        profile: Profile;
-      };
-    },
+    queryKey: leadQueryKey(params.cnpj, searchId),
+    queryFn: () => fetchLeadDossier(params.cnpj, searchId),
+    staleTime: 30_000,
     refetchInterval: (q) => {
       const status = q.state.data?.status;
       const tabulated = status === "reuniao" || status === "descartado";
@@ -119,6 +179,13 @@ export default function LeadPage() {
       if (live) return 2500;
       return false;
     },
+  });
+  const previewQuery = useQuery({
+    queryKey: leadPreviewKey(params.cnpj),
+    queryFn: async () =>
+      qc.getQueryData<LeadPreview>(leadPreviewKey(params.cnpj)) ?? null,
+    staleTime: Infinity,
+    enabled: false,
   });
 
   const streamQuery = useQuery({
@@ -202,7 +269,7 @@ export default function LeadPage() {
       stage === "complete" || job === "failed" || job === "skipped";
     if (!finished || !qualifyQueued) return;
     setQualifyQueued(false);
-    void qc.invalidateQueries({ queryKey: ["lead", params.cnpj] });
+    void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
   }, [liveJobStatus, liveEnrichment, qualifyQueued, params.cnpj, qc]);
 
   const saveMutation = useMutation({
@@ -214,7 +281,7 @@ export default function LeadPage() {
       });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lead", params.cnpj] });
+      qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       qc.invalidateQueries({ queryKey: ["pilot-stats"] });
     },
   });
@@ -233,7 +300,7 @@ export default function LeadPage() {
       if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["lead", params.cnpj] });
+      qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       qc.invalidateQueries({ queryKey: ["pilot-stats"] });
     },
   });
@@ -258,7 +325,7 @@ export default function LeadPage() {
       setQualifyError(null);
     },
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["lead", params.cnpj] });
+      void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       void qc.invalidateQueries({ queryKey: ["lead-stream", params.cnpj] });
       void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
       if (searchId) {
@@ -273,15 +340,21 @@ export default function LeadPage() {
     },
   });
 
-  if (dossierQuery.isLoading) {
-    return (
-      <AppShell fill title="Ficha" back={back}>
-        <div className="min-h-0 flex-1 animate-pulse rounded-2xl bg-white/5" />
-      </AppShell>
-    );
-  }
-
   if (!d) {
+    const preview =
+      previewQuery.data ??
+      qc.getQueryData<LeadPreview>(leadPreviewKey(params.cnpj)) ??
+      null;
+    if (dossierQuery.isLoading && preview) {
+      return <LeadPreviewShell preview={preview} back={back} />;
+    }
+    if (dossierQuery.isLoading) {
+      return (
+        <AppShell fill title="Ficha" back={back}>
+          <div className="min-h-0 flex-1 animate-pulse rounded-2xl bg-white/5" />
+        </AppShell>
+      );
+    }
     return (
       <AppShell title="Ficha" back={back}>
         <p className="text-podium-muted">Lead não encontrado</p>
@@ -297,11 +370,8 @@ export default function LeadPage() {
   const callConnection = pickCallConnection(
     connectionsQuery.data?.connections ?? [],
   );
-  const mapsQuery = [
-    est.nome_fantasia || company.razao_social,
-    d.municipioNome,
-    est.uf,
-  ]
+  const companyTitle = displayCompanyName(est.nome_fantasia, company.razao_social);
+  const mapsQuery = [companyTitle, d.municipioNome, est.uf]
     .filter(Boolean)
     .join(" ");
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
@@ -470,59 +540,13 @@ export default function LeadPage() {
             }
           />
 
-          <GlassCard className={cn("space-y-4 p-6", fillCard)}>
-            <div>
-              <p className="text-sm text-podium-gray">Status</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {STATUSES.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => saveMutation.mutate({ status: s.id })}
-                    className={cn(
-                      "rounded-xl border px-3 py-2 text-xs font-bold",
-                      d.status === s.id
-                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
-                        : "border-white/10 text-podium-gray hover:border-white/20",
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={recordCall.isPending}
-              onClick={() => recordCall.mutate()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
-            >
-              <Phone className="h-4 w-4" />
-              {recordCall.isPending ? "Registrando…" : "Registrei a ligação"}
-            </button>
-            <label className="block text-sm text-podium-gray">
-              Notas
-              <textarea
-                defaultValue={d.notas ?? ""}
-                onBlur={(e) => saveMutation.mutate({ notas: e.target.value })}
-                rows={3}
-                placeholder="O que rolou na ligação"
-                className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40"
-              />
-            </label>
-          </GlassCard>
-        </div>
-
-        <div className="order-2 flex min-h-0 flex-col gap-4">
           <GlassCard className={cn("p-6 md:p-8", fillCard)}>
             <div className="flex items-start gap-3">
               {d.gridPosition != null && (
                 <PositionBadge position={d.gridPosition} score={d.gridScore} />
               )}
               <div className="min-w-0">
-                <h1 className="text-2xl font-extrabold">
-                  {est.nome_fantasia || company.razao_social}
-                </h1>
+                <h1 className="text-2xl font-extrabold">{companyTitle}</h1>
                 {est.nome_fantasia ? (
                   <p className="text-sm text-podium-muted">{company.razao_social}</p>
                 ) : null}
@@ -611,6 +635,76 @@ export default function LeadPage() {
 
           <MarketCockpit market={d.market} uf={est.uf} />
 
+          <GlassCard className={cn("space-y-4 p-6", fillCard)}>
+            <div>
+              <p className="text-sm text-podium-gray">Status</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => saveMutation.mutate({ status: s.id })}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-xs font-bold",
+                      d.status === s.id
+                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                        : "border-white/10 text-podium-gray hover:border-white/20",
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={recordCall.isPending}
+              onClick={() => recordCall.mutate()}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
+            >
+              <Phone className="h-4 w-4" />
+              {recordCall.isPending ? "Registrando…" : "Registrei a ligação"}
+            </button>
+            <label className="block text-sm text-podium-gray">
+              Notas
+              <textarea
+                defaultValue={d.notas ?? ""}
+                onBlur={(e) => saveMutation.mutate({ notas: e.target.value })}
+                rows={3}
+                placeholder="O que rolou na ligação"
+                className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40"
+              />
+            </label>
+          </GlassCard>
+        </div>
+
+        <div className="order-2 flex min-h-0 flex-col gap-4">
+          <DigitalAuditPanel
+            enrichment={liveEnrichment}
+            qualifying={
+              qualifyQueued ||
+              liveJobStatus === "pending" ||
+              liveJobStatus === "running" ||
+              (liveEnrichment != null &&
+                enrichmentStage(liveEnrichment) !== "complete")
+            }
+            qualifyPending={qualifyMutation.isPending}
+            qualifyError={qualifyError}
+            onQualify={() => {
+              if (
+                blockQualifyIfFree(
+                  billingQuery.data?.balance.enrichAllowed,
+                  openPaywall,
+                )
+              ) {
+                return;
+              }
+              qualifyMutation.mutate();
+            }}
+            mapsUrl={mapsUrl}
+            goldenMinute={d.goldenMinute}
+          />
+
           {others.length > 0 ? (
             <GlassCard className={cn("p-6", fillCard)}>
               <button
@@ -666,32 +760,6 @@ export default function LeadPage() {
               ) : null}
             </GlassCard>
           ) : null}
-
-          <DigitalAuditPanel
-            enrichment={liveEnrichment}
-            qualifying={
-              qualifyQueued ||
-              liveJobStatus === "pending" ||
-              liveJobStatus === "running" ||
-              (liveEnrichment != null &&
-                enrichmentStage(liveEnrichment) !== "complete")
-            }
-            qualifyPending={qualifyMutation.isPending}
-            qualifyError={qualifyError}
-            onQualify={() => {
-              if (
-                blockQualifyIfFree(
-                  billingQuery.data?.balance.enrichAllowed,
-                  openPaywall,
-                )
-              ) {
-                return;
-              }
-              qualifyMutation.mutate();
-            }}
-            mapsUrl={mapsUrl}
-            goldenMinute={d.goldenMinute}
-          />
         </div>
       </div>
     </AppShell>
