@@ -4,6 +4,9 @@
 [build]
 builder = "NIXPACKS"
 
+# Nixpacks reads .nvmrc / nixpacks.toml (Node 20). Node 18 crashes undici 7
+# with "File is not defined".
+
 [deploy]
 startCommand = "pnpm worker:dev"
 restartPolicyType = "ON_FAILURE"

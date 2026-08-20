@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+import "../src/lib/polyfill-file";
 import "../src/lib/load-env";
 import { getDataSource, getRepo } from "../src/lib/data";
 import { processJob } from "../src/lib/enrichment/process-job";
