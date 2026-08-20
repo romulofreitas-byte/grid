@@ -10,6 +10,7 @@ drop index if exists idx_es_basico;
 drop index if exists idx_es_matriz;
 drop index if exists idx_es_fantasia;
 drop index if exists idx_es_razao;
+drop index if exists idx_es_active_cnae_uf_mun;
 
 create unlogged table if not exists _es_partner_basicos (
   cnpj_basico char(8) primary key
@@ -121,6 +122,10 @@ create index if not exists idx_es_fantasia
   on establishments_search using gin (nome_fantasia gin_trgm_ops);
 create index if not exists idx_es_razao
   on establishments_search using gin (razao_social gin_trgm_ops);
+create index if not exists idx_es_active_cnae_uf_mun
+  on establishments_search (cnae_principal, uf, municipio_id)
+  where opted_out = false
+    and phone_verdict is distinct from 'contabilidade';
 
 analyze establishments_search;
 drop table if exists _es_partner_basicos;

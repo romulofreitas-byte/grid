@@ -60,10 +60,6 @@ function hasCountScope(filters: SearchFilters): boolean {
   );
 }
 
-function countModeForStep(step: number): CountMode {
-  return step >= 3 ? "full" : "total";
-}
-
 function shouldFetchCount(
   step: number,
   filters: SearchFilters,
@@ -365,7 +361,7 @@ function LargadaWizard() {
   const debouncedFilters = useDebounced(filters, 500);
   const liveReady = hasCountScope(filters);
   const countReady = hasCountScope(debouncedFilters);
-  const countMode = countModeForStep(step);
+  const countMode: CountMode = "full";
   const countFetchEnabled = shouldFetchCount(step, debouncedFilters, countReady);
   const countQuery = useQuery({
     queryKey: ["count", countMode, debouncedFilters],

@@ -771,11 +771,13 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
     }
 
     console.log("\nEnsuring establishments_search table exists...");
-    const migrationSql = readFileSync(
-      path.join(REPO_ROOT, "supabase/migrations/20260824000000_establishments_search.sql"),
-      "utf8",
-    );
-    await client.query(migrationSql);
+    for (const rel of [
+      "supabase/migrations/20260824000000_establishments_search.sql",
+      "supabase/migrations/20260825000000_es_active_phone_index.sql",
+    ]) {
+      const migrationSql = readFileSync(path.join(REPO_ROOT, rel), "utf8");
+      await client.query(migrationSql);
+    }
     console.log(
       "  schema ok — run `pnpm db:populate-search` after this ingest (chunked by UF).\n",
     );

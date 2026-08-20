@@ -49,6 +49,17 @@ async function main(): Promise<void> {
       process.exit(1);
     }
 
+    const idx = await timed("idx_es_active_cnae_uf_mun", async () => {
+      const { rows } = await client.query<{ n: number }>(
+        `select count(*)::int as n from pg_indexes
+         where schemaname = 'public' and indexname = 'idx_es_active_cnae_uf_mun'`,
+      );
+      return Number(rows[0]?.n ?? 0);
+    });
+    if (idx < 1) {
+      console.warn("WARN: idx_es_active_cnae_uf_mun missing — run pnpm db:apply-app");
+    }
+
     const probe = await timed("count default (phone not contabilidade, MG+SP)", async () => {
       const { rows } = await client.query<{ n: number }>(
         `select count(*)::int as n from (
@@ -64,23 +75,27 @@ async function main(): Promise<void> {
     });
     console.log(`count probe (capped 10k): ${probe.toLocaleString()}`);
 
-    const ranked = await timed("runSearch proxy top 5k", async () => {
+    const ranked = await timed("runSearch proxy top 5k then join", async () => {
       const { rows } = await client.query<{ cnpj: string }>(
-        `select es.cnpj
-         from establishments_search es
-         where es.opted_out = false
-           and es.uf = any($1::text[])
-           and es.phone_verdict is distinct from 'contabilidade'
-         order by (
-           (case when es.tem_decisor then 7 else 0 end) +
-           (case when es.telefone1 is not null then 5 else 0 end) +
-           (case when es.phone_verdict = 'proprio' then 10
-                 when es.phone_verdict = 'contabilidade' then -5
-                 else 3 end) +
-           (case when es.email_proprio then 5 else 0 end) +
-           (case when es.is_matriz then 1 else 0 end)
-         ) desc, es.cnpj
-         limit 5000`,
+        `with ranked as (
+           select es.cnpj
+           from establishments_search es
+           where es.opted_out = false
+             and es.uf = any($1::text[])
+             and es.phone_verdict is distinct from 'contabilidade'
+           order by (
+             (case when es.tem_decisor then 7 else 0 end) +
+             (case when es.telefone1 is not null then 5 else 0 end) +
+             (case when es.phone_verdict = 'proprio' then 10
+                   when es.phone_verdict = 'contabilidade' then -5
+                   else 3 end) +
+             (case when es.email_proprio then 5 else 0 end) +
+             (case when es.is_matriz then 1 else 0 end)
+           ) desc, es.cnpj
+           limit 5000
+         )
+         select e.cnpj from ranked r
+         join establishments e on e.cnpj = r.cnpj`,
         [["MG", "SP"]],
       );
       return rows.length;

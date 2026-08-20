@@ -29,6 +29,11 @@ import {
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
 import {
+  FLAT_COUNT_CAP,
+  flatCountSql,
+  flatRankedEstablishmentsSql,
+} from "@/lib/data/establishments-search-sql";
+import {
   LOCAL_USER_ID,
   isMissingOrUnpopulatedRelationError,
   isStatementTimeoutError,
@@ -85,7 +90,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_FILTERS } from "@/lib/types";
 
-const COUNT_CAP = 10000;
+const COUNT_CAP = FLAT_COUNT_CAP;
 const RESULT_CAP = 1000;
 const CANDIDATE_CAP = 5000;
 
@@ -700,94 +705,13 @@ function buildFlatFilterSql(
   return { sql: clauses.join("\n    and "), params };
 }
 
-function scoreProxyOrderSql(alias = "es"): string {
-  return `(
-    (case when ${alias}.tem_decisor then 7 else 0 end) +
-    (case when ${alias}.telefone1 is not null then 5 else 0 end) +
-    (case when ${alias}.phone_verdict = 'proprio' then 10
-          when ${alias}.phone_verdict = 'contabilidade' then -5
-          else 3 end) +
-    (case when ${alias}.email_proprio then 5 else 0 end) +
-    (case when ${alias}.is_matriz then 1 else 0 end)
-  ) desc, ${alias}.cnpj`;
-}
-
-async function fetchTopMunicipiosFlat(
-  filters: SearchFilters,
-  allowed: Set<string> | null,
-): Promise<CountResult["porMunicipio"]> {
-  const { sql, params } = buildFlatStructuralFilterSql(filters, allowed);
-  const limitParam = params.length + 1;
-  const { rows } = await querySearch<{ por_municipio: MunicipioCountRow[] | null }>(
-    `with matched as (
-       select es.municipio_id
-       from establishments_search es
-       where ${sql}
-       limit $${limitParam}
-     ),
-     top_mun as (
-       select m.municipio_id,
-              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
-              coalesce(r.uf, '') as uf,
-              count(*)::int as total
-       from matched m
-       left join ref_municipio r on r.id = m.municipio_id
-       group by 1, 2, 3
-       order by total desc
-       limit 5
-     )
-     select coalesce(
-       (select json_agg(json_build_object(
-         'municipio_id', t.municipio_id,
-         'nome', t.nome,
-         'uf', t.uf,
-         'total', t.total
-       ) order by t.total desc) from top_mun t),
-       '[]'::json
-     ) as por_municipio`,
-    [...params, COUNT_CAP],
-  );
-  const munRows = rows[0]?.por_municipio;
-  return mapMunicipioCountRows(Array.isArray(munRows) ? munRows : []);
-}
-
 async function countViaFlatTable(
   filters: SearchFilters,
   allowed: Set<string> | null,
-  includeStats: boolean,
 ): Promise<CountResult> {
   const { sql, params } = buildFlatFilterSql(filters, allowed);
   const joinSql = buildFlatMatchFrom(filters);
   const limitParam = params.length + 1;
-
-  if (!includeStats) {
-    const { rows } = await querySearch<{ n: number }>(
-      `with matched as (
-         select 1
-         from establishments_search es
-         ${joinSql}
-         where ${sql}
-         limit $${limitParam}
-       )
-       select count(*)::int as n from matched`,
-      [...params, COUNT_CAP + 1],
-    );
-    const raw = Number(rows[0]?.n ?? 0);
-    const capped = raw > COUNT_CAP;
-    const porMunicipio =
-      filters.ufs.length > 0 || filters.municipioIds.length > 0
-        ? await fetchTopMunicipiosFlat(filters, allowed)
-        : [];
-    return {
-      total: capped ? COUNT_CAP : raw,
-      capped,
-      comTelefone: 0,
-      comEmail: 0,
-      comDecisor: 0,
-      porMunicipio,
-    };
-  }
-
   const { rows } = await querySearch<{
     total_probe: number;
     com_telefone: number;
@@ -795,51 +719,7 @@ async function countViaFlatTable(
     com_decisor: number;
     por_municipio: MunicipioCountRow[] | null;
   }>(
-    `with matched as (
-       select es.telefone1, es.email, es.tem_decisor, es.municipio_id
-       from establishments_search es
-       ${joinSql}
-       where ${sql}
-       limit $${limitParam}
-     ),
-     capped_matched as (
-       select * from matched
-       limit ${COUNT_CAP}
-     ),
-     stats as (
-       select
-         (select count(*)::int from matched) as total_probe,
-         count(*) filter (where telefone1 is not null)::int as com_telefone,
-         count(*) filter (where email is not null)::int as com_email,
-         count(*) filter (where tem_decisor)::int as com_decisor
-       from capped_matched
-     ),
-     top_mun as (
-       select m.municipio_id,
-              coalesce(r.nome, 'NÃO ENCONTRADO') as nome,
-              coalesce(r.uf, '') as uf,
-              count(*)::int as total
-       from capped_matched m
-       left join ref_municipio r on r.id = m.municipio_id
-       group by 1, 2, 3
-       order by total desc
-       limit 5
-     )
-     select
-       s.total_probe,
-       s.com_telefone,
-       s.com_email,
-       s.com_decisor,
-       coalesce(
-         (select json_agg(json_build_object(
-           'municipio_id', t.municipio_id,
-           'nome', t.nome,
-           'uf', t.uf,
-           'total', t.total
-         ) order by t.total desc) from top_mun t),
-         '[]'::json
-       ) as por_municipio
-     from stats s`,
+    flatCountSql(sql, joinSql, limitParam),
     [...params, COUNT_CAP + 1],
   );
   const row = rows[0];
@@ -1046,25 +926,26 @@ async function countCached(
   mode: "total" | "full",
   allowed: Set<string> | null,
 ): Promise<CountResult> {
-  const key = countCacheKey(filters, mode, allowed);
+  const useFlat = await hasEstablishmentsSearch();
+  const cacheMode = useFlat ? "full" : mode;
+  const key = countCacheKey(filters, cacheMode, allowed);
   const cached = await getCountCache(key);
   if (cached) {
-    logSearchDuration("count", Date.now(), { mode, cache: true });
+    logSearchDuration("count", Date.now(), { mode: cacheMode, cache: true, flat: useFlat });
     return cached;
   }
 
   const started = Date.now();
-  const useFlat = await hasEstablishmentsSearch();
   let result: CountResult;
   if (useFlat) {
-    result = await countViaFlatTable(filters, allowed, mode === "full");
+    result = await countViaFlatTable(filters, allowed);
   } else if (mode === "total") {
     result = await countTotalPreviewLegacy(filters, allowed);
   } else {
     result = await countFullLegacy(filters, allowed);
   }
 
-  logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
+  logSearchDuration("count", started, { mode: cacheMode, flat: useFlat, total: result.total });
   await setCountCache(key, result);
   return result;
 }
@@ -2314,13 +2195,7 @@ export const supabaseRepo: GridRepo = {
       const joinSql = buildFlatMatchFrom(filters);
       const limitParam = params.length + 1;
       const result = await querySearch(
-        `select e.*
-         from establishments_search es
-         join establishments e on e.cnpj = es.cnpj
-         ${joinSql}
-         where ${sql}
-         order by ${scoreProxyOrderSql("es")}
-         limit $${limitParam}`,
+        flatRankedEstablishmentsSql(sql, joinSql, limitParam),
         [...params, CANDIDATE_CAP],
       );
       rows = result.rows;
@@ -2341,6 +2216,7 @@ export const supabaseRepo: GridRepo = {
       flat: useFlat,
       n: rows.length,
     });
+    const hydrateStarted = Date.now();
     const ests = rows.map(mapEstablishment);
     const packed = await fetchByCnpjs(
       ests.map((e) => e.cnpj),
@@ -2353,6 +2229,7 @@ export const supabaseRepo: GridRepo = {
         { ddd: e.ddd2, tel: e.telefone2 },
       ]),
     );
+    logSearchDuration("runSearch.hydrate", hydrateStarted, { n: ests.length });
     const scored = ests
       .map((est) => {
         const company = packed.companies.get(est.cnpj_basico);
