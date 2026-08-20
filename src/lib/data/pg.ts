@@ -37,15 +37,71 @@ function connectionStringForPool(url: string): string {
   }
 }
 
-function poolOpts(statementTimeoutMs: number, max: number) {
+export type PgPoolKind = "short" | "search";
+
+export type PgPoolRuntime = {
+  databaseUrl: string;
+  overrideMax?: number;
+  vercel?: boolean;
+  railway?: boolean;
+};
+
+/** Supabase session pooler is :5432 on *.pooler.supabase.com (cap often 15). */
+export function isSessionPoolerUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const pooler = parsed.hostname.includes("pooler");
+    const port = parsed.port || "5432";
+    return pooler && port === "5432";
+  } catch {
+    return /pooler/i.test(url) && !/:6543\b/.test(url);
+  }
+}
+
+/**
+ * Session-mode Supavisor rejects extra clients with EMAXCONNSESSION (pool_size 15).
+ * Vercel isolates each multiply max, so serverless stays at 1 per pool.
+ */
+export function resolvePoolMax(kind: PgPoolKind, runtime: PgPoolRuntime): number {
+  const override = runtime.overrideMax;
+  if (override != null && Number.isFinite(override) && override >= 1) {
+    return Math.min(8, Math.floor(override));
+  }
+  if (runtime.vercel) return 1;
+  if (runtime.railway) return kind === "search" ? 1 : 2;
+  if (isSessionPoolerUrl(runtime.databaseUrl)) return kind === "search" ? 1 : 2;
+  return kind === "search" ? 5 : 8;
+}
+
+export function isPoolExhaustedError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /EMAXCONNSESSION|max clients reached/i.test(message);
+}
+
+function currentPoolRuntime(): PgPoolRuntime {
+  const raw = Number(process.env.PG_POOL_MAX);
+  return {
+    databaseUrl: process.env.DATABASE_URL?.trim() ?? "",
+    overrideMax: Number.isFinite(raw) && raw >= 1 ? raw : undefined,
+    vercel: Boolean(process.env.VERCEL),
+    railway: Boolean(
+      process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_ENVIRONMENT_ID,
+    ),
+  };
+}
+
+function poolOpts(statementTimeoutMs: number, kind: PgPoolKind) {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) throw new Error("DATABASE_URL is not set");
   const local = isLocalDatabaseHost(url);
+  const runtime = currentPoolRuntime();
+  const serverless = Boolean(runtime.vercel);
   return {
     connectionString: local ? url : connectionStringForPool(url),
-    max,
-    connectionTimeoutMillis: 10_000,
-    idleTimeoutMillis: 20_000,
+    max: resolvePoolMax(kind, runtime),
+    connectionTimeoutMillis: 8_000,
+    idleTimeoutMillis: serverless ? 4_000 : 20_000,
+    allowExitOnIdle: serverless,
     ssl: local ? undefined : { rejectUnauthorized: false },
     options: `-c statement_timeout=${statementTimeoutMs}`,
   };
@@ -54,7 +110,7 @@ function poolOpts(statementTimeoutMs: number, max: number) {
 /** Short queries: profile, billing, ficha. */
 export function getPool(): Pool {
   if (!globalForPg.__gridPool) {
-    globalForPg.__gridPool = new Pool(poolOpts(15_000, 8));
+    globalForPg.__gridPool = new Pool(poolOpts(15_000, "short"));
   }
   return globalForPg.__gridPool;
 }
@@ -62,7 +118,7 @@ export function getPool(): Pool {
 /** Count / runSearch / autocomplete — longer timeout, fewer connections. */
 export function getSearchPool(): Pool {
   if (!globalForPg.__gridSearchPool) {
-    globalForPg.__gridSearchPool = new Pool(poolOpts(60_000, 5));
+    globalForPg.__gridSearchPool = new Pool(poolOpts(60_000, "search"));
   }
   return globalForPg.__gridSearchPool;
 }
