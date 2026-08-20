@@ -8,6 +8,7 @@ import type { CompanySearchOpts } from "@/lib/data/company-search";
 import type {
   CallEventSource,
   CompanySearchHit,
+  CountMode,
   CountResult,
   EnrichmentJob,
   GridRow,
@@ -54,7 +55,7 @@ export type GridRepo = {
     presetIds: string[],
     ufs: string[],
   ): Promise<Record<string, number>>;
-  count(filters: SearchFilters): Promise<CountResult>;
+  count(filters: SearchFilters, mode?: CountMode): Promise<CountResult>;
   runSearch(
     userId: string,
     nome: string,

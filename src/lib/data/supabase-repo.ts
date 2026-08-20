@@ -28,7 +28,15 @@ import {
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
-import { LOCAL_USER_ID, isUndefinedTableError, query, querySearch } from "@/lib/data/pg";
+import {
+  LOCAL_USER_ID,
+  isMissingOrUnpopulatedRelationError,
+  isStatementTimeoutError,
+  isUndefinedTableError,
+  pgErrorCode,
+  query,
+  querySearch,
+} from "@/lib/data/pg";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import {
   gridRowFromSnapshot,
@@ -454,7 +462,7 @@ async function fetchTopMunicipiosPreview(
 ): Promise<CountResult["porMunicipio"]> {
   const { sql, params } = buildStructuralFilterSql(filters, allowed);
   const limitParam = params.length + 1;
-  const { rows } = await query<{ por_municipio: MunicipioCountRow[] | null }>(
+  const { rows } = await querySearch<{ por_municipio: MunicipioCountRow[] | null }>(
     `with matched as (
        select e.municipio_id
        from establishments e
@@ -491,29 +499,42 @@ async function countTotalPreviewLegacy(
   filters: SearchFilters,
   allowed: Set<string> | null,
 ): Promise<CountResult> {
-  let total: number;
-  let capped: boolean;
+  let total = 0;
+  let capped = false;
+  let usedMv = false;
 
   if (canFastCountPreview(filters, allowed) && (await hasCnaeUfCount())) {
-    const params: unknown[] = [[...allowed!]];
-    let ufSql = "";
-    if (filters.ufs.length) {
-      params.push(filters.ufs);
-      ufSql = ` and uf = any($${params.length}::text[])`;
+    try {
+      const params: unknown[] = [[...allowed!]];
+      let ufSql = "";
+      if (filters.ufs.length) {
+        params.push(filters.ufs);
+        ufSql = ` and uf = any($${params.length}::text[])`;
+      }
+      const { rows } = await querySearch<{ n: number }>(
+        `select coalesce(sum(n), 0)::int as n
+         from cnae_uf_count
+         where cnae_principal = any($1::text[])${ufSql}`,
+        params,
+      );
+      const raw = Number(rows[0]?.n ?? 0);
+      capped = raw > COUNT_CAP;
+      total = capped ? COUNT_CAP : raw;
+      usedMv = true;
+    } catch (err) {
+      if (
+        !isMissingOrUnpopulatedRelationError(err) &&
+        !isStatementTimeoutError(err)
+      ) {
+        throw err;
+      }
     }
-    const { rows } = await query<{ n: number }>(
-      `select coalesce(sum(n), 0)::int as n
-       from cnae_uf_count
-       where cnae_principal = any($1::text[])${ufSql}`,
-      params,
-    );
-    const raw = Number(rows[0]?.n ?? 0);
-    capped = raw > COUNT_CAP;
-    total = capped ? COUNT_CAP : raw;
-  } else {
+  }
+
+  if (!usedMv) {
     const { sql, params } = buildStructuralFilterSql(filters, allowed);
     const limitParam = params.length + 1;
-    const { rows } = await query<{ n: number }>(
+    const { rows } = await querySearch<{ n: number }>(
       `with matched as (
          select 1
          from establishments e
@@ -530,7 +551,7 @@ async function countTotalPreviewLegacy(
 
   const porMunicipio =
     filters.ufs.length > 0 || filters.municipioIds.length > 0
-      ? await fetchTopMunicipiosPreview(filters, allowed)
+      ? await fetchTopMunicipiosPreview(filters, allowed).catch(() => [])
       : [];
 
   return {
@@ -906,7 +927,7 @@ function invalidatePresetCache() {
 async function loadRefCnaes(): Promise<RefCnae[]> {
   const hit = cacheGet(refCache().refCnaes);
   if (hit) return hit;
-  const { rows } = await querySearch<{ codigo: string; descricao: string }>(
+  const { rows } = await query<{ codigo: string; descricao: string }>(
     "select codigo, descricao from ref_cnae",
   );
   const value = rows.map((r) => ({
@@ -929,7 +950,7 @@ async function loadPresets(): Promise<NichePreset[]> {
 async function loadAllPresetCnaes(): Promise<NichePresetCnae[]> {
   const hit = cacheGet(refCache().presetCnaes);
   if (hit) return hit;
-  const { rows } = await querySearch(
+  const { rows } = await query(
     "select preset_id, cnae, incluido from niche_preset_cnaes",
   );
   const value = rows.map((r) => ({
@@ -946,20 +967,43 @@ async function loadPresetCnaes(presetId?: string) {
   return presetId ? all.filter((r) => r.preset_id === presetId) : all;
 }
 
+async function publicRelationState(
+  relname: string,
+): Promise<"missing" | "unpopulated" | "ready"> {
+  try {
+    const { rows } = await query<{ relkind: string; relispopulated: boolean }>(
+      `select c.relkind, c.relispopulated
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname = $1
+       limit 1`,
+      [relname],
+    );
+    const row = rows[0];
+    if (!row) return "missing";
+    if (row.relkind === "m" && !row.relispopulated) return "unpopulated";
+    return "ready";
+  } catch (err) {
+    if (isMissingOrUnpopulatedRelationError(err)) return "missing";
+    throw err;
+  }
+}
+
 async function hasCnaeUfCount(): Promise<boolean> {
   const hit = cacheGet(refCache().cnaeUfCount);
   if (hit != null) return hit;
+  const state = await publicRelationState("cnae_uf_count");
+  if (state !== "ready") {
+    refCache().cnaeUfCount = cacheSet(false);
+    return false;
+  }
   try {
     const { rows } = await query("select 1 from cnae_uf_count limit 1");
     const ok = rows.length > 0;
     refCache().cnaeUfCount = cacheSet(ok);
     return ok;
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: unknown }).code)
-        : "";
-    if (code === "42P01") {
+    if (isMissingOrUnpopulatedRelationError(err)) {
       refCache().cnaeUfCount = cacheSet(false);
       return false;
     }
@@ -979,16 +1023,17 @@ async function hasEstablishmentsSearch(): Promise<boolean> {
   const hit = cacheGet(refCache().establishmentsSearch);
   if (hit != null) return hit;
   try {
+    const state = await publicRelationState("establishments_search");
+    if (state !== "ready") {
+      refCache().establishmentsSearch = cacheSet(false);
+      return false;
+    }
     const { rows } = await querySearch("select 1 from establishments_search limit 1");
     const ok = rows.length > 0;
     refCache().establishmentsSearch = cacheSet(ok);
     return ok;
   } catch (err) {
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: unknown }).code)
-        : "";
-    if (code === "42P01") {
+    if (isMissingOrUnpopulatedRelationError(err)) {
       refCache().establishmentsSearch = cacheSet(false);
       return false;
     }
@@ -1030,33 +1075,42 @@ async function countFullLegacy(
 ): Promise<CountResult> {
   const useFast = canFastCount(filters, allowed);
   if (useFast && (await hasCnaeUfCount())) {
-    const params: unknown[] = [[...allowed!]];
-    let ufSql = "";
-    if (filters.ufs.length) {
-      params.push(filters.ufs);
-      ufSql = ` and uf = any($${params.length}::text[])`;
+    try {
+      const params: unknown[] = [[...allowed!]];
+      let ufSql = "";
+      if (filters.ufs.length) {
+        params.push(filters.ufs);
+        ufSql = ` and uf = any($${params.length}::text[])`;
+      }
+      const { rows } = await querySearch<{ n: number }>(
+        `select coalesce(sum(n), 0)::int as n
+         from cnae_uf_count
+         where cnae_principal = any($1::text[])${ufSql}`,
+        params,
+      );
+      const total = Number(rows[0]?.n ?? 0);
+      const capped = total > COUNT_CAP;
+      return {
+        total: capped ? COUNT_CAP : total,
+        capped,
+        comTelefone: 0,
+        comEmail: 0,
+        comDecisor: 0,
+        porMunicipio: [],
+      };
+    } catch (err) {
+      if (
+        !isMissingOrUnpopulatedRelationError(err) &&
+        !isStatementTimeoutError(err)
+      ) {
+        throw err;
+      }
     }
-    const { rows } = await query<{ n: number }>(
-      `select coalesce(sum(n), 0)::int as n
-       from cnae_uf_count
-       where cnae_principal = any($1::text[])${ufSql}`,
-      params,
-    );
-    const total = Number(rows[0]?.n ?? 0);
-    const capped = total > COUNT_CAP;
-    return {
-      total: capped ? COUNT_CAP : total,
-      capped,
-      comTelefone: 0,
-      comEmail: 0,
-      comDecisor: 0,
-      porMunicipio: [],
-    };
   }
   const { sql, params } = buildFilterSql(filters, allowed);
   const fromSql = buildMatchFrom(filters);
   const limitParam = params.length + 1;
-  const { rows } = await query<{
+  const { rows } = await querySearch<{
     total_probe: number;
     com_telefone: number;
     com_email: number;
@@ -1126,6 +1180,23 @@ async function countFullLegacy(
   };
 }
 
+function cnaeCountSql(
+  source: "mv" | "flat" | "est",
+  ufSql: string,
+): string {
+  if (source === "mv") {
+    return `select cnae_principal, sum(n)::int as n
+       from cnae_uf_count
+       where cnae_principal = any($1::text[])${ufSql}
+       group by 1`;
+  }
+  const table = source === "flat" ? "establishments_search" : "establishments";
+  return `select cnae_principal, count(*)::int as n
+       from ${table}
+       where cnae_principal = any($1::text[])${ufSql}
+       group by 1`;
+}
+
 async function countCnaesByCode(
   codes: string[],
   ufs: string[],
@@ -1137,18 +1208,36 @@ async function countCnaesByCode(
     params.push(ufs);
     ufSql = ` and uf = any($${params.length}::text[])`;
   }
-  const useMv = await hasCnaeUfCount();
-  const sql = useMv
-    ? `select cnae_principal, sum(n)::int as n
-       from cnae_uf_count
-       where cnae_principal = any($1::text[])${ufSql}
-       group by 1`
-    : `select cnae_principal, count(*)::int as n
-       from establishments
-       where cnae_principal = any($1::text[])${ufSql}
-       group by 1`;
-  const { rows } = await querySearch<{ cnae_principal: string; n: number }>(sql, params);
-  return new Map(rows.map((r) => [trimChar(r.cnae_principal), Number(r.n)]));
+
+  const order: Array<"mv" | "flat" | "est"> = ["mv", "flat", "est"];
+  let lastErr: unknown;
+  for (let i = 0; i < order.length; i++) {
+    const source = order[i]!;
+    if (source === "mv" && !(await hasCnaeUfCount())) continue;
+    if (source === "flat" && !(await hasEstablishmentsSearch())) continue;
+    try {
+      const run = source === "est" ? querySearch : query;
+      const { rows } = await run<{ cnae_principal: string; n: number }>(
+        cnaeCountSql(source, ufSql),
+        params,
+      );
+      return new Map(rows.map((r) => [trimChar(r.cnae_principal), Number(r.n)]));
+    } catch (err) {
+      lastErr = err;
+      const canFallback =
+        i < order.length - 1 &&
+        (isMissingOrUnpopulatedRelationError(err) || isStatementTimeoutError(err));
+      if (canFallback) {
+        console.warn(
+          JSON.stringify({ event: "count_cnae_fallback", from: source, code: pgErrorCode(err) }),
+        );
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (lastErr) throw lastErr;
+  return new Map();
 }
 
 async function countPresetsInRegion(
@@ -1881,7 +1970,7 @@ async function searchCompaniesByCnpj(
   const params: unknown[] = [padded, `${digits}%`, basico];
   const extra = companySearchExtraSql(params, ufs, soMatriz);
   params.push(limit);
-  const { rows } = await query<CompanyHitRow>(
+  const { rows } = await querySearch<CompanyHitRow>(
     `with hits as (
        select e.cnpj
        from establishments e
@@ -1909,7 +1998,7 @@ async function searchCompaniesNameWave(
   const extra = companySearchExtraSql(params, ufs, soMatriz);
   params.push(limit);
   const limitRef = `$${params.length}`;
-  const { rows } = await query<CompanyHitRow>(
+  const { rows } = await querySearch<CompanyHitRow>(
     `with hits as (
        (
          select e.cnpj
@@ -2073,9 +2162,7 @@ export const supabaseRepo: GridRepo = {
     const queryText = q.trim();
     if (queryText.length < 1) return [];
     const pattern = `%${queryText}%`;
-    const useMv = await hasCnaeUfCount();
-    const sql = useMv
-      ? `select c.codigo, c.descricao, coalesce(x.n, 0)::int as n
+    const mvSql = `select c.codigo, c.descricao, coalesce(x.n, 0)::int as n
          from ref_cnae c
          left join (
            select cnae_principal, sum(n)::int as n
@@ -2084,8 +2171,9 @@ export const supabaseRepo: GridRepo = {
          ) x on x.cnae_principal = c.codigo
          where c.codigo ilike $1 or c.descricao ilike $1
          order by n desc, c.descricao
-         limit $2`
-      : `with hits as (
+         limit $2`;
+    const scanSql = (table: "establishments_search" | "establishments") =>
+      `with hits as (
            select codigo, descricao
            from ref_cnae
            where codigo ilike $1 or descricao ilike $1
@@ -2095,21 +2183,45 @@ export const supabaseRepo: GridRepo = {
          from hits h
          left join (
            select e.cnae_principal, count(*)::int as n
-           from establishments e
+           from ${table} e
            where e.cnae_principal in (select codigo from hits)
            group by 1
          ) x on x.cnae_principal = h.codigo
          order by n desc, h.descricao
          limit $2`;
-    const { rows } = await query<{ codigo: string; descricao: string; n: number }>(
-      sql,
-      [pattern, limit],
-    );
-    return rows.map((r) => ({
-      codigo: trimChar(r.codigo),
-      descricao: r.descricao,
-      count: Number(r.n),
-    }));
+    const attempts: Array<{ sql: string; heavy: boolean; kind: "mv" | "flat" | "est" }> = [
+      { sql: mvSql, heavy: false, kind: "mv" },
+      { sql: scanSql("establishments_search"), heavy: true, kind: "flat" },
+      { sql: scanSql("establishments"), heavy: true, kind: "est" },
+    ];
+
+    let lastErr: unknown;
+    for (let i = 0; i < attempts.length; i++) {
+      const attempt = attempts[i]!;
+      if (attempt.kind === "mv" && !(await hasCnaeUfCount())) continue;
+      if (attempt.kind === "flat" && !(await hasEstablishmentsSearch())) continue;
+      try {
+        const run = attempt.heavy ? querySearch : query;
+        const { rows } = await run<{ codigo: string; descricao: string; n: number }>(
+          attempt.sql,
+          [pattern, limit],
+        );
+        return rows.map((r) => ({
+          codigo: trimChar(r.codigo),
+          descricao: r.descricao,
+          count: Number(r.n),
+        }));
+      } catch (err) {
+        lastErr = err;
+        const canFallback =
+          i < attempts.length - 1 &&
+          (isMissingOrUnpopulatedRelationError(err) || isStatementTimeoutError(err));
+        if (canFallback) continue;
+        throw err;
+      }
+    }
+    if (lastErr) throw lastErr;
+    return [];
   },
 
   async searchCompanies(q, opts) {

@@ -12,8 +12,8 @@ const menu = [
   { href: "/conta", label: "Conta", icon: UserRound },
   { href: "/conexoes", label: "Conexões", icon: Cable },
   { href: "/planos", label: "Planos", icon: Wallet },
-  { href: "/admin/nichos", label: "Admin", icon: Settings },
-];
+  { href: "/admin/nichos", label: "Admin", icon: Settings, adminOnly: true },
+] as const;
 
 export function PilotHeaderAvatar() {
   const [open, setOpen] = useState(false);
@@ -23,7 +23,7 @@ export function PilotHeaderAvatar() {
     queryFn: async () => {
       const res = await fetch("/api/profile");
       if (!res.ok) return null;
-      return (await res.json()) as Profile;
+      return (await res.json()) as Profile & { isAdmin?: boolean };
     },
   });
 
@@ -62,7 +62,9 @@ export function PilotHeaderAvatar() {
           role="menu"
           className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-white/10 bg-podium-navy py-1"
         >
-          {menu.map((item) => {
+          {menu
+            .filter((item) => !("adminOnly" in item && item.adminOnly) || p.isAdmin)
+            .map((item) => {
             const Icon = item.icon;
             return (
               <Link

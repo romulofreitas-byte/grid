@@ -17,6 +17,8 @@ const FILES = [
   "supabase/migrations/20260820000000_lead_enrichment_people.sql",
   "supabase/migrations/20260821000000_lead_enrichment_stage.sql",
   "supabase/migrations/20260822000000_platform_subscribers.sql",
+  "supabase/migrations/20260823000000_abuse_limits.sql",
+  "supabase/migrations/20260824000000_establishments_search.sql",
 ] as const;
 
 async function main(): Promise<void> {

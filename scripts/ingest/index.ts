@@ -24,8 +24,10 @@ import { once } from "node:events";
 import path from "node:path";
 import readline from "node:readline";
 import {
+  ALL_UFS,
   DATA_DIR,
   FILTER_DEFAULTS,
+  REPO_ROOT,
   RF_BASE_URL,
   SCHEMA_APP_PATH,
   SCHEMA_RF_PATH,
@@ -335,6 +337,60 @@ async function writeEstablishmentTsv(
   return { filePath, cnpjSet };
 }
 
+async function collectEstablishmentCnpjs(
+  ufs: Set<string>,
+  meiSet: CnpjBitset,
+  stats: DryRunStats,
+): Promise<CnpjBitset> {
+  const cnpjSet = new CnpjBitset();
+  console.log("Pass 1: scanning estabelecimentos for company keys (no TSV)...\n");
+  await streamKindLines("estabelecimentos", async (line, label) => {
+    if (!stats.files.includes(label)) stats.files.push(label);
+    const fields = parseCsvLine(line);
+    stats.totalLines++;
+    if (stats.totalLines % 1_000_000 === 0) {
+      console.log(
+        `    … ${stats.totalLines.toLocaleString()} scanned, ${stats.filteredLines.toLocaleString()} kept`,
+      );
+    }
+    if (!passesEstablishmentFilter(fields, ufs, meiSet, stats)) return;
+    const row = mapEstablishment(fields);
+    if (!row) {
+      stats.skippedInvalid++;
+      return;
+    }
+    cnpjSet.add(row[1] as string);
+    stats.filteredLines++;
+  });
+  console.log(
+    `\n  Kept ${stats.filteredLines.toLocaleString()} establishments / ${cnpjSet.size.toLocaleString()} companies\n`,
+  );
+  return cnpjSet;
+}
+
+function resolveIngestUrl(): string | undefined {
+  const pooler = getDatabaseUrl();
+  const direct = process.env.SUPABASE_DB_URL?.trim();
+  if (
+    pooler &&
+    (pooler.includes("pooler") || new URL(pooler).port === "6543") &&
+    direct
+  ) {
+    console.log("Using SUPABASE_DB_URL (direct) instead of pooler DATABASE_URL.\n");
+    return direct;
+  }
+  return pooler;
+}
+
+function isLocalDbHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 async function copyEstablishmentsFiltered(
   client: import("pg").Client,
   copyFrom: typeof import("pg-copy-streams").from,
@@ -499,9 +555,20 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
     process.exit(1);
   }
 
-  const client = new Client({ connectionString: getDatabaseUrl() });
+  const databaseUrl = resolveIngestUrl();
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  const local = isLocalDbHost(databaseUrl);
+  const client = new Client({
+    connectionString: databaseUrl,
+    ssl: local ? undefined : { rejectUnauthorized: false },
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
+  });
   await client.connect();
   await client.query("set synchronous_commit = off");
+  await client.query("set statement_timeout = 0");
   console.log("Connected to Postgres.\n");
 
   const started = Date.now();
@@ -513,11 +580,19 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
     const existing = await client.query<{ n: string }>(
       "select count(*)::bigint as n from companies",
     );
-    const resume = Number(existing.rows[0]?.n ?? 0) > 1_000_000;
+    const allBrazil = ufs.length === ALL_UFS.length;
+    const resume =
+      !allBrazil && Number(existing.rows[0]?.n ?? 0) > 1_000_000;
     const ufSet = new Set(ufs);
     let writtenCompanies: CnpjBitset;
     let companyCount: number;
     let estCount: number;
+
+    if (allBrazil) {
+      console.log(
+        "Full Brazil ingest: not resuming (companies from a UF subset would drop other states).\n",
+      );
+    }
 
     if (resume) {
       console.log(
@@ -562,11 +637,17 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
       await copyRefs(client, copyFrom);
 
       const meiSet = await loadMeiSet();
-      const { filePath: estPath, cnpjSet } = await writeEstablishmentTsv(
-        ufSet,
-        meiSet,
-        stats,
-      );
+      const streamOnly = allBrazil;
+      let cnpjSet: CnpjBitset;
+      let estPath: string | null = null;
+      if (streamOnly) {
+        const scan = emptyStats();
+        cnpjSet = await collectEstablishmentCnpjs(ufSet, meiSet, scan);
+      } else {
+        const tsv = await writeEstablishmentTsv(ufSet, meiSet, stats);
+        estPath = tsv.filePath;
+        cnpjSet = tsv.cnpjSet;
+      }
 
       console.log("COPY companies...");
       writtenCompanies = new CnpjBitset();
@@ -589,7 +670,7 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
       console.log(`  companies: ${companyCount.toLocaleString()} rows\n`);
 
       console.log("COPY establishments...");
-      if (existsSync(estPath)) {
+      if (estPath && existsSync(estPath)) {
         estCount = await copyEstablishmentsFiltered(
           client,
           copyFrom,
@@ -598,7 +679,6 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
         );
         rmSync(estPath, { force: true });
       } else {
-        console.warn("  TSV missing — streaming establishments from zips.\n");
         estCount = await copyEstablishmentsFromZip(
           client,
           copyFrom,
@@ -690,6 +770,16 @@ async function runLiveIngest(ufs: string[]): Promise<void> {
       console.log(" ok");
     }
 
+    console.log("\nEnsuring establishments_search table exists...");
+    const migrationSql = readFileSync(
+      path.join(REPO_ROOT, "supabase/migrations/20260824000000_establishments_search.sql"),
+      "utf8",
+    );
+    await client.query(migrationSql);
+    console.log(
+      "  schema ok — run `pnpm db:populate-search` after this ingest (chunked by UF).\n",
+    );
+
     const duracao = Date.now() - started;
     await client.query(
       `insert into ingest_runs (arquivo, linhas, duracao_ms, hash)
@@ -740,7 +830,7 @@ async function main(): Promise<void> {
 
   printPlan(args.ufs, args.dryRun);
 
-  const databaseUrl = getDatabaseUrl();
+  const databaseUrl = resolveIngestUrl() ?? getDatabaseUrl();
 
   if (!databaseUrl) {
     console.log("⚠ DATABASE_URL is not set.\n");

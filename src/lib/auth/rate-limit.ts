@@ -1,3 +1,5 @@
+import { redisTakeToken } from "@/lib/cache/redis-rest";
+
 export type RateBucket =
   | "read"
   | "search"
@@ -16,6 +18,18 @@ const WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   auth: { limit: 8, windowMs: 60_000 },
   optout: { limit: 5, windowMs: 60_000 },
   billing: { limit: 30, windowMs: 60_000 },
+  webhook: { limit: 60, windowMs: 60_000 },
+};
+
+/** Per-user caps — tighter than IP to limit multi-account abuse. */
+const USER_WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
+  read: { limit: 180, windowMs: 60_000 },
+  search: { limit: 30, windowMs: 60_000 },
+  write: { limit: 10, windowMs: 60_000 },
+  export: { limit: 8, windowMs: 60_000 },
+  auth: { limit: 12, windowMs: 60_000 },
+  optout: { limit: 5, windowMs: 60_000 },
+  billing: { limit: 20, windowMs: 60_000 },
   webhook: { limit: 60, windowMs: 60_000 },
 };
 
@@ -59,13 +73,39 @@ export function takeToken(
   };
 }
 
-export function rateLimit(
+async function takeTokenDistributed(
+  memKey: string,
+  redisKey: string,
+  limit: number,
+  windowMs: number,
+  now = Date.now(),
+): Promise<{ ok: boolean; remaining: number; resetAt: number }> {
+  const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
+  const fromRedis = await redisTakeToken(redisKey, limit, windowSec, now);
+  if (fromRedis) return fromRedis;
+  return takeToken(memKey, limit, windowMs, now);
+}
+
+export async function rateLimit(
   ip: string,
   bucket: RateBucket,
   now = Date.now(),
-): { ok: boolean; remaining: number; resetAt: number } {
+): Promise<{ ok: boolean; remaining: number; resetAt: number }> {
   const cfg = WINDOWS[bucket];
-  return takeToken(`${bucket}:${ip}`, cfg.limit, cfg.windowMs, now);
+  const memKey = `${bucket}:${ip}`;
+  const redisKey = `rl:v1:${memKey}`;
+  return takeTokenDistributed(memKey, redisKey, cfg.limit, cfg.windowMs, now);
+}
+
+export async function rateLimitUser(
+  userId: string,
+  bucket: RateBucket,
+  now = Date.now(),
+): Promise<{ ok: boolean; remaining: number; resetAt: number }> {
+  const cfg = USER_WINDOWS[bucket];
+  const memKey = `user:${bucket}:${userId}`;
+  const redisKey = `rl:v1:${memKey}`;
+  return takeTokenDistributed(memKey, redisKey, cfg.limit, cfg.windowMs, now);
 }
 
 export function resetRateLimitStore(): void {

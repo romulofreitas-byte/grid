@@ -1,4 +1,5 @@
 import { getBillingStore } from "@/lib/billing/service";
+import { requireBillingWebhookSecret } from "@/lib/billing/webhook-guard";
 import type { NormalizedPaymentEvent, TreasuryTransfer } from "@/lib/billing/types";
 import { circleConfigured } from "@/lib/billing/providers/types";
 
@@ -70,6 +71,7 @@ export async function parseCircleWebhook(
   rawBody: string,
 ): Promise<NormalizedPaymentEvent | null> {
   const token = process.env.CIRCLE_WEBHOOK_SECRET?.trim();
+  requireBillingWebhookSecret("CIRCLE_WEBHOOK_SECRET", token);
   const header = req.headers.get("x-circle-signature") ?? req.headers.get("authorization");
   if (token && header && !header.includes(token)) {
     throw new Error("Webhook Circle não autorizado");

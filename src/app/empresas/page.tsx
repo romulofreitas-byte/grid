@@ -38,7 +38,7 @@ function CompanyRow({
   hit: Pick<
     CompanySearchHit,
     "cnpj" | "razaoSocial" | "nomeFantasia" | "municipio" | "uf"
-  >;
+  > & { decisorNome?: string | null };
   onOpen: () => void;
 }) {
   return (
@@ -59,6 +59,9 @@ function CompanyRow({
         ) : null}
         <p className="mt-1 text-xs tabular-nums text-podium-muted">
           {formatCnpj(hit.cnpj)}
+          {hit.decisorNome ? (
+            <span className="ml-2 normal-case">· Decisor: {hit.decisorNome}</span>
+          ) : null}
         </p>
       </GlassCard>
     </Link>

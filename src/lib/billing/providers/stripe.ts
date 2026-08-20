@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { requireBillingWebhookSecret } from "@/lib/billing/webhook-guard";
 import type { PaymentMethod } from "@/lib/billing/catalog";
 import type { BillingOrder, NormalizedPaymentEvent } from "@/lib/billing/types";
 import type {
@@ -119,6 +120,7 @@ export const stripeProvider: PaymentProvider = {
 
   async parseWebhook(req: Request, rawBody: string): Promise<NormalizedPaymentEvent | null> {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+    requireBillingWebhookSecret("STRIPE_WEBHOOK_SECRET", endpointSecret);
     const sig = req.headers.get("stripe-signature");
     if (endpointSecret && !verifySignature(rawBody, sig, endpointSecret)) {
       throw new Error("Assinatura Stripe inválida");

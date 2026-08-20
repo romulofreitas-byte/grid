@@ -651,6 +651,8 @@ export const mockRepo: GridRepo = {
       if (!byCnpj && !byName) continue;
       const mun = idx.munById.get(est.municipio_id);
       const cnae = idx.cnaeByCodigo.get(est.cnae_principal);
+      const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
+      const decisor = pickDecisor(partners, store.ref_qualificacao);
       ranked.push({
         cnpj: est.cnpj,
         razaoSocial: company.razao_social,
@@ -661,6 +663,7 @@ export const mockRepo: GridRepo = {
         cnaeDescricao: cnae?.descricao ?? "NÃO ENCONTRADO",
         telefone:
           est.ddd1 && est.telefone1 ? `${est.ddd1}${est.telefone1}` : null,
+        decisorNome: decisor?.nome ?? null,
         prefix: cnpjQuery || prefix,
         matriz: est.is_matriz,
       });
@@ -717,7 +720,7 @@ export const mockRepo: GridRepo = {
     return out;
   },
 
-  async count(filters: SearchFilters) {
+  async count(filters: SearchFilters, mode = "full") {
     const store = getMockStore();
     const idx = getIndexes(store);
     const matched = matchesFilters(store, filters);
@@ -731,10 +734,12 @@ export const mockRepo: GridRepo = {
 
     for (const est of slice) {
       munCounts.set(est.municipio_id, (munCounts.get(est.municipio_id) ?? 0) + 1);
-      if (est.telefone1) comTelefone += 1;
-      if (est.email) comEmail += 1;
-      const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
-      if (pickDecisor(partners, store.ref_qualificacao)) comDecisor += 1;
+      if (mode === "full") {
+        if (est.telefone1) comTelefone += 1;
+        if (est.email) comEmail += 1;
+        const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
+        if (pickDecisor(partners, store.ref_qualificacao)) comDecisor += 1;
+      }
     }
 
     const porMunicipio = [...munCounts.entries()]
@@ -753,9 +758,9 @@ export const mockRepo: GridRepo = {
     return {
       total: capped ? COUNT_CAP : matched.length,
       capped,
-      comTelefone,
-      comEmail,
-      comDecisor,
+      comTelefone: mode === "full" ? comTelefone : 0,
+      comEmail: mode === "full" ? comEmail : 0,
+      comDecisor: mode === "full" ? comDecisor : 0,
       porMunicipio,
     };
   },

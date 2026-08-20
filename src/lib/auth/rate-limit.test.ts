@@ -27,14 +27,14 @@ describe("takeToken", () => {
 });
 
 describe("rateLimit", () => {
-  it("isolates buckets and IPs", () => {
+  it("isolates buckets and IPs", async () => {
     const now = 5_000_000;
     for (let i = 0; i < 8; i += 1) {
-      expect(rateLimit("1.1.1.1", "auth", now).ok).toBe(true);
+      expect((await rateLimit("1.1.1.1", "auth", now)).ok).toBe(true);
     }
-    expect(rateLimit("1.1.1.1", "auth", now).ok).toBe(false);
-    expect(rateLimit("2.2.2.2", "auth", now).ok).toBe(true);
-    expect(rateLimit("1.1.1.1", "read", now).ok).toBe(true);
+    expect((await rateLimit("1.1.1.1", "auth", now)).ok).toBe(false);
+    expect((await rateLimit("2.2.2.2", "auth", now)).ok).toBe(true);
+    expect((await rateLimit("1.1.1.1", "read", now)).ok).toBe(true);
   });
 });
 

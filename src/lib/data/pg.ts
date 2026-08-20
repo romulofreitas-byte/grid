@@ -92,14 +92,28 @@ export async function endPool(): Promise<void> {
   }
 }
 
+export function pgErrorCode(err: unknown): string {
+  if (!err || typeof err !== "object" || !("code" in err)) return "";
+  return String((err as { code?: unknown }).code ?? "");
+}
+
 /** Postgres 42P01 — table missing (migrations not applied). */
 export function isUndefinedTableError(err: unknown): boolean {
-  return Boolean(
-    err &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code?: string }).code === "42P01",
-  );
+  return pgErrorCode(err) === "42P01";
+}
+
+/** Postgres 55000 — materialized view created WITH NO DATA and never refreshed. */
+export function isUnpopulatedRelationError(err: unknown): boolean {
+  return pgErrorCode(err) === "55000";
+}
+
+export function isMissingOrUnpopulatedRelationError(err: unknown): boolean {
+  return isUndefinedTableError(err) || isUnpopulatedRelationError(err);
+}
+
+/** Postgres 57014 — statement_timeout / query canceled. */
+export function isStatementTimeoutError(err: unknown): boolean {
+  return pgErrorCode(err) === "57014";
 }
 
 export type SqlQuery = <T extends QueryResultRow = QueryResultRow>(

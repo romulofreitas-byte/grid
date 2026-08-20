@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSearchForUser } from "@/lib/auth/search-access";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { debitExport } from "@/lib/billing/service";
 import { insufficientCreditsPayload } from "@/lib/billing/paywall";
@@ -18,7 +19,7 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const format = searchParams.get("format") ?? "csv";
   const repo = getRepo();
-  const search = await repo.getSearch(searchId);
+  const search = await getSearchForUser(gated.userId, searchId);
   if (!search) {
     return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
   }
@@ -59,7 +60,6 @@ export async function GET(
   }
 
   if (format === "pdf") {
-    // Lightweight text PDF substitute for Phase 1 without heavy react-pdf SSR issues
     const text = leads
       .map(
         (l, i) =>

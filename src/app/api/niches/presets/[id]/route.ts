@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { guardAdminApi, guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
 import { resolveCnaesFromKeywords } from "@/lib/niches";
 
@@ -37,7 +37,7 @@ export async function PUT(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const gated = await guardApi(req, "write");
+  const gated = await guardAdminApi(req, "write");
   if (isGuardReject(gated)) return gated;
   const { id } = await ctx.params;
   const body = await req.json();

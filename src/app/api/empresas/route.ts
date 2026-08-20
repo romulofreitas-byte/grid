@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { getBalance } from "@/lib/billing/service";
+import { redactCompanySearchHits } from "@/lib/billing/redact";
 import { COMPANY_SEARCH_LIMIT } from "@/lib/data/company-search";
 import { getRepo } from "@/lib/data";
+import { dbUnavailableResponse } from "@/lib/data/db-api";
 
 export const maxDuration = 60;
 
@@ -17,6 +20,11 @@ export async function GET(req: Request) {
   const soMatrizRaw = (searchParams.get("soMatriz") ?? "").toLowerCase();
   const soMatriz = soMatrizRaw === "1" || soMatrizRaw === "true";
   const repo = getRepo();
-  const hits = await repo.searchCompanies(q, { ufs, soMatriz, limit: COMPANY_SEARCH_LIMIT });
-  return NextResponse.json(hits);
+  try {
+    const hits = await repo.searchCompanies(q, { ufs, soMatriz, limit: COMPANY_SEARCH_LIMIT });
+    const balance = await getBalance(gated.userId);
+    return NextResponse.json(redactCompanySearchHits(hits, balance.enrichAllowed));
+  } catch (err) {
+    return dbUnavailableResponse(err, "empresas_search");
+  }
 }

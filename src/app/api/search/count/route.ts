@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
-import type { SearchFilters } from "@/lib/types";
+import { dbUnavailableResponse } from "@/lib/data/db-api";
+import type { CountMode, SearchFilters } from "@/lib/types";
 import { DEFAULT_FILTERS } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -29,15 +30,27 @@ const filtersSchema = z.object({
   cnpjs: z.array(z.string()).default([]),
 });
 
+const countModeSchema = z.enum(["total", "full"]).default("full");
+
 export async function POST(req: Request) {
   const gated = await guardApi(req, "search");
   if (isGuardReject(gated)) return gated;
   const body = await req.json();
-  const parsed = filtersSchema.safeParse({ ...DEFAULT_FILTERS, ...body });
+  const { mode: rawMode, ...filterBody } =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  const parsed = filtersSchema.safeParse({ ...DEFAULT_FILTERS, ...filterBody });
   if (!parsed.success) {
     return NextResponse.json({ error: "Filtros inválidos" }, { status: 400 });
   }
+  const modeParsed = countModeSchema.safeParse(rawMode ?? "full");
+  const mode = (modeParsed.success ? modeParsed.data : "full") as CountMode;
   const filters = parsed.data as SearchFilters;
-  const result = await getRepo().count(filters);
-  return NextResponse.json(result);
+  try {
+    const result = await getRepo().count(filters, mode);
+    return NextResponse.json(result);
+  } catch (err) {
+    return dbUnavailableResponse(err, "search_count");
+  }
 }

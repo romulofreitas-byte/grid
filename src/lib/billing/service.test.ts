@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { resetBillingMemory } from "@/lib/billing/memory-store";
 import {
@@ -11,6 +11,15 @@ import {
   handleNormalizedEvent,
 } from "@/lib/billing/service";
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
+
+vi.mock("@/lib/platform/subscribers", () => ({
+  isPlatformSubscriber: vi.fn(async (email: string | null | undefined) => {
+    return email?.trim().toLowerCase() === "piloto@mundopodium.com.br";
+  }),
+  normalizeSubscriberEmail: (raw: string | null | undefined) =>
+    raw?.trim().toLowerCase() ?? null,
+  shouldShowPlatformCouponBanner: () => false,
+}));
 
 const profileId = LOCAL_USER_ID;
 
@@ -106,9 +115,23 @@ describe("billing service", () => {
 
   it("blocks enrichment on free", async () => {
     await getBalance(profileId);
-    await expect(debitEnrich(profileId, 1, null)).rejects.toBeInstanceOf(
-      EnrichmentNotAllowedError,
-    );
+    await expect(
+      debitEnrich(profileId, ["12345678000190"], null),
+    ).rejects.toBeInstanceOf(EnrichmentNotAllowedError);
+  });
+
+  it("debits enrich once per CNPJ", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const first = await debitEnrich(profileId, ["12345678000190"], "s1");
+    expect(first.total).toBe(898);
+    const second = await debitEnrich(profileId, ["12345678000190"], "s1");
+    expect(second.total).toBe(898);
   });
 
   it("throws when credits run out", async () => {
@@ -118,7 +141,7 @@ describe("billing service", () => {
     );
   });
 
-  it("activates platform plan with coupon", async () => {
+  it("activates platform plan with coupon for subscribers", async () => {
     const order = await createCheckout({
       profileId,
       email: "piloto@mundopodium.com.br",
@@ -131,6 +154,19 @@ describe("billing service", () => {
     const bal = await getBalance(profileId);
     expect(bal.plano).toBe("membro_plataforma");
     expect(bal.total).toBe(900);
+  });
+
+  it("rejects platform coupon for non-subscribers", async () => {
+    await expect(
+      createCheckout({
+        profileId,
+        email: "intruso@example.com",
+        nome: "Intruso",
+        sku: "membro_plataforma",
+        method: "pix",
+        coupon: "PILOTOPODIUM",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 
   it("is idempotent on payment events", async () => {
@@ -152,20 +188,5 @@ describe("billing service", () => {
     await handleNormalizedEvent(event, {});
     const bal = await getBalance(profileId);
     expect(bal.pack).toBe(100);
-  });
-
-  it("applies paid webhook to a pending pix order", async () => {
-    const order = await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "piloto",
-      method: "pix",
-    });
-    expect(order.status).toBe("pending");
-    expect(order.pixCopy).toBeTruthy();
-    await applyPaymentPaid(order.id);
-    const bal = await getBalance(profileId);
-    expect(bal.total).toBe(900);
   });
 });

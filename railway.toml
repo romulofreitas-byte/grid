@@ -1,0 +1,10 @@
+# Railway worker — enrichment always-on (not the Next.js app).
+# In the Railway dashboard: Settings → Start command can stay as below.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "pnpm worker:dev"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
