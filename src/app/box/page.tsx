@@ -1,15 +1,11 @@
 import Link from "next/link";
-import { Flag } from "lucide-react";
 import { BoxPlatformCouponBanner } from "@/components/BoxPlatformCouponBanner";
 import { AppShell } from "@/components/AppShell";
-import { BoxDayCta } from "@/components/BoxDayCta";
-import { BoxEstrutura } from "@/components/BoxEstrutura";
+import { BoxCockpit } from "@/components/BoxCockpit";
 import { GlassCard } from "@/components/GlassCard";
-import { PilotAvatar } from "@/components/PilotAvatar";
 import { SaveListButton } from "@/components/SaveListButton";
 import { SearchListCard } from "@/components/SearchListCard";
 import { SectionTitle } from "@/components/SectionTitle";
-import { VoltaRing } from "@/components/VoltaRing";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
 import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { getRepo } from "@/lib/data";
@@ -22,7 +18,6 @@ import {
 import { needsHelmetSetup, displayName } from "@/lib/pilot-profile";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { COPY } from "@/lib/copy";
-import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import type { Search } from "@/lib/types";
 
@@ -118,123 +113,27 @@ async function BoxPageInner() {
   });
   const next = estrutura.pistaAberta ? stats.proximaFicha : null;
   const name = displayName(profile);
-  const pistaAberta = estrutura.pistaAberta;
 
   return (
     <AppShell title="Box">
       <div className="flex flex-col gap-8">
-        <div className="flex items-center gap-4">
-          <PilotAvatar profile={profile} size="md" />
-          <div>
-            <p className="text-sm text-podium-gray">Bem-vindo de volta</p>
-            <h1 className="mt-1 text-3xl font-extrabold">{name}</h1>
-          </div>
-        </div>
-
         {showPlatformCoupon ? <BoxPlatformCouponBanner /> : null}
 
-        <BoxEstrutura
+        <BoxCockpit
+          name={name}
+          profile={profile}
           slots={estrutura.slots}
           defaultOpen={estrutura.nextGap}
           unsavedSearch={unsavedSearch}
+          next={next}
+          hoje={stats.hoje}
+          meta={stats.meta}
+          sequencia={stats.sequencia}
+          pistaAberta={estrutura.pistaAberta}
+          connections={connections}
+          billing={billing}
+          savedCount={savedCount}
         />
-
-        <GlassCard className="p-8 md:p-10" highlight={pistaAberta}>
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                Trabalho do dia
-              </p>
-              <h2 className="mt-3 max-w-xl text-3xl font-extrabold leading-tight md:text-4xl">
-                {!pistaAberta
-                  ? COPY.boxPistaFechada
-                  : next
-                    ? stats.hoje === 0
-                      ? `Ligar o P${next.gridPosition}`
-                      : "Continuar a volta"
-                    : "Criar e qualificar lista"}
-              </h2>
-              <p className="mt-3 max-w-lg text-sm text-podium-gray md:text-base">
-                {!pistaAberta
-                  ? COPY.boxSemLista
-                  : next
-                    ? `${next.nome}. Ligar conta a volta.`
-                    : "A lista salva não tem P novo. Monte outra ou volte no grid."}
-              </p>
-              <BoxDayCta
-                next={next}
-                hoje={stats.hoje}
-                pistaAberta={pistaAberta}
-                unsavedSearch={unsavedSearch}
-                connections={connections}
-              />
-              {next ? (
-                <Link
-                  href={largadaNovaHref}
-                  className="mt-4 ml-0 inline-flex items-center gap-2 text-sm font-bold text-podium-gray hover:text-podium-yellow md:ml-4"
-                >
-                  <Flag className="h-4 w-4" />
-                  {COPY.novaLista}
-                </Link>
-              ) : null}
-            </div>
-            <div
-              className={cn(
-                "flex items-center gap-5",
-                !pistaAberta && "opacity-40",
-              )}
-            >
-              <VoltaRing
-                hoje={stats.hoje}
-                meta={stats.meta}
-                muted={!pistaAberta}
-              />
-              <div>
-                <p className="text-sm text-podium-gray">Sequência</p>
-                <p className="mt-1 text-2xl font-extrabold text-podium-yellow">
-                  {stats.sequencia}
-                </p>
-                <p className="text-xs text-podium-muted">
-                  {stats.sequencia === 1
-                    ? "dia na pista"
-                    : "dias na pista"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </GlassCard>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <GlassCard className="p-5">
-            <p className="text-sm text-podium-gray">Acesso</p>
-            <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
-              {billing.total}
-            </p>
-            <p className="mt-1 text-xs text-podium-muted">
-              Plano {billing.plano} · {billing.plan} do plano · {billing.pack} de
-              recarga
-            </p>
-            <Link
-              href="/planos"
-              className="mt-3 inline-block text-xs font-bold text-podium-yellow hover:underline"
-            >
-              Planos e recarga →
-            </Link>
-          </GlassCard>
-          <GlassCard className="p-5">
-            <p className="text-sm text-podium-gray">Listas salvas</p>
-            <p className="mt-2 text-4xl font-extrabold">{savedCount}</p>
-            <p className="mt-1 text-xs text-podium-muted">
-              Só entram depois que você clica em Salvar lista
-            </p>
-            <Link
-              href="/listas"
-              className="mt-3 inline-block text-xs font-bold text-podium-yellow hover:underline"
-            >
-              Ver listas →
-            </Link>
-          </GlassCard>
-        </div>
 
         <section>
           <SectionTitle>Última busca</SectionTitle>

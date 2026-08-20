@@ -30,7 +30,7 @@ export function BoxDayCta({
   if (!pistaAberta) {
     if (unsavedSearch) {
       return (
-        <div className="mt-8">
+        <div>
           <SaveListButton
             searchId={unsavedSearch.id}
             nome={unsavedSearch.nome}
@@ -42,7 +42,7 @@ export function BoxDayCta({
     return (
       <Link
         href={largadaNovaHref}
-        className="mt-8 inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
+        className="inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
       >
         <Flag className="h-5 w-5" />
         {COPY.novaLista}
@@ -54,7 +54,7 @@ export function BoxDayCta({
     return (
       <Link
         href={largadaNovaHref}
-        className="mt-8 inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
+        className="inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
       >
         <Flag className="h-5 w-5" />
         {COPY.novaLista}
@@ -67,7 +67,7 @@ export function BoxDayCta({
 
   if (callConnection) {
     return (
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <CallButton
           telHref={null}
           connection={callConnection}
@@ -90,7 +90,7 @@ export function BoxDayCta({
   return (
     <Link
       href={fichaHref}
-      className="mt-8 inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
+      className="inline-flex items-center justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy transition hover:brightness-110"
     >
       <Phone className="h-5 w-5" />
       {idleLabel}
