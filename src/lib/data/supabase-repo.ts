@@ -60,6 +60,7 @@ import {
   DEFAULT_MEETING_MINUTES,
   isTratamento,
 } from "@/lib/pilot-profile";
+import { crmPgMethods } from "@/lib/data/crm-pg";
 import type { GridRepo } from "@/lib/data/repo";
 import type {
   IntegrationConnectionRecord,
@@ -3258,4 +3259,6 @@ export const supabaseRepo: GridRepo = {
     }
     return null;
   },
+
+  ...crmPgMethods,
 };

@@ -6,6 +6,17 @@ import type {
 } from "@/lib/integrations/records";
 import type { CompanySearchOpts } from "@/lib/data/company-search";
 import type {
+  CrmActivityKind,
+  CrmBoard,
+  CrmDealCard,
+  CrmDealCreateInput,
+  CrmDealPatch,
+  CrmNextAction,
+  CrmPipeline,
+  CrmPipelineSummary,
+  CrmStage,
+} from "@/lib/crm/types";
+import type {
   CallEventSource,
   CompanySearchHit,
   CountMode,
@@ -180,4 +191,61 @@ export type GridRepo = {
     userId: string,
     input: { cnpj?: string; e164?: string; searchId?: string | null },
   ): Promise<SavedLeadRef | null>;
+  listCrmPipelines(userId: string): Promise<CrmPipelineSummary[]>;
+  getCrmBoard(userId: string, pipelineId: string): Promise<CrmBoard | null>;
+  createCrmPipeline(userId: string, nome: string): Promise<CrmPipeline>;
+  updateCrmPipeline(
+    userId: string,
+    pipelineId: string,
+    patch: { nome?: string; position?: number },
+  ): Promise<CrmPipeline | null>;
+  deleteCrmPipeline(userId: string, pipelineId: string): Promise<boolean>;
+  createCrmStage(
+    userId: string,
+    pipelineId: string,
+    nome: string,
+  ): Promise<CrmStage | null>;
+  updateCrmStage(
+    userId: string,
+    stageId: string,
+    patch: { nome?: string; position?: number },
+  ): Promise<CrmStage | null>;
+  deleteCrmStage(
+    userId: string,
+    stageId: string,
+    moveToStageId?: string | null,
+  ): Promise<boolean>;
+  reorderCrmStages(
+    userId: string,
+    pipelineId: string,
+    stageIds: string[],
+  ): Promise<boolean>;
+  createCrmDeal(
+    userId: string,
+    input: CrmDealCreateInput,
+  ): Promise<CrmDealCard | null>;
+  updateCrmDeal(
+    userId: string,
+    dealId: string,
+    patch: CrmDealPatch,
+  ): Promise<CrmDealCard | null>;
+  moveCrmDeal(
+    userId: string,
+    dealId: string,
+    stageId: string,
+    position: number,
+  ): Promise<CrmDealCard | null>;
+  deleteCrmDeal(userId: string, dealId: string): Promise<boolean>;
+  scheduleCrmActivity(
+    userId: string,
+    dealId: string,
+    kind: CrmActivityKind,
+    dueAt: string,
+  ): Promise<CrmDealCard | null>;
+  logCrmCall(
+    userId: string,
+    dealId: string,
+    notes: string,
+    next?: CrmNextAction | null,
+  ): Promise<CrmDealCard | null>;
 };

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Cable, Settings, UserRound, Wallet } from "lucide-react";
 import { PilotAvatar } from "@/components/PilotAvatar";
+import { AnchorPopover } from "@/components/AnchorPopover";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const menu = [
 export function PilotHeaderAvatar() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const query = useQuery({
     queryKey: ["profile"],
     queryFn: async () => {
@@ -30,7 +32,9 @@ export function PilotHeaderAvatar() {
   useEffect(() => {
     if (!open) return;
     function onPointer(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -57,11 +61,14 @@ export function PilotHeaderAvatar() {
       >
         <PilotAvatar profile={p} size="sm" />
       </button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-white/10 bg-podium-navy py-1"
-        >
+      <AnchorPopover
+        open={open}
+        anchorRef={rootRef}
+        panelRef={panelRef}
+        align="end"
+        className="w-44 overflow-hidden py-1"
+      >
+        <div role="menu">
           {menu
             .filter((item) => !("adminOnly" in item && item.adminOnly) || p.isAdmin)
             .map((item) => {
@@ -82,7 +89,7 @@ export function PilotHeaderAvatar() {
             );
           })}
         </div>
-      ) : null}
+      </AnchorPopover>
     </div>
   );
 }

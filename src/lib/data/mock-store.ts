@@ -2,6 +2,13 @@ import municipiosIbge from "@/data/ibge-municipios.json";
 import { REF_CNAE } from "@/lib/data/cnae-catalog";
 import { PRESET_SEED, resolveCnaesFromKeywords } from "@/lib/niches";
 import { verdictFromPartnerOverlap } from "@/lib/contact-confidence";
+import { seedCrmStore } from "@/lib/crm/mock-seed";
+import type {
+  CrmActivity,
+  CrmDeal,
+  CrmPipeline,
+  CrmStage,
+} from "@/lib/crm/types";
 import type {
   AddressUsage,
   Company,
@@ -68,6 +75,10 @@ export type MockStore = {
   integration_connections: import("@/lib/integrations/records").IntegrationConnectionRecord[];
   integration_jobs: import("@/lib/integrations/records").IntegrationJobRecord[];
   integration_events: import("@/lib/integrations/records").IntegrationEventRecord[];
+  crm_pipelines: CrmPipeline[];
+  crm_stages: CrmStage[];
+  crm_deals: CrmDeal[];
+  crm_activities: CrmActivity[];
 };
 
 const ACCOUNTANT_PHONE = "33334444";
@@ -638,10 +649,15 @@ function createMockStore(): MockStore {
     integration_connections: [],
     integration_jobs: [],
     integration_events: [],
+    crm_pipelines: [],
+    crm_stages: [],
+    crm_deals: [],
+    crm_activities: [],
   };
 
   rebuildUsageViews(store);
   seedApproachDoorsEnrichment(store);
+  seedCrmStore(store);
   return store;
 }
 
@@ -702,7 +718,7 @@ function seedApproachDoorsEnrichment(store: MockStore): void {
   });
 }
 
-const MOCK_STORE_VERSION = 10;
+const MOCK_STORE_VERSION = 12;
 
 const globalForMock = globalThis as typeof globalThis & {
   __gridMockStore?: MockStore;

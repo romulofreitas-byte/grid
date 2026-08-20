@@ -143,7 +143,7 @@ export default function SetupPage() {
         </p>
         <SectionTitle className="mt-2">Monte o capacete</SectionTitle>
         <Hint className="mt-2">
-          Esses dados entram na Anatomia da Ligação. Pular deixa o script genérico.
+          Esses dados entram como quem você é na ligação. Pular deixa a identidade genérica.
         </Hint>
 
         <div className="mt-5 flex gap-2">

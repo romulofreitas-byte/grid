@@ -29,6 +29,7 @@ import {
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
 import { municipioListLimit } from "@/lib/municipios";
+import { crmMockMethods } from "@/lib/data/crm-mock";
 import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
@@ -1325,4 +1326,6 @@ export const mockRepo: GridRepo = {
     }
     return null;
   },
+
+  ...crmMockMethods,
 };

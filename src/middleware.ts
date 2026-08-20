@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/grid") ||
     path.startsWith("/lead") ||
     path.startsWith("/listas") ||
+    path.startsWith("/crm") ||
     path.startsWith("/conta") ||
     path.startsWith("/setup") ||
     path.startsWith("/pagar") ||
@@ -73,6 +74,8 @@ export const config = {
     "/lead/:path*",
     "/listas",
     "/listas/:path*",
+    "/crm",
+    "/crm/:path*",
     "/conta",
     "/conta/:path*",
     "/setup",

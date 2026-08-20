@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal, SlidersHorizontal, Trash2 } from "lucide-react";
 import { ExportDownload } from "@/components/ExportDownload";
+import { AnchorPopover } from "@/components/AnchorPopover";
 import { COPY } from "@/lib/copy";
 import { largadaEditHref } from "@/lib/back";
 import type { Search } from "@/lib/types";
@@ -24,12 +25,16 @@ export function ListSearchMenu({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
   useEffect(() => {
     if (!open) return;
     function onDoc(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      if (
+        !rootRef.current?.contains(event.target as Node) &&
+        !panelRef.current?.contains(event.target as Node)
+      ) {
         setOpen(false);
         setConfirming(false);
         setError(null);
@@ -81,12 +86,15 @@ export function ListSearchMenu({
         <MoreHorizontal className="h-4 w-4" />
         <span className="sr-only">Mais ações</span>
       </button>
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-white/10 bg-podium-navy p-1 shadow-2xl"
-        >
+      <AnchorPopover
+        open={open}
+        anchorRef={rootRef}
+        panelRef={panelRef}
+        id={menuId}
+        align="end"
+        className="w-48 p-1"
+      >
+        <div role="menu">
           {confirming ? (
             <div className="space-y-2 px-2 py-2">
               <p className="text-xs text-podium-muted">
@@ -147,7 +155,7 @@ export function ListSearchMenu({
             </>
           )}
         </div>
-      ) : null}
+      </AnchorPopover>
     </div>
   );
 }

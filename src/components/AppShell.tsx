@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Columns3,
   Flag,
   LayoutGrid,
   List,
@@ -21,6 +22,7 @@ const nav = [
   { href: "/largada", label: "Nova lista", icon: Flag },
   { href: "/empresas", label: "Empresas", icon: Search },
   { href: "/listas", label: "Listas", icon: List },
+  { href: "/crm", label: "CRM", icon: Columns3 },
 ];
 
 export function AppShell({
@@ -28,11 +30,13 @@ export function AppShell({
   title,
   back,
   fill = false,
+  wide = false,
 }: {
   children: React.ReactNode;
   title?: string;
   back?: { href: string; label: string };
   fill?: boolean;
+  wide?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -91,7 +95,8 @@ export function AppShell({
 
       <main
         className={cn(
-          "mx-auto flex max-w-7xl flex-col px-4 pb-24 pt-6 md:pb-10",
+          "mx-auto flex flex-col pb-24 md:pb-10",
+          wide ? "max-w-none px-3 pt-4" : "max-w-7xl px-4 pt-6",
           fill && "min-h-[calc(100dvh-3.5rem)]",
         )}
       >

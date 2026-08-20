@@ -48,7 +48,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o Capacete?",
     answer:
-      "Nome, empresa e cidade. Entram na Anatomia como quem você é. O motivo da ligação vem do mercado do lead — não da sua especialidade.",
+      "Nome, empresa e cidade. Entram como quem você é. O motivo da ligação vem do mercado do lead — não da sua especialidade.",
     links: [{ href: "/setup", label: "Completar o capacete" }],
   },
   {
@@ -56,14 +56,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o Minuto de Ouro?",
     answer:
-      "Na ficha, Clareza de mercado é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — cruza site, redes e Google Meu Negócio e mostra os cards dos ativos digitais. Isso qualifica o lead; não abre a Anatomia.",
+      "Na ficha, a Anatomia é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — cruza site, redes e Google Meu Negócio e mostra os cards dos ativos digitais. Isso qualifica o lead; não monta um roteiro.",
   },
   {
     id: "anatomia-da-ligacao",
     category: "Começar",
     question: "O que é a Anatomia da Ligação?",
     answer:
-      "Três blocos na ordem: apresentação e motivo de mercado, espaço para ele verbalizar a dor, convite à reunião. Edite cada um antes de copiar. Ferramenta não abre a ligação.",
+      "Na ficha, um briefing do nicho: quem atender, a dor do ramo, o calendário e um ângulo para ter na cabeça. Não é um texto para ler na ligação. Ferramenta não abre a chamada.",
   },
   {
     id: "listas-salvas",
@@ -78,7 +78,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o roteiro da Anatomia. No grid, marque as que quiser — não precisa ser a lista inteira nem só os 50 primeiros. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. No grid, marque as que quiser — não precisa ser a lista inteira nem só os 50 primeiros. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {

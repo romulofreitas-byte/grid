@@ -31,3 +31,16 @@ describe("COPY login", () => {
     expect(COPY.entrarLoginCta).toBe("Entrar no Box");
   });
 });
+
+describe("COPY crm", () => {
+  it("keeps the board in pista language, not generic SaaS jargon", () => {
+    expect(COPY.crmNav).toBe("CRM");
+    expect(COPY.crmTitle).toMatch(/pista/i);
+    expect(COPY.crmHint).toMatch(/faixa/i);
+    expect(COPY.crmNoActivity).toMatch(/volta/i);
+    expect(COPY.crmNextAction).toMatch(/volta/i);
+    expect(COPY.crmCadenceHint).toMatch(/faixa/i);
+    expect(COPY.crmLogCallHint).toMatch(/encerra a volta/i);
+    expect(COPY.crmScheduleHint).toMatch(/não registra/i);
+  });
+});

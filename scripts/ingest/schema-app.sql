@@ -174,3 +174,59 @@ create table if not exists usage_daily (
   primary key (user_id, bucket, day_sp)
 );
 create index if not exists usage_daily_day_idx on usage_daily (day_sp, bucket);
+
+create table if not exists crm_pipelines (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references profiles(id) on delete cascade,
+  nome        text not null,
+  position    int not null default 0,
+  created_at  timestamptz not null default now()
+);
+create index if not exists crm_pipelines_user_idx
+  on crm_pipelines (user_id, position);
+
+create table if not exists crm_stages (
+  id           uuid primary key default gen_random_uuid(),
+  pipeline_id  uuid not null references crm_pipelines(id) on delete cascade,
+  nome         text not null,
+  position     int not null default 0,
+  created_at   timestamptz not null default now()
+);
+create index if not exists crm_stages_pipeline_idx
+  on crm_stages (pipeline_id, position);
+
+create table if not exists crm_deals (
+  id             uuid primary key default gen_random_uuid(),
+  pipeline_id    uuid not null references crm_pipelines(id) on delete cascade,
+  stage_id       uuid not null references crm_stages(id) on delete restrict,
+  company_name   text not null,
+  contact_name   text not null default '',
+  secretaries    jsonb not null default '[]'::jsonb,
+  phones         jsonb not null default '[]'::jsonb,
+  notes          text not null default '',
+  position       int not null default 0,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index if not exists crm_deals_stage_idx
+  on crm_deals (stage_id, position);
+create index if not exists crm_deals_pipeline_idx
+  on crm_deals (pipeline_id);
+
+create table if not exists crm_activities (
+  id          uuid primary key default gen_random_uuid(),
+  deal_id     uuid not null references crm_deals(id) on delete cascade,
+  kind        text not null,
+  due_at      timestamptz not null,
+  status      text not null default 'open',
+  created_at  timestamptz not null default now(),
+  constraint crm_activities_kind_chk
+    check (kind in ('ligar', 'whatsapp', 'reuniao', 'followup', 'proposta')),
+  constraint crm_activities_status_chk
+    check (status in ('open', 'done'))
+);
+create index if not exists crm_activities_deal_idx
+  on crm_activities (deal_id, status);
+create unique index if not exists crm_activities_one_open
+  on crm_activities (deal_id) where status = 'open';
+

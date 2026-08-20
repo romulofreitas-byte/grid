@@ -252,9 +252,8 @@ function siteHref(domain: string | null): string | null {
 function adsLibraryUrl(raw: string | undefined): string | null {
   const handle = parseInstagramHandle(raw);
   if (!handle) return null;
-  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&q=${encodeURIComponent(
-    `@${handle}`,
-  )}`;
+  const q = encodeURIComponent(`@${handle}`);
+  return `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=BR&is_targeted_country=false&media_type=all&search_type=keyword_unordered&q=${q}`;
 }
 
 function whatsappHref(raw: string | null): string | null {

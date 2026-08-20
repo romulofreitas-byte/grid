@@ -1,3 +1,9 @@
+"use client";
+
+import { useEffect, useId, useRef, useState } from "react";
+import { Users } from "lucide-react";
+import { AnchorPopover } from "@/components/AnchorPopover";
+import { FichaChip } from "@/components/FichaChip";
 import { COPY } from "@/lib/copy";
 import { yearsSince } from "@/lib/format";
 import type { LeadEnrichment, PartnerCard, SitePerson } from "@/lib/types";
@@ -19,7 +25,7 @@ function Chip({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+        "inline-flex rounded-xl border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
         emphasize
           ? "border-podium-yellow/50 bg-podium-yellow/10 text-podium-yellow"
           : "border-white/15 text-podium-gray",
@@ -54,31 +60,21 @@ function PersonRow({
   );
 }
 
-export function ApproachDoors({
-  decisorNome,
-  socios,
+function DoorsList({
+  others,
+  peopleExtracted,
+  sitePeople,
   enrichment,
 }: {
-  decisorNome: string | null | undefined;
-  socios: PartnerCard[];
+  others: PartnerCard[];
+  peopleExtracted: boolean;
+  sitePeople: SitePerson[];
   enrichment: LeadEnrichment | null;
 }) {
-  const others = socios.filter((s) => s.nome !== decisorNome);
-  const people = enrichment?.people;
-  const peopleExtracted = Array.isArray(people);
-  const sitePeople: SitePerson[] = peopleExtracted ? people : [];
-
   return (
-    <div className="mt-5 border-t border-white/10 pt-4">
-      <p className="text-xs uppercase tracking-wide text-podium-gray">
-        {COPY.outrasPortas}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-podium-muted">
-        {COPY.outrasPortasHint}
-      </p>
-
+    <>
       {others.length > 0 ? (
-        <div className="mt-3">
+        <div>
           <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
             {COPY.quadroReceita}
           </p>
@@ -95,7 +91,7 @@ export function ApproachDoors({
         </div>
       ) : null}
 
-      <div className="mt-3">
+      <div className={others.length > 0 ? "mt-3" : undefined}>
         <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
           {COPY.nomesNoSite}
         </p>
@@ -120,6 +116,77 @@ export function ApproachDoors({
           </ul>
         )}
       </div>
+    </>
+  );
+}
+
+export function ApproachDoors({
+  decisorNome,
+  socios,
+  enrichment,
+}: {
+  decisorNome: string | null | undefined;
+  socios: PartnerCard[];
+  enrichment: LeadEnrichment | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const others = socios.filter((s) => s.nome !== decisorNome);
+  const people = enrichment?.people;
+  const peopleExtracted = Array.isArray(people);
+  const sitePeople: SitePerson[] = peopleExtracted ? people : [];
+  const count = others.length + sitePeople.length;
+  const hasRecommended = sitePeople.some((p) => p.portaRecomendada);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(event: MouseEvent) {
+      const t = event.target as Node;
+      if (rootRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef}>
+      <FichaChip
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={COPY.outrasPortas}
+        title={COPY.outrasPortas}
+        active={open || hasRecommended}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Users className="h-3.5 w-3.5" />
+        {COPY.quadroReceita}
+        {count > 0 ? <span className="tabular-nums">{count}</span> : null}
+      </FichaChip>
+      <AnchorPopover
+        open={open}
+        anchorRef={rootRef}
+        panelRef={panelRef}
+        id={panelId}
+        className="w-80 p-3"
+      >
+        <DoorsList
+          others={others}
+          peopleExtracted={peopleExtracted}
+          sitePeople={sitePeople}
+          enrichment={enrichment}
+        />
+      </AnchorPopover>
     </div>
   );
 }

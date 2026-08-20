@@ -4,11 +4,11 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ExternalLink, MapPin } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { AuditLogo } from "@/components/AuditLogo";
+import { FichaChip } from "@/components/FichaChip";
 import { GlassCard } from "@/components/GlassCard";
 import { SectionTitle } from "@/components/SectionTitle";
 import {
   AUDIT_GROUPS,
-  auditSummary,
   buildAuditSignals,
   defaultAuditSelection,
   emptyAuditSignals,
@@ -26,29 +26,22 @@ import { cn } from "@/lib/utils";
 
 type GoldenMinute = LeadDossier["goldenMinute"];
 
-function QualifyHeader() {
+function QualifyHeader({ mapsUrl }: { mapsUrl?: string | null }) {
   return (
-    <>
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
-        Qualificação
-      </p>
-      <SectionTitle className="mt-1 text-lg">Ativos digitais</SectionTitle>
-    </>
-  );
-}
-
-function MapsCheck({ href }: { href: string }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-    >
-      <MapPin className="h-3.5 w-3.5" />
-      Ver no Maps
-      <span className="font-medium text-podium-muted">· tamanho e local</span>
-    </a>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
+          Qualificação
+        </p>
+        <SectionTitle className="mt-1 text-base md:text-base">Ativos digitais</SectionTitle>
+      </div>
+      {mapsUrl ? (
+        <FichaChip as="a" href={mapsUrl} target="_blank" rel="noreferrer">
+          <MapPin className="h-3.5 w-3.5" />
+          Maps
+        </FichaChip>
+      ) : null}
+    </div>
   );
 }
 
@@ -81,55 +74,6 @@ function GoldenFacts({ goldenMinute }: { goldenMinute: GoldenMinute | null }) {
           <li key={f.phrase}>{f.phrase}</li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function countLabel(n: number, singular: string, plural: string) {
-  return `${n} ${n === 1 ? singular : plural}`;
-}
-
-function LacunaRing({
-  gaps,
-  live,
-}: {
-  gaps: number;
-  live: number;
-}) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const total = gaps + live;
-  const pct = total > 0 ? Math.min(1, gaps / total) : 0;
-  return (
-    <div className="relative h-20 w-20 shrink-0">
-      <svg viewBox="0 0 100 100" className="-rotate-90">
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke="rgba(255,255,255,0.1)"
-          strokeWidth="8"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke={gaps > 0 ? "#FBBF24" : "#F5B301"}
-          strokeWidth="8"
-          strokeDasharray={`${c * pct} ${c}`}
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <p className="text-lg font-extrabold leading-none text-podium-yellow">
-          {gaps}
-        </p>
-        <p className="mt-0.5 text-[9px] uppercase tracking-wider text-podium-muted">
-          {gaps === 1 ? "lacuna" : "lacunas"}
-        </p>
-      </div>
     </div>
   );
 }
@@ -167,21 +111,17 @@ function OpenLinks({
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {items.map((link, i) => (
-        <a
-          key={link.href}
-          href={link.href}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold",
-            primary && i === 0
-              ? "bg-podium-yellow text-podium-navy hover:brightness-110"
-              : "border border-white/15 text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow",
-          )}
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          {link.label}
-        </a>
+          <FichaChip
+            as="a"
+            key={link.href}
+            href={link.href}
+            target="_blank"
+            rel="noreferrer"
+            active={primary && i === 0}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {link.label}
+          </FichaChip>
       ))}
     </div>
   );
@@ -260,24 +200,25 @@ function SelectedSignalCard({
           ) : null}
           <OpenLinks signal={signal} primary />
           {canConfirmSite && onConfirmSite && onRejectSite ? (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <p className="mt-2 text-[11px] leading-snug text-podium-muted">
+              Ainda sem cruzamento.
               <button
                 type="button"
                 disabled={confirmPending}
                 onClick={onConfirmSite}
-                className="rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
+                className="ml-2 font-bold text-podium-yellow hover:underline disabled:opacity-40"
               >
-                {confirmPending ? "Atualizando…" : "É este o site"}
+                {confirmPending ? "Atualizando…" : "É este"}
               </button>
               <button
                 type="button"
                 disabled={confirmPending}
                 onClick={onRejectSite}
-                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
+                className="ml-2 font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
               >
-                Não é este
+                Não é
               </button>
-            </div>
+            </p>
           ) : null}
         </div>
       </div>
@@ -402,7 +343,6 @@ export function DigitalAuditPanel({
       }),
     );
   }, [enrichment, streaming, complete, signals]);
-  const summary = useMemo(() => auditSummary(signals), [signals]);
   const auditKey = enrichment
     ? `${enrichment.cnpj}:${enrichment.collected_at}`
     : "pending";
@@ -428,15 +368,11 @@ export function DigitalAuditPanel({
 
   const selected =
     signals.find((s) => s.id === selectedId) ?? signals[0] ?? null;
-  const collected = enrichment
-    ? new Date(enrichment.collected_at).toLocaleDateString("pt-BR")
-    : null;
   const tileTransition = reduce
     ? { duration: 0 }
     : { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const };
   const showBoard = !compact || logosOpen;
   const showQualifyCta = Boolean(onQualify) && !streaming && !complete;
-  const showSummary = Boolean(enrichment) && (complete || summary.live > 0);
   const siteDown =
     enrichment != null &&
     enrichment.domain != null &&
@@ -445,11 +381,12 @@ export function DigitalAuditPanel({
   const canConfirmSite =
     Boolean(onConfirmSite && onRejectSite && enrichment?.domain) &&
     complete &&
-    !streaming;
+    !streaming &&
+    enrichment?.domain_status === "nao_confirmado";
 
   return (
     <GlassCard className="p-5 hover:translate-y-0">
-      <QualifyHeader />
+      <QualifyHeader mapsUrl={mapsUrl} />
       {showQualifyCta ? (
         <>
           <p className="mt-3 text-sm leading-relaxed text-podium-gray">
@@ -470,7 +407,6 @@ export function DigitalAuditPanel({
           </button>
         </>
       ) : null}
-      {mapsUrl ? <MapsCheck href={mapsUrl} /> : null}
       {(streaming || (enrichment && !complete)) && (
         <CompactTrail
           enrichment={enrichment}
@@ -478,30 +414,6 @@ export function DigitalAuditPanel({
         />
       )}
       {complete ? <GoldenFacts goldenMinute={goldenMinute} /> : null}
-      {showSummary ? (
-        <div className="mt-4 flex items-center gap-4">
-          <LacunaRing gaps={summary.gaps} live={summary.live} />
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-podium-gray">
-              {countLabel(summary.live, "encontrado", "encontrados")}
-              {" · "}
-              {countLabel(summary.gaps, "falta", "faltas")}
-            </p>
-            <p className="mt-1 text-[11px] leading-snug text-podium-muted">
-              <span className="text-podium-success">Encontrado</span>
-              {" · "}
-              <span className="text-amber-400">Falta</span>
-              {" · "}
-              <span>Sem sinal</span>
-            </p>
-            {collected ? (
-              <p className="mt-1 text-xs text-podium-muted">
-                coletado em {collected}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
 
       {selected && showBoard ? (
         <div className="mt-4">

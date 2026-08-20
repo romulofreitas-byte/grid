@@ -8,7 +8,8 @@ export type RateBucket =
   | "auth"
   | "optout"
   | "billing"
-  | "webhook";
+  | "webhook"
+  | "crm";
 
 const WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   read: { limit: 120, windowMs: 60_000 },
@@ -19,6 +20,7 @@ const WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   optout: { limit: 5, windowMs: 60_000 },
   billing: { limit: 30, windowMs: 60_000 },
   webhook: { limit: 60, windowMs: 60_000 },
+  crm: { limit: 90, windowMs: 60_000 },
 };
 
 /** Per-user caps — tighter than IP to limit multi-account abuse. */
@@ -31,6 +33,7 @@ const USER_WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   optout: { limit: 5, windowMs: 60_000 },
   billing: { limit: 20, windowMs: 60_000 },
   webhook: { limit: 60, windowMs: 60_000 },
+  crm: { limit: 120, windowMs: 60_000 },
 };
 
 type Counter = { count: number; resetAt: number };

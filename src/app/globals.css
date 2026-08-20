@@ -9,6 +9,8 @@
   --podium-gray: #c5cdd8;
   --podium-muted: #7a8494;
   --podium-success: #22c55e;
+  --podium-info: #38bdf8;
+  --podium-alert: #f43f5e;
   --background: var(--podium-navy);
   --foreground: var(--podium-white);
 }
@@ -24,6 +26,8 @@
   --color-podium-gray: var(--podium-gray);
   --color-podium-muted: var(--podium-muted);
   --color-podium-success: var(--podium-success);
+  --color-podium-info: var(--podium-info);
+  --color-podium-alert: var(--podium-alert);
   --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -112,6 +116,36 @@ button {
 
 .recommend-pulse-once {
   animation: recommend-pulse 1.8s ease-in-out 1;
+}
+
+@keyframes crm-alert-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(244, 63, 94, 0);
+  }
+}
+
+.crm-alert-pulse {
+  animation: crm-alert-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes crm-idle-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(197, 205, 216, 0.5);
+    border-color: rgba(197, 205, 216, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(197, 205, 216, 0);
+    border-color: rgba(245, 179, 1, 0.55);
+  }
+}
+
+.crm-idle-pulse {
+  animation: crm-idle-pulse 1.8s ease-in-out infinite;
 }
 
 @keyframes qr-scan-ring {
@@ -231,7 +265,9 @@ button {
   .podium-check-path,
   .telemetry-bar::after,
   .audit-gap-pulse,
-  .audit-scan-pulse {
+  .audit-scan-pulse,
+  .crm-alert-pulse,
+  .crm-idle-pulse {
     animation: none;
   }
 

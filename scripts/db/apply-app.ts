@@ -21,6 +21,8 @@ const FILES = [
   "supabase/migrations/20260824000000_establishments_search.sql",
   "supabase/migrations/20260825000000_es_active_phone_index.sql",
   "supabase/migrations/20260826000000_presence_gmb.sql",
+  "supabase/migrations/20260827000000_crm.sql",
+  "supabase/migrations/20260828000000_crm_phones.sql",
 ] as const;
 
 async function main(): Promise<void> {
@@ -68,7 +70,8 @@ async function main(): Promise<void> {
            'credit_lots','credit_ledger','billing_orders','billing_subscriptions',
            'billing_customers','payment_events','billed_cnpjs','treasury_transfers',
            'call_events','integration_connections','integration_jobs',
-           'integration_events','integration_external_ids','platform_subscribers'
+           'integration_events','integration_external_ids','platform_subscribers',
+           'crm_pipelines','crm_stages','crm_deals','crm_activities'
          )
        order by table_name`,
     );

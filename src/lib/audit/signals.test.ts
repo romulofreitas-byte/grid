@@ -146,6 +146,8 @@ describe("buildAuditSignals", () => {
     expect(found.openLabel).toBe("Abrir Instagram");
     expect(found.links[0]?.label).toBe("Biblioteca de Anúncios");
     expect(found.links[0]?.href).toContain("facebook.com/ads/library");
+    expect(found.links[0]?.href).toContain("search_type=keyword_unordered");
+    expect(found.links[0]?.href).toContain(encodeURIComponent("@acme.br"));
 
     const gap = byId(
       enrichment({

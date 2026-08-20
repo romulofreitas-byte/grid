@@ -1,125 +1,219 @@
 "use client";
 
-import { Copy, Pencil } from "lucide-react";
-import { useState } from "react";
 import { GlassCard } from "@/components/GlassCard";
+import { FichaChip } from "@/components/FichaChip";
 import {
-  ctaGlance,
-  helloGlance,
-  type AnatomyBeats,
-} from "@/lib/golden-minute-script";
-import { DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
+  MES_CURTO,
+  mesNumero,
+  peakCaption,
+  peakMonths,
+  seasonStatus,
+  type SeasonStatus,
+} from "@/lib/market/calendar";
+import type { MarketBrief } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const GLANCE = ["Olá", "Pergunta", "Agenda"] as const;
+const SEASON_PILL: Record<SeasonStatus, string | null> = {
+  agora: "neste mês",
+  "na-porta": "mês que vem",
+  fora: "fora",
+  nenhuma: null,
+};
 
-export function AnatomyCard({
-  beats,
-  editing,
-  onToggleEdit,
-  onChangeBeat,
-  onCopy,
-  copied,
-  volta,
-  duracao = DEFAULT_MEETING_MINUTES,
+function firstName(nome: string | null | undefined): string {
+  const first = nome?.trim().split(/\s+/)[0];
+  return first || "—";
+}
+
+function Cue({
+  kicker,
+  title,
+  live,
+  pill,
+  children,
 }: {
-  beats: AnatomyBeats;
-  editing: boolean;
-  onToggleEdit: () => void;
-  onChangeBeat: (index: number, value: string) => void;
-  onCopy: () => void;
-  copied: boolean;
-  volta?: string | null;
-  duracao?: number;
+  kicker: string;
+  title: string;
+  live?: boolean;
+  pill?: string | null;
+  children?: string | null;
 }) {
-  const [open, setOpen] = useState<number | null>(null);
-
-  function glance(index: number): string {
-    if (index === 0) return helloGlance(beats[0]);
-    if (index === 2) return ctaGlance(beats[2], duracao);
-    return beats[1] || "—";
-  }
-
   return (
-    <GlassCard className="p-5 hover:translate-y-0" highlight>
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-extrabold leading-tight">Anatomia</h2>
-        {volta ? (
-          <span className="shrink-0 rounded-full border border-podium-yellow/30 px-2.5 py-1 text-[11px] font-bold text-podium-yellow">
-            {volta}
+    <div
+      className={cn(
+        "rounded-2xl border px-3 py-2.5 text-left",
+        live
+          ? "border-podium-yellow/40 bg-podium-yellow/10"
+          : "border-white/10 bg-white/[0.03]",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={cn(
+            "text-[9px] font-bold uppercase tracking-[0.16em]",
+            live ? "text-podium-yellow" : "text-podium-muted",
+          )}
+        >
+          {kicker}
+        </span>
+        {pill ? (
+          <span
+            className={cn(
+              "rounded-xl px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              live
+                ? "bg-podium-yellow text-podium-navy"
+                : "border border-white/15 text-podium-muted",
+            )}
+          >
+            {pill}
           </span>
         ) : null}
       </div>
+      <p
+        className={cn(
+          "mt-1 text-xs font-extrabold leading-snug",
+          live ? "text-podium-yellow" : "text-podium-white",
+        )}
+      >
+        {title}
+      </p>
+      {children ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-podium-muted">
+          {children}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
-      <ol className="mt-4 space-y-2">
-        {GLANCE.map((label, i) => {
-          const expanded = open === i;
+function PeakChips({
+  months,
+  now,
+}: {
+  months: number[];
+  now: Date;
+}) {
+  const current = mesNumero(now);
+  const peaks = peakMonths(months);
+  if (peaks.length === 0) return null;
+  const caption = peakCaption(months, now);
+  return (
+    <div className="mt-3">
+      <ol className="flex flex-wrap gap-1">
+        {MES_CURTO.map((label, index) => {
+          const month = index + 1;
+          const inSeason = peaks.includes(month);
+          const isNow = month === current;
           return (
-            <li key={label}>
-              {editing ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-yellow">
-                    {i + 1} · {label}
-                  </p>
-                  <textarea
-                    value={beats[i]}
-                    onChange={(e) => onChangeBeat(i, e.target.value)}
-                    rows={i === 1 ? 2 : 3}
-                    className="mt-1.5 w-full resize-none rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm leading-relaxed outline-none focus:border-podium-yellow/40"
-                  />
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setOpen((cur) => (cur === i ? null : i))}
-                  aria-expanded={expanded}
-                  className={cn(
-                    "w-full rounded-2xl border px-3 py-2.5 text-left transition",
-                    expanded
-                      ? "border-podium-yellow/40 bg-podium-yellow/10"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/20",
-                  )}
-                >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
-                    {i + 1} · {label}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-1 font-bold leading-snug text-podium-white",
-                      i === 1 ? "text-sm" : "text-base",
-                    )}
-                  >
-                    {glance(i)}
-                  </p>
-                  {expanded && beats[i] !== glance(i) ? (
-                    <p className="mt-2 text-sm font-medium leading-relaxed text-podium-gray">
-                      {beats[i]}
-                    </p>
-                  ) : null}
-                </button>
-              )}
+            <li key={month}>
+              <span
+                className={cn(
+                  "inline-flex h-6 min-w-[1.85rem] items-center justify-center rounded-md px-1.5 text-[10px] font-bold",
+                  inSeason && isNow && "bg-podium-yellow text-podium-navy",
+                  inSeason && !isNow && "bg-podium-yellow/20 text-podium-yellow",
+                  !inSeason && isNow && "border border-podium-yellow/40 text-podium-yellow",
+                  !inSeason && !isNow && "border border-white/10 text-podium-muted",
+                )}
+              >
+                {label}
+              </span>
             </li>
           );
         })}
       </ol>
+      {caption ? (
+        <p className="mt-1.5 text-[11px] leading-relaxed text-podium-muted">
+          {caption}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-        >
-          <Pencil className="h-4 w-4" />
-          {editing ? "Pronto" : "Editar"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void onCopy()}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-        >
-          <Copy className="h-4 w-4" />
-          {copied ? "Copiado" : "Copiar"}
-        </button>
+export function AnatomyCard({
+  market,
+  uf,
+  decisorNome,
+  volta,
+  now = new Date(),
+}: {
+  market: MarketBrief;
+  uf?: string | null;
+  decisorNome?: string | null;
+  volta?: string | null;
+  now?: Date;
+}) {
+  const status = seasonStatus(market.sazonalidadeMeses, now);
+  const place = [market.cidade, uf].filter(Boolean).join(" · ");
+  const seasonTitle =
+    status === "nenhuma"
+      ? "Sem pico"
+      : (market.sazonalidadeChip ?? "Janela");
+  const seasonHook =
+    market.sazonalidadeAtiva && market.sazonalidade?.trim()
+      ? market.sazonalidade.trim()
+      : null;
+  const tip = [market.dorPrincipal.trim(), seasonHook]
+    .filter(Boolean)
+    .join(" ");
+  const angulo = market.perguntaConsideracao.trim();
+
+  return (
+    <GlassCard className="relative overflow-hidden p-5 hover:translate-y-0" highlight>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-12 top-0 h-56 w-56 bg-[radial-gradient(circle,rgba(245,179,1,0.10),transparent_65%)]"
+      />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
+              Anatomia
+            </p>
+            <h2 className="mt-1 text-lg font-extrabold leading-tight text-podium-yellow">
+              {market.dorChip}
+            </h2>
+            <p className="mt-1 truncate text-xs capitalize text-podium-gray">
+              {market.nome}
+              {place ? ` · ${place}` : ""}
+            </p>
+          </div>
+          {volta ? (
+            <FichaChip as="span" active className="shrink-0">
+              {volta}
+            </FichaChip>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <Cue kicker="Quem" title={firstName(decisorNome)} />
+          <Cue
+            kicker="Calendário"
+            title={seasonTitle}
+            live={status === "agora"}
+            pill={SEASON_PILL[status]}
+          />
+          <Cue kicker="Ligar" title={market.janelaChip}>
+            {place || null}
+          </Cue>
+        </div>
+
+        {tip ? (
+          <p className="mt-4 text-xs leading-relaxed text-podium-gray">{tip}</p>
+        ) : null}
+
+        <PeakChips months={market.sazonalidadeMeses} now={now} />
+
+        {angulo ? (
+          <div className="mt-4 border-t border-white/10 pt-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+              Ângulo
+            </p>
+            <p className="mt-1 text-xs font-medium leading-snug text-podium-white/80">
+              {angulo}
+            </p>
+          </div>
+        ) : null}
       </div>
     </GlassCard>
   );

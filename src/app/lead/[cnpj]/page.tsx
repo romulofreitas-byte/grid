@@ -2,20 +2,19 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, MapPin, MessageCircle, Phone } from "lucide-react";
+import { MapPin, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnatomyCard } from "@/components/AnatomyCard";
 import { ApproachDoors } from "@/components/ApproachDoors";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
 import { DigitalAuditPanel } from "@/components/DigitalAuditPanel";
-import { EmptyValue } from "@/components/EmptyValue";
+import { FichaChip } from "@/components/FichaChip";
 import { GlassCard } from "@/components/GlassCard";
-import { MarketCockpit } from "@/components/MarketCockpit";
-import { PositionBadge } from "@/components/PositionBadge";
-import { SectionTitle } from "@/components/SectionTitle";
+import { LeadCompanyCard } from "@/components/LeadCompanyCard";
+import { LeadStatusStrip } from "@/components/LeadStatusStrip";
 import { leadBack, leadHref, parseGridFrom } from "@/lib/back";
 import {
   blockQualifyIfFree,
@@ -24,23 +23,13 @@ import {
 } from "@/lib/billing/paywall";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { usePaywall } from "@/components/PaywallDialog";
-import {
-  formatCapital,
-  formatCnpj,
-  formatDateBr,
-  formatPhone,
-  formatPorte,
-  toE164,
-  yearsSince,
-} from "@/lib/format";
+import { formatPhone, toE164, yearsSince } from "@/lib/format";
 import type {
   ContactInfo,
   EnrichmentJobStatus,
-  LeadDossier,
   LeadEnrichment,
   LeadStatus,
   PilotStats,
-  Profile,
 } from "@/lib/types";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
@@ -52,20 +41,7 @@ import {
   leadQueryKey,
   type LeadPreview,
 } from "@/lib/lead-query";
-import {
-  anatomyBeatsFromScript,
-  buildOpeningScript,
-  copyAnatomyScript,
-  scriptFromAnatomyBeats,
-} from "@/lib/golden-minute-script";
 import { cn } from "@/lib/utils";
-
-const STATUSES: Array<{ id: LeadStatus; label: string }> = [
-  { id: "novo", label: "Novo" },
-  { id: "ligando", label: "Ligando" },
-  { id: "reuniao", label: "Reunião" },
-  { id: "descartado", label: "Descartado" },
-];
 
 function pickPrimary(contacts: ContactInfo[]): ContactInfo | null {
   return (
@@ -93,10 +69,10 @@ function LeadPreviewShell({
   const cityLine = [preview.municipio, preview.uf].filter(Boolean).join(" · ");
   return (
     <AppShell fill title="Ficha" back={back}>
-      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
-        <GlassCard className="p-6">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+        <GlassCard className="p-6 hover:translate-y-0">
           <p className="text-xs uppercase tracking-wide text-podium-gray">Fale com</p>
-          <p className="mt-1 text-2xl font-extrabold text-podium-yellow">
+          <p className="mt-1 text-lg font-extrabold text-podium-yellow">
             {preview.decisorNome ?? "Sem sócio no quadro"}
           </p>
           {phone ? (
@@ -104,7 +80,7 @@ function LeadPreviewShell({
               <p className="text-xs font-bold uppercase tracking-wide text-podium-muted">
                 Ligar agora
               </p>
-              <p className="mt-1 text-xl font-extrabold">{phone}</p>
+              <p className="mt-1 text-lg font-extrabold">{phone}</p>
               {preview.seal ? (
                 <ContactSealBadge
                   seal={preview.seal}
@@ -118,22 +94,17 @@ function LeadPreviewShell({
             <p className="mt-4 text-sm text-podium-muted">Carregando contato…</p>
           )}
         </GlassCard>
-        <GlassCard className="p-6 md:p-8">
-          <h1 className="text-2xl font-extrabold">
-            {displayCompanyName(preview.nomeFantasia, preview.razaoSocial)}
-          </h1>
-          {preview.nomeFantasia ? (
-            <p className="text-sm text-podium-muted">{preview.razaoSocial}</p>
-          ) : null}
-          <p className="mt-2 text-sm text-podium-gray">{cityLine || <EmptyValue />}</p>
-          <p className="mt-1 line-clamp-2 text-sm text-podium-gray">
-            {preview.cnaeDescricao}
-          </p>
-          <p className="mt-1 text-sm tabular-nums text-podium-muted">
-            {formatCnpj(preview.cnpj)}
-          </p>
-          <div className="mt-6 h-24 animate-pulse rounded-xl bg-white/5" />
-        </GlassCard>
+        <div className="flex min-h-0 flex-col gap-4">
+          <LeadCompanyCard
+            title={displayCompanyName(preview.nomeFantasia, preview.razaoSocial)}
+            razaoSocial={preview.razaoSocial}
+            showRazao={Boolean(preview.nomeFantasia)}
+            cityLine={cityLine}
+            cnaeDescricao={preview.cnaeDescricao}
+            cnpj={preview.cnpj}
+          />
+          <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
+        </div>
       </div>
     </AppShell>
   );
@@ -148,24 +119,14 @@ export default function LeadPage() {
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
   const billingQuery = useBillingMe();
-  const [script, setScript] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [editingScript, setEditingScript] = useState(false);
-  const [showOthers, setShowOthers] = useState(false);
   const [qualifyQueued, setQualifyQueued] = useState(false);
   const [qualifyError, setQualifyError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
-  const [scriptTouched, setScriptTouched] = useState(false);
-  const [showCadastro, setShowCadastro] = useState(false);
 
   useEffect(() => {
     setQualifyQueued(false);
     setQualifyError(null);
     setCalling(false);
-    setScriptTouched(false);
-    setScript("");
-    setShowCadastro(false);
-    setShowOthers(false);
   }, [params.cnpj]);
 
   const dossierQuery = useQuery({
@@ -249,19 +210,6 @@ export default function LeadPage() {
   const liveJobStatus =
     streamQuery.data?.jobStatus ?? d?.enrichmentJobStatus ?? null;
 
-  const defaultScript = useMemo(() => {
-    if (!d) return "";
-    return buildOpeningScript(d.profile, {
-      decisorNome: d.decisor?.nome,
-      market: d.market,
-    });
-  }, [d]);
-
-  useEffect(() => {
-    if (!defaultScript || scriptTouched) return;
-    setScript(defaultScript);
-  }, [defaultScript, scriptTouched]);
-
   useEffect(() => {
     const job = liveJobStatus;
     const stage = liveEnrichment ? enrichmentStage(liveEnrichment) : null;
@@ -270,7 +218,7 @@ export default function LeadPage() {
     if (!finished || !qualifyQueued) return;
     setQualifyQueued(false);
     void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
-  }, [liveJobStatus, liveEnrichment, qualifyQueued, params.cnpj, qc]);
+  }, [liveJobStatus, liveEnrichment, qualifyQueued, params.cnpj, qc, searchId]);
 
   const saveMutation = useMutation({
     mutationFn: async (patch: { status?: LeadStatus; notas?: string }) => {
@@ -411,16 +359,7 @@ export default function LeadPage() {
   const wa = primaryE164 ? `https://wa.me/${primaryE164}` : null;
   const needsMapsHint =
     primary?.seal === "COMPARTILHADO" || primary?.seal === "NAO_CONFIRMADO";
-  const opened = formatDateBr(est.data_inicio);
   const fillCard = "hover:translate-y-0";
-  const anatomyBeats = anatomyBeatsFromScript(script);
-
-  function setAnatomyBeat(index: number, value: string) {
-    const next = [...anatomyBeats];
-    next[index] = value.replace(/\r?\n/g, " ");
-    setScriptTouched(true);
-    setScript(scriptFromAnatomyBeats(next));
-  }
 
   function markLigando() {
     setCalling(true);
@@ -431,14 +370,14 @@ export default function LeadPage() {
 
   return (
     <AppShell fill title="Ficha" back={back}>
-      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
         <div className="order-1 flex min-h-0 flex-col gap-4">
           <GlassCard className={cn("p-6", fillCard)}>
             <p className="text-xs uppercase tracking-wide text-podium-gray">Fale com</p>
-            <p className="mt-1 text-2xl font-extrabold text-podium-yellow">
+            <p className="mt-1 text-lg font-extrabold text-podium-yellow">
               {d.decisor?.nome ?? "Sem sócio no quadro"}
             </p>
-            <p className="mt-1 text-sm text-podium-gray">
+            <p className="mt-1 text-xs text-podium-gray">
               {d.decisor
                 ? `${d.decisor.qualificacao}${years != null ? ` · sócio há ${years} anos` : ""}`
                 : "Nenhum decisor listado na Receita."}
@@ -462,7 +401,7 @@ export default function LeadPage() {
                     "Ligar agora"
                   )}
                 </p>
-                <p className="mt-1 text-xl font-extrabold">
+                <p className="mt-1 text-lg font-extrabold">
                   {formatPhone(primary.ddd, primary.telefone)}
                 </p>
                 <ContactSealBadge
@@ -512,57 +451,81 @@ export default function LeadPage() {
               <p className="mt-4 text-sm text-podium-muted">Sem telefone neste lead.</p>
             )}
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            {others.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+                  Outros números
+                </p>
+                {others.map((c, i) => (
+                  <div
+                    key={contactKey(c, i)}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <a
+                        href={`tel:+55${c.ddd}${c.telefone}`}
+                        className="text-sm font-bold"
+                      >
+                        {formatPhone(c.ddd, c.telefone)}
+                      </a>
+                      <ContactSealBadge
+                        seal={c.seal}
+                        label={c.label}
+                        compact
+                        className="mt-0.5"
+                      />
+                      {c.sideNote ? (
+                        <p className="mt-0.5 text-xs text-podium-muted">{c.sideNote}</p>
+                      ) : null}
+                    </div>
+                    <CallButton
+                      telHref={`tel:+55${c.ddd}${c.telefone}`}
+                      connection={callConnection}
+                      cnpj={params.cnpj}
+                      searchId={searchId}
+                      to={
+                        toE164(c.ddd, c.telefone)
+                          ? `+${toE164(c.ddd, c.telefone)}`
+                          : undefined
+                      }
+                      variant="ficha"
+                      onCalled={markLigando}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               {wa ? (
-                <a
-                  href={wa}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-                >
+                <FichaChip as="a" href={wa} target="_blank" rel="noreferrer">
                   <MessageCircle className="h-3.5 w-3.5" />
                   WhatsApp
-                </a>
+                </FichaChip>
               ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-white/5 px-3 py-2 text-xs font-bold text-podium-muted opacity-50"
-                >
+                <FichaChip type="button" disabled>
+                  <MessageCircle className="h-3.5 w-3.5" />
                   WhatsApp
-                </button>
+                </FichaChip>
               )}
               {needsMapsHint ? (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-                >
+                <FichaChip as="a" href={mapsUrl} target="_blank" rel="noreferrer">
                   <MapPin className="h-3.5 w-3.5" />
                   Conferir no Maps
-                </a>
+                </FichaChip>
               ) : null}
+              <ApproachDoors
+                decisorNome={d.decisor?.nome}
+                socios={d.socios ?? []}
+                enrichment={liveEnrichment}
+              />
             </div>
-            <ApproachDoors
-              decisorNome={d.decisor?.nome}
-              socios={d.socios ?? []}
-              enrichment={liveEnrichment}
-            />
           </GlassCard>
 
           <AnatomyCard
-            beats={anatomyBeats}
-            editing={editingScript}
-            onToggleEdit={() => setEditingScript((v) => !v)}
-            onChangeBeat={setAnatomyBeat}
-            onCopy={async () => {
-              await navigator.clipboard.writeText(copyAnatomyScript(script));
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
-            }}
-            copied={copied}
-            duracao={d.profile.duracao_reuniao}
+            market={d.market}
+            uf={est.uf}
+            decisorNome={d.decisor?.nome}
             volta={
               statsQuery.data
                 ? `volta ${statsQuery.data.hoje}/${statsQuery.data.meta}`
@@ -570,145 +533,34 @@ export default function LeadPage() {
             }
           />
 
-          <GlassCard className={cn("p-6 md:p-8", fillCard)}>
-            <div className="flex items-start gap-3">
-              {d.gridPosition != null && (
-                <PositionBadge position={d.gridPosition} score={d.gridScore} />
-              )}
-              <div className="min-w-0">
-                <h1 className="text-2xl font-extrabold">{companyTitle}</h1>
-                {est.nome_fantasia ? (
-                  <p className="text-sm text-podium-muted">{company.razao_social}</p>
-                ) : null}
-                <p className="mt-2 text-sm text-podium-gray">
-                  {cityLine || <EmptyValue />}
-                </p>
-                <p className="mt-1 line-clamp-2 text-sm text-podium-gray">
-                  {d.cnaeDescricao}
-                </p>
-                <p className="mt-1 text-sm tabular-nums text-podium-muted">
-                  {formatCnpj(est.cnpj)}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowCadastro((v) => !v)}
-              aria-expanded={showCadastro}
-              className="mt-5 flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2.5 text-left hover:border-white/20"
-            >
-              <span className="text-sm font-bold">Cadastro da Receita</span>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 shrink-0 text-podium-muted transition",
-                  showCadastro && "rotate-180",
-                )}
-              />
-            </button>
-            {showCadastro ? (
-              <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-podium-muted">Porte</dt>
-                  <dd>{formatPorte(company.porte)}</dd>
-                </div>
-                <div>
-                  <dt className="text-podium-muted">Abertura</dt>
-                  <dd>{opened ?? <EmptyValue />}</dd>
-                </div>
-                <div>
-                  <dt className="text-podium-muted">Capital social</dt>
-                  <dd>{formatCapital(company.capital_social)}</dd>
-                </div>
-                <div>
-                  <dt className="text-podium-muted">CNPJ</dt>
-                  <dd className="font-medium">{formatCnpj(est.cnpj)}</dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-podium-muted">Endereço</dt>
-                  <dd>
-                    {[est.logradouro, est.numero, est.bairro, d.municipioNome, est.uf, est.cep]
-                      .filter(Boolean)
-                      .join(", ") || <EmptyValue />}
-                    {d.addressSharedCount >= 5 && (
-                      <span className="mt-1 block text-xs text-amber-400">
-                        endereço aparece em {d.addressSharedCount} empresas
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div className="sm:col-span-2">
-                  <dt className="text-podium-muted">E-mail</dt>
-                  <dd>
-                    {d.emailSeal.email ? (
-                      <>
-                        <a href={`mailto:${d.emailSeal.email}`} className="text-podium-yellow">
-                          {d.emailSeal.email}
-                        </a>
-                        {(d.emailSeal.shared ||
-                          d.emailSeal.free ||
-                          d.emailSeal.accountantHint) && (
-                          <span className="mt-1 block text-xs text-amber-400">
-                            {d.emailSeal.shared && "e-mail compartilhado · "}
-                            {d.emailSeal.free && "provedor gratuito · "}
-                            {d.emailSeal.accountantHint && "domínio com assinatura contábil"}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <EmptyValue />
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            ) : null}
-          </GlassCard>
-
-          <MarketCockpit market={d.market} uf={est.uf} />
-
-          <GlassCard className={cn("space-y-4 p-6", fillCard)}>
-            <div>
-              <p className="text-sm text-podium-gray">Status</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {STATUSES.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => saveMutation.mutate({ status: s.id })}
-                    className={cn(
-                      "rounded-xl border px-3 py-2 text-xs font-bold",
-                      d.status === s.id
-                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
-                        : "border-white/10 text-podium-gray hover:border-white/20",
-                    )}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={recordCall.isPending}
-              onClick={() => recordCall.mutate()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
-            >
-              <Phone className="h-4 w-4" />
-              {recordCall.isPending ? "Registrando…" : "Registrei a ligação"}
-            </button>
-            <label className="block text-sm text-podium-gray">
-              Notas
-              <textarea
-                defaultValue={d.notas ?? ""}
-                onBlur={(e) => saveMutation.mutate({ notas: e.target.value })}
-                rows={3}
-                placeholder="O que rolou na ligação"
-                className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40"
-              />
-            </label>
-          </GlassCard>
+          <LeadStatusStrip
+            key={params.cnpj}
+            status={d.status}
+            notas={d.notas}
+            recordPending={recordCall.isPending}
+            onStatus={(status) => saveMutation.mutate({ status })}
+            onRecordCall={() => recordCall.mutate()}
+            onNotasBlur={(notas) => saveMutation.mutate({ notas })}
+          />
         </div>
 
         <div className="order-2 flex min-h-0 flex-col gap-4">
+          <LeadCompanyCard
+            title={companyTitle}
+            razaoSocial={company.razao_social}
+            showRazao={Boolean(est.nome_fantasia)}
+            cityLine={cityLine}
+            cnaeDescricao={d.cnaeDescricao}
+            cnpj={est.cnpj}
+            gridPosition={d.gridPosition}
+            gridScore={d.gridScore}
+            company={company}
+            establishment={est}
+            municipioNome={d.municipioNome}
+            addressSharedCount={d.addressSharedCount}
+            emailSeal={d.emailSeal}
+          />
+
           <DigitalAuditPanel
             enrichment={liveEnrichment}
             qualifying={
@@ -741,62 +593,6 @@ export default function LeadPage() {
               confirmSiteMutation.mutate({ action: "reject", domain })
             }
           />
-
-          {others.length > 0 ? (
-            <GlassCard className={cn("p-6", fillCard)}>
-              <button
-                type="button"
-                onClick={() => setShowOthers((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <SectionTitle className="text-lg">Outros números</SectionTitle>
-                <span className="text-xs font-bold text-podium-yellow">
-                  {showOthers ? "Recolher" : `${others.length} no dossiê`}
-                </span>
-              </button>
-              {showOthers ? (
-                <div className="mt-4 space-y-3">
-                  {others.map((c, i) => (
-                    <div
-                      key={contactKey(c, i)}
-                      className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3 last:border-0"
-                    >
-                      <div>
-                        <a
-                          href={`tel:+55${c.ddd}${c.telefone}`}
-                          className="font-bold"
-                        >
-                          {formatPhone(c.ddd, c.telefone)}
-                        </a>
-                        <ContactSealBadge
-                          seal={c.seal}
-                          label={c.label}
-                          compact
-                          className="mt-1"
-                        />
-                        {c.sideNote ? (
-                          <p className="mt-1 text-xs text-podium-muted">{c.sideNote}</p>
-                        ) : null}
-                      </div>
-                      <CallButton
-                        telHref={`tel:+55${c.ddd}${c.telefone}`}
-                        connection={callConnection}
-                        cnpj={params.cnpj}
-                        searchId={searchId}
-                        to={
-                          toE164(c.ddd, c.telefone)
-                            ? `+${toE164(c.ddd, c.telefone)}`
-                            : undefined
-                        }
-                        variant="ficha"
-                        onCalled={markLigando}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </GlassCard>
-          ) : null}
         </div>
       </div>
     </AppShell>

@@ -21,7 +21,7 @@ export const COPY = {
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outras portas",
   outrasPortasHint:
-    "Se o dono não atende, comercial e financeiro costumam abrir a porta.",
+    "Quadro e nomes no site — outras pessoas além do decisor.",
   quadroReceita: "Quadro",
   nomesNoSite: "No site",
   qualifiqueNomesSite: "Qualifique para ver nomes no site.",
@@ -33,11 +33,11 @@ export const COPY = {
   minutoDeOuro:
     "O mercado dele na hora: dor, meses de pico e o melhor horário. O digital fica na Qualificação.",
   clarezaDeMercado:
-    "Briefing da ligação: dor do ramo, meses de pico e o melhor horário. Dá para levar para a chamada.",
+    "Na ficha, a Anatomia já leva o briefing: dor do ramo, meses de pico e o melhor horário.",
   anatomiaDaLigacao:
-    "Três blocos: motivo de mercado, espaço pra ele falar da dor, convite à reunião.",
+    "Na ficha, briefing do nicho — dor, calendário e ângulo. Não é um texto para recitar. No capacete, nome, empresa e cidade entram como quem você é.",
   qualificacaoFicha:
-    "Ativos digitais do lead: site, redes e o que falta. Isso qualifica o contato — não é o roteiro da Anatomia.",
+    "Ativos digitais do lead: site, redes e o que falta. Isso qualifica o contato — não é o briefing da Anatomia.",
   b2c: "Vende para o consumidor final na cidade.",
   b2b: "Vende para outras empresas.",
   emailGratuito: "Gmail, Hotmail e outros provedores pessoais.",
@@ -89,6 +89,42 @@ export const COPY = {
   salvarMotivoOrdem: "A ordem P1, P2, P3 continua",
   tirarDasListas: "Tirar das listas",
   listasNaoSalvas: "Não salvas",
+  crmNav: "CRM",
+  crmTitle: "Pista de negócios",
+  crmHint:
+    "Cada faixa é uma volta. Arraste o card, registre a ligação e marque a próxima.",
+  crmAddDeal: "Adicionar negócio",
+  crmAdjustCadence: "Ajustar cadência",
+  crmNoActivity: "Sem volta marcada",
+  crmLogCall: "Registrar ligação",
+  crmLogCallHint:
+    "Guarda o que foi dito, encerra a volta de agora e deixa a próxima no card.",
+  crmSchedule: "Só agendar próxima",
+  crmScheduleHint:
+    "Atualiza data e ação no card. Não registra a ligação.",
+  crmPhonesLabel: "Telefones",
+  crmAddPhone: "Adicionar telefone",
+  crmNextAction: "Próxima volta",
+  crmNewPipeline: "Novo nicho",
+  crmEmptyBoard:
+    "Nenhum negócio nesta pista. Adicione um para começar a ligar.",
+  crmNotesPlaceholder: "O que foi dito e qual o próximo passo.",
+  crmContactLabel: "Sócio ou contato",
+  crmSecretaryLabel: "Secretária",
+  crmAddSecretary: "Adicionar secretária",
+  crmCadenceTitle: "Cadência",
+  crmCadenceHint:
+    "Renomeie, reordene ou tire faixas. Negócios de uma faixa apagada vão para outra — não somem.",
+  crmAddStage: "Nova faixa",
+  crmDeleteStage: "Excluir faixa",
+  crmMoveDealsTo: "Mover negócios para",
+  crmCompanyLabel: "Empresa",
+  crmNichoLabel: "Nicho",
+  crmRenamePipeline: "Renomear nicho",
+  crmDeletePipeline: "Excluir nicho",
+  crmDeletePipelineWarn:
+    "Isso apaga a pista e todos os negócios deste nicho.",
+  crmDeletePipelineConfirm: "Apagar pista",
 } as const;
 
 export const PORTE_LABELS: Record<string, string> = {
