@@ -48,18 +48,16 @@ describe("buildArrivalTrail", () => {
     expect(steps[1]?.status).toBe("live");
   });
 
-  it("lights home as done and site as live after the homepage slice", () => {
+  it("lights home as done and presence as live after the homepage slice", () => {
     const steps = buildArrivalTrail(row({ stage: "home" }), true);
     expect(steps.find((s) => s.id === "domain")?.status).toBe("done");
     expect(steps.find((s) => s.id === "home")?.status).toBe("done");
-    expect(steps.find((s) => s.id === "site")?.status).toBe("live");
+    expect(steps.find((s) => s.id === "presence")?.status).toBe("live");
   });
 
   it("returns a single live line for the compact trail", () => {
     expect(liveArrivalLine(null, true)).toBe("buscando site");
-    expect(liveArrivalLine(row({ stage: "home" }), true)).toBe(
-      "procurando nomes no site",
-    );
+    expect(liveArrivalLine(row({ stage: "home" }), true)).toBe("buscando redes");
     expect(liveArrivalLine(row({ stage: "complete" }), false)).toBeNull();
   });
 });

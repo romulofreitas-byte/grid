@@ -20,6 +20,7 @@ const FILES = [
   "supabase/migrations/20260823000000_abuse_limits.sql",
   "supabase/migrations/20260824000000_establishments_search.sql",
   "supabase/migrations/20260825000000_es_active_phone_index.sql",
+  "supabase/migrations/20260826000000_presence_gmb.sql",
 ] as const;
 
 async function main(): Promise<void> {

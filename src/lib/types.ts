@@ -30,7 +30,25 @@ export type PhoneEvidence = {
 
 export type DomainStatus = "confirmado" | "nao_confirmado" | "nao_encontrado";
 
-export type EnrichmentStage = "domain" | "home" | "site" | "complete";
+export type EnrichmentStage =
+  | "domain"
+  | "home"
+  | "presence"
+  | "site"
+  | "complete";
+
+export type GmbListing = {
+  name: string;
+  url: string;
+  matched: boolean;
+};
+
+export type EnrichmentJobPayload = {
+  force?: boolean;
+  action?: "confirm" | "reject";
+  domain?: string;
+  discarded_domains?: string[];
+};
 
 export type DigitalSignalId =
   | "sem-site"
@@ -108,6 +126,8 @@ export type LeadEnrichment = {
     latestPost?: string;
   };
   osm: { matched: boolean; attribution?: string } | null;
+  gmb?: GmbListing | null;
+  discarded_domains?: string[];
   dor_digital: number;
   contexto: string[];
   fonte: Record<string, { fonte: string; coletado_em: string }>;
@@ -134,6 +154,7 @@ export type EnrichmentJob = {
   locked_at: string | null;
   created_at: string;
   finished_at: string | null;
+  payload?: EnrichmentJobPayload | null;
 };
 
 export type LeadStatus = "novo" | "ligando" | "reuniao" | "descartado";

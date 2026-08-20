@@ -29,7 +29,7 @@ export const AUDIT_GROUPS: Array<{
   {
     id: "presenca",
     label: "Presença",
-    hint: "Onde a empresa aparece — site, redes e WhatsApp.",
+    hint: "Onde a empresa aparece — site, redes, Google Meu Negócio e WhatsApp.",
   },
   {
     id: "ferramentas",
@@ -68,6 +68,12 @@ const MARK = {
     logo: "/audit/youtube.svg",
     initials: "YT",
     accent: "#FF0000",
+  },
+  gmb: {
+    name: "Google Meu Negócio",
+    logo: "/audit/gmb.svg",
+    initials: "GM",
+    accent: "#EA4335",
   },
   whatsapp: {
     name: "WhatsApp",
@@ -273,18 +279,43 @@ function instagramValue(raw: string | undefined): string {
   return handle ? `@${handle}` : raw;
 }
 
+function presenceSearched(e: LeadEnrichment, key: string): boolean {
+  return Boolean(e.fonte[key]);
+}
+
+function socialHint(
+  found: boolean,
+  searched: boolean,
+  confirmed: boolean,
+  live: string,
+  missingConfirmed: string,
+  missingSearch: string,
+  blocked: string,
+): string {
+  if (found) return live;
+  if (searched) return missingSearch;
+  if (confirmed) return missingConfirmed;
+  return blocked;
+}
+
 function siteNote(e: LeadEnrichment): string | undefined {
+  const bits: string[] = [];
+  if (e.http_status != null && e.http_status >= 400 && e.domain) {
+    bits.push("Site fora do ar");
+  }
   if (e.osm?.matched === true) {
-    return e.osm.attribution
-      ? `dados de contato conferidos com OpenStreetMap · ${e.osm.attribution}`
-      : "dados de contato conferidos com OpenStreetMap";
+    bits.push(
+      e.osm.attribution
+        ? `dados de contato conferidos com OpenStreetMap · ${e.osm.attribution}`
+        : "dados de contato conferidos com OpenStreetMap",
+    );
   }
   if (e.osm?.matched === false) {
     const base =
       "OpenStreetMap tem outro número — conferir na ficha. O número do OSM não entra no export.";
-    return e.osm.attribution ? `${base} · ${e.osm.attribution}` : base;
+    bits.push(e.osm.attribution ? `${base} · ${e.osm.attribution}` : base);
   }
-  return undefined;
+  return bits.length ? bits.join(" · ") : undefined;
 }
 
 function paidMediaHint(found: boolean): string {
@@ -329,12 +360,8 @@ export function defaultAuditSelection(signals: AuditSignal[]): string {
 const PENDING_VALUE = "—";
 const PENDING_HINT = "Qualifique para cruzar este ativo.";
 
-const SCAN_HOME_IDS = [
-  "instagram",
-  "facebook",
-  "linkedin",
-  "youtube",
-  "whatsapp",
+const SCAN_TOOLS_IDS = [
+  "atualizacao",
   "metaPixel",
   "gtm",
   "ga4",
@@ -351,11 +378,18 @@ const SCAN_HOME_IDS = [
 export function scanningSignalIds(
   stage: LeadEnrichment["stage"] | null | undefined,
   qualifying: boolean,
+  enrichment?: LeadEnrichment | null,
 ): string[] {
   if (!qualifying) return [];
   if (!stage || stage === "domain") return ["site"];
-  if (stage === "home") return [...SCAN_HOME_IDS];
-  if (stage === "site") return ["atualizacao"];
+  if (stage === "home") return ["site"];
+  if (stage === "presence") {
+    const step = enrichment?.fonte.presence_scan?.fonte;
+    if (step === "gmb") return ["gmb"];
+    if (step) return [step];
+    return ["instagram"];
+  }
+  if (stage === "site") return [...SCAN_TOOLS_IDS];
   return [];
 }
 
@@ -384,6 +418,7 @@ export function emptyAuditSignals(): AuditSignal[] {
     pendingSignal("facebook", "presenca", MARK.facebook),
     pendingSignal("linkedin", "presenca", MARK.linkedin),
     pendingSignal("youtube", "presenca", MARK.youtube),
+    pendingSignal("gmb", "presenca", MARK.gmb),
     pendingSignal("whatsapp", "presenca", MARK.whatsapp),
     pendingSignal("atualizacao", "presenca", MARK.atualizacao),
     pendingSignal("metaPixel", "ferramentas", MARK.metaPixel),
@@ -410,11 +445,17 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
     (e.tech.plataforma && PLATFORM_MARK[e.tech.plataforma]) || GENERIC_PLATFORM;
   const chat = (e.tech.chat && CHAT_MARK[e.tech.chat]) || GENERIC_CHAT;
 
+  const siteDown =
+    e.http_status != null && e.http_status >= 400 && e.domain_status !== "nao_encontrado";
   const siteHint =
     e.domain_status === "confirmado"
-      ? "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
+      ? siteDown
+        ? "Site confirmado, mas fora do ar agora. Dá para abrir a ligação por isso."
+        : "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
       : e.domain_status === "nao_confirmado"
-        ? "Achei este domínio, mas ainda sem confirmação de que é da empresa."
+        ? siteDown
+          ? "Achei este domínio, mas ele não abriu. Confirme se é o site da empresa."
+          : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
         : "Sem site encontrado — dá para abrir a ligação por isso.";
 
   const atualizacao =
@@ -464,15 +505,19 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.instagram,
       found: Boolean(e.socials.instagram),
-      unverified: !confirmed && !e.socials.instagram,
+      unverified: !e.socials.instagram && !presenceSearched(e, "instagram") && !confirmed,
       href: absUrl(e.socials.instagram, "instagram.com"),
       openLabel: e.socials.instagram ? "Abrir Instagram" : null,
       value: instagramValue(e.socials.instagram),
-      hint: e.socials.instagram
-        ? "Perfil linkado no site."
-        : confirmed
-          ? "Site sem Instagram linkado."
-          : "Só conferimos redes quando o site está confirmado.",
+      hint: socialHint(
+        Boolean(e.socials.instagram),
+        presenceSearched(e, "instagram"),
+        confirmed,
+        "Perfil encontrado na busca ou no site.",
+        "Site sem Instagram linkado.",
+        "Busca no Instagram não achou o perfil.",
+        "Ainda não buscamos o Instagram desta empresa.",
+      ),
       links: igAds
         ? [{ label: "Biblioteca de Anúncios", href: igAds }]
         : [],
@@ -482,39 +527,72 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.facebook,
       found: Boolean(e.socials.facebook),
-      unverified: !e.socials.facebook,
+      unverified: !e.socials.facebook && !presenceSearched(e, "facebook"),
       href: absUrl(e.socials.facebook, "facebook.com"),
       openLabel: e.socials.facebook ? "Abrir Facebook" : null,
       value: e.socials.facebook ?? "NÃO ENCONTRADO",
-      hint: e.socials.facebook
-        ? "Página linkada no site."
-        : "Facebook não apareceu nos links do site.",
+      hint: socialHint(
+        Boolean(e.socials.facebook),
+        presenceSearched(e, "facebook"),
+        confirmed,
+        "Página encontrada na busca ou no site.",
+        "Facebook não apareceu nos links do site.",
+        "Busca no Facebook não achou a página.",
+        "Ainda não buscamos o Facebook desta empresa.",
+      ),
     }),
     signal({
       id: "linkedin",
       group: "presenca",
       ...MARK.linkedin,
       found: Boolean(e.socials.linkedin),
-      unverified: !e.socials.linkedin,
+      unverified: !e.socials.linkedin && !presenceSearched(e, "linkedin"),
       href: absUrl(e.socials.linkedin, "linkedin.com"),
       openLabel: e.socials.linkedin ? "Abrir LinkedIn" : null,
       value: e.socials.linkedin ?? "NÃO ENCONTRADO",
-      hint: e.socials.linkedin
-        ? "Perfil linkado no site."
-        : "LinkedIn não apareceu nos links do site.",
+      hint: socialHint(
+        Boolean(e.socials.linkedin),
+        presenceSearched(e, "linkedin"),
+        confirmed,
+        "Perfil encontrado na busca ou no site.",
+        "LinkedIn não apareceu nos links do site.",
+        "Busca no LinkedIn não achou o perfil.",
+        "Ainda não buscamos o LinkedIn desta empresa.",
+      ),
     }),
     signal({
       id: "youtube",
       group: "presenca",
       ...MARK.youtube,
       found: Boolean(e.socials.youtube),
-      unverified: !e.socials.youtube,
+      unverified: !e.socials.youtube && !presenceSearched(e, "youtube"),
       href: absUrl(e.socials.youtube, "youtube.com"),
       openLabel: e.socials.youtube ? "Abrir YouTube" : null,
       value: e.socials.youtube ?? "NÃO ENCONTRADO",
-      hint: e.socials.youtube
-        ? "Canal linkado no site."
-        : "YouTube não apareceu nos links do site.",
+      hint: socialHint(
+        Boolean(e.socials.youtube),
+        presenceSearched(e, "youtube"),
+        confirmed,
+        "Canal encontrado na busca ou no site.",
+        "YouTube não apareceu nos links do site.",
+        "Busca no YouTube não achou o canal.",
+        "Ainda não buscamos o YouTube desta empresa.",
+      ),
+    }),
+    signal({
+      id: "gmb",
+      group: "presenca",
+      ...MARK.gmb,
+      found: Boolean(e.gmb?.matched),
+      unverified: e.gmb == null,
+      href: e.gmb?.matched ? e.gmb.url : null,
+      openLabel: e.gmb?.matched ? "Abrir ficha" : null,
+      value: e.gmb?.matched ? e.gmb.name : e.gmb ? "NÃO ENCONTRADO" : "—",
+      hint: e.gmb?.matched
+        ? "Ficha do Google Meu Negócio encontrada na busca."
+        : e.gmb
+          ? "Busca no Google Meu Negócio não achou a ficha."
+          : "Qualifique para buscar o Google Meu Negócio.",
     }),
     signal({
       id: "whatsapp",

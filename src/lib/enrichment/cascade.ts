@@ -1,7 +1,13 @@
 import { confirmDomainOwnership } from "@/lib/enrichment/confirm-domain";
+import { domainSearchQueries } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { extractPeople } from "@/lib/enrichment/extract-people";
 import { extractContacts, extractNormalizedPhones } from "@/lib/enrichment/extract";
+import {
+  searchGmb,
+  searchSocialProfile,
+  serperOrganic,
+} from "@/lib/enrichment/presence";
 import { pathAllowedByRobots } from "@/lib/enrichment/robots";
 import { detectCopyrightYear, detectTech, midiaPagaLabel } from "@/lib/enrichment/tech";
 import { deriveSeal, hasAccountantDomainHint, isFreeEmail } from "@/lib/contact-confidence";
@@ -13,6 +19,7 @@ import type {
   DomainStatus,
   EnrichmentStage,
   Establishment,
+  GmbListing,
   LeadEnrichment,
   PhoneEvidence,
   PhoneSource,
@@ -119,21 +126,20 @@ export function domainFromEmail(email: string | null): string | null {
   return host;
 }
 
-export async function serperSearch(query: string): Promise<string | null> {
-  const key = process.env.SERPER_API_KEY;
-  if (!key) return null;
-  const res = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num: 5 }),
-  });
-  if (!res.ok) return null;
-  const json = (await res.json()) as { organic?: Array<{ link?: string }> };
-  for (const item of json.organic ?? []) {
-    const link = item.link;
-    if (!link || isDirectoryUrl(link)) continue;
+export async function serperSearch(
+  query: string,
+  excludeHosts: string[] = [],
+): Promise<string | null> {
+  const blocked = new Set(
+    excludeHosts.map((h) => h.replace(/^https?:\/\//, "").toLowerCase()),
+  );
+  const hits = await serperOrganic(query);
+  for (const hit of hits) {
+    if (isDirectoryUrl(hit.link)) continue;
     try {
-      return new URL(link).origin;
+      const url = new URL(hit.link);
+      if (blocked.has(url.host.toLowerCase())) continue;
+      return url.origin;
     } catch {
       continue;
     }
@@ -149,6 +155,11 @@ export type CascadeCompany = {
   sharedVerdict: SharedPhoneVerdict;
   scoreProfile: "b2c_local" | "b2b_industria";
   qsaNomes?: string[];
+};
+
+export type EnrichOptions = {
+  discardedDomains?: string[];
+  forceConfirmDomain?: string | null;
 };
 
 type SitePhone = NonNullable<ReturnType<typeof extractNormalizedPhones>>[number];
@@ -250,17 +261,17 @@ function snapshotFromHtml(input: {
   const tech = confirmed
     ? detectTech(input.html, input.finalUrl || (input.domain ? `https://${input.domain}` : ""))
     : detectTech("", "");
-  const extracted = confirmed
-    ? extractContacts(input.html, input.ddd1)
-    : { phones: [], emails: [], socials: {} };
+  const extracted = extractContacts(input.html, input.ddd1);
   return {
     tech,
-    emails: extracted.emails.map((valor) => ({
-      valor,
-      fonte: "site_mailto",
-      coletado_em: input.collectedAt,
-    })),
-    socials: confirmed ? extracted.socials : {},
+    emails: confirmed
+      ? extracted.emails.map((valor) => ({
+          valor,
+          fonte: "site_mailto",
+          coletado_em: input.collectedAt,
+        }))
+      : [],
+    socials: extracted.socials,
     sitePhones: confirmed ? extractNormalizedPhones(input.html, input.ddd1) : [],
     freshness: {
       copyrightYear: confirmed ? detectCopyrightYear(input.html) : undefined,
@@ -273,19 +284,38 @@ export async function enrichCompany(
   input: CascadeCompany,
   cachedDomain?: { domain: string | null; status: string } | null,
   onProgress?: EnrichProgress,
+  options: EnrichOptions = {},
 ): Promise<{ row: LeadEnrichment; timings: EnrichTimings }> {
   const now = new Date();
   const collected_at = now.toISOString();
   const expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const est = input.establishment;
+  const discarded = new Set(
+    (options.discardedDomains ?? [])
+      .map((h) => h.replace(/^https?:\/\//, "").toLowerCase())
+      .filter(Boolean),
+  );
+  const forceHost = options.forceConfirmDomain
+    ? options.forceConfirmDomain.replace(/^https?:\/\//, "").toLowerCase()
+    : null;
   const fonte: LeadEnrichment["fonte"] = {};
 
-  let domain: string | null = cachedDomain?.domain ?? null;
-  let domain_status: DomainStatus =
-    (cachedDomain?.status as DomainStatus) ?? "nao_encontrado";
+  let domain: string | null = forceHost
+    ? forceHost
+    : cachedDomain?.domain &&
+        !discarded.has(cachedDomain.domain.replace(/^https?:\/\//, "").toLowerCase())
+      ? cachedDomain.domain
+      : null;
+  let domain_status: DomainStatus = forceHost
+    ? "nao_confirmado"
+    : domain
+      ? ((cachedDomain?.status as DomainStatus) ?? "nao_confirmado")
+      : "nao_encontrado";
   let http_status: number | null = null;
   let combinedHtml = "";
   let finalUrl = "";
+  let gmb: GmbListing | null = null;
+  let socialsFromSearch: LeadEnrichment["socials"] = {};
   const timings: EnrichTimings = {
     serper_ms: 0,
     crawl_ms: 0,
@@ -295,10 +325,13 @@ export async function enrichCompany(
   };
 
   if (!domain) {
-    domain = domainFromEmail(est.email);
-    if (domain) {
+    const fromEmail = domainFromEmail(est.email);
+    if (fromEmail && !discarded.has(fromEmail.toLowerCase())) {
+      domain = fromEmail;
       fonte.domain = { fonte: "email_receita", coletado_em: collected_at };
     }
+  } else if (forceHost) {
+    fonte.domain = { fonte: "human", coletado_em: collected_at };
   }
 
   if (!domain) domain_status = "nao_encontrado";
@@ -313,6 +346,7 @@ export async function enrichCompany(
       sitePhones?: SitePhone[];
       freshness?: LeadEnrichment["freshness"];
       people?: SitePerson[] | null;
+      gmb?: GmbListing | null;
     } = {},
   ): LeadEnrichment => {
     const sitePhones = extras.sitePhones ?? [];
@@ -328,6 +362,12 @@ export async function enrichCompany(
       sharedVerdict: input.sharedVerdict,
     });
     const tech = extras.tech ?? detectTech("", "");
+    const mergedSocials: LeadEnrichment["socials"] = {
+      instagram: extras.socials?.instagram ?? socialsFromSearch.instagram,
+      facebook: extras.socials?.facebook ?? socialsFromSearch.facebook,
+      linkedin: extras.socials?.linkedin ?? socialsFromSearch.linkedin,
+      youtube: extras.socials?.youtube ?? socialsFromSearch.youtube,
+    };
     const row: LeadEnrichment = {
       cnpj: est.cnpj,
       domain: domain ? domain.replace(/^https?:\/\//, "") : null,
@@ -337,10 +377,12 @@ export async function enrichCompany(
       emails: extras.emails ?? [],
       whatsapp:
         phones.find((e) => e.isWhatsApp)?.e164?.replace("+", "") ?? null,
-      socials: extras.socials ?? {},
+      socials: mergedSocials,
       tech,
       freshness: extras.freshness ?? {},
       osm: null,
+      gmb: extras.gmb ?? gmb,
+      discarded_domains: [...discarded],
       dor_digital: 0,
       contexto: [],
       fonte,
@@ -368,16 +410,25 @@ export async function enrichCompany(
   await emit(assemble("domain", { people: null }));
 
   if (!domain) {
-    const q = `"${input.company.razao_social}" ${est.nome_fantasia ?? ""} ${input.municipioNome} ${est.uf}`;
+    const queries = domainSearchQueries({
+      nomeFantasia: est.nome_fantasia,
+      razaoSocial: input.company.razao_social,
+      municipio: input.municipioNome,
+      uf: est.uf,
+    });
     const serperStarted = Date.now();
-    const found = await serperSearch(q.trim());
-    timings.serper_ms = elapsed(serperStarted);
-    if (found) {
-      domain = new URL(found).host;
-      fonte.domain = { fonte: "serper", coletado_em: collected_at };
-      domain_status = "nao_confirmado";
-      await emit(assemble("domain", { people: null }));
+    const exclude = [...discarded];
+    for (const q of queries) {
+      const found = await serperSearch(q, exclude);
+      if (found) {
+        domain = new URL(found).host;
+        fonte.domain = { fonte: "serper", coletado_em: collected_at };
+        domain_status = "nao_confirmado";
+        await emit(assemble("domain", { people: null }));
+        break;
+      }
     }
+    timings.serper_ms = elapsed(serperStarted);
   }
 
   let snap = snapshotFromHtml({
@@ -426,6 +477,7 @@ export async function enrichCompany(
       ) {
         confirmed = true;
       }
+      if (forceHost) confirmed = true;
       domain_status = confirmed ? "confirmado" : "nao_confirmado";
       snap = snapshotFromHtml({
         confirmed,
@@ -464,6 +516,7 @@ export async function enrichCompany(
       }
     }
 
+    if (forceHost) confirmed = true;
     domain_status = confirmed ? "confirmado" : domain ? "nao_confirmado" : "nao_encontrado";
     snap = snapshotFromHtml({
       confirmed,
@@ -476,26 +529,53 @@ export async function enrichCompany(
     });
   }
 
-  await emit(
-    assemble("site", {
-      tech: snap.tech,
-      emails: snap.emails,
-      socials: snap.socials,
-      sitePhones: snap.sitePhones,
-      freshness: snap.freshness,
-      people: snap.people,
-    }),
-  );
+  const snapExtras = () => ({
+    tech: snap.tech,
+    emails: snap.emails,
+    socials: snap.socials,
+    sitePhones: snap.sitePhones,
+    freshness: snap.freshness,
+    people: snap.people,
+    gmb,
+  });
 
-  const row = await emit(
-    assemble("complete", {
-      tech: snap.tech,
-      emails: snap.emails,
-      socials: snap.socials,
-      sitePhones: snap.sitePhones,
-      freshness: snap.freshness,
-      people: snap.people,
-    }),
-  );
+  const presencePlace = {
+    nomeFantasia: est.nome_fantasia,
+    razaoSocial: input.company.razao_social,
+    municipio: input.municipioNome,
+    uf: est.uf,
+  };
+  const presenceStarted = Date.now();
+  const socialSteps = [
+    "instagram",
+    "facebook",
+    "gmb",
+    "linkedin",
+    "youtube",
+  ] as const;
+  for (const step of socialSteps) {
+    fonte.presence_scan = { fonte: step, coletado_em: collected_at };
+    await emit(assemble("presence", snapExtras()));
+    if (step === "gmb") {
+      const listing = await searchGmb(presencePlace);
+      gmb = listing && listing.matched ? listing : { name: "", url: "", matched: false };
+      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+    } else if (!socialsFromSearch[step] && !snap.socials[step]) {
+      const found = await searchSocialProfile({
+        platform: step,
+        ...presencePlace,
+      });
+      if (found) socialsFromSearch = { ...socialsFromSearch, [step]: found };
+      fonte[step] = { fonte: found ? "serper" : "serper_miss", coletado_em: collected_at };
+    } else {
+      fonte[step] = { fonte: "site", coletado_em: collected_at };
+    }
+  }
+  timings.serper_ms += elapsed(presenceStarted);
+  delete fonte.presence_scan;
+
+  await emit(assemble("site", snapExtras()));
+
+  const row = await emit(assemble("complete", snapExtras()));
   return { row, timings };
 }

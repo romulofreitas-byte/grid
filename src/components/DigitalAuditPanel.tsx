@@ -191,10 +191,20 @@ function SelectedSignalCard({
   signal,
   scanning,
   cardRef,
+  siteDown,
+  canConfirmSite,
+  confirmPending,
+  onConfirmSite,
+  onRejectSite,
 }: {
   signal: AuditSignal;
   scanning: boolean;
   cardRef?: Ref<HTMLDivElement>;
+  siteDown?: boolean;
+  canConfirmSite?: boolean;
+  confirmPending?: boolean;
+  onConfirmSite?: () => void;
+  onRejectSite?: () => void;
 }) {
   const status = statusLabel(signal, scanning);
   return (
@@ -235,6 +245,11 @@ function SelectedSignalCard({
               {signal.value}
             </p>
           )}
+          {siteDown ? (
+            <p className="mt-2 text-xs font-bold text-amber-400">
+              Site fora do ar
+            </p>
+          ) : null}
           <p className="mt-2 text-xs leading-snug text-podium-muted">
             {scanning ? "Cruzando este ativo agora." : signal.hint}
           </p>
@@ -244,6 +259,26 @@ function SelectedSignalCard({
             </p>
           ) : null}
           <OpenLinks signal={signal} primary />
+          {canConfirmSite && onConfirmSite && onRejectSite ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={confirmPending}
+                onClick={onConfirmSite}
+                className="rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
+              >
+                {confirmPending ? "Atualizando…" : "É este o site"}
+              </button>
+              <button
+                type="button"
+                disabled={confirmPending}
+                onClick={onRejectSite}
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
+              >
+                Não é este
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -329,6 +364,9 @@ export function DigitalAuditPanel({
   onQualify,
   mapsUrl = null,
   goldenMinute = null,
+  confirmPending = false,
+  onConfirmSite,
+  onRejectSite,
 }: {
   enrichment: LeadEnrichment | null;
   compact?: boolean;
@@ -338,6 +376,9 @@ export function DigitalAuditPanel({
   onQualify?: () => void;
   mapsUrl?: string | null;
   goldenMinute?: GoldenMinute | null;
+  confirmPending?: boolean;
+  onConfirmSite?: (domain: string) => void;
+  onRejectSite?: (domain: string) => void;
 }) {
   const reduce = useReducedMotion();
   const detailRef = useRef<HTMLDivElement>(null);
@@ -352,6 +393,7 @@ export function DigitalAuditPanel({
     const ids = scanningSignalIds(
       enrichment ? enrichmentStage(enrichment) : null,
       streaming && !complete,
+      enrichment,
     );
     return new Set(
       ids.filter((id) => {
@@ -395,11 +437,19 @@ export function DigitalAuditPanel({
   const showBoard = !compact || logosOpen;
   const showQualifyCta = Boolean(onQualify) && !streaming && !complete;
   const showSummary = Boolean(enrichment) && (complete || summary.live > 0);
+  const siteDown =
+    enrichment != null &&
+    enrichment.domain != null &&
+    enrichment.http_status != null &&
+    enrichment.http_status >= 400;
+  const canConfirmSite =
+    Boolean(onConfirmSite && onRejectSite && enrichment?.domain) &&
+    complete &&
+    !streaming;
 
   return (
     <GlassCard className="p-5 hover:translate-y-0">
       <QualifyHeader />
-      {mapsUrl ? <MapsCheck href={mapsUrl} /> : null}
       {showQualifyCta ? (
         <>
           <p className="mt-3 text-sm leading-relaxed text-podium-gray">
@@ -412,7 +462,7 @@ export function DigitalAuditPanel({
             type="button"
             disabled={qualifyPending}
             onClick={onQualify}
-            className="mt-4 rounded-xl bg-podium-yellow px-4 py-2.5 text-sm font-extrabold text-podium-navy disabled:opacity-40"
+            className="mt-4 w-full rounded-xl bg-podium-yellow px-4 py-3 text-sm font-extrabold text-podium-navy disabled:opacity-40"
           >
             {qualifyPending
               ? "Qualificando…"
@@ -420,6 +470,7 @@ export function DigitalAuditPanel({
           </button>
         </>
       ) : null}
+      {mapsUrl ? <MapsCheck href={mapsUrl} /> : null}
       {(streaming || (enrichment && !complete)) && (
         <CompactTrail
           enrichment={enrichment}
@@ -469,6 +520,19 @@ export function DigitalAuditPanel({
                 signal={selected}
                 scanning={scanningIds.has(selected.id)}
                 cardRef={detailRef}
+                siteDown={selected.id === "site" && siteDown}
+                canConfirmSite={selected.id === "site" && canConfirmSite}
+                confirmPending={confirmPending}
+                onConfirmSite={
+                  enrichment?.domain && onConfirmSite
+                    ? () => onConfirmSite(enrichment.domain!)
+                    : undefined
+                }
+                onRejectSite={
+                  enrichment?.domain && onRejectSite
+                    ? () => onRejectSite(enrichment.domain!)
+                    : undefined
+                }
               />
             </motion.div>
           </AnimatePresence>

@@ -23,9 +23,9 @@ export const COPY = {
   simples: "Regime Simples Nacional.",
   matriz: "Sede da empresa, não filial.",
   minutoDeOuro:
-    "O mercado dele na hora: dor, calendário deste mês e a cidade. O digital fica na Qualificação.",
+    "O mercado dele na hora: dor, meses de pico e o melhor horário. O digital fica na Qualificação.",
   clarezaDeMercado:
-    "Dor do ramo, calendário deste mês e a cidade. É o que abre a ligação — não o site.",
+    "Briefing da ligação: dor do ramo, meses de pico e o melhor horário. Dá para levar para a chamada.",
   anatomiaDaLigacao:
     "Três blocos: motivo de mercado, espaço pra ele falar da dor, convite à reunião.",
   qualificacaoFicha:
@@ -46,7 +46,7 @@ export const COPY = {
     "Selecione para cruzar site e Receita — telefone e nome mais confiáveis, e a ponte digital da ligação. 2 créditos cada. A ordem pode mudar depois.",
   qualificarEstaEmpresa: "Qualificar esta empresa",
   qualificarFichaLead:
-    "A Receita já está na ficha. Qualificar cruza site, redes e mapas — telefone com mais veracidade, nomes mais atuais, e os cards dos ativos digitais.",
+    "A Receita já está na ficha. Qualificar cruza site, redes e Google Meu Negócio — telefone com mais veracidade, nomes mais atuais, e os cards dos ativos digitais.",
   qualificarBeneficioTelefone:
     "Telefone cruzado (site × Receita) e selo de conferência",
   qualificarBeneficioContato:

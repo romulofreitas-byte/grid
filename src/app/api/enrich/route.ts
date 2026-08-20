@@ -18,12 +18,17 @@ const schema = z
     searchId: z.string().optional(),
     cnpjs: z.array(z.string()).optional(),
     scope: z.enum(["first_unaudited", "all_unaudited"]).optional(),
+    action: z.enum(["confirm", "reject"]).optional(),
+    domain: z.string().optional(),
   })
-  .refine((d) => (d.cnpjs && d.cnpjs.length > 0) || d.scope, {
-    message: "Informe cnpjs ou scope",
+  .refine((d) => (d.cnpjs && d.cnpjs.length > 0) || d.scope || d.action, {
+    message: "Informe cnpjs, scope ou action",
   })
   .refine((d) => !d.scope || Boolean(d.searchId), {
     message: "scope exige searchId",
+  })
+  .refine((d) => !d.action || (d.cnpjs && d.cnpjs.length === 1 && d.domain), {
+    message: "confirm/reject exige um cnpj e domain",
   });
 
 export async function POST(req: Request) {
@@ -41,6 +46,31 @@ export async function POST(req: Request) {
     if (!search || search.user_id !== userId) {
       return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
     }
+  }
+
+  if (parsed.data.action && parsed.data.domain && parsed.data.cnpjs?.[0]) {
+    const cnpj = parsed.data.cnpjs[0].replace(/\D/g, "").padStart(14, "0");
+    const store = await getBillingStore();
+    const billed = await store.isCnpjBilled(userId, cnpj, "enrich");
+    if (!billed) {
+      return NextResponse.json(
+        { error: "Qualifique a empresa antes de confirmar o site." },
+        { status: 400 },
+      );
+    }
+    const result = await repo.enqueueEnrichment({
+      cnpjs: [cnpj],
+      userId,
+      searchId,
+      force: true,
+      payload: {
+        force: true,
+        action: parsed.data.action,
+        domain: parsed.data.domain.replace(/^https?:\/\//, "").toLowerCase(),
+      },
+    });
+    drainJobsIfMock();
+    return NextResponse.json(result);
   }
 
   let cnpjs = parsed.data.cnpjs ?? [];

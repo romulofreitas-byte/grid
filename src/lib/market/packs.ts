@@ -104,13 +104,13 @@ function pontes(
   extras: Partial<Record<DigitalSignalId, string>> = {},
 ): Partial<Record<DigitalSignalId, string>> {
   return {
-    "sem-site": `no mercado de ${ramo}, quem não aparece na busca fica refém de indicação e de quem já conhece`,
-    "site-fora": `com o site fora do ar, em ${ramo} o cliente que procura agora vai pro concorrente`,
-    "sem-mensuracao": `sem medir o que entra, ${ramo} não vê qual canal está pagando a conta — e a semana fraca passa batido`,
-    "copyright-antigo": `presença parada no tempo; em ${ramo} a captação nova costuma ter ficado no piloto automático`,
-    "sem-instagram": `sem ação visível nas redes, ${ramo} depende de quem passa na porta ou de quem já indica`,
-    "sem-whatsapp": `sem um canal rápido de WhatsApp, o lead de ${ramo} pede preço no concorrente que responde agora`,
-    "midia-paga": `vocês já investem em anúncio — a conversa é se isso está puxando o faturamento certo ou só enchendo a agenda de curiosos`,
+    "sem-site": `sem site, ${ramo} só aparece para quem já conhece`,
+    "site-fora": `com o site fora do ar, quem busca ${ramo} agora vai para o concorrente`,
+    "sem-mensuracao": `sem medir o que entra, ${ramo} não vê qual canal está pagando`,
+    "copyright-antigo": `o site de ${ramo} está desatualizado — a captação nova ficou parada`,
+    "sem-instagram": `sem Instagram, ${ramo} depende de quem passa na porta ou de quem já indica`,
+    "sem-whatsapp": `sem WhatsApp, o lead de ${ramo} pede preço no concorrente que responde agora`,
+    "midia-paga": `já tem anúncio no ar — a pergunta é se isso está trazendo pedido certo`,
     ...extras,
   };
 }
@@ -134,394 +134,392 @@ function pack(
 
 export const GENERIC_PACK: MarketPack = pack("generico", "este ramo", {
   dorPrincipal:
-    "em {cidade}, a maioria neste ramo vive de indicação e de quem já conhece — e não enxerga o faturamento que passa batido",
+    "Em {cidade}, cliente novo entra sobretudo por indicação. Sem fila própria, o mês depende de quem já conhece.",
   perguntaConsideracao:
-    "Como vocês estão puxando cliente novo hoje, além de quem já chega por indicação?",
+    "Como vocês estão trazendo cliente novo hoje, além de quem já chega por indicação?",
   sazonalidade: null,
-  janelaHorario: "melhor de manhã, antes do pico do expediente",
+  janelaHorario: "De manhã, antes do pico do expediente",
 });
 
 const PACK_LIST: MarketPack[] = [
   pack("estetica-e-beleza", "estética", {
     dorPrincipal:
-      "em {cidade}, clínica de estética vive de agenda cheia de procedimento barato e de indicação — e a agenda nobre fica oca no meio da semana",
+      "Em {cidade}, a agenda enche de procedimento barato. Horário nobre no meio da semana fica vazio.",
     perguntaConsideracao:
-      "Como está a agenda de vocês no meio da semana? Tá sobrando horário nobre e enchendo de procedimento que não paga a conta?",
+      "No meio da semana, está sobrando horário nobre e enchendo de procedimento que não paga a conta?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho:
-        "fim de ano e verão empurram demanda de última hora — quem não tem fila de captação vira refém do walk-in",
+      gancho: "Novembro, dezembro e janeiro concentram a demanda. Sem fila de captação, a clínica espera quem entra pela porta.",
     },
-    janelaHorario: "melhor de manhã, antes da primeira sessão",
+    janelaHorario: "De manhã, antes da primeira sessão",
     pontePorSinal: {
       "sem-instagram":
-        "sem Instagram ativo, estética em {cidade} depende de quem já indica ou de quem passa na porta",
+        "sem Instagram, estética em {cidade} depende de quem já indica ou de quem passa na porta",
     },
   }),
   pack("clinicas-estetica", "clínica de estética", {
     dorPrincipal:
-      "em {cidade}, clínica de estética enche a agenda de procedimento que não paga a estrutura e fica refém de indicação",
+      "Em {cidade}, a agenda enche de procedimento que não paga a estrutura. Cliente novo entra por indicação.",
     perguntaConsideracao:
-      "A agenda de vocês está cheia do procedimento certo — ou cheia de horário que não paga a conta?",
+      "A agenda está cheia do procedimento certo, ou de horário que não paga a conta?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho: "verão e festa pedem resultado agora; quem espera indicação perde a janela",
+      gancho: "Verão e festa pedem resultado agora. Quem espera indicação perde novembro a janeiro.",
     },
-    janelaHorario: "melhor de manhã, antes da primeira sessão",
+    janelaHorario: "De manhã, antes da primeira sessão",
   }),
   pack("saloes-premium", "salão", {
     dorPrincipal:
-      "em {cidade}, salão premium vive da cliente fiel e sofre quando ela some no meio da semana",
+      "Em {cidade}, o salão vive da cliente que já volta. No meio da semana a cadeira esvazia.",
     perguntaConsideracao:
-      "Como vocês estão puxando cliente nova, além da que já volta sozinha?",
+      "Como vocês estão trazendo cliente nova, além da que já volta sozinha?",
     sazonalidade: {
       months: [5, 11, 12],
-      gancho: "festa e fim de ano lotam; o resto do ano a cadeira vazia come aluguel",
+      gancho: "Maio, novembro e dezembro lotam. No resto do ano a cadeira vazia paga o aluguel.",
     },
-    janelaHorario: "melhor de manhã, antes do pico da tarde",
+    janelaHorario: "De manhã, antes do pico da tarde",
   }),
   pack("saude-e-clinicas", "clínica", {
     dorPrincipal:
-      "em {cidade}, clínica vive de encaminhamento e de quem já é paciente — o horário ocioso no meio da semana vira paisagem",
+      "Em {cidade}, a clínica vive de encaminhamento e de paciente antigo. Horário ocioso no meio da semana fica parado.",
     perguntaConsideracao:
-      "Como está o preenchimento da agenda além do encaminhamento que já chega?",
+      "Além do encaminhamento que já chega, como está o preenchimento da agenda?",
     sazonalidade: {
       months: [1, 2],
-      gancho: "começo de ano a pessoa some da consulta; quem não tem captação ativa espera o telefone tocar",
+      gancho: "Em janeiro e fevereiro a consulta some. Sem captação, a clínica espera o telefone.",
     },
-    janelaHorario: "melhor no fim da manhã, entre consultas",
+    janelaHorario: "Fim da manhã, entre consultas",
   }),
   pack("odontologia", "odontologia", {
     dorPrincipal:
-      "em {cidade}, consultório odontológico depende de indicação e de convênio — e o particular de ticket alto não entra sozinho",
+      "Em {cidade}, o consultório depende de indicação e de convênio. Particular de ticket alto não entra sozinho.",
     perguntaConsideracao:
-      "Como está a cadeira ociosa no meio da semana? O particular está vindo, ou só o convênio que não paga o que deveria?",
+      "A cadeira ociosa no meio da semana está sendo preenchida por particular, ou só por convênio?",
     sazonalidade: {
       months: [1, 2],
-      gancho: "janeiro o paciente some; quem espera o telefone tocar passa o mês no vermelho",
+      gancho: "Em janeiro e fevereiro o paciente some. Quem espera o telefone passa o mês no vermelho.",
     },
-    janelaHorario: "melhor no fim da manhã, entre consultas",
+    janelaHorario: "Fim da manhã, entre consultas",
   }),
   pack("pet", "pet", {
     dorPrincipal:
-      "em {cidade}, pet vive de quem já conhece a loja e de emergência — e a terça vazia vira 'é assim mesmo'",
+      "Em {cidade}, o movimento vem de quem já conhece e de emergência. Terça vazia vira rotina.",
     perguntaConsideracao:
-      "Como vocês estão puxando tutor novo, além de quem já entra pela porta?",
+      "Como vocês estão trazendo tutor novo, além de quem já entra pela porta?",
     sazonalidade: {
       months: [12, 1, 7],
-      gancho: "férias e fim de ano disparam hospedagem e banho; quem não se antecipa perde a janela",
+      gancho: "Dezembro, janeiro e julho disparam hospedagem e banho. Quem não se antecipa perde a janela.",
     },
-    janelaHorario: "melhor de manhã, antes do movimento da loja",
+    janelaHorario: "De manhã, antes do movimento da loja",
   }),
   pack("clinicas-veterinarias", "clínica veterinária", {
     dorPrincipal:
-      "em {cidade}, clínica veterinária vive de emergência e de tutor fiel — consulta de rotina não entra sozinha",
+      "Em {cidade}, a clínica vive de emergência e de tutor fiel. Consulta de rotina não entra sozinha.",
     perguntaConsideracao:
-      "A agenda de vocês está sendo puxada por emergência, ou tem rotina previsível de tutor novo?",
+      "A agenda está sendo puxada por emergência, ou tem rotina previsível de tutor novo?",
     sazonalidade: {
       months: [12, 1, 7],
-      gancho: "férias aumentam hospedagem e consulta atrasada; quem espera o telefone tocar perde a janela",
+      gancho: "Férias aumentam hospedagem e consulta atrasada. Quem espera o telefone perde a janela.",
     },
-    janelaHorario: "melhor de manhã, antes do movimento da clínica",
+    janelaHorario: "De manhã, antes do movimento da clínica",
   }),
   pack("pet-shops", "pet shop", {
     dorPrincipal:
-      "em {cidade}, pet shop depende de quem passa na calçada e de tutor da vizinhança — margem some quando só entra ração em promoção",
+      "Em {cidade}, o pet shop depende de quem passa na calçada. Margem some quando só entra ração em promoção.",
     perguntaConsideracao:
-      "Como vocês estão puxando tutor novo, além de quem já entra pela porta?",
+      "Como vocês estão trazendo tutor novo, além de quem já entra pela porta?",
     sazonalidade: {
       months: [12, 1],
-      gancho: "fim de ano o tutor gasta com o pet; quem não aparece some da escolha",
+      gancho: "Em dezembro e janeiro o tutor gasta com o pet. Quem não aparece some da escolha.",
     },
-    janelaHorario: "melhor de manhã, antes do pico da loja",
+    janelaHorario: "De manhã, antes do pico da loja",
   }),
   pack("automotivo", "automotivo", {
     dorPrincipal:
-      "em {cidade}, oficina e loja automotiva vivem de indicação e de quem já quebrou — o serviço programado não entra sozinho",
+      "Em {cidade}, oficina e loja vivem de indicação e de quem já quebrou. Serviço programado não entra sozinho.",
     perguntaConsideracao:
       "A oficina está sendo puxada por emergência, ou vocês têm fila de serviço programado?",
     sazonalidade: {
       months: [11, 12, 6, 7],
-      gancho: "férias e fim de ano empurram revisão de última hora; quem espera a pane perde a janela",
+      gancho: "Férias e fim de ano empurram revisão de última hora. Quem espera a pane perde a janela.",
     },
-    janelaHorario: "melhor de manhã, antes da oficina encher",
+    janelaHorario: "De manhã, antes da oficina encher",
   }),
   pack("oficinas-mecanicas", "oficina", {
     dorPrincipal:
-      "em {cidade}, oficina vive de quem quebrou e de indicação — o serviço programado não entra sozinho",
+      "Em {cidade}, a oficina vive de quem quebrou e de indicação. Revisão programada não entra sozinha.",
     perguntaConsideracao:
       "A oficina está sendo puxada por emergência, ou vocês têm fila de revisão programada?",
     sazonalidade: {
       months: [11, 12, 6],
-      gancho: "viagem e fim de ano disparam revisão atrasada; quem não tem fila espera a pane",
+      gancho: "Viagem e fim de ano disparam revisão atrasada. Quem não tem fila espera a pane.",
     },
-    janelaHorario: "melhor de manhã, antes da oficina encher",
+    janelaHorario: "De manhã, antes da oficina encher",
   }),
   pack("concessionarias", "concessionária", {
     dorPrincipal:
-      "em {cidade}, concessionária sofre quando o showroom depende de quem já ia comprar — e o lead frio some no meio do mês",
+      "Em {cidade}, o showroom depende de quem já ia comprar. Lead frio some no meio do mês.",
     perguntaConsideracao:
       "Como está o fluxo de gente nova no showroom, além de quem já chega decidido?",
     sazonalidade: {
       months: [12, 1, 3],
-      gancho: "virada de ano e placa nova empurram decisão; quem espera o walk-in perde a janela",
+      gancho: "Virada de ano e placa nova empurram a decisão. Quem espera o walk-in perde a janela.",
     },
-    janelaHorario: "melhor no fim da manhã, antes do pico da loja",
+    janelaHorario: "Fim da manhã, antes do pico da loja",
   }),
   pack("imobiliario", "imobiliário", {
     dorPrincipal:
-      "em {cidade}, imobiliária vive de indicação e de placa na calçada — o lead que chega sozinho costuma ser o desqualificado",
+      "Em {cidade}, a imobiliária vive de indicação e de placa na calçada. Lead que chega sozinho costuma ser o desqualificado.",
     perguntaConsideracao:
-      "Como vocês estão puxando comprador e locatário além da placa e da indicação?",
+      "Como vocês estão trazendo comprador e locatário além da placa e da indicação?",
     sazonalidade: {
       months: [1, 2, 7],
-      gancho: "começo de ano e férias de julho mexem com mudança; quem não tem captação ativa espera o telefone",
+      gancho: "Começo de ano e julho mexem com mudança. Sem captação, a imobiliária espera o telefone.",
     },
-    janelaHorario: "melhor no fim da manhã, depois da visita",
+    janelaHorario: "Fim da manhã, depois da visita",
   }),
   pack("imobiliarias", "imobiliária", {
     dorPrincipal:
-      "em {cidade}, imobiliária vive de indicação e de placa — e recebe lead que só quer olhar sem condição de fechar",
+      "Em {cidade}, a imobiliária vive de indicação e de placa. Chega lead que só quer olhar, sem condição de fechar.",
     perguntaConsideracao:
       "O lead que chega hoje é quem compra, ou é curiosidade que queima a equipe?",
     sazonalidade: {
       months: [1, 2, 7],
-      gancho: "virada de ano e julho mexem com mudança; quem espera a placa perde a janela",
+      gancho: "Virada de ano e julho mexem com mudança. Quem espera a placa perde a janela.",
     },
-    janelaHorario: "melhor no fim da manhã, depois da visita",
+    janelaHorario: "Fim da manhã, depois da visita",
   }),
   pack("varejo", "varejo", {
     dorPrincipal:
-      "em {cidade}, loja vive de quem passa na calçada e de data comemorativa — o meio do mês some e vira paisagem",
+      "Em {cidade}, a loja vive de quem passa na calçada e de data comemorativa. No meio do mês o movimento some.",
     perguntaConsideracao:
-      "Como vocês estão puxando movimento além de quem já entra pela porta?",
+      "Como vocês estão trazendo movimento além de quem já entra pela porta?",
     sazonalidade: {
       months: [5, 11, 12],
-      gancho: "Dia das Mães e fim de ano concentram a venda; o resto do ano a loja espera a calçada",
+      gancho: "Dia das Mães e fim de ano concentram a venda. No resto do ano a loja espera a calçada.",
     },
-    janelaHorario: "melhor de manhã, antes de abrir ao público",
+    janelaHorario: "De manhã, antes de abrir ao público",
   }),
   pack("oticas", "ótica", {
     dorPrincipal:
-      "as óticas em {cidade} dependem quase 100% de quem passa na calçada ou de indicação de médico",
+      "Em {cidade}, a ótica depende de quem passa na calçada ou do encaminhamento do oftalmo.",
     perguntaConsideracao:
-      "Como está isso aí — vocês estão puxando cliente, ou esperando quem entra pela porta e o encaminhamento do oftalmo?",
+      "Vocês estão trazendo cliente, ou esperando quem entra pela porta e o encaminhamento do oftalmo?",
     sazonalidade: {
       months: [1, 2, 7],
-      gancho: "volta às aulas e férias empurram lentes; quem espera a calçada perde a janela",
+      gancho: "Volta às aulas e férias empurram lentes. Quem espera a calçada perde a janela.",
     },
-    janelaHorario: "melhor de manhã, antes do movimento da loja",
+    janelaHorario: "De manhã, antes do movimento da loja",
     pontePorSinal: {
       "sem-instagram":
-        "sem ação ativa de anúncio e de rede, a ótica em {cidade} fica na calçada e na indicação do médico",
+        "sem rede e sem anúncio, a ótica em {cidade} fica na calçada e na indicação do médico",
       "midia-paga":
-        "vi que vocês já têm ação de anúncio — a conversa é se isso está puxando quem compra, ou só quem passa na loja",
+        "já tem anúncio no ar — a pergunta é se isso está trazendo quem compra, ou só quem passa na loja",
     },
   }),
   pack("moda-vestuario", "moda", {
     dorPrincipal:
-      "em {cidade}, loja de moda vive de data e de quem já entra — o meio do mês some e a coleção vira saldo",
+      "Em {cidade}, a loja vive de data e de quem já entra. No meio do mês o movimento some e a coleção vira saldo.",
     perguntaConsideracao:
-      "O movimento de vocês está vindo da calçada, ou tem gente nova chegando fora da liquidação?",
+      "O movimento está vindo da calçada, ou tem gente nova chegando fora da liquidação?",
     sazonalidade: {
       months: [5, 6, 11, 12],
-      gancho: "Dia dos Namorados, Dia das Mães e fim de ano concentram a venda; o resto vira saldo",
+      gancho: "Dia das Mães, Dia dos Namorados e fim de ano concentram a venda. O resto vira saldo.",
     },
-    janelaHorario: "melhor de manhã, antes de abrir",
+    janelaHorario: "De manhã, antes de abrir",
   }),
   pack("alimentacao-fora-do-lar", "alimentação", {
     dorPrincipal:
-      "em {cidade}, operação de comida vive de pico e de semana morta — a equipe fica de braço cruzado no meio da semana",
+      "Em {cidade}, a operação vive de pico. No meio da semana a equipe fica ociosa.",
     perguntaConsideracao:
-      "Como você tá lidando com as semanas mortas? Sua equipe fica de braço cruzado no meio da semana?",
+      "Como vocês estão preenchendo o meio da semana, além do pico de sexta e sábado?",
     sazonalidade: {
       months: [6, 12],
-      gancho: "Dia dos Namorados e fim de ano enchem; quem monta promoção em cima da hora perde margem",
+      gancho: "Dia dos Namorados e fim de ano enchem. Promoção em cima da hora corta margem.",
     },
-    janelaHorario: "melhor de manhã até as 14h — à noite é pico da cozinha",
+    janelaHorario: "De manhã até as 14h — à noite é pico da cozinha",
   }),
   pack("hamburguerias", "hamburgueria", {
     dorPrincipal:
-      "em {cidade}, hamburgueria sofre com a semana morta: equipe de braço cruzado no meio da semana e pico que não paga o ocioso",
+      "Em {cidade}, a semana morta deixa a equipe ociosa. O pico do fim de semana não cobre o vazio do meio.",
     perguntaConsideracao:
-      "Como você tá lidando com as semanas mortas? Sua equipe fica de braço cruzado no meio da semana?",
+      "Como vocês estão lidando com as semanas mortas? A equipe fica ociosa no meio da semana?",
     sazonalidade: {
       months: [6, 12],
-      gancho:
-        "Dia dos Namorados e fim de ano enchem; quem faz promoção em cima da hora igual ano passado perde margem",
+      gancho: "Dia dos Namorados e fim de ano enchem. Promoção em cima da hora corta margem.",
     },
-    janelaHorario: "melhor de manhã até as 14h — à noite ele está no pico da cozinha",
+    janelaHorario: "De manhã até as 14h — à noite é pico da cozinha",
     pontePorSinal: {
       "sem-mensuracao":
         "sem medir o que entra, a hamburgueria não vê se a semana morta está piorando — só sente no caixa",
       "sem-instagram":
-        "sem ação visível, hamburgueria em {cidade} depende de quem já conhece e de delivery que come a margem",
+        "sem Instagram, hamburgueria em {cidade} depende de quem já conhece e de delivery que come a margem",
     },
   }),
   pack("restaurantes", "restaurante", {
     dorPrincipal:
-      "em {cidade}, restaurante vive de mesa cheia no fim de semana e de almoço ocioso — o meio da semana come a margem",
+      "Em {cidade}, o restaurante enche no fim de semana. No meio da semana a mesa vazia come a margem.",
     perguntaConsideracao:
-      "O meio da semana de vocês está sendo puxado, ou a equipe fica olhando mesa vazia até sexta?",
+      "O meio da semana está sendo puxado, ou a equipe fica olhando mesa vazia até sexta?",
     sazonalidade: {
       months: [6, 12],
-      gancho: "Dia dos Namorados e fim de ano enchem; o resto do ano a mesa ociosa vira paisagem",
+      gancho: "Dia dos Namorados e fim de ano enchem. No resto do ano a mesa ociosa fica parada.",
     },
-    janelaHorario: "melhor de manhã até as 14h, antes do serviço",
+    janelaHorario: "De manhã até as 14h, antes do serviço",
   }),
   pack("pizzarias", "pizzaria", {
     dorPrincipal:
-      "em {cidade}, pizzaria vive de sexta e sábado — segunda a quarta a fornalha esfria e a equipe sobra",
+      "Em {cidade}, a pizzaria vive de sexta e sábado. De segunda a quarta a equipe sobra.",
     perguntaConsideracao:
-      "Como está o meio da semana de vocês? Só o fim de semana está pagando a operação?",
+      "Como está o meio da semana? Só o fim de semana está pagando a operação?",
     sazonalidade: {
       months: [6, 12],
-      gancho: "datas comemorativas enchem o forno; quem espera o telefone tocar perde a janela",
+      gancho: "Datas comemorativas enchem o forno. Quem espera o telefone perde a janela.",
     },
-    janelaHorario: "melhor de manhã até as 14h",
+    janelaHorario: "De manhã até as 14h",
   }),
   pack("educacao", "educação", {
     dorPrincipal:
-      "em {cidade}, escola e curso vivem de matrícula em janela curta — o resto do ano a turma ociosa come custo",
+      "Em {cidade}, escola e curso vivem de matrícula em janela curta. Fora disso a turma ociosa come custo.",
     perguntaConsideracao:
-      "A matrícula de vocês está sendo puxada, ou depende de quem já indica e de quem aparece na porta?",
+      "A matrícula está sendo puxada, ou depende de quem já indica e de quem aparece na porta?",
     sazonalidade: {
       months: [1, 2, 7],
-      gancho: "volta às aulas é a janela; quem espera indicação perde a turma",
+      gancho: "Volta às aulas é a janela. Quem espera indicação perde a turma.",
     },
-    janelaHorario: "melhor no fim da manhã, fora do horário de aula",
+    janelaHorario: "Fim da manhã, fora do horário de aula",
   }),
   pack("escolas-particulares", "escola particular", {
     dorPrincipal:
-      "em {cidade}, escola particular vive da família que já indica — vaga ociosa no meio do ano vira desconto",
+      "Em {cidade}, a escola vive da família que já indica. Vaga ociosa no meio do ano vira desconto.",
     perguntaConsideracao:
       "A matrícula nova está vindo, ou vocês dependem da família que já está dentro?",
     sazonalidade: {
       months: [1, 2, 7],
-      gancho: "volta às aulas e meio do ano são a janela; depois vira desconto pra preencher turma",
+      gancho: "Volta às aulas e meio do ano são a janela. Depois vira desconto para preencher turma.",
     },
-    janelaHorario: "melhor no fim da manhã, fora do horário de aula",
+    janelaHorario: "Fim da manhã, fora do horário de aula",
   }),
   pack("turismo-e-hotelaria", "turismo", {
     dorPrincipal:
-      "em {cidade}, hotelaria vive de sazonalidade e de OTA que come margem — a baixa temporada vira paisagem",
+      "Em {cidade}, a ocupação depende de sazonalidade e de OTA. Na baixa, a comissão come a margem.",
     perguntaConsideracao:
-      "A ocupação de vocês está sendo puxada direto, ou a OTA está ditando o preço na baixa?",
+      "A ocupação está vindo direto, ou a OTA está ditando o preço na baixa?",
     sazonalidade: {
       months: [12, 1, 7],
-      gancho: "alta temporada enche; quem não tem captação própria na baixa vira refém de comissão",
+      gancho: "Alta temporada enche. Sem canal próprio na baixa, o hotel fica refém de comissão.",
     },
-    janelaHorario: "melhor de manhã, depois do check-out",
+    janelaHorario: "De manhã, depois do check-out",
   }),
   pack("hoteis", "hotel", {
     dorPrincipal:
-      "em {cidade}, hotel vive de OTA e de alta temporada — na baixa a diária cai e a comissão come o que sobra",
+      "Em {cidade}, o hotel vive de OTA e de alta temporada. Na baixa a diária cai e a comissão come o que sobra.",
     perguntaConsideracao:
-      "A ocupação de vocês está vindo direto, ou a OTA está ditando o preço na baixa?",
+      "A ocupação está vindo direto, ou a OTA está ditando o preço na baixa?",
     sazonalidade: {
       months: [12, 1, 7],
-      gancho: "alta enche; quem não tem canal próprio na baixa vira refém de comissão",
+      gancho: "Alta enche. Sem canal próprio na baixa, o hotel fica refém de comissão.",
     },
-    janelaHorario: "melhor de manhã, depois do check-out",
+    janelaHorario: "De manhã, depois do check-out",
   }),
   pack("industria", "indústria", {
     dorPrincipal:
-      "em {cidade}, indústria sofre quando a carteira depende de três compradores e o pedido novo não entra no ritmo da fábrica",
+      "Em {cidade}, a carteira depende de poucos compradores. Pedido novo não entra no ritmo da fábrica.",
     perguntaConsideracao:
-      "A carteira de vocês está pulverizada, ou um cliente parado ainda derruba o mês?",
+      "A carteira está pulverizada, ou um cliente parado ainda derruba o mês?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho: "fim de ano o comprador trava pedido; quem não tem fila de oportunidade passa janeiro ocioso",
+      gancho: "No fim do ano o comprador trava o pedido. Sem fila de oportunidade, janeiro fica ocioso.",
     },
-    janelaHorario: "melhor no fim da manhã, depois da reunião de chão de fábrica",
+    janelaHorario: "Fim da manhã, depois da reunião de chão de fábrica",
   }),
   pack("construcao-civil", "construção", {
     dorPrincipal:
-      "em {cidade}, obra vive de indicação de arquiteto e de cliente que chega desqualificado — a fila de obra boa não entra sozinha",
+      "Em {cidade}, a obra entra por indicação de arquiteto. Cliente que chega sozinho costuma querer o mais barato.",
     perguntaConsideracao:
-      "A maioria no seu ramo fica refém de indicação e recebe cliente que só quer o mais barato. Como tá isso aí?",
+      "A fila de obra boa está sendo puxada, ou ainda depende de indicação e de quem só quer o menor preço?",
     sazonalidade: {
       months: [1, 2, 8],
-      gancho: "começo de ano trava obra; quem não tem fila de projeto passa o trimestre ocioso",
+      gancho: "Começo de ano trava obra. Sem fila de projeto, o trimestre fica ocioso.",
     },
-    janelaHorario: "melhor à tarde, quando saiu da obra e sentou no escritório",
+    janelaHorario: "À tarde, quando saiu da obra e sentou no escritório",
   }),
   pack("insumos-para-construcao", "insumos de construção", {
     dorPrincipal:
-      "em {cidade}, marmoraria e material de construção vivem da indicação da obra — o pedido some quando o construtor para",
+      "O pedido some quando a obra para. Sem fila própria, o caixa sente.",
     perguntaConsideracao:
-      "O pedido de vocês está vindo de obra recorrente, ou cada mês depende de um construtor ligar?",
+      "Os pedidos de vocês vêm de obra certa todo mês, ou dependem de um construtor ligar?",
     sazonalidade: {
       months: [1, 2, 12],
-      gancho: "fim de ano e janeiro a obra para; quem não tem fila de pedido sente no caixa",
+      gancho: "Em janeiro, fevereiro e dezembro a obra para.",
     },
-    janelaHorario: "melhor no fim da manhã, antes do pico da loja/oficina",
+    janelaHorario: "Fim da manhã, antes do pico da loja",
   }),
   pack("contabilidade-e-juridico", "serviço profissional", {
     dorPrincipal:
-      "em {cidade}, escritório vive de indicação e de cliente que já está dentro — a carteira nova não entra no ritmo da entrega",
+      "Em {cidade}, o escritório vive de indicação e de cliente que já está dentro. Carteira nova não entra no ritmo da entrega.",
     perguntaConsideracao:
-      "A carteira nova de vocês está sendo puxada, ou o escritório vive de quem já indica?",
+      "A carteira nova está sendo puxada, ou o escritório vive de quem já indica?",
     sazonalidade: {
       months: [1, 3, 4],
-      gancho: "imposto de renda e começo de ano mexem com demanda; quem espera indicação perde a janela",
+      gancho: "Imposto de renda e começo de ano mexem com a demanda. Quem espera indicação perde a janela.",
     },
-    janelaHorario: "melhor no fim da manhã, fora do prazo do cliente",
+    janelaHorario: "Fim da manhã, fora do prazo do cliente",
   }),
   pack("escritorios-contabeis", "escritório contábil", {
     dorPrincipal:
-      "em {cidade}, escritório contábil vive de indicação e de cliente que já está na carteira — o novo não entra no ritmo da obrigação",
+      "Em {cidade}, o escritório vive de indicação e de cliente na carteira. O novo não entra no ritmo da obrigação.",
     perguntaConsideracao:
       "A carteira nova está vindo, ou o escritório vive de quem já indica e de quem já está dentro?",
     sazonalidade: {
       months: [3, 4],
-      gancho: "imposto de renda é a janela; quem espera indicação perde o empresário que está escolhendo agora",
+      gancho: "Imposto de renda é a janela. Quem espera indicação perde o empresário que está escolhendo agora.",
     },
-    janelaHorario: "melhor no fim da manhã, fora do prazo",
+    janelaHorario: "Fim da manhã, fora do prazo",
   }),
   pack("tech-e-software", "tecnologia", {
     dorPrincipal:
-      "em {cidade}, operação de tech sofre quando o pipeline depende de indicação e o ciclo trava no 'manda proposta'",
+      "Em {cidade}, o pipeline depende de indicação. O ciclo trava em “manda proposta”.",
     perguntaConsideracao:
-      "O pipeline de vocês está sendo puxado, ou cada contrato novo ainda depende de quem já indica?",
+      "O pipeline está sendo puxado, ou cada contrato novo ainda depende de quem já indica?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho: "fim de ano trava orçamento; quem não tem fila de conversa passa janeiro ocioso",
+      gancho: "Fim de ano trava orçamento. Sem fila de conversa, janeiro fica ocioso.",
     },
-    janelaHorario: "melhor no fim da manhã, antes das dailies da tarde",
+    janelaHorario: "Fim da manhã, antes das dailies da tarde",
   }),
   pack("logistica-e-transporte", "logística", {
     dorPrincipal:
-      "em {cidade}, transporte vive de três embarcadores e de cotação que vira leilão — o caminhão ocioso come o mês",
+      "Em {cidade}, o transporte vive de poucos embarcadores e de cotação que vira leilão. Caminhão ocioso come o mês.",
     perguntaConsideracao:
-      "A carga de vocês está pulverizada, ou um embarcador parado ainda derruba a semana?",
+      "A carga está pulverizada, ou um embarcador parado ainda derruba a semana?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho: "fim de ano dispara volume e janeiro some; quem não tem fila de cliente sente os dois lados",
+      gancho: "Fim de ano dispara volume e janeiro some. Sem fila de cliente, os dois lados doem.",
     },
-    janelaHorario: "melhor de manhã, antes da janela de coleta",
+    janelaHorario: "De manhã, antes da janela de coleta",
   }),
   pack("transportadoras-carga", "transportadora", {
     dorPrincipal:
-      "em {cidade}, transportadora vive de cotação virando leilão e de embarcador que concentra a malha",
+      "Em {cidade}, a cotação vira leilão. Um embarcador concentra a malha.",
     perguntaConsideracao:
-      "A malha de vocês está pulverizada, ou um embarcador parado ainda derruba a semana?",
+      "A malha está pulverizada, ou um embarcador parado ainda derruba a semana?",
     sazonalidade: {
       months: [11, 12, 1],
-      gancho: "fim de ano dispara volume e janeiro some; quem não tem fila sente os dois lados",
+      gancho: "Fim de ano dispara volume e janeiro some. Sem fila, os dois lados doem.",
     },
-    janelaHorario: "melhor de manhã, antes da coleta",
+    janelaHorario: "De manhã, antes da coleta",
   }),
   pack("financeiro-e-seguros", "seguros e crédito", {
     dorPrincipal:
-      "em {cidade}, corretora vive de renovação e de indicação — a apólice nova não entra no ritmo da carteira que vence",
+      "Em {cidade}, a corretora vive de renovação e de indicação. Apólice nova não entra no ritmo da carteira que vence.",
     perguntaConsideracao:
       "A carteira nova está sendo puxada, ou o mês ainda depende de quem já renova e de quem indica?",
     sazonalidade: {
       months: [1, 2, 12],
-      gancho: "virada de ano a pessoa revisa seguro e crédito; quem espera indicação perde a janela",
+      gancho: "Na virada de ano a pessoa revisa seguro e crédito. Quem espera indicação perde a janela.",
     },
-    janelaHorario: "melhor no fim da manhã, fora da visita ao cliente",
+    janelaHorario: "Fim da manhã, fora da visita ao cliente",
   }),
 ];
 

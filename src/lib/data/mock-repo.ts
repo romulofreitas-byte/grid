@@ -1093,19 +1093,21 @@ export const mockRepo: GridRepo = {
       if (active) continue;
       const id =
         (store.enrichment_jobs.reduce((m, j) => Math.max(m, j.id), 0) || 0) + 1;
+      const skipFresh = Boolean(fresh) && !input.force;
       store.enrichment_jobs.push({
         id,
         cnpj,
         requested_by: input.userId,
         search_id: input.searchId,
-        status: fresh ? "skipped" : "pending",
+        status: skipFresh ? "skipped" : "pending",
         attempts: 0,
         last_error: null,
         locked_at: null,
         created_at: new Date().toISOString(),
-        finished_at: fresh ? new Date().toISOString() : null,
+        finished_at: skipFresh ? new Date().toISOString() : null,
+        payload: input.payload ?? null,
       });
-      if (!fresh) queued += 1;
+      if (!skipFresh) queued += 1;
     }
     return { queued, skippedOptOut: classified.skippedOptOut };
   },

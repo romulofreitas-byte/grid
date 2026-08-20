@@ -340,6 +340,36 @@ export default function LeadPage() {
     },
   });
 
+  const confirmSiteMutation = useMutation({
+    mutationFn: async (input: { action: "confirm" | "reject"; domain: string }) => {
+      const res = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(searchId ? { searchId } : {}),
+          cnpjs: [params.cnpj],
+          action: input.action,
+          domain: input.domain,
+        }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Não foi possível atualizar o site");
+      return json;
+    },
+    onMutate: () => {
+      setQualifyQueued(true);
+      setQualifyError(null);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
+      void qc.invalidateQueries({ queryKey: ["lead-stream", params.cnpj] });
+    },
+    onError: (err: Error) => {
+      setQualifyQueued(false);
+      setQualifyError(err.message);
+    },
+  });
+
   if (!d) {
     const preview =
       previewQuery.data ??
@@ -703,6 +733,13 @@ export default function LeadPage() {
             }}
             mapsUrl={mapsUrl}
             goldenMinute={d.goldenMinute}
+            confirmPending={confirmSiteMutation.isPending}
+            onConfirmSite={(domain) =>
+              confirmSiteMutation.mutate({ action: "confirm", domain })
+            }
+            onRejectSite={(domain) =>
+              confirmSiteMutation.mutate({ action: "reject", domain })
+            }
           />
 
           {others.length > 0 ? (

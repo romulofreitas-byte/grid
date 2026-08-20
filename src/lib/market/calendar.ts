@@ -44,6 +44,18 @@ export function peakMonths(months: number[]): number[] {
   );
 }
 
+export function peakCaption(months: number[], now = new Date()): string | null {
+  const peaks = peakMonths(months);
+  if (!peaks.length) return null;
+  const labels = peaks.map((m) => MES_CURTO[m - 1].toLowerCase());
+  const current = nomeMes(mesNumero(now));
+  const status = seasonStatus(months, now);
+  const pico = `Pico: ${labels.join(", ")}.`;
+  if (status === "agora") return `${pico} ${current} está no pico.`;
+  if (status === "na-porta") return `${pico} ${current} está na porta do pico.`;
+  return `${pico} ${current} está fora do pico.`;
+}
+
 export function seasonStatus(
   months: number[],
   now = new Date(),

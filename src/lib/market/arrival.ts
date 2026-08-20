@@ -12,8 +12,9 @@ export type ArrivalStep = {
 const STAGE_RANK: Record<EnrichmentStage, number> = {
   domain: 1,
   home: 2,
-  site: 3,
-  complete: 4,
+  presence: 3,
+  site: 4,
+  complete: 5,
 };
 
 function rank(stage: EnrichmentStage | null): number {
@@ -44,6 +45,24 @@ function homeLabel(enrichment: LeadEnrichment | null): string {
   if (enrichment.domain_status === "confirmado") return "site no ar";
   if (enrichment.domain_status === "nao_encontrado") return "sem páginas pra ler";
   return "home lida";
+}
+
+function presenceLabel(enrichment: LeadEnrichment | null): string {
+  if (!enrichment || rank(enrichmentStage(enrichment)) < 3) {
+    return "buscando redes";
+  }
+  const step = enrichment.fonte.presence_scan?.fonte;
+  if (step === "instagram") return "buscando Instagram";
+  if (step === "facebook") return "buscando Facebook";
+  if (step === "gmb") return "buscando Google Meu Negócio";
+  if (step === "linkedin") return "buscando LinkedIn";
+  if (step === "youtube") return "buscando YouTube";
+  const bits: string[] = [];
+  if (enrichment.socials.instagram) bits.push("Instagram");
+  if (enrichment.socials.facebook) bits.push("Facebook");
+  if (enrichment.gmb?.matched) bits.push("Google Meu Negócio");
+  if (bits.length) return bits.join(" · ");
+  return "redes conferidas";
 }
 
 function siteLabel(enrichment: LeadEnrichment | null): string {
@@ -108,14 +127,19 @@ export function buildArrivalTrail(
       status: statusFor(2, current, qualifying),
     },
     {
+      id: "presence",
+      label: presenceLabel(enrichment),
+      status: statusFor(3, current, qualifying),
+    },
+    {
       id: "site",
       label: siteLabel(enrichment),
-      status: statusFor(3, current, qualifying),
+      status: statusFor(4, current, qualifying),
     },
     {
       id: "complete",
       label: completeLabel(enrichment),
-      status: statusFor(4, current, qualifying),
+      status: statusFor(5, current, qualifying),
     },
   ];
 }

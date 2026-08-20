@@ -11,6 +11,7 @@ import type {
   CountMode,
   CountResult,
   EnrichmentJob,
+  EnrichmentJobPayload,
   GridRow,
   LeadDossier,
   LeadEnrichment,
@@ -104,6 +105,8 @@ export type GridRepo = {
     userId: string;
     searchId: string | null;
     priority?: boolean;
+    force?: boolean;
+    payload?: EnrichmentJobPayload | null;
   }): Promise<{ queued: number; skippedOptOut: number }>;
   listEnrichmentJobs(searchId: string): Promise<EnrichmentJob[]>;
   getEnrichment(cnpj: string): Promise<LeadEnrichment | null>;

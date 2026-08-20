@@ -78,8 +78,8 @@ describe("buildAuditSignals", () => {
       "site",
     );
     expect(isAuditLive(stillLiveOn404)).toBe(true);
-    expect(stillLiveOn404.hint).toMatch(/confirmado/i);
-    expect(stillLiveOn404.hint).not.toMatch(/não abriu/i);
+    expect(stillLiveOn404.hint).toMatch(/fora do ar/i);
+    expect(stillLiveOn404.note).toMatch(/Site fora do ar/);
 
     const gap = byId(enrichment(), "site");
     expect(isAuditGap(gap)).toBe(true);
@@ -197,7 +197,7 @@ describe("buildAuditSignals", () => {
     expect(gap.hint).toMatch(/2023/);
   });
 
-  it("does not treat Facebook as a sales gap when it is missing", () => {
+  it("does not treat Facebook as a sales gap when it is missing and was not searched", () => {
     const fb = byId(
       enrichment({
         domain: "exemplo.com.br",
@@ -209,6 +209,33 @@ describe("buildAuditSignals", () => {
     expect(fb.found).toBe(false);
     expect(fb.unverified).toBe(true);
     expect(isAuditGap(fb)).toBe(false);
+  });
+
+  it("treats a dedicated Facebook miss as a gap", () => {
+    const fb = byId(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        fonte: { facebook: { fonte: "serper_miss", coletado_em: "2026-08-19T12:00:00.000Z" } },
+      }),
+      "facebook",
+    );
+    expect(isAuditGap(fb)).toBe(true);
+  });
+
+  it("shows Google Meu Negócio when the listing matched", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Marmoraria Carvalho",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+        },
+      }),
+      "gmb",
+    );
+    expect(isAuditLive(gmb)).toBe(true);
+    expect(gmb.openLabel).toBe("Abrir ficha");
   });
 
   it("attaches the OSM mismatch note to the site signal", () => {
@@ -250,12 +277,15 @@ describe("buildAuditSignals", () => {
 
   it("builds a pending logo board and maps stages to scanning tiles", () => {
     const pending = emptyAuditSignals();
-    expect(pending).toHaveLength(17);
+    expect(pending).toHaveLength(18);
     expect(pending.every((s) => s.unverified && !s.found)).toBe(true);
     expect(scanningSignalIds(null, true)).toEqual(["site"]);
-    expect(scanningSignalIds("home", true)).toContain("instagram");
-    expect(scanningSignalIds("home", true)).toContain("gtm");
-    expect(scanningSignalIds("site", true)).toEqual(["atualizacao"]);
+    expect(scanningSignalIds("home", true)).toEqual(["site"]);
+    expect(scanningSignalIds("presence", true, enrichment({
+      fonte: { presence_scan: { fonte: "instagram", coletado_em: "2026-08-19T12:00:00.000Z" } },
+    }))).toEqual(["instagram"]);
+    expect(scanningSignalIds("site", true)).toContain("atualizacao");
+    expect(scanningSignalIds("site", true)).toContain("gtm");
     expect(scanningSignalIds("complete", true)).toEqual([]);
     expect(scanningSignalIds("home", false)).toEqual([]);
   });

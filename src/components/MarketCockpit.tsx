@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { GlassCard } from "@/components/GlassCard";
 import {
   MES_CURTO,
   mesNumero,
   nomeMes,
+  peakCaption,
   peakMonths,
   seasonStatus,
   type SeasonStatus,
@@ -33,20 +34,16 @@ function Gauge({
   pill?: string | null;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={() => setOpen((v) => !v)}
-      aria-expanded={open}
+    <div
       className={cn(
-        "rounded-2xl border px-3 py-3 text-left transition",
+        "rounded-2xl border px-3 py-3 text-left",
         live
           ? "border-podium-yellow/40 bg-podium-yellow/10"
-          : "border-white/10 bg-white/[0.03] hover:border-white/20",
+          : "border-white/10 bg-white/[0.03]",
       )}
     >
-      <span className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
             "text-[9px] font-bold uppercase tracking-[0.16em]",
@@ -67,21 +64,17 @@ function Gauge({
             {pill}
           </span>
         ) : null}
-      </span>
-      <span
+      </div>
+      <p
         className={cn(
-          "mt-1 block text-sm font-extrabold leading-snug",
+          "mt-1 text-sm font-extrabold leading-snug",
           live ? "text-podium-yellow" : "text-podium-gray",
         )}
       >
         {title}
-      </span>
-      {open ? (
-        <span className="mt-2 block text-xs leading-relaxed text-podium-muted">
-          {children}
-        </span>
-      ) : null}
-    </button>
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-podium-muted">{children}</p>
+    </div>
   );
 }
 
@@ -94,29 +87,36 @@ function PeakChips({
 }) {
   const current = mesNumero(now);
   const peaks = peakMonths(months);
-  const shown = peaks.includes(current) ? peaks : [...peaks, current].sort((a, b) => a - b);
-  if (shown.length === 0) return null;
+  if (peaks.length === 0) return null;
+  const caption = peakCaption(months, now);
   return (
-    <ol className="mt-3 flex flex-wrap gap-1.5">
-      {shown.map((month) => {
-        const inSeason = peaks.includes(month);
-        const isNow = month === current;
-        return (
-          <li key={month}>
-            <span
-              className={cn(
-                "inline-flex h-7 min-w-[2.25rem] items-center justify-center rounded-lg px-2 text-[10px] font-bold",
-                inSeason && isNow && "bg-podium-yellow text-podium-navy",
-                inSeason && !isNow && "bg-podium-yellow/20 text-podium-yellow",
-                !inSeason && isNow && "border border-podium-yellow/40 text-podium-yellow",
-              )}
-            >
-              {MES_CURTO[month - 1]}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="mt-3">
+      <ol className="flex flex-wrap gap-1.5">
+        {MES_CURTO.map((label, index) => {
+          const month = index + 1;
+          const inSeason = peaks.includes(month);
+          const isNow = month === current;
+          return (
+            <li key={month}>
+              <span
+                className={cn(
+                  "inline-flex h-7 min-w-[2.25rem] items-center justify-center rounded-lg px-2 text-[10px] font-bold",
+                  inSeason && isNow && "bg-podium-yellow text-podium-navy",
+                  inSeason && !isNow && "bg-podium-yellow/20 text-podium-yellow",
+                  !inSeason && isNow && "border border-podium-yellow/40 text-podium-yellow",
+                  !inSeason && !isNow && "border border-white/10 text-podium-muted",
+                )}
+              >
+                {label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {caption ? (
+        <p className="mt-2 text-xs leading-relaxed text-podium-muted">{caption}</p>
+      ) : null}
+    </div>
   );
 }
 

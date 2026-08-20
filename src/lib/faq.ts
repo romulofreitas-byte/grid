@@ -56,7 +56,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o Minuto de Ouro?",
     answer:
-      "Na ficha, Clareza de mercado é um cockpit à parte: dor do ramo, calendário deste mês e a cidade. Qualificar é outro espaço — cruza site, redes e mapas e mostra os cards dos ativos digitais. Isso qualifica o lead; não abre a Anatomia.",
+      "Na ficha, Clareza de mercado é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — cruza site, redes e Google Meu Negócio e mostra os cards dos ativos digitais. Isso qualifica o lead; não abre a Anatomia.",
   },
   {
     id: "anatomia-da-ligacao",
@@ -106,7 +106,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O GRID usa Google Maps?",
     answer:
-      "Não. A fonte é a Receita Federal. Na ficha pode haver um link de busca no Maps — isso não extrai nem grava dado do Maps.",
+      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca a ficha do Google Meu Negócio (nome e link da listagem) via busca — não usa a API do Google Places e não grava avaliação nem coordenadas.",
   },
   {
     id: "quando-credito",

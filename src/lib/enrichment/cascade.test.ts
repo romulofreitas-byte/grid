@@ -124,4 +124,62 @@ describe("enrichCompany crawl", () => {
       .map((u) => new URL(u).pathname);
     expect(sitePaths).toEqual(["/", "/quem-somos"]);
   });
+
+  it("confirms a human-approved domain even when the page does not mention the company", async () => {
+    const domain = "sol-down.test";
+    mockSiteFetch({
+      "/": "<html><body>Página genérica</body></html>",
+    });
+    const { row } = await enrichCompany(companyInput(domain), null, undefined, {
+      forceConfirmDomain: domain,
+    });
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.domain).toBe(domain);
+    expect(row.fonte.domain?.fonte).toBe("human");
+  });
+
+  it("skips a discarded cached domain and searches with the fantasy name", async () => {
+    const serperBodies: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/search")) {
+          serperBodies.push(String(init?.body ?? ""));
+          return new Response(
+            JSON.stringify({
+              organic: [{ link: "https://clinicasol.com.br", title: "Clinica Sol" }],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("clinicasol.com.br")) {
+          return htmlResponse(`<html><body>Clinica Sol CNPJ ${CNPJ}</body></html>`);
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    process.env.SERPER_API_KEY = "test";
+    const input = companyInput("descartado.test");
+    input.establishment.email = null;
+    const { row } = await enrichCompany(
+      input,
+      { domain: "descartado.test", status: "nao_confirmado" },
+      undefined,
+      { discardedDomains: ["descartado.test"] },
+    );
+    expect(serperBodies.some((body) => body.includes("Clinica Sol"))).toBe(true);
+    expect(serperBodies.some((body) => body.includes("Clinica Sol Ltda"))).toBe(false);
+    expect(row.domain).toBe("clinicasol.com.br");
+    delete process.env.SERPER_API_KEY;
+  });
 });

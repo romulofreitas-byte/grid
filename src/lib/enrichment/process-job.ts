@@ -118,14 +118,17 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     log({ status: "skipped", reason: "opt-out" });
     return;
   }
-  const fresh = await repo.findFreshEnrichment(job.cnpj);
-  if (fresh) {
-    await repo.updateJob(job.id, {
-      status: "skipped",
-      finished_at: new Date().toISOString(),
-    });
-    log({ status: "skipped", reason: "fresh" });
-    return;
+  const existing = await repo.getEnrichment(job.cnpj);
+  if (existing && !job.payload?.force) {
+    const fresh = await repo.findFreshEnrichment(job.cnpj);
+    if (fresh) {
+      await repo.updateJob(job.id, {
+        status: "skipped",
+        finished_at: new Date().toISOString(),
+      });
+      log({ status: "skipped", reason: "fresh" });
+      return;
+    }
   }
   if (job.attempts > 3) {
     await repo.updateJob(job.id, {
@@ -166,6 +169,17 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       company,
       cache,
       (partial) => repo.upsertEnrichment(partial),
+      {
+        discardedDomains: [
+          ...(existing?.discarded_domains ?? []),
+          ...(job.payload?.discarded_domains ?? []),
+          ...(job.payload?.action === "reject" && job.payload.domain
+            ? [job.payload.domain]
+            : []),
+        ],
+        forceConfirmDomain:
+          job.payload?.action === "confirm" ? (job.payload.domain ?? null) : null,
+      },
     );
     const upsertStarted = Date.now();
     await repo.upsertEnrichment(row);

@@ -315,6 +315,7 @@ function mapJob(r: Record<string, unknown>): EnrichmentJob {
     locked_at: r.locked_at == null ? null : isoStr(r.locked_at),
     created_at: isoStr(r.created_at),
     finished_at: r.finished_at == null ? null : isoStr(r.finished_at),
+    payload: (r.payload ?? null) as EnrichmentJob["payload"],
   };
 }
 
@@ -345,6 +346,10 @@ function mapEnrichment(r: Record<string, unknown>): LeadEnrichment {
     },
     freshness: (r.freshness ?? {}) as LeadEnrichment["freshness"],
     osm: (r.osm ?? null) as LeadEnrichment["osm"],
+    gmb: (r.gmb ?? null) as LeadEnrichment["gmb"],
+    discarded_domains: Array.isArray(r.discarded_domains)
+      ? (r.discarded_domains as string[])
+      : [],
     dor_digital: Number(r.dor_digital ?? 0),
     contexto: Array.isArray(r.contexto) ? (r.contexto as string[]) : [],
     fonte: (r.fonte ?? {}) as LeadEnrichment["fonte"],
@@ -367,6 +372,7 @@ function isEnrichmentStage(value: unknown): value is LeadEnrichment["stage"] {
   return (
     value === "domain" ||
     value === "home" ||
+    value === "presence" ||
     value === "site" ||
     value === "complete"
   );
@@ -2841,19 +2847,24 @@ export const supabaseRepo: GridRepo = {
     const activeSet = new Set(active.map((r) => trimChar(r.cnpj)));
 
     const pending = remaining.filter(
-      (c) => !freshSet.has(c) && !activeSet.has(c),
+      (c) => (input.force || !freshSet.has(c)) && !activeSet.has(c),
     );
-    const skippedFresh = remaining.filter(
-      (c) => freshSet.has(c) && !activeSet.has(c),
-    );
+    const skippedFresh = input.force
+      ? []
+      : remaining.filter((c) => freshSet.has(c) && !activeSet.has(c));
 
     if (pending.length) {
       await query(
         `insert into enrichment_jobs
-           (cnpj, requested_by, search_id, status, attempts, finished_at)
-         select x.cnpj, $2, $3, 'pending', 0, null
+           (cnpj, requested_by, search_id, status, attempts, finished_at, payload)
+         select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb
          from unnest($1::text[]) as x(cnpj)`,
-        [pending, input.userId, input.searchId],
+        [
+          pending,
+          input.userId,
+          input.searchId,
+          input.payload ? JSON.stringify(input.payload) : null,
+        ],
       );
     }
     if (skippedFresh.length) {
@@ -2887,11 +2898,11 @@ export const supabaseRepo: GridRepo = {
     await query(
       `insert into lead_enrichment (
          cnpj, domain, domain_status, http_status, phones, emails, whatsapp,
-         socials, tech, freshness, osm, dor_digital, contexto, fonte, people,
-         stage, collected_at, expires_at
+         socials, tech, freshness, osm, gmb, discarded_domains, dor_digital,
+         contexto, fonte, people, stage, collected_at, expires_at
        ) values (
          $1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8::jsonb,$9::jsonb,$10::jsonb,
-         $11::jsonb,$12,$13,$14::jsonb,$15::jsonb,$16,$17,$18
+         $11::jsonb,$12::jsonb,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19,$20
        )
        on conflict (cnpj) do update set
          domain = excluded.domain,
@@ -2904,6 +2915,8 @@ export const supabaseRepo: GridRepo = {
          tech = excluded.tech,
          freshness = excluded.freshness,
          osm = excluded.osm,
+         gmb = excluded.gmb,
+         discarded_domains = excluded.discarded_domains,
          dor_digital = excluded.dor_digital,
          contexto = excluded.contexto,
          fonte = excluded.fonte,
@@ -2923,6 +2936,8 @@ export const supabaseRepo: GridRepo = {
         JSON.stringify(row.tech),
         JSON.stringify(row.freshness),
         row.osm ? JSON.stringify(row.osm) : null,
+        row.gmb ? JSON.stringify(row.gmb) : null,
+        row.discarded_domains ?? [],
         row.dor_digital,
         row.contexto,
         JSON.stringify(row.fonte),

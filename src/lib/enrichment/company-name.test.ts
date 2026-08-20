@@ -30,16 +30,16 @@ describe("searchableCompanyName", () => {
 });
 
 describe("domainSearchQueries", () => {
-  it("quotes fantasia first, then razão without the legal suffix", () => {
+  it("quotes fantasia first, then razão without the legal suffix when they differ", () => {
     expect(
       domainSearchQueries({
-        nomeFantasia: "Marmoraria Carvalho",
+        nomeFantasia: "Carvalho Pedras",
         razaoSocial: "MARMORARIA CARVALHO LTDA",
         municipio: "Itauna",
         uf: "MG",
       }),
     ).toEqual([
-      '"Marmoraria Carvalho" Itauna MG',
+      '"Carvalho Pedras" Itauna MG',
       '"MARMORARIA CARVALHO" Itauna MG',
     ]);
   });
