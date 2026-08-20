@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { SectionTitle } from "@/components/SectionTitle";
 import { canSearchCompanies } from "@/lib/data/company-search";
+import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnpj } from "@/lib/format";
 import {
   readRecentCompanies,
@@ -73,7 +74,7 @@ function CompanyRow({
       <GlassCard className="mb-2 px-4 py-3 hover:bg-white/[0.03]">
         <div className="flex items-baseline justify-between gap-3">
           <p className="min-w-0 truncate font-bold">
-            {hit.nomeFantasia || hit.razaoSocial}
+            {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
           </p>
           <p className="shrink-0 text-xs text-podium-muted">
             {hit.municipio}/{hit.uf}
