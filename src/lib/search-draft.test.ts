@@ -3,6 +3,7 @@ import { DEFAULT_FILTERS } from "@/lib/types";
 import {
   LARGADA_DRAFT_KEY,
   clearDraft,
+  constrainLargadaFilters,
   draftHasWork,
   mergeFilters,
   readDraft,
@@ -128,5 +129,28 @@ describe("read/write/clear draft", () => {
     expect(loaded?.filters.ufs).toEqual(["RJ"]);
     expect(loaded?.filters.segmentIds).toEqual([]);
     expect(loaded?.filters.ocultarTelefonesCompartilhados).toBe(true);
+  });
+});
+
+describe("constrainLargadaFilters", () => {
+  it("keeps the first segment and first UF from old drafts", () => {
+    const next = mergeFilters({
+      segmentIds: ["clinicas", "marmoraria"],
+      ufs: ["SP", "MG"],
+      municipioIds: [1, 2],
+    });
+    expect(next.segmentIds).toEqual(["clinicas"]);
+    expect(next.ufs).toEqual(["SP"]);
+    expect(next.municipioIds).toEqual([]);
+  });
+
+  it("keeps cities when a single UF is already selected", () => {
+    const next = constrainLargadaFilters({
+      ...DEFAULT_FILTERS,
+      segmentIds: ["clinicas"],
+      ufs: ["MG"],
+      municipioIds: [3106200],
+    });
+    expect(next.municipioIds).toEqual([3106200]);
   });
 });

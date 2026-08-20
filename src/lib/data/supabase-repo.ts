@@ -29,10 +29,16 @@ import {
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
 import {
+  CNAE_ANY_SQL,
   FLAT_COUNT_CAP,
+  FLAT_COUNT_PREVIEW_CAP,
+  UF_ANY_SQL,
+  cnaeChar7Params,
   flatCountSql,
   flatRankedEstablishmentsSql,
+  ufChar2Params,
 } from "@/lib/data/establishments-search-sql";
+import { municipioListLimit } from "@/lib/municipios";
 import {
   LOCAL_USER_ID,
   isMissingOrUnpopulatedRelationError,
@@ -92,7 +98,7 @@ import { DEFAULT_FILTERS } from "@/lib/types";
 
 const COUNT_CAP = FLAT_COUNT_CAP;
 const RESULT_CAP = 1000;
-const CANDIDATE_CAP = 5000;
+const CANDIDATE_CAP = 1500;
 
 const CAPITALS: Record<string, string> = {
   AC: "Rio Branco",
@@ -427,10 +433,10 @@ function buildStructuralFilterSql(
     if (allowedCnaes.has("__none__") || allowedCnaes.size === 0) {
       clauses.push("false");
     } else {
-      add("e.cnae_principal = any(?::text[])", [...allowedCnaes]);
+      add(`e.cnae_principal = ${CNAE_ANY_SQL}`, cnaeChar7Params([...allowedCnaes]));
     }
   }
-  if (filters.ufs.length) add("e.uf = any(?::text[])", filters.ufs);
+  if (filters.ufs.length) add(`e.uf = ${UF_ANY_SQL}`, ufChar2Params(filters.ufs));
   if (filters.municipioIds.length) {
     add("e.municipio_id = any(?::int[])", filters.municipioIds);
   }
@@ -510,16 +516,16 @@ async function countTotalPreviewLegacy(
 
   if (canFastCountPreview(filters, allowed) && (await hasCnaeUfCount())) {
     try {
-      const params: unknown[] = [[...allowed!]];
+      const params: unknown[] = [cnaeChar7Params([...allowed!])];
       let ufSql = "";
       if (filters.ufs.length) {
-        params.push(filters.ufs);
-        ufSql = ` and uf = any($${params.length}::text[])`;
+        params.push(ufChar2Params(filters.ufs));
+        ufSql = ` and uf = any($${params.length}::char(2)[])`;
       }
       const { rows } = await querySearch<{ n: number }>(
         `select coalesce(sum(n), 0)::int as n
          from cnae_uf_count
-         where cnae_principal = any($1::text[])${ufSql}`,
+         where cnae_principal = any($1::char(7)[])${ufSql}`,
         params,
       );
       const raw = Number(rows[0]?.n ?? 0);
@@ -650,10 +656,10 @@ function buildFlatStructuralFilterSql(
     if (allowedCnaes.has("__none__") || allowedCnaes.size === 0) {
       clauses.push("false");
     } else {
-      add("es.cnae_principal = any(?::text[])", [...allowedCnaes]);
+      add(`es.cnae_principal = ${CNAE_ANY_SQL}`, cnaeChar7Params([...allowedCnaes]));
     }
   }
-  if (filters.ufs.length) add("es.uf = any(?::text[])", filters.ufs);
+  if (filters.ufs.length) add(`es.uf = ${UF_ANY_SQL}`, ufChar2Params(filters.ufs));
   if (filters.municipioIds.length) {
     add("es.municipio_id = any(?::int[])", filters.municipioIds);
   }
@@ -708,6 +714,7 @@ function buildFlatFilterSql(
 async function countViaFlatTable(
   filters: SearchFilters,
   allowed: Set<string> | null,
+  opts: { includeStats: boolean; cap: number },
 ): Promise<CountResult> {
   const { sql, params } = buildFlatFilterSql(filters, allowed);
   const joinSql = buildFlatMatchFrom(filters);
@@ -719,15 +726,18 @@ async function countViaFlatTable(
     com_decisor: number;
     por_municipio: MunicipioCountRow[] | null;
   }>(
-    flatCountSql(sql, joinSql, limitParam),
-    [...params, COUNT_CAP + 1],
+    flatCountSql(sql, joinSql, limitParam, {
+      includeStats: opts.includeStats,
+      cap: opts.cap,
+    }),
+    [...params, opts.cap + 1],
   );
   const row = rows[0];
   const raw = Number(row?.total_probe ?? 0);
-  const capped = raw > COUNT_CAP;
+  const capped = raw > opts.cap;
   const munRows = Array.isArray(row?.por_municipio) ? row.por_municipio : [];
   return {
-    total: capped ? COUNT_CAP : raw,
+    total: capped ? opts.cap : raw,
     capped,
     comTelefone: Number(row?.com_telefone ?? 0),
     comEmail: Number(row?.com_email ?? 0),
@@ -921,31 +931,81 @@ async function hasEstablishmentsSearch(): Promise<boolean> {
   }
 }
 
+async function countViaCnaeUfMv(
+  filters: SearchFilters,
+  allowed: Set<string>,
+): Promise<CountResult | null> {
+  if (!(await hasCnaeUfCount())) return null;
+  try {
+    const params: unknown[] = [cnaeChar7Params([...allowed])];
+    let ufSql = "";
+    if (filters.ufs.length) {
+      params.push(ufChar2Params(filters.ufs));
+      ufSql = ` and uf = any($${params.length}::char(2)[])`;
+    }
+    const { rows } = await querySearch<{ n: number }>(
+      `select coalesce(sum(n), 0)::int as n
+       from cnae_uf_count
+       where cnae_principal = any($1::char(7)[])${ufSql}`,
+      params,
+    );
+    const raw = Number(rows[0]?.n ?? 0);
+    const capped = raw > COUNT_CAP;
+    return {
+      total: capped ? COUNT_CAP : raw,
+      capped,
+      comTelefone: 0,
+      comEmail: 0,
+      comDecisor: 0,
+      porMunicipio: [],
+    };
+  } catch (err) {
+    if (
+      !isMissingOrUnpopulatedRelationError(err) &&
+      !isStatementTimeoutError(err)
+    ) {
+      throw err;
+    }
+    return null;
+  }
+}
+
 async function countCached(
   filters: SearchFilters,
   mode: "total" | "full",
   allowed: Set<string> | null,
 ): Promise<CountResult> {
-  const useFlat = await hasEstablishmentsSearch();
-  const cacheMode = useFlat ? "full" : mode;
-  const key = countCacheKey(filters, cacheMode, allowed);
+  const key = countCacheKey(filters, mode, allowed);
   const cached = await getCountCache(key);
   if (cached) {
-    logSearchDuration("count", Date.now(), { mode: cacheMode, cache: true, flat: useFlat });
+    logSearchDuration("count", Date.now(), { mode, cache: true });
     return cached;
   }
 
   const started = Date.now();
   let result: CountResult;
+  const useFlat = await hasEstablishmentsSearch();
+
+  if (mode === "total" && allowed && canFastCountPreview(filters, allowed)) {
+    const mv = await countViaCnaeUfMv(filters, allowed);
+    if (mv) {
+      logSearchDuration("count", started, { mode, mv: true, total: mv.total });
+      await setCountCache(key, mv);
+      return mv;
+    }
+  }
+
   if (useFlat) {
-    result = await countViaFlatTable(filters, allowed);
+    const includeStats = mode === "full";
+    const cap = mode === "full" ? COUNT_CAP : FLAT_COUNT_PREVIEW_CAP;
+    result = await countViaFlatTable(filters, allowed, { includeStats, cap });
   } else if (mode === "total") {
     result = await countTotalPreviewLegacy(filters, allowed);
   } else {
     result = await countFullLegacy(filters, allowed);
   }
 
-  logSearchDuration("count", started, { mode: cacheMode, flat: useFlat, total: result.total });
+  logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
   await setCountCache(key, result);
   return result;
 }
@@ -957,16 +1017,16 @@ async function countFullLegacy(
   const useFast = canFastCount(filters, allowed);
   if (useFast && (await hasCnaeUfCount())) {
     try {
-      const params: unknown[] = [[...allowed!]];
+      const params: unknown[] = [cnaeChar7Params([...allowed!])];
       let ufSql = "";
       if (filters.ufs.length) {
-        params.push(filters.ufs);
-        ufSql = ` and uf = any($${params.length}::text[])`;
+        params.push(ufChar2Params(filters.ufs));
+        ufSql = ` and uf = any($${params.length}::char(2)[])`;
       }
       const { rows } = await querySearch<{ n: number }>(
         `select coalesce(sum(n), 0)::int as n
          from cnae_uf_count
-         where cnae_principal = any($1::text[])${ufSql}`,
+         where cnae_principal = any($1::char(7)[])${ufSql}`,
         params,
       );
       const total = Number(rows[0]?.n ?? 0);
@@ -1068,13 +1128,13 @@ function cnaeCountSql(
   if (source === "mv") {
     return `select cnae_principal, sum(n)::int as n
        from cnae_uf_count
-       where cnae_principal = any($1::text[])${ufSql}
+       where cnae_principal = any($1::char(7)[])${ufSql}
        group by 1`;
   }
   const table = source === "flat" ? "establishments_search" : "establishments";
   return `select cnae_principal, count(*)::int as n
        from ${table}
-       where cnae_principal = any($1::text[])${ufSql}
+       where cnae_principal = any($1::char(7)[])${ufSql}
        group by 1`;
 }
 
@@ -1083,11 +1143,11 @@ async function countCnaesByCode(
   ufs: string[],
 ): Promise<Map<string, number>> {
   if (!codes.length) return new Map();
-  const params: unknown[] = [codes];
+  const params: unknown[] = [cnaeChar7Params(codes)];
   let ufSql = "";
   if (ufs.length) {
-    params.push(ufs);
-    ufSql = ` and uf = any($${params.length}::text[])`;
+    params.push(ufChar2Params(ufs));
+    ufSql = ` and uf = any($${params.length}::char(2)[])`;
   }
 
   const order: Array<"mv" | "flat" | "est"> = ["mv", "flat", "est"];
@@ -2124,29 +2184,18 @@ export const supabaseRepo: GridRepo = {
   },
 
   async listMunicipios(ufs, q = "") {
-    const params: unknown[] = [];
-    const where: string[] = ["1=1"];
-    if (ufs.length) {
-      params.push(ufs);
-      where.push(`uf = any($${params.length}::text[])`);
+    const all = await loadRefMunicipios();
+    const ufSet = new Set(ufs.map((u) => u.trim().toUpperCase()));
+    let list = ufSet.size ? all.filter((m) => ufSet.has(m.uf)) : all;
+    const needle = q.trim();
+    if (needle.length >= 1) {
+      const nq = normalizeText(needle);
+      list = list.filter((m) => normalizeText(m.nome).includes(nq));
     }
-    if (q.trim().length >= 2) {
-      params.push(`%${q.trim()}%`);
-      where.push(`nome ilike $${params.length}`);
-    }
-    params.push(80);
-    const { rows } = await query(
-      `select id, nome, uf from ref_municipio
-       where ${where.join(" and ")}
-       order by nome
-       limit $${params.length}`,
-      params,
-    );
-    return rows.map((m) => ({
-      id: Number(m.id),
-      nome: String(m.nome),
-      uf: trimChar(m.uf),
-    }));
+    list = [...list].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    const cap = municipioListLimit(ufs.length);
+    if (cap != null) list = list.slice(0, cap);
+    return list;
   },
 
   async listCapitals(ufs) {

@@ -22,8 +22,27 @@ function clampStep(step: number): number {
   return step;
 }
 
+/** Largada is one niche + one state; extra values from old drafts are dropped. */
+export function constrainLargadaFilters(filters: SearchFilters): SearchFilters {
+  const ufs = Array.isArray(filters.ufs) ? filters.ufs.slice(0, 1) : [];
+  const segmentIds = Array.isArray(filters.segmentIds)
+    ? filters.segmentIds.slice(0, 1)
+    : [];
+  const truncatedUfs = Array.isArray(filters.ufs) && filters.ufs.length > 1;
+  return {
+    ...filters,
+    segmentIds,
+    ufs,
+    municipioIds: truncatedUfs
+      ? []
+      : Array.isArray(filters.municipioIds)
+        ? filters.municipioIds
+        : [],
+  };
+}
+
 export function mergeFilters(partial?: Partial<SearchFilters> | null): SearchFilters {
-  return { ...DEFAULT_FILTERS, ...(partial ?? {}) };
+  return constrainLargadaFilters({ ...DEFAULT_FILTERS, ...(partial ?? {}) });
 }
 
 export function resolveLargadaSource(input: {

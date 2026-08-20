@@ -28,6 +28,7 @@ import {
   COMPANY_SEARCH_LIMIT,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
+import { municipioListLimit } from "@/lib/municipios";
 import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
@@ -680,11 +681,12 @@ export const mockRepo: GridRepo = {
     let list = !ufs.length
       ? store.ref_municipio
       : store.ref_municipio.filter((m) => ufs.includes(m.uf));
-    if (query.trim().length >= 2) {
+    if (query.trim().length >= 1) {
       const q = normalizeText(query);
       list = list.filter((m) => normalizeText(m.nome).includes(q));
     }
-    return list.slice(0, 80);
+    const cap = municipioListLimit(ufs.length);
+    return cap == null ? list : list.slice(0, cap);
   },
 
   async listCapitals(ufs: string[]) {

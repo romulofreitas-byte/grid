@@ -1,5 +1,29 @@
 /** SQL fragments for the establishments_search fast path. */
 
+/** Bind CNAE/UF as char arrays so Postgres can use (cnae_principal, uf, …) indexes. */
+export const CNAE_ANY_SQL = "any(?::char(7)[])";
+export const UF_ANY_SQL = "any(?::char(2)[])";
+
+export function cnaeChar7Params(codes: string[]): string[] {
+  return [
+    ...new Set(
+      codes
+        .map((c) => c.replace(/\D/g, "").padStart(7, "0"))
+        .filter((c) => c.length === 7),
+    ),
+  ];
+}
+
+export function ufChar2Params(ufs: string[]): string[] {
+  return [
+    ...new Set(
+      ufs
+        .map((u) => u.trim().toUpperCase().slice(0, 2))
+        .filter((u) => u.length === 2),
+    ),
+  ];
+}
+
 export function scoreProxyOrderSql(alias = "es"): string {
   return `(
     (case when ${alias}.tem_decisor then 7 else 0 end) +
@@ -12,14 +36,35 @@ export function scoreProxyOrderSql(alias = "es"): string {
   ) desc, ${alias}.cnpj`;
 }
 
-/** Single-pass count + stats + top municípios (cap via limitParam). */
+export type FlatCountSqlOpts = {
+  includeStats?: boolean;
+  cap?: number;
+};
+
+/** Single-pass count + optional contact stats + top municípios (cap via limitParam). */
 export function flatCountSql(
   filterSql: string,
   joinSql: string,
   limitParam: number,
+  opts: FlatCountSqlOpts = {},
 ): string {
+  const includeStats = opts.includeStats ?? true;
+  const cap = opts.cap ?? FLAT_COUNT_CAP;
+  const matchedCols = includeStats
+    ? "es.telefone1, es.email, es.tem_decisor, es.municipio_id"
+    : "es.municipio_id";
+  const statsSelect = includeStats
+    ? `(select count(*)::int from matched) as total_probe,
+         count(*) filter (where telefone1 is not null)::int as com_telefone,
+         count(*) filter (where email is not null)::int as com_email,
+         count(*) filter (where tem_decisor)::int as com_decisor`
+    : `(select count(*)::int from matched) as total_probe,
+         0 as com_telefone,
+         0 as com_email,
+         0 as com_decisor`;
+
   return `with matched as (
-       select es.telefone1, es.email, es.tem_decisor, es.municipio_id
+       select ${matchedCols}
        from establishments_search es
        ${joinSql}
        where ${filterSql}
@@ -27,14 +72,11 @@ export function flatCountSql(
      ),
      capped_matched as (
        select * from matched
-       limit ${FLAT_COUNT_CAP}
+       limit ${cap}
      ),
      stats as (
        select
-         (select count(*)::int from matched) as total_probe,
-         count(*) filter (where telefone1 is not null)::int as com_telefone,
-         count(*) filter (where email is not null)::int as com_email,
-         count(*) filter (where tem_decisor)::int as com_decisor
+         ${statsSelect}
        from capped_matched
      ),
      top_mun as (
@@ -88,3 +130,5 @@ export function flatRankedEstablishmentsSql(
 }
 
 export const FLAT_COUNT_CAP = 10000;
+/** Live sidebar probe when mode is `total` (region step / cities). */
+export const FLAT_COUNT_PREVIEW_CAP = 2000;

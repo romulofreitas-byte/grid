@@ -22,6 +22,10 @@ import {
   writeDraft,
 } from "@/lib/search-draft";
 import {
+  filterMunicipios,
+  municipioLetters,
+} from "@/lib/municipios";
+import {
   DEFAULT_FILTERS,
   type CountMode,
   type CountResult,
@@ -170,6 +174,7 @@ function LargadaWizard() {
   const [openNiche, setOpenNiche] = useState<string | null>(null);
   const [intentDraft, setIntentDraft] = useState("");
   const [munQuery, setMunQuery] = useState("");
+  const [munLetter, setMunLetter] = useState<string | null>(null);
   const [citiesOpen, setCitiesOpen] = useState(false);
   const [showCnaePanel, setShowCnaePanel] = useState(false);
   const [cnaeDraft, setCnaeDraft] = useState("");
@@ -279,29 +284,21 @@ function LargadaWizard() {
     },
   });
 
-  const countsQuery = useQuery({
-    queryKey: ["niche-counts", openNiche, filters.ufs],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (openNiche) params.set("parentId", openNiche);
-      if (filters.ufs.length) params.set("ufs", filters.ufs.join(","));
-      const res = await fetch(`/api/niches/counts?${params.toString()}`);
-      if (!res.ok) throw new Error("counts");
-      return (await res.json()) as Record<string, number>;
-    },
-    enabled: !!openNiche,
-  });
-
   const municipiosQuery = useQuery({
-    queryKey: ["municipios", filters.ufs, munQuery],
+    queryKey: ["municipios", filters.ufs],
     queryFn: async () => {
       const res = await fetch(
-        `/api/ref/municipios?ufs=${filters.ufs.join(",")}&q=${encodeURIComponent(munQuery)}`,
+        `/api/ref/municipios?ufs=${filters.ufs.join(",")}`,
       );
       return (await res.json()) as Array<{ id: number; nome: string; uf: string }>;
     },
     enabled: filters.ufs.length > 0,
   });
+
+  useEffect(() => {
+    setMunQuery("");
+    setMunLetter(null);
+  }, [filters.ufs]);
 
   useEffect(() => {
     if (step === 2 && filters.municipioIds.length > 0) {
@@ -361,7 +358,7 @@ function LargadaWizard() {
   const debouncedFilters = useDebounced(filters, 500);
   const liveReady = hasCountScope(filters);
   const countReady = hasCountScope(debouncedFilters);
-  const countMode: CountMode = "full";
+  const countMode: CountMode = step >= 3 ? "full" : "total";
   const countFetchEnabled = shouldFetchCount(step, debouncedFilters, countReady);
   const countQuery = useQuery({
     queryKey: ["count", countMode, debouncedFilters],
@@ -369,6 +366,7 @@ function LargadaWizard() {
     enabled: countFetchEnabled,
     placeholderData: (prev) => prev,
   });
+  const showVolumeAside = step >= 2 && filters.ufs.length > 0;
   const showCountPanel = countFetchEnabled;
   const showCountMunicipios = step >= 2 && showCountPanel;
   const showCountBreakdown = step >= 3;
@@ -394,6 +392,19 @@ function LargadaWizard() {
     return map;
   }, [nicheTree]);
 
+  const municipiosAll = useMemo(
+    () => (Array.isArray(municipiosQuery.data) ? municipiosQuery.data : []),
+    [municipiosQuery.data],
+  );
+  const munLetterOptions = useMemo(
+    () => municipioLetters(municipiosAll),
+    [municipiosAll],
+  );
+  const municipiosShown = useMemo(
+    () => filterMunicipios(municipiosAll, { letter: munLetter, q: munQuery }),
+    [municipiosAll, munLetter, munQuery],
+  );
+
   useEffect(() => {
     if (autoOpenedNiche.current) return;
     if (nicheTree.length === 0 || filters.segmentIds.length === 0) return;
@@ -416,9 +427,7 @@ function LargadaWizard() {
       return {
         ...f,
         presetId: null,
-        segmentIds: has
-          ? f.segmentIds.filter((x) => x !== id)
-          : [...f.segmentIds, id],
+        segmentIds: has ? [] : [id],
       };
     });
   }
@@ -515,15 +524,6 @@ function LargadaWizard() {
             const selectedCount = n.segments.filter((s) =>
               filters.segmentIds.includes(s.id),
             ).length;
-            const volume = countsQuery.data?.[n.id];
-            const volumeLabel =
-              open && countsQuery.isError
-                ? "indisponível · "
-                : open && countsQuery.isFetching && volume == null
-                  ? "… · "
-                  : volume != null
-                    ? `${volume.toLocaleString("pt-BR")} empresas · `
-                    : "";
             return (
               <div key={n.id} className="rounded-xl border border-white/10">
                 <button
@@ -534,9 +534,8 @@ function LargadaWizard() {
                   <span>
                     <span className="block text-sm font-bold">{n.nome}</span>
                     <span className="text-xs text-podium-muted">
-                      {volumeLabel}
                       {n.segments.length} segmentos
-                      {selectedCount > 0 ? ` · ${selectedCount} selecionados` : ""}
+                      {selectedCount > 0 ? ` · ${selectedCount} selecionado` : ""}
                     </span>
                   </span>
                   <ChevronDown
@@ -563,15 +562,6 @@ function LargadaWizard() {
                           )}
                         >
                           <span className="font-bold">{s.nome}</span>
-                          <span className="mt-0.5 block text-xs text-podium-muted">
-                            {countsQuery.data?.[s.id] != null
-                              ? `${countsQuery.data[s.id].toLocaleString("pt-BR")} empresas`
-                              : countsQuery.isFetching
-                                ? "…"
-                                : countsQuery.isError
-                                  ? "indisponível"
-                                  : "—"}
-                          </span>
                         </button>
                       );
                     })}
@@ -595,7 +585,12 @@ function LargadaWizard() {
 
   return (
     <AppShell title="Nova lista" back={shellBack}>
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div
+        className={cn(
+          "grid gap-6",
+          showVolumeAside && "lg:grid-cols-[1fr_280px]",
+        )}
+      >
         <div className="space-y-6">
           <div>
             <SectionTitle>{pageTitle}</SectionTitle>
@@ -682,7 +677,7 @@ function LargadaWizard() {
                   <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
                   <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
                 </div>
-              ) : (
+              ) : filters.segmentIds.length > 0 ? null : (
                 <>
                   <NicheGroup title="B2C local" hint={COPY.b2c} items={b2c} />
                   <NicheGroup
@@ -694,17 +689,20 @@ function LargadaWizard() {
               )}
 
               {filters.segmentIds.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {filters.segmentIds.map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => toggleSegment(id)}
-                      className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
-                    >
-                      {segmentNames.get(id) ?? id} ×
-                    </button>
-                  ))}
+                <div>
+                  <div className="flex flex-wrap gap-2">
+                    {filters.segmentIds.map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => toggleSegment(id)}
+                        className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
+                      >
+                        {segmentNames.get(id) ?? id} ×
+                      </button>
+                    ))}
+                  </div>
+                  <Hint className="mt-2">Toque no nicho para escolher outro.</Hint>
                 </div>
               )}
 
@@ -840,34 +838,37 @@ function LargadaWizard() {
 
           {step === 2 && (
             <GlassCard className="space-y-4 p-5">
-              <h3 className="font-bold">Região — Brasil completo</h3>
-              <div className="flex flex-wrap gap-2">
-                {ALL_UFS.map((uf) => {
-                  const on = filters.ufs.includes(uf);
-                  return (
+              <h3 className="font-bold">Região — um estado</h3>
+              <p className="text-xs text-podium-muted">
+                Escolha um estado. Depois você pode refinar por município.
+              </p>
+              {filters.ufs.length === 1 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-xl bg-podium-yellow px-3 py-2 text-sm font-bold text-podium-navy">
+                    {filters.ufs[0]}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs font-bold text-podium-yellow"
+                    onClick={() => patch({ ufs: [], municipioIds: [] })}
+                  >
+                    Trocar estado
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {ALL_UFS.map((uf) => (
                     <button
                       key={uf}
                       type="button"
-                      onClick={() =>
-                        patch({
-                          ufs: on
-                            ? filters.ufs.filter((u) => u !== uf)
-                            : [...filters.ufs, uf],
-                          municipioIds: [],
-                        })
-                      }
-                      className={cn(
-                        "rounded-xl px-3 py-2 text-sm font-bold",
-                        on
-                          ? "bg-podium-yellow text-podium-navy"
-                          : "bg-white/5 text-podium-gray",
-                      )}
+                      onClick={() => patch({ ufs: [uf], municipioIds: [] })}
+                      className="rounded-xl bg-white/5 px-3 py-2 text-sm font-bold text-podium-gray hover:bg-white/10"
                     >
                       {uf}
                     </button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
               <div className="rounded-xl border border-white/10">
                 <button
                   type="button"
@@ -928,8 +929,32 @@ function LargadaWizard() {
                       disabled={!filters.ufs.length}
                       className="mb-3 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40 disabled:opacity-40"
                     />
+                    {munLetterOptions.length > 0 ? (
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        {munLetterOptions.map((letter) => {
+                          const on = munLetter === letter;
+                          return (
+                            <button
+                              key={letter}
+                              type="button"
+                              onClick={() =>
+                                setMunLetter(on ? null : letter)
+                              }
+                              className={cn(
+                                "min-w-8 rounded-lg px-2 py-1 text-xs font-bold",
+                                on
+                                  ? "bg-podium-yellow text-podium-navy"
+                                  : "bg-white/5 text-podium-muted hover:text-podium-gray",
+                              )}
+                            >
+                              {letter}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                     <div className="flex max-h-56 flex-wrap gap-2 overflow-auto">
-                      {(municipiosQuery.data ?? []).map((m) => {
+                      {municipiosShown.map((m) => {
                         const on = filters.municipioIds.includes(m.id);
                         return (
                           <button
@@ -1118,6 +1143,7 @@ function LargadaWizard() {
           )}
         </div>
 
+        {showVolumeAside ? (
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <GlassCard
             className="fixed inset-x-0 bottom-16 z-30 mx-4 p-4 md:static md:mx-0 md:p-5"
@@ -1133,22 +1159,13 @@ function LargadaWizard() {
                   Escolha o nicho para ver o volume
                 </p>
               </>
-            ) : !showCountPanel ? (
-              <>
-                <p className="mt-2 text-4xl font-extrabold text-podium-yellow">—</p>
-                <p className="mt-2 text-xs text-podium-muted">
-                  {step === 1
-                    ? "Veja o volume por segmento ao abrir um nicho. O total da busca aparece depois que você escolher a região."
-                    : "Selecione pelo menos um estado para ver o volume."}
-                </p>
-              </>
-            ) : countQuery.isFetching && !count ? (
+            ) : !count ? (
               <div className="mt-3 h-12 animate-pulse rounded-xl bg-white/10" />
             ) : (
               <>
                 <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
                   {count?.capped
-                    ? "10.000+"
+                    ? `${(count.total ?? 0).toLocaleString("pt-BR")}+`
                     : (count?.total ?? 0).toLocaleString("pt-BR")}
                 </p>
                 {step === 2 ? (
@@ -1199,6 +1216,7 @@ function LargadaWizard() {
             ) : null}
           </GlassCard>
         </aside>
+        ) : null}
       </div>
     </AppShell>
   );
