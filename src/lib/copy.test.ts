@@ -8,9 +8,26 @@ describe("COPY login", () => {
       COPY.loginConfirm,
       COPY.loginRecover,
       COPY.boxPlatformCoupon,
+      COPY.entrarSignupLane,
+      COPY.entrarLoginLane,
+      COPY.entrarTrialBadge,
+      COPY.entrarTrialHint,
+      COPY.entrarSignupHook,
+      COPY.entrarLoginHook,
+      COPY.entrarLoginCta,
     ].join(" ");
     expect(blob.toLowerCase()).not.toMatch(/sem senha/);
     expect(blob.toLowerCase()).not.toMatch(/magic/);
     expect(COPY.loginConfirm).toMatch(/caixa de entrada e o spam/);
+  });
+
+  it("gives signup a free-training badge and login a return hook", () => {
+    expect(COPY.entrarSignupLane).toBe("Criar conta");
+    expect(COPY.entrarLoginLane).toBe("Já tenho conta");
+    expect(COPY.entrarTrialBadge).toBe("Treino livre");
+    expect(COPY.entrarTrialHint).toMatch(/sem cartão/i);
+    expect(COPY.entrarSignupHook).toMatch(/grátis/i);
+    expect(COPY.entrarLoginHook).toMatch(/continue ligando/i);
+    expect(COPY.entrarLoginCta).toBe("Entrar no Box");
   });
 });

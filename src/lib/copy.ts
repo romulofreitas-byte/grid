@@ -8,6 +8,13 @@ export const COPY = {
     "Enviamos um link de confirmação. Olhe a caixa de entrada e o spam. Se o e-mail estiver errado, volte e crie a conta de novo. Se já tem conta, entre.",
   loginRecover:
     "Se houver conta neste e-mail, você recebe o link para definir a senha.",
+  entrarSignupLane: "Criar conta",
+  entrarLoginLane: "Já tenho conta",
+  entrarTrialBadge: "Treino livre",
+  entrarTrialHint: "Sem cartão",
+  entrarSignupHook: "Buscar e ver a lista é grátis. Sem cartão.",
+  entrarLoginHook: "A lista de hoje espera. Entre e continue ligando.",
+  entrarLoginCta: "Entrar no Box",
   boxPlatformCoupon:
     "Você assina o Mundo Pódium. Ative o Piloto com o cupom no checkout.",
   cnae: "Código da atividade da empresa na Receita.",

@@ -68,7 +68,7 @@ export default function LandingPage() {
                 href="/entrar?modo=entrar"
                 className="text-sm font-bold text-podium-muted hover:text-podium-white"
               >
-                Já tenho conta
+                {COPY.entrarLoginLane}
               </Link>
             ) : null}
             <Link
