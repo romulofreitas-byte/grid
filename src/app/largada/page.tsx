@@ -12,8 +12,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { COPY, PORTE_LABELS } from "@/lib/copy";
 import { BACK, gridHref, parseGridFrom } from "@/lib/back";
 import { filterStepFilled } from "@/lib/filter-summary";
-import { formatCnae, formatCnpj, formatPhone } from "@/lib/format";
-import { canSearchCompanies } from "@/lib/data/company-search";
+import { formatCnae, formatCnpj } from "@/lib/format";
 import {
   clearDraft,
   draftHasWork,
@@ -24,7 +23,8 @@ import {
 } from "@/lib/search-draft";
 import {
   DEFAULT_FILTERS,
-  type CompanySearchHit,
+  type CountMode,
+  type CountResult,
   type Search as GridSearch,
   type SearchFilters,
 } from "@/lib/types";
@@ -60,11 +60,30 @@ function hasCountScope(filters: SearchFilters): boolean {
   );
 }
 
-async function fetchCount(filters: SearchFilters, signal?: AbortSignal) {
+function countModeForStep(step: number): CountMode {
+  return step >= 3 ? "full" : "total";
+}
+
+function shouldFetchCount(
+  step: number,
+  filters: SearchFilters,
+  countReady: boolean,
+): boolean {
+  if (!countReady) return false;
+  const hasCnpjs = (filters.cnpjs?.length ?? 0) > 0;
+  if (step === 1) return hasCnpjs;
+  return filters.ufs.length > 0;
+}
+
+async function fetchCount(
+  filters: SearchFilters,
+  mode: CountMode,
+  signal?: AbortSignal,
+) {
   const res = await fetch("/api/search/count", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(filters),
+    body: JSON.stringify({ ...filters, mode }),
     signal,
   });
   return res.json();
@@ -157,7 +176,6 @@ function LargadaWizard() {
   const [munQuery, setMunQuery] = useState("");
   const [citiesOpen, setCitiesOpen] = useState(false);
   const [showCnaePanel, setShowCnaePanel] = useState(false);
-  const [companyDraft, setCompanyDraft] = useState("");
   const [cnaeDraft, setCnaeDraft] = useState("");
   const [companyLabels, setCompanyLabels] = useState<Record<string, string>>({});
   const [cnaeLabels, setCnaeLabels] = useState<Record<string, string>>({});
@@ -260,6 +278,7 @@ function LargadaWizard() {
     queryKey: ["niche-tree"],
     queryFn: async () => {
       const res = await fetch("/api/niches/presets?tree=1");
+      if (!res.ok) throw new Error("niches");
       return (await res.json()) as NicheTree[];
     },
   });
@@ -271,6 +290,7 @@ function LargadaWizard() {
       if (openNiche) params.set("parentId", openNiche);
       if (filters.ufs.length) params.set("ufs", filters.ufs.join(","));
       const res = await fetch(`/api/niches/counts?${params.toString()}`);
+      if (!res.ok) throw new Error("counts");
       return (await res.json()) as Record<string, number>;
     },
     enabled: !!openNiche,
@@ -325,20 +345,6 @@ function LargadaWizard() {
         (!!filters.intentQuery && filters.intentQuery.length >= 2)),
   });
 
-  const companyQ = useDebounced(companyDraft, 300);
-  const companiesQuery = useQuery({
-    queryKey: ["empresas", companyQ, filters.ufs],
-    queryFn: async ({ signal }) => {
-      const ufs = filters.ufs.join(",");
-      const res = await fetch(
-        `/api/empresas?q=${encodeURIComponent(companyQ)}&ufs=${encodeURIComponent(ufs)}`,
-        { signal },
-      );
-      return (await res.json()) as CompanySearchHit[];
-    },
-    enabled: canSearchCompanies(companyQ),
-  });
-
   const cnaeQ = useDebounced(cnaeDraft, 300);
   const cnaeSearchQuery = useQuery({
     queryKey: ["cnae-search", cnaeQ],
@@ -359,42 +365,50 @@ function LargadaWizard() {
   const debouncedFilters = useDebounced(filters, 500);
   const liveReady = hasCountScope(filters);
   const countReady = hasCountScope(debouncedFilters);
+  const countMode = countModeForStep(step);
+  const countFetchEnabled = shouldFetchCount(step, debouncedFilters, countReady);
   const countQuery = useQuery({
-    queryKey: ["count", debouncedFilters],
-    queryFn: ({ signal }) => fetchCount(debouncedFilters, signal),
-    enabled: countReady,
+    queryKey: ["count", countMode, debouncedFilters],
+    queryFn: ({ signal }) => fetchCount(debouncedFilters, countMode, signal),
+    enabled: countFetchEnabled,
     placeholderData: (prev) => prev,
   });
+  const showCountPanel = countFetchEnabled;
+  const showCountMunicipios = step >= 2 && showCountPanel;
+  const showCountBreakdown = step >= 3;
 
-  const b2c = useMemo(
-    () => (treeQuery.data ?? []).filter((n) => n.grupo === "b2c_local"),
+  const nicheTree = useMemo(
+    () => (Array.isArray(treeQuery.data) ? treeQuery.data : []),
     [treeQuery.data],
   );
+  const b2c = useMemo(
+    () => nicheTree.filter((n) => n.grupo === "b2c_local"),
+    [nicheTree],
+  );
   const b2b = useMemo(
-    () => (treeQuery.data ?? []).filter((n) => n.grupo === "b2b_industria"),
-    [treeQuery.data],
+    () => nicheTree.filter((n) => n.grupo === "b2b_industria"),
+    [nicheTree],
   );
 
   const segmentNames = useMemo(() => {
     const map = new Map<string, string>();
-    for (const n of treeQuery.data ?? []) {
+    for (const n of nicheTree) {
       for (const s of n.segments) map.set(s.id, s.nome);
     }
     return map;
-  }, [treeQuery.data]);
+  }, [nicheTree]);
 
   useEffect(() => {
     if (autoOpenedNiche.current) return;
-    const tree = treeQuery.data;
-    if (!tree || filters.segmentIds.length === 0) return;
-    const first = tree.find((n) =>
+    if (nicheTree.length === 0 || filters.segmentIds.length === 0) return;
+    const first = nicheTree.find((n) =>
       n.segments.some((s) => filters.segmentIds.includes(s.id)),
     );
     if (first) {
       setOpenNiche(first.id);
       autoOpenedNiche.current = true;
     }
-  }, [treeQuery.data, filters.segmentIds]);
+  }, [nicheTree, filters.segmentIds]);
 
   function patch(p: Partial<SearchFilters>) {
     setFilters((f) => ({ ...f, ...p }));
@@ -423,18 +437,6 @@ function LargadaWizard() {
     });
   }
 
-  function addCompany(hit: CompanySearchHit) {
-    setCompanyLabels((m) => ({
-      ...m,
-      [hit.cnpj]: hit.nomeFantasia || hit.razaoSocial,
-    }));
-    setFilters((f) => {
-      if (f.cnpjs.includes(hit.cnpj)) return f;
-      return { ...f, cnpjs: [...f.cnpjs, hit.cnpj] };
-    });
-    setCompanyDraft("");
-  }
-
   function addCnaeFromSearch(codigo: string, descricao: string) {
     setCnaeLabels((m) => ({ ...m, [codigo]: descricao }));
     setFilters((f) => {
@@ -442,11 +444,6 @@ function LargadaWizard() {
       return { ...f, cnaes: [...f.cnaes, codigo] };
     });
     setCnaeDraft("");
-    setShowCnaePanel(true);
-  }
-
-  function applyIntent() {
-    patch({ intentQuery: intentDraft.trim() || null, cnaes: [] });
     setShowCnaePanel(true);
   }
 
@@ -481,7 +478,7 @@ function LargadaWizard() {
     },
   });
 
-  const count = liveReady ? countQuery.data : undefined;
+  const count = showCountPanel && liveReady ? countQuery.data : undefined;
   const canContinueStep1 = hasCountScope(filters);
   const pageTitle =
     mode === "ajustar"
@@ -524,11 +521,13 @@ function LargadaWizard() {
             ).length;
             const volume = countsQuery.data?.[n.id];
             const volumeLabel =
-              open && countsQuery.isFetching && volume == null
-                ? "… · "
-                : volume != null
-                  ? `${volume.toLocaleString("pt-BR")} empresas · `
-                  : "";
+              open && countsQuery.isError
+                ? "indisponível · "
+                : open && countsQuery.isFetching && volume == null
+                  ? "… · "
+                  : volume != null
+                    ? `${volume.toLocaleString("pt-BR")} empresas · `
+                    : "";
             return (
               <div key={n.id} className="rounded-xl border border-white/10">
                 <button
@@ -573,7 +572,9 @@ function LargadaWizard() {
                               ? `${countsQuery.data[s.id].toLocaleString("pt-BR")} empresas`
                               : countsQuery.isFetching
                                 ? "…"
-                                : "0 empresas"}
+                                : countsQuery.isError
+                                  ? "indisponível"
+                                  : "—"}
                           </span>
                         </button>
                       );
@@ -649,107 +650,36 @@ function LargadaWizard() {
 
           {step === 1 && (
             <div className="space-y-4">
-              <GlassCard className="p-5">
-                <label className="block text-sm font-bold">
-                  Buscar o que eu quero
-                </label>
-                <p className="mt-1 text-xs text-podium-muted">
-                  Ex.: indústria química, clínica odontológica, marmoraria…
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
-                    <input
-                      value={intentDraft}
-                      onChange={(e) => setIntentDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && applyIntent()}
-                      placeholder="Ex.: clínicas em Belo Horizonte"
-                      className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={applyIntent}
-                    className="rounded-xl bg-white/10 px-4 text-sm font-bold text-podium-gray hover:text-podium-white"
-                  >
-                    Aplicar
-                  </button>
+              {(filters.intentQuery || filters.cnpjs.length > 0) && (
+                <div className="flex flex-wrap gap-2">
+                  {filters.intentQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        patch({ intentQuery: null });
+                        setIntentDraft("");
+                      }}
+                      className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
+                    >
+                      {filters.intentQuery} ×
+                    </button>
+                  ) : null}
+                  {filters.cnpjs.map((cnpj) => (
+                    <button
+                      key={cnpj}
+                      type="button"
+                      onClick={() =>
+                        patch({
+                          cnpjs: filters.cnpjs.filter((c) => c !== cnpj),
+                        })
+                      }
+                      className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
+                    >
+                      {companyLabels[cnpj] ?? formatCnpj(cnpj)} ×
+                    </button>
+                  ))}
                 </div>
-                {filters.intentQuery && (
-                  <p className="mt-2 text-xs text-podium-yellow">
-                    Intenção ativa: {filters.intentQuery}
-                  </p>
-                )}
-              </GlassCard>
-
-              <GlassCard className="p-5">
-                <label className="block text-sm font-bold">Buscar empresa</label>
-                <p className="mt-1 text-xs text-podium-muted">
-                  Razão social, nome fantasia ou CNPJ. Soma à lista mesmo sem
-                  segmento.
-                </p>
-                <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
-                  <input
-                    value={companyDraft}
-                    onChange={(e) => setCompanyDraft(e.target.value)}
-                    placeholder="Ex.: Padaria Central ou 12.345.678/0001-90"
-                    className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
-                  />
-                </div>
-                {canSearchCompanies(companyQ) && (
-                  <div className="mt-2 max-h-56 space-y-1 overflow-auto">
-                    {companiesQuery.isFetching && (
-                      <p className="text-xs text-podium-muted">Buscando…</p>
-                    )}
-                    {(companiesQuery.data ?? [])
-                      .filter((h) => !filters.cnpjs.includes(h.cnpj))
-                      .map((h) => (
-                        <button
-                          key={h.cnpj}
-                          type="button"
-                          onClick={() => addCompany(h)}
-                          className="flex w-full flex-col rounded-xl border border-white/10 px-3 py-2 text-left hover:border-podium-yellow/40"
-                        >
-                          <span className="text-sm font-bold">
-                            {h.nomeFantasia || h.razaoSocial}
-                          </span>
-                          <span className="text-xs text-podium-muted">
-                            {formatCnpj(h.cnpj)} · {h.municipio}/{h.uf}
-                            {h.telefone
-                              ? ` · ${formatPhone(h.telefone.slice(0, 2), h.telefone.slice(2))}`
-                              : ""}
-                          </span>
-                        </button>
-                      ))}
-                    {companiesQuery.data &&
-                      companiesQuery.data.length === 0 &&
-                      !companiesQuery.isFetching && (
-                        <p className="text-xs text-podium-muted">
-                          Nenhuma empresa encontrada.
-                        </p>
-                      )}
-                  </div>
-                )}
-                {filters.cnpjs.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {filters.cnpjs.map((cnpj) => (
-                      <button
-                        key={cnpj}
-                        type="button"
-                        onClick={() =>
-                          patch({
-                            cnpjs: filters.cnpjs.filter((c) => c !== cnpj),
-                          })
-                        }
-                        className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
-                      >
-                        {companyLabels[cnpj] ?? formatCnpj(cnpj)} ×
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </GlassCard>
+              )}
 
               {treeQuery.isLoading ? (
                 <div className="space-y-3">
@@ -1207,50 +1137,70 @@ function LargadaWizard() {
                   Escolha o nicho para ver o volume
                 </p>
               </>
-            ) : !countReady || (countQuery.isFetching && !count) ? (
+            ) : !showCountPanel ? (
+              <>
+                <p className="mt-2 text-4xl font-extrabold text-podium-yellow">—</p>
+                <p className="mt-2 text-xs text-podium-muted">
+                  {step === 1
+                    ? "Veja o volume por segmento ao abrir um nicho. O total da busca aparece depois que você escolher a região."
+                    : "Selecione pelo menos um estado para ver o volume."}
+                </p>
+              </>
+            ) : countQuery.isFetching && !count ? (
               <div className="mt-3 h-12 animate-pulse rounded-xl bg-white/10" />
             ) : (
-              <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
-                {count?.capped
-                  ? "10.000+"
-                  : (count?.total ?? 0).toLocaleString("pt-BR")}
-              </p>
+              <>
+                <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
+                  {count?.capped
+                    ? "10.000+"
+                    : (count?.total ?? 0).toLocaleString("pt-BR")}
+                </p>
+                {step === 2 ? (
+                  <p className="mt-2 text-xs text-podium-muted">
+                    {count?.capped
+                      ? "Muitas empresas nesta região — refine por município ou ajuste a qualidade no próximo passo."
+                      : "Volume na região selecionada. Detalhes de contato no passo Qualidade."}
+                  </p>
+                ) : null}
+              </>
             )}
-            <div className="mt-4 space-y-2 text-xs text-podium-muted">
-              <p>Com telefone: {count?.comTelefone ?? "—"}</p>
-              <p>Com e-mail: {count?.comEmail ?? "—"}</p>
-              <p>Com decisor: {count?.comDecisor ?? "—"}</p>
-            </div>
-            <div className="mt-4 space-y-2">
-              {(count?.porMunicipio ?? []).map(
-                (m: {
-                  municipio_id: number;
-                  nome: string;
-                  uf: string;
-                  total: number;
-                }) => (
-                  <div key={m.municipio_id}>
-                    <div className="mb-1 flex justify-between gap-2 text-xs">
-                      <span className="min-w-0 truncate text-podium-gray">
-                        {m.uf ? `${m.nome} - ${m.uf}` : m.nome}
-                      </span>
-                      <span className="shrink-0 text-podium-muted">{m.total}</span>
+            {showCountMunicipios && (count?.porMunicipio?.length ?? 0) > 0 ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-podium-gray">
+                  Onde concentra
+                </p>
+                <div className="space-y-2">
+                  {count!.porMunicipio.map((m: CountResult["porMunicipio"][number]) => (
+                    <div key={m.municipio_id}>
+                      <div className="mb-1 flex justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate text-podium-gray">
+                          {m.uf ? `${m.nome} - ${m.uf}` : m.nome}
+                        </span>
+                        <span className="shrink-0 text-podium-muted">{m.total}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-podium-yellow/70"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (m.total / Math.max(count?.total || 1, 1)) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-podium-yellow/70"
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (m.total / Math.max(count?.total || 1, 1)) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ),
-              )}
-            </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {showCountBreakdown ? (
+              <div className="mt-4 space-y-2 text-xs text-podium-muted">
+                <p>Com telefone: {count?.comTelefone ?? "—"}</p>
+                <p>Com e-mail: {count?.comEmail ?? "—"}</p>
+                <p>Com decisor: {count?.comDecisor ?? "—"}</p>
+              </div>
+            ) : null}
           </GlassCard>
         </aside>
       </div>

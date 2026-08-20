@@ -76,9 +76,9 @@ export function PhotoPicker({
       </button>
       <div>
         <p className="text-sm font-bold">Foto do capacete</p>
-        <p className="mt-1 text-xs text-podium-muted">
-          {busy ? "Enviando…" : "Toque para recortar em quadrado. JPEG, PNG ou WebP."}
-        </p>
+        {busy ? (
+          <p className="mt-1 text-xs text-podium-muted">Enviando…</p>
+        ) : null}
         {error ? <p className="mt-1 text-xs text-red-400">{error}</p> : null}
       </div>
       <input

@@ -205,7 +205,7 @@ async function BoxPageInner() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <GlassCard className="p-5">
-            <p className="text-sm text-podium-gray">Créditos</p>
+            <p className="text-sm text-podium-gray">Acesso</p>
             <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
               {billing.total}
             </p>

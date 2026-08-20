@@ -9,11 +9,11 @@ import type { Profile } from "@/lib/types";
 
 export const BOX_SLOT_IDS = [
   "capacete",
-  "lista",
   "oferta",
   "meta",
-  "ligar",
+  "lista",
   "crm",
+  "ligar",
   "creditos",
 ] as const;
 
@@ -47,6 +47,7 @@ export type BoxEstruturaInput = {
     | "especialidade"
     | "area"
     | "promessa"
+    | "onboarding_completed_at"
   >;
   billing: {
     total: number;
@@ -65,9 +66,10 @@ function hasActiveCrm(connections: readonly CallConnectionPick[]): boolean {
 
 export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const pistaAberta = input.savedCount > 0;
-  const helmetReady = hasScriptIdentity(input.profile);
+  const onboardingDone = Boolean(input.profile.onboarding_completed_at);
+  const helmetReady = hasScriptIdentity(input.profile) || onboardingDone;
   const ofertaReady = filled(input.profile.promessa);
-  const metaReady = helmetReady;
+  const metaReady = onboardingDone;
   const ligarReady = pickCallConnection(input.connections) != null;
   const crmReady = hasActiveCrm(input.connections);
   const creditosReady = input.billing.plano !== "free" && input.billing.total > 0;
@@ -81,15 +83,6 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       body: "Nome, empresa e especialidade entram no roteiro da ligação.",
       href: "/setup",
       cta: "Completar capacete",
-    },
-    {
-      id: "lista",
-      label: "Lista",
-      done: pistaAberta,
-      title: "Salve uma lista",
-      body: "A pista só abre com lista guardada. Qualificar e ligar vêm na volta.",
-      href: largadaNovaHref,
-      cta: input.hasUnsavedSearch ? COPY.salvarLista : COPY.novaLista,
     },
     {
       id: "oferta",
@@ -110,13 +103,13 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       cta: "Definir meta",
     },
     {
-      id: "ligar",
-      label: "Ligar",
-      done: ligarReady,
-      title: "Conecte VoIP ou discador",
-      body: "Ligue direto da ficha. A ligação é grátis; a assinatura cobre o resto da volta.",
-      href: conexoesHref("voip"),
-      cta: "Conectar VoIP",
+      id: "lista",
+      label: "Lista",
+      done: pistaAberta,
+      title: "Salve uma lista",
+      body: "A pista só abre com lista guardada. Qualificar e ligar vêm na volta.",
+      href: largadaNovaHref,
+      cta: input.hasUnsavedSearch ? COPY.salvarLista : COPY.novaLista,
     },
     {
       id: "crm",
@@ -128,8 +121,17 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       cta: "Conectar CRM",
     },
     {
+      id: "ligar",
+      label: "Ligar",
+      done: ligarReady,
+      title: "Conecte VoIP ou discador",
+      body: "Ligue direto da ficha. A ligação é grátis; a assinatura cobre o resto da volta.",
+      href: conexoesHref("voip"),
+      cta: "Conectar VoIP",
+    },
+    {
       id: "creditos",
-      label: "Créditos",
+      label: "Acesso",
       done: creditosReady,
       title: "Ative o plano",
       body: "Qualificar e exportar gastam crédito. Sem saldo a volta trava no meio.",

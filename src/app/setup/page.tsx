@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
@@ -99,12 +99,17 @@ export default function SetupPage() {
     }
   }
 
+  function goToBox() {
+    router.push("/box");
+    router.refresh();
+  }
+
   async function skip() {
     try {
       await save.mutateAsync({
         onboarding_completed_at: new Date().toISOString(),
       });
-      router.push("/box");
+      goToBox();
     } catch {
       /* keep on page */
     }
@@ -112,17 +117,13 @@ export default function SetupPage() {
 
   async function finish() {
     const ok = await persist({ onboarding_completed_at: new Date().toISOString() });
-    if (ok) router.push("/box");
+    if (ok) goToBox();
   }
 
   async function advance() {
     const ok = await persist();
     if (ok) setStep((s) => s + 1);
   }
-
-  useEffect(() => {
-    router.prefetch("/box");
-  }, [router]);
 
   const busy = save.isPending;
 

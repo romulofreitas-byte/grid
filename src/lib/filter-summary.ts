@@ -7,10 +7,21 @@ export type NicheTreeLike = Array<{
   segments: Array<{ id: string; nome: string }>;
 }>;
 
-export function segmentNameMap(tree: NicheTreeLike): Record<string, string> {
+function asList<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+export function segmentNameMap(tree: NicheTreeLike | unknown): Record<string, string> {
   const map: Record<string, string> = {};
+  if (!Array.isArray(tree)) return map;
   for (const n of tree) {
-    for (const s of n.segments) map[s.id] = s.nome;
+    const segments =
+      n && typeof n === "object"
+        ? asList((n as { segments?: Array<{ id: string; nome: string }> }).segments)
+        : [];
+    for (const s of segments) {
+      if (s?.id) map[s.id] = s.nome;
+    }
   }
   return map;
 }
@@ -27,7 +38,7 @@ export function qualityDiffersFromDefault(filters: SearchFilters): boolean {
     filters.excluirSimples !== DEFAULT_FILTERS.excluirSimples ||
     filters.exigirEmailProprio !== DEFAULT_FILTERS.exigirEmailProprio ||
     filters.exigirDecisor !== DEFAULT_FILTERS.exigirDecisor ||
-    filters.portes.length > 0 ||
+    asList(filters.portes).length > 0 ||
     filters.idadeMinimaAnos !== DEFAULT_FILTERS.idadeMinimaAnos ||
     filters.capitalMin !== DEFAULT_FILTERS.capitalMin ||
     filters.capitalMax !== DEFAULT_FILTERS.capitalMax
@@ -40,13 +51,13 @@ export function filterStepFilled(
 ): boolean {
   if (step === 1) {
     return (
-      filters.segmentIds.length > 0 ||
+      asList(filters.segmentIds).length > 0 ||
       (!!filters.intentQuery && filters.intentQuery.length >= 2) ||
-      filters.cnaes.length > 0 ||
-      (filters.cnpjs?.length ?? 0) > 0
+      asList(filters.cnaes).length > 0 ||
+      asList(filters.cnpjs).length > 0
     );
   }
-  if (step === 2) return filters.ufs.length > 0;
+  if (step === 2) return asList(filters.ufs).length > 0;
   return qualityDiffersFromDefault(filters);
 }
 
@@ -55,11 +66,17 @@ export function summarizeFilters(
   segmentNames: Record<string, string> = {},
 ): FilterChip[] {
   const chips: FilterChip[] = [];
+  const segmentIds = asList(filters.segmentIds);
+  const cnpjs = asList(filters.cnpjs);
+  const cnaes = asList(filters.cnaes);
+  const ufs = asList(filters.ufs);
+  const municipioIds = asList(filters.municipioIds);
+  const portes = asList(filters.portes);
 
-  const named = filters.segmentIds
+  const named = segmentIds
     .map((id) => ({ id, nome: segmentNames[id] }))
     .filter((s): s is { id: string; nome: string } => !!s.nome);
-  const unnamed = filters.segmentIds.length - named.length;
+  const unnamed = segmentIds.length - named.length;
   for (const s of named) {
     chips.push({ key: `seg:${s.id}`, label: s.nome });
   }
@@ -78,30 +95,24 @@ export function summarizeFilters(
   if (filters.intentQuery) {
     chips.push({ key: "intent", label: filters.intentQuery });
   }
-  if (filters.cnpjs.length > 0) {
+  if (cnpjs.length > 0) {
     chips.push({
       key: "cnpjs",
-      label:
-        filters.cnpjs.length === 1
-          ? "1 empresa"
-          : `${filters.cnpjs.length} empresas`,
+      label: cnpjs.length === 1 ? "1 empresa" : `${cnpjs.length} empresas`,
     });
   }
-  if (filters.cnaes.length > 0) {
+  if (cnaes.length > 0) {
     chips.push({
       key: "cnaes",
-      label:
-        filters.cnaes.length === 1
-          ? "1 CNAE"
-          : `${filters.cnaes.length} CNAEs`,
+      label: cnaes.length === 1 ? "1 CNAE" : `${cnaes.length} CNAEs`,
     });
   }
 
-  if (filters.ufs.length > 0) {
-    chips.push({ key: "ufs", label: filters.ufs.join(", ") });
+  if (ufs.length > 0) {
+    chips.push({ key: "ufs", label: ufs.join(", ") });
   }
-  if (filters.municipioIds.length > 0) {
-    const n = filters.municipioIds.length;
+  if (municipioIds.length > 0) {
+    const n = municipioIds.length;
     chips.push({
       key: "cidades",
       label: n === 1 ? "1 cidade" : `${n} cidades`,
@@ -120,12 +131,10 @@ export function summarizeFilters(
   if (filters.soEnriquecidas) {
     chips.push({ key: "auditadas", label: "só qualificadas" });
   }
-  if (filters.portes.length > 0) {
+  if (portes.length > 0) {
     chips.push({
       key: "porte",
-      label: filters.portes
-        .map((p) => PORTE_LABELS[p] ?? p)
-        .join(", "),
+      label: portes.map((p) => PORTE_LABELS[p] ?? p).join(", "),
     });
   }
   if (filters.idadeMinimaAnos > 0) {

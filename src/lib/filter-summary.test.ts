@@ -3,6 +3,7 @@ import { DEFAULT_FILTERS } from "@/lib/types";
 import {
   filterStepFilled,
   qualityDiffersFromDefault,
+  segmentNameMap,
   summarizeFilters,
   summarizeFiltersShort,
 } from "./filter-summary";
@@ -92,6 +93,21 @@ describe("summarizeFilters", () => {
     expect(line).toBe(
       "Clínica odontológica · Marmoraria · indústria química · SP",
     );
+  });
+
+  it("tolerates null filter arrays and a non-list niche tree", () => {
+    const chips = summarizeFilters({
+      ...DEFAULT_FILTERS,
+      segmentIds: null as unknown as string[],
+      cnaes: null as unknown as string[],
+      cnpjs: null as unknown as string[],
+      ufs: null as unknown as string[],
+      municipioIds: null as unknown as number[],
+      portes: null as unknown as never[],
+    });
+    expect(chips.map((c) => c.label)).toEqual([]);
+    expect(segmentNameMap({ error: "nope" })).toEqual({});
+    expect(segmentNameMap(null)).toEqual({});
   });
 });
 

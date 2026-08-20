@@ -16,6 +16,7 @@ function profile(
       | "especialidade"
       | "area"
       | "promessa"
+      | "onboarding_completed_at"
     >
   > = {},
 ) {
@@ -27,6 +28,7 @@ function profile(
     especialidade: null,
     area: null,
     promessa: null,
+    onboarding_completed_at: null,
     ...over,
   };
 }
@@ -39,6 +41,14 @@ function helmet() {
     especialidade: "marketing digital",
     area: "vendas",
   });
+}
+
+function finishedHelmet() {
+  return {
+    ...helmet(),
+    promessa: "gerar demanda",
+    onboarding_completed_at: "2026-08-19T12:00:00.000Z",
+  };
 }
 
 function conn(
@@ -80,13 +90,23 @@ describe("buildBoxEstrutura", () => {
       connections: [],
     });
     expect(slots.map((s) => s.id)).toEqual([...BOX_SLOT_IDS]);
+    expect(slots.map((s) => s.id)).toEqual([
+      "capacete",
+      "oferta",
+      "meta",
+      "lista",
+      "crm",
+      "ligar",
+      "creditos",
+    ]);
     expect(nextGap).toBe("capacete");
     expect(pistaAberta).toBe(false);
     expect(slots.find((s) => s.id === "lista")?.cta).toBe(COPY.novaLista);
     expect(slots.find((s) => s.id === "lista")?.href).toBe(largadaNovaHref);
+    expect(slots.find((s) => s.id === "creditos")?.label).toBe("Acesso");
   });
 
-  it("opens lista after capacete is ready", () => {
+  it("opens oferta after capacete is ready", () => {
     const { nextGap } = buildBoxEstrutura({
       savedCount: 0,
       hasUnsavedSearch: false,
@@ -94,7 +114,7 @@ describe("buildBoxEstrutura", () => {
       billing: { total: 25, plano: "free" },
       connections: [],
     });
-    expect(nextGap).toBe("lista");
+    expect(nextGap).toBe("oferta");
   });
 
   it("opens the pista only with a saved list", () => {
@@ -129,26 +149,53 @@ describe("buildBoxEstrutura", () => {
     expect(byId.lista.cta).toBe(COPY.salvarLista);
   });
 
-  it("lights capacete, oferta and meta from the helmet and promise", () => {
+  it("lights capacete from identity and oferta from the promise", () => {
     const empty = slotMap();
     expect(empty.byId.capacete.done).toBe(false);
     expect(empty.byId.oferta.done).toBe(false);
     expect(empty.byId.meta.done).toBe(false);
 
-    const ready = slotMap({
+    const identity = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
       profile: { ...helmet(), promessa: "gerar demanda" },
       billing: { total: 25, plano: "free" },
       connections: [],
     });
-    expect(ready.byId.capacete.done).toBe(true);
-    expect(ready.byId.oferta.done).toBe(true);
-    expect(ready.byId.meta.done).toBe(true);
-    expect(ready.nextGap).toBe("ligar");
+    expect(identity.byId.capacete.done).toBe(true);
+    expect(identity.byId.oferta.done).toBe(true);
+    expect(identity.byId.meta.done).toBe(false);
+    expect(identity.nextGap).toBe("meta");
   });
 
-  it("treats meta as a gap until the helmet is ready", () => {
+  it("lights capacete and meta when onboarding is finished", () => {
+    const skipped = slotMap({
+      savedCount: 0,
+      hasUnsavedSearch: false,
+      profile: profile({ onboarding_completed_at: "2026-08-19T12:00:00.000Z" }),
+      billing: { total: 25, plano: "free" },
+      connections: [],
+    });
+    expect(skipped.byId.capacete.done).toBe(true);
+    expect(skipped.byId.oferta.done).toBe(false);
+    expect(skipped.byId.meta.done).toBe(true);
+    expect(skipped.nextGap).toBe("oferta");
+
+    const finished = slotMap({
+      savedCount: 1,
+      hasUnsavedSearch: false,
+      profile: finishedHelmet(),
+      billing: { total: 25, plano: "free" },
+      connections: [],
+    });
+    expect(finished.byId.capacete.done).toBe(true);
+    expect(finished.byId.oferta.done).toBe(true);
+    expect(finished.byId.meta.done).toBe(true);
+    expect(finished.byId.lista.done).toBe(true);
+    expect(finished.nextGap).toBe("crm");
+  });
+
+  it("treats meta as a gap until onboarding is finished", () => {
     const { byId, nextGap } = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
@@ -200,7 +247,7 @@ describe("buildBoxEstrutura", () => {
       slotMap({
         savedCount: 1,
         hasUnsavedSearch: false,
-        profile: { ...helmet(), promessa: "x" },
+        profile: finishedHelmet(),
         billing: { total: 25, plano: "free" },
         connections: [
           conn({ id: "v", kind: "voip" }),
@@ -212,7 +259,7 @@ describe("buildBoxEstrutura", () => {
       slotMap({
         savedCount: 1,
         hasUnsavedSearch: false,
-        profile: { ...helmet(), promessa: "x" },
+        profile: finishedHelmet(),
         billing: { total: 0, plano: "piloto" },
         connections: [
           conn({ id: "v", kind: "voip" }),
@@ -223,7 +270,7 @@ describe("buildBoxEstrutura", () => {
     const ready = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
-      profile: { ...helmet(), promessa: "x" },
+      profile: finishedHelmet(),
       billing: { total: 900, plano: "piloto" },
       connections: [
         conn({ id: "v", kind: "voip" }),

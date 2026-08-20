@@ -274,6 +274,9 @@ function mapSearch(r: Record<string, unknown>): Search {
       cnaes: raw.cnaes ?? [],
       segmentIds: raw.segmentIds ?? [],
       cnpjs: raw.cnpjs ?? [],
+      ufs: raw.ufs ?? [],
+      municipioIds: raw.municipioIds ?? [],
+      portes: raw.portes ?? [],
     },
     total_found: Number(r.total_found ?? 0),
     created_at: isoStr(r.created_at),
@@ -903,7 +906,7 @@ function invalidatePresetCache() {
 async function loadRefCnaes(): Promise<RefCnae[]> {
   const hit = cacheGet(refCache().refCnaes);
   if (hit) return hit;
-  const { rows } = await query<{ codigo: string; descricao: string }>(
+  const { rows } = await querySearch<{ codigo: string; descricao: string }>(
     "select codigo, descricao from ref_cnae",
   );
   const value = rows.map((r) => ({
@@ -926,7 +929,7 @@ async function loadPresets(): Promise<NichePreset[]> {
 async function loadAllPresetCnaes(): Promise<NichePresetCnae[]> {
   const hit = cacheGet(refCache().presetCnaes);
   if (hit) return hit;
-  const { rows } = await query(
+  const { rows } = await querySearch(
     "select preset_id, cnae, incluido from niche_preset_cnaes",
   );
   const value = rows.map((r) => ({
@@ -1144,7 +1147,7 @@ async function countCnaesByCode(
        from establishments
        where cnae_principal = any($1::text[])${ufSql}
        group by 1`;
-  const { rows } = await query<{ cnae_principal: string; n: number }>(sql, params);
+  const { rows } = await querySearch<{ cnae_principal: string; n: number }>(sql, params);
   return new Map(rows.map((r) => [trimChar(r.cnae_principal), Number(r.n)]));
 }
 

@@ -23,6 +23,7 @@ export function FilterSummary({
     queryKey: ["niche-tree"],
     queryFn: async () => {
       const res = await fetch("/api/niches/presets?tree=1");
+      if (!res.ok) throw new Error("niches");
       return (await res.json()) as NicheTreeLike;
     },
   });
