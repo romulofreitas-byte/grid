@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { BoxDayCta } from "@/components/BoxDayCta";
 import { BoxEstrutura } from "@/components/BoxEstrutura";

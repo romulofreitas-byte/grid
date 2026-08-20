@@ -4,7 +4,7 @@ import { ListsBoard } from "@/components/ListsBoard";
 import { BACK } from "@/lib/back";
 import { getRepo } from "@/lib/data";
 import { requireSession } from "@/lib/auth/session";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 const LISTAS_LIMIT = 50;
 
@@ -12,6 +12,7 @@ export default async function ListasPage() {
   try {
     return await ListasPageInner();
   } catch (err) {
+    unstable_rethrow(err);
     console.error("listas_page_error", err);
     const message = err instanceof Error ? err.message : "erro desconhecido";
     return (

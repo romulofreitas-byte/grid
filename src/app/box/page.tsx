@@ -18,7 +18,7 @@ import {
 import { needsHelmetSetup, displayName } from "@/lib/pilot-profile";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { COPY } from "@/lib/copy";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import type { Search } from "@/lib/types";
 
 const BOX_PREVIEW_LIMIT = 5;
@@ -66,6 +66,7 @@ export default async function BoxPage() {
   try {
     return await BoxPageInner();
   } catch (err) {
+    unstable_rethrow(err);
     console.error("box_page_error", err);
     return (
       <AppShell title="Box">
