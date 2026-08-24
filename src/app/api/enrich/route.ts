@@ -6,6 +6,7 @@ import {
   planRequiredPayload,
 } from "@/lib/billing/paywall";
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
+import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";
 import { drainJobsIfMock } from "@/lib/enrichment/process-job";
 import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
@@ -18,18 +19,37 @@ const schema = z
     searchId: z.string().optional(),
     cnpjs: z.array(z.string()).optional(),
     scope: z.enum(["first_unaudited", "all_unaudited"]).optional(),
+    limit: z.union([z.literal(10), z.literal(20), z.literal(50)]).optional(),
     action: z.enum(["confirm", "reject"]).optional(),
     domain: z.string().optional(),
+    refresh: z.boolean().optional(),
   })
-  .refine((d) => (d.cnpjs && d.cnpjs.length > 0) || d.scope || d.action, {
-    message: "Informe cnpjs, scope ou action",
-  })
+  .refine(
+    (d) => (d.cnpjs && d.cnpjs.length > 0) || d.scope || d.action || d.refresh,
+    { message: "Informe cnpjs, scope, action ou refresh" },
+  )
   .refine((d) => !d.scope || Boolean(d.searchId), {
     message: "scope exige searchId",
   })
   .refine((d) => !d.action || (d.cnpjs && d.cnpjs.length === 1 && d.domain), {
     message: "confirm/reject exige um cnpj e domain",
+  })
+  .refine((d) => !d.refresh || (d.cnpjs && d.cnpjs.length === 1), {
+    message: "refresh exige exatamente um cnpj",
   });
+
+function enrichBillingError(err: unknown) {
+  if (err instanceof EnrichmentNotAllowedError) {
+    return NextResponse.json(planRequiredPayload(err.message), { status: 403 });
+  }
+  if (err instanceof InsufficientCreditsError) {
+    return NextResponse.json(
+      insufficientCreditsPayload(err.needed, err.available),
+      { status: 402 },
+    );
+  }
+  return null;
+}
 
 export async function POST(req: Request) {
   const gated = await guardApi(req, "write");
@@ -41,8 +61,9 @@ export async function POST(req: Request) {
   const userId = gated.userId;
   const repo = getRepo();
   const searchId = parsed.data.searchId ?? null;
+  let search =
+    searchId != null ? await repo.getSearch(searchId) : undefined;
   if (searchId) {
-    const search = await repo.getSearch(searchId);
     if (!search || search.user_id !== userId) {
       return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
     }
@@ -73,12 +94,39 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   }
 
+  if (parsed.data.refresh && parsed.data.cnpjs?.[0]) {
+    const cnpj = parsed.data.cnpjs[0].replace(/\D/g, "").padStart(14, "0");
+    const active = await repo.getLatestEnrichmentJob(cnpj);
+    if (active && (active.status === "pending" || active.status === "running")) {
+      return NextResponse.json(
+        { error: "Já existe uma qualificação em andamento para esta empresa." },
+        { status: 409 },
+      );
+    }
+    try {
+      await debitEnrich(userId, [cnpj], searchId, { forceCharge: true });
+    } catch (err) {
+      const billing = enrichBillingError(err);
+      if (billing) return billing;
+      throw err;
+    }
+    const result = await repo.enqueueEnrichment({
+      cnpjs: [cnpj],
+      userId,
+      searchId,
+      force: true,
+      payload: { force: true, refresh: true },
+    });
+    drainJobsIfMock();
+    return NextResponse.json(result);
+  }
+
   let cnpjs = parsed.data.cnpjs ?? [];
   if (parsed.data.scope && searchId) {
     const unaudited = await repo.listUnauditedCnpjs(searchId);
     cnpjs =
       parsed.data.scope === "first_unaudited"
-        ? unaudited.slice(0, 50)
+        ? unaudited.slice(0, parsed.data.limit ?? 50)
         : unaudited;
   }
   if (!cnpjs.length) {
@@ -91,15 +139,8 @@ export async function POST(req: Request) {
       await debitEnrich(userId, chargeable, searchId);
     }
   } catch (err) {
-    if (err instanceof EnrichmentNotAllowedError) {
-      return NextResponse.json(planRequiredPayload(err.message), { status: 403 });
-    }
-    if (err instanceof InsufficientCreditsError) {
-      return NextResponse.json(
-        insufficientCreditsPayload(err.needed, err.available),
-        { status: 402 },
-      );
-    }
+    const billing = enrichBillingError(err);
+    if (billing) return billing;
     throw err;
   }
   const result = await repo.enqueueEnrichment({
@@ -108,7 +149,22 @@ export async function POST(req: Request) {
     searchId,
   });
   drainJobsIfMock();
-  return NextResponse.json(result);
+
+  let crmBridge: Awaited<ReturnType<typeof bridgeQualifiedLeadsToCrm>> | null =
+    null;
+  if (search?.saved) {
+    try {
+      crmBridge = await bridgeQualifiedLeadsToCrm(repo, {
+        userId,
+        search,
+        cnpjs,
+      });
+    } catch {
+      crmBridge = null;
+    }
+  }
+
+  return NextResponse.json({ ...result, crmBridge });
 }
 
 export async function GET(req: Request) {

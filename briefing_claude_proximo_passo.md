@@ -3,7 +3,7 @@
 **Data:** 13/08/2026  
 **Produto:** GRID · Mundo Pódium  
 **Repo:** `C:\Users\romul\grid-podium`  
-**Fase atual:** 0, 1 e **2 no código**. App ainda em `DATA_SOURCE=mock` — ingestão RF MG+SP **não rodou** (sem `DATABASE_URL` / zips). Relatório `reports/phone-sharing.md` é MOCK.  
+**Fase atual:** 0–3 no código. `getRepo()` alterna mock ↔ Postgres: `DATA_SOURCE=postgres|supabase|live` **e** `DATABASE_URL` → live; sem URL com DATA_SOURCE live → **erro** (não cai mais no mock em silêncio). Default local sem env = mock. Produção: `assertProdEnv()` no boot (`instrumentation.ts`) + `pnpm launch:check`.  
 **Fora de escopo ainda:** créditos / pagamento (Fase 3).
 
 Este arquivo substitui o “estado mental” das sessões no Cursor. Os docs originais (`plano_app_prospeccao_mundo_podium.md` e `prompt_cursor_grid.md`) continuam válidos como **intenção de produto**; o que está abaixo é o **que realmente foi construído e o que mudou depois**.
@@ -74,12 +74,12 @@ Promessa na UI atual (landing):
 | App | Next.js 15.5 (App Router) + React 19 + TypeScript |
 | UI | Tailwind CSS v4 + Framer Motion + lucide-react + Sora |
 | **shadcn/ui** | **Não instalado.** Componentes próprios (`GlassCard`, `SectionTitle`, `Hint`, `ContactSeal`, `AppShell`…). |
-| Dados agora | Mock in-memory (`src/lib/data/mock-store.ts` + `mock-repo.ts`) |
-| Dados depois | Supabase Auth + Postgres + RLS — clients e migration existem; `getRepo()` **ainda devolve mock mesmo com `DATA_SOURCE=supabase`** |
-| Auth agora | Mock: `localStorage.grid_mock_session` em `/entrar`. Sem magic link / Google. |
-| Export | ExcelJS (XLSX) + CSV UTF-8 BOM. PDF = **texto fingindo PDF** (`%PDF-GRID-MOCK`) — `@react-pdf/renderer` está no `package.json` mas não é usado. |
+| Dados agora | Dual-mode: `mockRepo` (default local) **ou** `supabaseRepo` via `pg` quando `DATA_SOURCE=postgres|supabase|live` + `DATABASE_URL` |
+| Dados live | Postgres (Supabase ou Docker). Sem `DATABASE_URL` em modo live → throw (sem fallback silencioso). Banner “Dados de demonstração” no AppShell quando mock. |
+| Auth agora | Supabase Auth quando keys existem; senão mock (`GRID_MOCK_AUTH` ou keys ausentes). Produção rejeita mock auth. |
+| Export | ExcelJS (XLSX) + CSV UTF-8 BOM + PDF branded via `@react-pdf/renderer`. |
 | Package manager | pnpm |
-| Deploy | ainda não |
+| Deploy | Vercel (app) + Railway (worker). `pnpm launch:check` / `assertProdEnv`. |
 
 ### Design — decisão posterior ao prompt original
 
@@ -225,7 +225,7 @@ Mensagem repetida de propósito: **salvar lista não resolve — tem que ligar, 
 
 ## 7. Mock de dados (ambiente atual)
 
-`DATA_SOURCE=mock` (padrão). Store singleton em memória, versão `MOCK_STORE_VERSION = 3` (reinicia ao mudar).
+`DATA_SOURCE=mock` (padrão local). Live: `DATA_SOURCE=postgres` + `DATABASE_URL`. Store singleton em memória, versão `MOCK_STORE_VERSION` (reinicia ao mudar). Banner de demo no AppShell.
 
 | Item | Valor |
 |---|---|
@@ -253,7 +253,7 @@ src/lib/decisor.ts               prioridade por descrição
 src/lib/niches.ts                TAXONOMIA — não achatar de volta em 16 cards
 src/lib/copy.ts                  glossário UI
 src/lib/back.ts                  voltar com rótulo
-src/lib/data/index.ts            getRepo() — hoje sempre mock
+src/lib/data/index.ts            getRepo() — mock ou supabaseRepo (fail se live sem DATABASE_URL)
 src/lib/data/mock-repo.ts        busca, count, grid, dossiê, save/delete lista
 src/lib/export/xlsx-csv.ts       CSV com Telefone Site / Whatsapp ainda vazios
 src/components/ContactSeal.tsx   4 selos já desenhados

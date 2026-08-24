@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { usePaywall } from "@/components/PaywallDialog";
+import { Button } from "@/components/ui/Button";
 import { parseBillingGate } from "@/lib/billing/paywall";
 import { cn } from "@/lib/utils";
 
@@ -63,17 +64,16 @@ export function ExportDownload({
         wrapperClassName ?? "items-end",
       )}
     >
-      <button
+      <Button
         type="button"
+        size="sm"
+        variant="secondary"
         onClick={() => void run()}
-        className={cn(
-          "inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow",
-          className,
-        )}
+        className={className}
       >
         <Download className="h-3.5 w-3.5" />
         {label}
-      </button>
+      </Button>
       {error ? (
         <span className="max-w-xs text-right text-[11px] text-podium-yellow">
           {error}

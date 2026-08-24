@@ -1,16 +1,32 @@
-import { confirmDomainOwnership } from "@/lib/enrichment/confirm-domain";
+import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
 import { domainSearchQueries } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { extractPeople } from "@/lib/enrichment/extract-people";
-import { extractContacts, extractNormalizedPhones } from "@/lib/enrichment/extract";
 import {
+  extractContacts,
+  extractNormalizedPhones,
+  extractSiteBrand,
+  harvestMarkupFromAssetText,
+  isSpaShell,
+  listSpaScriptUrls,
+  maxSpaScriptBytes,
+} from "@/lib/enrichment/extract";
+import {
+  domainFromGmb,
+  pickBestDomainHit,
   searchGmb,
   searchSocialProfile,
   serperOrganic,
 } from "@/lib/enrichment/presence";
 import { pathAllowedByRobots } from "@/lib/enrichment/robots";
 import { detectCopyrightYear, detectTech, midiaPagaLabel } from "@/lib/enrichment/tech";
-import { deriveSeal, hasAccountantDomainHint, isFreeEmail } from "@/lib/contact-confidence";
+import {
+  deriveSeal,
+  hasAccountantDomainHint,
+  isFreeEmail,
+  emailDomainCorrelatesWithBrand,
+  receitaProviderDomain,
+} from "@/lib/contact-confidence";
 import { normalizePhoneBR, sameNumberBR } from "@/lib/phone";
 import { computeDorDigital } from "@/lib/scoring";
 import { buildGoldenMinute } from "@/lib/golden-minute";
@@ -32,20 +48,30 @@ export const GRID_USER_AGENT =
   "GridBot/1.0 (+https://grid.mundopodium.com.br/bot)";
 
 const HOME_PATH = "/";
-const INNER_PATHS = [
+/** Paths used to prove the domain belongs to the company. */
+const OWNERSHIP_PATHS = [
+  HOME_PATH,
   "/quem-somos",
   "/equipe",
   "/time",
   "/diretoria",
   "/sobre",
+];
+/** Paths crawled after confirmation to harvest contacts/socials. */
+const HARVEST_PATHS = [
+  HOME_PATH,
   "/contato",
+  "/contact",
+  "/fale-conosco",
+  "/sobre",
+  "/quem-somos",
 ];
 const INNER_PAGE_GAP_MS = 500;
+const MAX_CRAWL_PAGES = 8;
 
 const lastHitByHost = new Map<string, number>();
 const robotsTxtByOrigin = new Map<string, Promise<string | null>>();
-let playwrightBudgetUsed = 0;
-const PLAYWRIGHT_BUDGET = 0.1;
+const SPA_ASSET_GAP_MS = 300;
 
 export type EnrichProgress = (row: LeadEnrichment) => void | Promise<void>;
 
@@ -118,22 +144,64 @@ async function fetchPage(
   }
 }
 
-export function domainFromEmail(email: string | null): string | null {
+export function domainFromEmail(
+  email: string | null,
+  brand?: {
+    razaoSocial: string;
+    nomeFantasia: string | null;
+    municipio: string;
+    emailShared?: boolean;
+  },
+): string | null {
   if (!email || !email.includes("@")) return null;
   if (isFreeEmail(email) || hasAccountantDomainHint(email)) return null;
+  if (brand?.emailShared) return null;
   const host = email.split("@")[1]?.toLowerCase();
   if (!host) return null;
+  if (isDirectoryUrl(`https://${host}/`)) return null;
+  if (brand) {
+    if (
+      !emailDomainCorrelatesWithBrand(
+        email,
+        brand.razaoSocial,
+        brand.nomeFantasia,
+        brand.municipio,
+      )
+    ) {
+      return null;
+    }
+  }
   return host;
 }
 
 export async function serperSearch(
   query: string,
   excludeHosts: string[] = [],
+  brand?: {
+    razaoSocial: string;
+    nomeFantasia: string | null;
+    municipio: string;
+  },
 ): Promise<string | null> {
+  const hits = await serperOrganic(query);
+  if (brand) {
+    const best = pickBestDomainHit(
+      hits,
+      brand.razaoSocial,
+      brand.nomeFantasia,
+      brand.municipio,
+      excludeHosts,
+    );
+    if (!best) return null;
+    try {
+      return new URL(best.link).origin;
+    } catch {
+      return null;
+    }
+  }
   const blocked = new Set(
     excludeHosts.map((h) => h.replace(/^https?:\/\//, "").toLowerCase()),
   );
-  const hits = await serperOrganic(query);
   for (const hit of hits) {
     if (isDirectoryUrl(hit.link)) continue;
     try {
@@ -160,6 +228,8 @@ export type CascadeCompany = {
 export type EnrichOptions = {
   discardedDomains?: string[];
   forceConfirmDomain?: string | null;
+  /** Receita e-mail appears on many CNPJs — never seed domain from it. */
+  emailShared?: boolean;
 };
 
 type SitePhone = NonNullable<ReturnType<typeof extractNormalizedPhones>>[number];
@@ -271,7 +341,8 @@ function snapshotFromHtml(input: {
           coletado_em: input.collectedAt,
         }))
       : [],
-    socials: extracted.socials,
+    // Socials from HTML only count once ownership is confirmed (wrong domain → wrong IG).
+    socials: confirmed ? extracted.socials : {},
     sitePhones: confirmed ? extractNormalizedPhones(input.html, input.ddd1) : [],
     freshness: {
       copyrightYear: confirmed ? detectCopyrightYear(input.html) : undefined,
@@ -290,20 +361,25 @@ export async function enrichCompany(
   const collected_at = now.toISOString();
   const expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const est = input.establishment;
+  const normalizeHost = (h: string) =>
+    h.replace(/^https?:\/\//, "").replace(/^www\./, "").toLowerCase();
   const discarded = new Set(
-    (options.discardedDomains ?? [])
-      .map((h) => h.replace(/^https?:\/\//, "").toLowerCase())
-      .filter(Boolean),
+    (options.discardedDomains ?? []).map(normalizeHost).filter(Boolean),
   );
+  // Shared / accountant Receita e-mail → never treat that host as the company site.
+  const providerHost = receitaProviderDomain(est.email, {
+    shared: options.emailShared === true,
+    accountantHint: hasAccountantDomainHint(est.email),
+  });
+  if (providerHost) discarded.add(providerHost);
   const forceHost = options.forceConfirmDomain
-    ? options.forceConfirmDomain.replace(/^https?:\/\//, "").toLowerCase()
+    ? normalizeHost(options.forceConfirmDomain)
     : null;
   const fonte: LeadEnrichment["fonte"] = {};
 
   let domain: string | null = forceHost
     ? forceHost
-    : cachedDomain?.domain &&
-        !discarded.has(cachedDomain.domain.replace(/^https?:\/\//, "").toLowerCase())
+    : cachedDomain?.domain && !discarded.has(normalizeHost(cachedDomain.domain))
       ? cachedDomain.domain
       : null;
   let domain_status: DomainStatus = forceHost
@@ -325,8 +401,13 @@ export async function enrichCompany(
   };
 
   if (!domain) {
-    const fromEmail = domainFromEmail(est.email);
-    if (fromEmail && !discarded.has(fromEmail.toLowerCase())) {
+    const fromEmail = domainFromEmail(est.email, {
+      razaoSocial: input.company.razao_social,
+      nomeFantasia: est.nome_fantasia,
+      municipio: input.municipioNome,
+      emailShared: options.emailShared === true,
+    });
+    if (fromEmail && !discarded.has(normalizeHost(fromEmail))) {
       domain = fromEmail;
       fonte.domain = { fonte: "email_receita", coletado_em: collected_at };
     }
@@ -376,7 +457,10 @@ export async function enrichCompany(
       phones,
       emails: extras.emails ?? [],
       whatsapp:
-        phones.find((e) => e.isWhatsApp)?.e164?.replace("+", "") ?? null,
+        (
+          phones.find((e) => e.isWhatsApp && e.tipo === "movel") ??
+          phones.find((e) => e.isWhatsApp)
+        )?.e164?.replace("+", "") ?? null,
       socials: mergedSocials,
       tech,
       freshness: extras.freshness ?? {},
@@ -409,23 +493,57 @@ export async function enrichCompany(
 
   await emit(assemble("domain", { people: null }));
 
+  const brand = {
+    razaoSocial: input.company.razao_social,
+    nomeFantasia: est.nome_fantasia,
+    municipio: input.municipioNome,
+  };
+  const presencePlace = {
+    nomeFantasia: est.nome_fantasia,
+    razaoSocial: input.company.razao_social,
+    municipio: input.municipioNome,
+    uf: est.uf,
+  };
+
   if (!domain) {
-    const queries = domainSearchQueries({
-      nomeFantasia: est.nome_fantasia,
-      razaoSocial: input.company.razao_social,
-      municipio: input.municipioNome,
-      uf: est.uf,
-    });
     const serperStarted = Date.now();
     const exclude = [...discarded];
-    for (const q of queries) {
-      const found = await serperSearch(q, exclude);
-      if (found) {
-        domain = new URL(found).host;
-        fonte.domain = { fonte: "serper", coletado_em: collected_at };
+
+    // GMB website is a high-confidence domain seed when the Maps title matches.
+    const gmbSeed = await searchGmb(presencePlace);
+    if (gmbSeed?.matched) {
+      gmb = gmbSeed;
+      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+      const fromMaps = domainFromGmb(gmbSeed);
+      if (
+        fromMaps &&
+        !discarded.has(normalizeHost(fromMaps))
+      ) {
+        domain = fromMaps;
+        fonte.domain = { fonte: "gmb", coletado_em: collected_at };
         domain_status = "nao_confirmado";
         await emit(assemble("domain", { people: null }));
-        break;
+      }
+    }
+
+    if (!domain) {
+      const queries = domainSearchQueries({
+        nomeFantasia: est.nome_fantasia,
+        razaoSocial: input.company.razao_social,
+        municipio: input.municipioNome,
+        uf: est.uf,
+      });
+      for (const q of queries) {
+        const found = await serperSearch(q, exclude, brand);
+        if (found) {
+          const host = normalizeHost(new URL(found).host);
+          if (discarded.has(host)) continue;
+          domain = host;
+          fonte.domain = { fonte: "serper", coletado_em: collected_at };
+          domain_status = "nao_confirmado";
+          await emit(assemble("domain", { people: null }));
+          break;
+        }
       }
     }
     timings.serper_ms = elapsed(serperStarted);
@@ -441,34 +559,52 @@ export async function enrichCompany(
     collectedAt: collected_at,
   });
 
+  let siteBrand: string | null = null;
+
   if (domain) {
     const origin = domain.startsWith("http") ? domain : `https://${domain}`;
     let pages = 0;
-    let confirmed = false;
+    let confirmed = Boolean(forceHost);
     let homeEmitted = false;
-    const crawlPaths = [HOME_PATH, ...INNER_PATHS];
+    const visited = new Set<string>();
     const crawlStarted = Date.now();
 
-    for (const path of crawlPaths) {
-      if (pages >= 5) break;
-      const page = await fetchPage(
-        `${origin}${path}`,
+    const fetchAndAccumulate = async (
+      path: string,
+      minGap: number,
+    ): Promise<boolean> => {
+      if (visited.has(path) || pages >= MAX_CRAWL_PAGES) return false;
+      visited.add(path);
+      const page = await fetchPage(`${origin}${path}`, minGap);
+      pages += 1;
+      if (!page) return false;
+      http_status = page.status;
+      finalUrl = page.finalUrl;
+      combinedHtml += `\n${page.html}`;
+      return true;
+    };
+
+    // --- Ownership pass: stop early once we can prove the domain ---
+    for (const path of OWNERSHIP_PATHS) {
+      if (pages >= MAX_CRAWL_PAGES) break;
+      if (confirmed && path !== HOME_PATH && visited.has(HOME_PATH)) break;
+
+      const ok = await fetchAndAccumulate(
+        path,
         path === HOME_PATH ? 2000 : INNER_PAGE_GAP_MS,
       );
-      pages += 1;
-      if (!page) {
-        if (path === "/" && !homeEmitted) {
+      if (!ok) {
+        if (path === HOME_PATH && !homeEmitted) {
           await emit(assemble("home", { people: [] }));
           homeEmitted = true;
         }
         continue;
       }
-      http_status = page.status;
-      finalUrl = page.finalUrl;
-      combinedHtml += `\n${page.html}`;
+
       if (
+        !confirmed &&
         confirmDomainOwnership({
-          html: page.html,
+          html: combinedHtml,
           cnpj: est.cnpj,
           razaoSocial: input.company.razao_social,
           nomeFantasia: est.nome_fantasia,
@@ -479,6 +615,7 @@ export async function enrichCompany(
       }
       if (forceHost) confirmed = true;
       domain_status = confirmed ? "confirmado" : "nao_confirmado";
+
       snap = snapshotFromHtml({
         confirmed,
         html: combinedHtml,
@@ -505,19 +642,51 @@ export async function enrichCompany(
 
       if (confirmed) break;
     }
-    timings.pages = pages;
-    timings.crawl_ms = elapsed(crawlStarted);
 
-    const visibleLen = combinedHtml.replace(/<[^>]+>/g, "").trim().length;
-    if (visibleLen < 500) {
-      const ratio = playwrightBudgetUsed / Math.max(pages, 1);
-      if (ratio < PLAYWRIGHT_BUDGET) {
-        playwrightBudgetUsed += 1;
+    // --- Harvest pass: after confirmation, collect contact/social pages ---
+    if (confirmed || forceHost) {
+      confirmed = true;
+      domain_status = "confirmado";
+      for (const path of HARVEST_PATHS) {
+        if (pages >= MAX_CRAWL_PAGES) break;
+        await fetchAndAccumulate(
+          path,
+          path === HOME_PATH ? 2000 : INNER_PAGE_GAP_MS,
+        );
       }
     }
 
+    timings.pages = pages;
+
+    // SPA shells (Vite/React empty #root) hide wa.me / Instagram inside JS bundles.
+    if (combinedHtml && isSpaShell(combinedHtml)) {
+      const assetUrls = listSpaScriptUrls(combinedHtml, origin);
+      for (const assetUrl of assetUrls) {
+        try {
+          const assetHost = new URL(assetUrl).host;
+          await respectRateLimit(assetHost, SPA_ASSET_GAP_MS);
+          const res = await fetch(assetUrl, {
+            headers: { "User-Agent": GRID_USER_AGENT, Accept: "*/*" },
+            redirect: "follow",
+            signal: AbortSignal.timeout(8000),
+          });
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          if (buf.byteLength > maxSpaScriptBytes()) continue;
+          const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+          const harvest = harvestMarkupFromAssetText(text);
+          if (harvest) combinedHtml += `\n${harvest}`;
+        } catch {
+          /* skip failed asset */
+        }
+      }
+    }
+
+    timings.crawl_ms = elapsed(crawlStarted);
+
     if (forceHost) confirmed = true;
     domain_status = confirmed ? "confirmado" : domain ? "nao_confirmado" : "nao_encontrado";
+    siteBrand = extractSiteBrand(combinedHtml);
     snap = snapshotFromHtml({
       confirmed,
       html: combinedHtml,
@@ -539,12 +708,6 @@ export async function enrichCompany(
     gmb,
   });
 
-  const presencePlace = {
-    nomeFantasia: est.nome_fantasia,
-    razaoSocial: input.company.razao_social,
-    municipio: input.municipioNome,
-    uf: est.uf,
-  };
   const presenceStarted = Date.now();
   const socialSteps = [
     "instagram",
@@ -553,22 +716,48 @@ export async function enrichCompany(
     "linkedin",
     "youtube",
   ] as const;
+  const siteConfirmed = domain_status === "confirmado";
+  const brandOverride = siteConfirmed ? siteBrand : null;
+  const strongBrandTokens = presenceBrandTokens(
+    presencePlace.razaoSocial,
+    presencePlace.nomeFantasia,
+    presencePlace.municipio,
+  );
+  // Sem site: ainda busca social se a marca tiver token forte (Genesis).
+  // Marca fraca (Distribuidora Silva) só aceita social via site confirmado.
+  const canSearchSocialWithoutSite = strongBrandTokens.length > 0;
+  const blockedSocialLabels = providerHost
+    ? [providerHost.split(".")[0] ?? providerHost]
+    : [];
+
   for (const step of socialSteps) {
     fonte.presence_scan = { fonte: step, coletado_em: collected_at };
     await emit(assemble("presence", snapExtras()));
     if (step === "gmb") {
-      const listing = await searchGmb(presencePlace);
-      gmb = listing && listing.matched ? listing : { name: "", url: "", matched: false };
-      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-    } else if (!socialsFromSearch[step] && !snap.socials[step]) {
+      if (!gmb?.matched) {
+        const listing = await searchGmb(presencePlace);
+        gmb =
+          listing && listing.matched
+            ? listing
+            : { name: "", url: "", matched: false };
+        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+      }
+    } else if (snap.socials[step]) {
+      fonte[step] = { fonte: "site", coletado_em: collected_at };
+    } else if (!siteConfirmed && !canSearchSocialWithoutSite) {
+      fonte[step] = { fonte: "skipped_weak_brand", coletado_em: collected_at };
+    } else if (!socialsFromSearch[step]) {
       const found = await searchSocialProfile({
         platform: step,
         ...presencePlace,
+        brandOverride,
+        blockedLabels: blockedSocialLabels,
       });
       if (found) socialsFromSearch = { ...socialsFromSearch, [step]: found };
-      fonte[step] = { fonte: found ? "serper" : "serper_miss", coletado_em: collected_at };
-    } else {
-      fonte[step] = { fonte: "site", coletado_em: collected_at };
+      fonte[step] = {
+        fonte: found ? "serper" : "serper_miss",
+        coletado_em: collected_at,
+      };
     }
   }
   timings.serper_ms += elapsed(presenceStarted);

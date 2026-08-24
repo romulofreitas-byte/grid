@@ -16,6 +16,14 @@ export const DIRECTORY_BLOCKLIST = [
   "youtube.com",
   "google.com",
   "maps.google",
+  // portais / webmail — nunca site da empresa
+  "uai.com.br",
+  "uai.com",
+  "globo.com",
+  "r7.com",
+  "uol.com.br",
+  "terra.com.br",
+  "ig.com.br",
 ];
 
 export function isDirectoryUrl(url: string): boolean {

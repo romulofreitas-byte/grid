@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Phone } from "lucide-react";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
+import { buttonClassName } from "@/components/ui/Button";
 import { resolveCatalogItem } from "@/lib/integrations/catalog";
 import {
   callViaLabel,
@@ -65,10 +66,12 @@ export function CallButton({
 
   const base =
     variant === "cockpit"
-      ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-podium-yellow px-8 py-4 text-base font-extrabold text-podium-navy disabled:opacity-40 sm:w-auto"
-      : variant === "ficha"
-        ? "inline-flex items-center gap-1 rounded-xl border border-white/15 px-2.5 py-1 text-xs font-bold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-yellow disabled:opacity-40"
-        : "inline-flex h-9 items-center gap-1 rounded-xl border border-white/15 px-2.5 text-xs font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-yellow disabled:opacity-40";
+      ? buttonClassName({
+          variant: "primary",
+          size: "lg",
+          className: "w-full gap-2 sm:w-auto",
+        })
+      : buttonClassName({ variant: "secondary", size: "sm" });
 
   if (connection) {
     const title = callMutation.error

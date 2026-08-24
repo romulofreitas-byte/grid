@@ -2,17 +2,72 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
 import { PositionBadge } from "@/components/PositionBadge";
+import { COPY } from "@/lib/copy";
 import {
   formatCapital,
   formatCnpj,
   formatDateBr,
   formatPorte,
 } from "@/lib/format";
+import { estimateRevenueBand } from "@/lib/market/revenue-band";
 import type { Company, Establishment, LeadDossier } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function EmailSealNotice({
+  emailSeal,
+}: {
+  emailSeal: NonNullable<LeadDossier["emailSeal"]>;
+}) {
+  const notices: Array<{ title: string; body: string }> = [];
+
+  if (emailSeal.shared && emailSeal.accountantHint) {
+    notices.push({
+      title: COPY.emailSharedAccountantTitle,
+      body: COPY.emailSharedAccountantBody,
+    });
+  } else {
+    if (emailSeal.shared) {
+      notices.push({
+        title: COPY.emailSharedTitle,
+        body: COPY.emailSharedBody,
+      });
+    }
+    if (emailSeal.accountantHint) {
+      notices.push({
+        title: COPY.emailAccountantTitle,
+        body: COPY.emailAccountantBody,
+      });
+    }
+  }
+  if (emailSeal.free) {
+    notices.push({
+      title: COPY.emailFreeTitle,
+      body: COPY.emailFreeBody,
+    });
+  }
+
+  if (notices.length === 0) return null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      {notices.map((n) => (
+        <div
+          key={n.title}
+          className="rounded-lg border border-amber-400/35 bg-amber-400/10 px-2.5 py-2"
+        >
+          <p className="text-[11px] font-semibold text-amber-200">{n.title}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-amber-200/80">
+            {n.body}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function LeadCompanyCard({
   title,
@@ -23,6 +78,7 @@ export function LeadCompanyCard({
   cnpj,
   gridPosition,
   gridScore,
+  hasAudit = true,
   company,
   establishment,
   municipioNome,
@@ -37,6 +93,7 @@ export function LeadCompanyCard({
   cnpj: string;
   gridPosition?: number | null;
   gridScore?: number;
+  hasAudit?: boolean;
   company?: Company;
   establishment?: Establishment;
   municipioNome?: string;
@@ -45,23 +102,36 @@ export function LeadCompanyCard({
 }) {
   const [showCadastro, setShowCadastro] = useState(false);
   const opened = establishment ? formatDateBr(establishment.data_inicio) : null;
-  const canOpenCadastro = company && establishment;
+  const revenue = company
+    ? estimateRevenueBand({
+        porte: company.porte,
+        capitalSocial: company.capital_social,
+      })
+    : null;
 
   return (
-    <GlassCard className="p-4 hover:translate-y-0">
+    <GlassCard className="border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
       <div className="flex items-start gap-3">
         {gridPosition != null && gridScore != null ? (
-          <PositionBadge position={gridPosition} score={gridScore} />
+          <PositionBadge
+            position={gridPosition}
+            score={gridScore}
+            hasAudit={hasAudit}
+          />
         ) : null}
-        <div className="min-w-0">
-          <h1 className="text-base font-extrabold leading-tight">{title}</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base font-semibold leading-tight text-podium-white">
+            {title}
+          </h1>
           {showRazao ? (
-            <p className="mt-0.5 truncate text-xs text-podium-muted">{razaoSocial}</p>
+            <p className="mt-0.5 truncate text-xs text-podium-muted">
+              {razaoSocial}
+            </p>
           ) : null}
           <p className="mt-1 text-sm text-podium-gray">
             {cityLine || <EmptyValue />}
           </p>
-          <p className="mt-0.5 line-clamp-1 text-xs text-podium-muted">
+          <p className="mt-0.5 line-clamp-2 text-xs text-podium-muted">
             {cnaeDescricao}
           </p>
           <p className="mt-0.5 text-xs tabular-nums text-podium-muted">
@@ -70,18 +140,65 @@ export function LeadCompanyCard({
         </div>
       </div>
 
-      {canOpenCadastro ? (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {company?.porte ? (
+          <Badge variant="neutral">{formatPorte(company.porte)}</Badge>
+        ) : null}
+        {revenue ? (
+          <Badge
+            variant="accent"
+            title={`${revenue.regimeHint}. ${revenue.basis}`}
+          >
+            {revenue.label}
+            <span className="ml-1 opacity-70">· est.</span>
+          </Badge>
+        ) : null}
+        {establishment?.is_matriz != null ? (
+          <Badge variant="neutral">
+            {establishment.is_matriz ? "Matriz" : "Filial"}
+          </Badge>
+        ) : null}
+      </div>
+
+      {revenue ? (
+        <p className="mt-2 text-[11px] leading-snug text-podium-muted">
+          {revenue.regimeHint}. Confiança {revenue.confidence}. {revenue.basis}
+        </p>
+      ) : null}
+
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+          E-mail
+        </p>
+        {emailSeal?.email ? (
+          <>
+            <a
+              href={`mailto:${emailSeal.email}`}
+              className="mt-1 block truncate text-sm font-medium text-podium-white hover:text-podium-yellow"
+            >
+              {emailSeal.email}
+            </a>
+            <EmailSealNotice emailSeal={emailSeal} />
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-podium-muted">
+            <EmptyValue />
+          </p>
+        )}
+      </div>
+
+      {company && establishment ? (
         <>
           <button
             type="button"
             onClick={() => setShowCadastro((v) => !v)}
             aria-expanded={showCadastro}
-            className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-left hover:border-white/20"
+            className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-left text-podium-muted hover:border-white/20 hover:text-podium-gray"
           >
-            <span className="text-xs font-bold">Cadastro da Receita</span>
+            <span className="text-xs font-semibold">Cadastro da Receita</span>
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 text-podium-muted transition",
+                "h-4 w-4 shrink-0 transition",
                 showCadastro && "rotate-180",
               )}
             />
@@ -122,33 +239,6 @@ export function LeadCompanyCard({
                       endereço aparece em {addressSharedCount} empresas
                     </span>
                   ) : null}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs text-podium-muted">E-mail</dt>
-                <dd>
-                  {emailSeal?.email ? (
-                    <>
-                      <a
-                        href={`mailto:${emailSeal.email}`}
-                        className="text-podium-yellow"
-                      >
-                        {emailSeal.email}
-                      </a>
-                      {(emailSeal.shared ||
-                        emailSeal.free ||
-                        emailSeal.accountantHint) && (
-                        <span className="mt-1 block text-xs text-amber-400">
-                          {emailSeal.shared && "e-mail compartilhado · "}
-                          {emailSeal.free && "provedor gratuito · "}
-                          {emailSeal.accountantHint &&
-                            "domínio com assinatura contábil"}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <EmptyValue />
-                  )}
                 </dd>
               </div>
             </dl>

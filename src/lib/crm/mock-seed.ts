@@ -168,6 +168,8 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
         secretaries: row.secretaries,
         phones: row.phones ?? [],
         notes: row.notes,
+        cnpj: null,
+        meta: {},
         position,
         created_at: created,
         updated_at: created,

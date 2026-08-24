@@ -3,7 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
-import { FichaChip } from "@/components/FichaChip";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { GlassCard } from "@/components/GlassCard";
 import { COPY } from "@/lib/copy";
 import { yearsSince } from "@/lib/format";
 import type { LeadEnrichment, PartnerCard, SitePerson } from "@/lib/types";
@@ -15,7 +17,7 @@ function socioLine(s: PartnerCard): string {
   return `${s.qualificacao}${tenure}`;
 }
 
-function Chip({
+function KindChip({
   children,
   emphasize = false,
 }: {
@@ -23,16 +25,9 @@ function Chip({
   emphasize?: boolean;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-xl border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-        emphasize
-          ? "border-podium-yellow/50 bg-podium-yellow/10 text-podium-yellow"
-          : "border-white/15 text-podium-gray",
-      )}
-    >
+    <Badge variant={emphasize ? "accent" : "neutral"} className="uppercase">
       {children}
-    </span>
+    </Badge>
   );
 }
 
@@ -46,13 +41,13 @@ function PersonRow({
   chips: Array<{ label: string; emphasize?: boolean }>;
 }) {
   return (
-    <li className="rounded-xl border border-white/10 px-3 py-2.5">
+    <li className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-1.5">
-        <p className="text-sm font-bold text-podium-white">{nome}</p>
+        <p className="text-sm font-semibold text-podium-white">{nome}</p>
         {chips.map((c) => (
-          <Chip key={c.label} emphasize={c.emphasize}>
+          <KindChip key={c.label} emphasize={c.emphasize}>
             {c.label}
-          </Chip>
+          </KindChip>
         ))}
       </div>
       <p className="mt-0.5 text-xs text-podium-muted">{detail}</p>
@@ -75,8 +70,8 @@ function DoorsList({
     <>
       {others.length > 0 ? (
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
-            {COPY.quadroReceita}
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-podium-muted">
+            Sócios (Receita)
           </p>
           <ul className="mt-2 space-y-2">
             {others.map((s) => (
@@ -89,10 +84,14 @@ function DoorsList({
             ))}
           </ul>
         </div>
-      ) : null}
+      ) : (
+        <p className="text-sm text-podium-muted">
+          Nenhum outro sócio além do decisor no quadro.
+        </p>
+      )}
 
-      <div className={others.length > 0 ? "mt-3" : undefined}>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+      <div className="mt-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-podium-muted">
           {COPY.nomesNoSite}
         </p>
         {!enrichment || !peopleExtracted ? (
@@ -120,6 +119,78 @@ function DoorsList({
   );
 }
 
+function useSociosParts(
+  decisorNome: string | null | undefined,
+  socios: PartnerCard[],
+  enrichment: LeadEnrichment | null,
+) {
+  const others = socios.filter((s) => s.nome !== decisorNome);
+  const people = enrichment?.people;
+  const peopleExtracted = Array.isArray(people);
+  const sitePeople: SitePerson[] = peopleExtracted ? people : [];
+  const count = others.length + sitePeople.length;
+  const hasRecommended = sitePeople.some((p) => p.portaRecomendada);
+  return { others, peopleExtracted, sitePeople, count, hasRecommended };
+}
+
+/** Always-visible sócios block for the ficha (Wave 2). */
+export function SociosPanel({
+  decisorNome,
+  socios,
+  enrichment,
+  className,
+  embedded = false,
+}: {
+  decisorNome: string | null | undefined;
+  socios: PartnerCard[];
+  enrichment: LeadEnrichment | null;
+  className?: string;
+  embedded?: boolean;
+}) {
+  const { others, peopleExtracted, sitePeople } = useSociosParts(
+    decisorNome,
+    socios,
+    enrichment,
+  );
+
+  const body = (
+    <>
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-podium-muted" aria-hidden />
+        <h2 className="text-sm font-semibold text-podium-white">Sócios</h2>
+      </div>
+      <div className="mt-3">
+        <DoorsList
+          others={others}
+          peopleExtracted={peopleExtracted}
+          sitePeople={sitePeople}
+          enrichment={enrichment}
+        />
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div
+        className={cn(
+          "mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3",
+          className,
+        )}
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <GlassCard className={cn("p-4 hover:translate-y-0", className)}>
+      {body}
+    </GlassCard>
+  );
+}
+
+/** Compact popover trigger — kept for surfaces that still need a chip. */
 export function ApproachDoors({
   decisorNome,
   socios,
@@ -133,12 +204,8 @@ export function ApproachDoors({
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
-  const others = socios.filter((s) => s.nome !== decisorNome);
-  const people = enrichment?.people;
-  const peopleExtracted = Array.isArray(people);
-  const sitePeople: SitePerson[] = peopleExtracted ? people : [];
-  const count = others.length + sitePeople.length;
-  const hasRecommended = sitePeople.some((p) => p.portaRecomendada);
+  const { others, peopleExtracted, sitePeople, count, hasRecommended } =
+    useSociosParts(decisorNome, socios, enrichment);
 
   useEffect(() => {
     if (!open) return;
@@ -160,19 +227,20 @@ export function ApproachDoors({
 
   return (
     <div ref={rootRef}>
-      <FichaChip
-        type="button"
+      <Button
+        size="sm"
+        variant={open || hasRecommended ? "secondary" : "ghost"}
         aria-expanded={open}
         aria-controls={panelId}
-        aria-label={COPY.outrasPortas}
-        title={COPY.outrasPortas}
-        active={open || hasRecommended}
+        aria-label="Sócios e nomes no site"
+        title="Sócios e nomes no site"
         onClick={() => setOpen((v) => !v)}
+        className="gap-1.5"
       >
         <Users className="h-3.5 w-3.5" />
-        {COPY.quadroReceita}
+        Sócios
         {count > 0 ? <span className="tabular-nums">{count}</span> : null}
-      </FichaChip>
+      </Button>
       <AnchorPopover
         open={open}
         anchorRef={rootRef}

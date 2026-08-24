@@ -22,12 +22,14 @@ function formatTextArray(values: string[]): string {
 function buildInsertStatements(): string[] {
   const niches = PRESET_SEED.filter((p) => !p.parent_slug);
   const segments = PRESET_SEED.filter((p) => p.parent_slug);
-  const stmts: string[] = [];
+  const stmts: string[] = [
+    "ALTER TABLE niche_presets ADD COLUMN IF NOT EXISTS aliases text[] DEFAULT '{}';",
+  ];
 
   for (const preset of niches) {
     stmts.push(
       [
-        "INSERT INTO niche_presets (slug, nome, grupo, perfil_score, parent_id, keywords, exclusoes, name_stems, curado, ordem)",
+        "INSERT INTO niche_presets (slug, nome, grupo, perfil_score, parent_id, keywords, exclusoes, name_stems, aliases, curado, ordem)",
         "VALUES (",
         `  '${escapeSqlString(preset.slug)}',`,
         `  '${escapeSqlString(preset.nome)}',`,
@@ -37,6 +39,7 @@ function buildInsertStatements(): string[] {
         `  ${formatTextArray(preset.keywords)},`,
         `  ${formatTextArray(preset.exclusoes)},`,
         `  ${formatTextArray(preset.name_stems)},`,
+        `  ${formatTextArray(preset.aliases)},`,
         "  false,",
         `  ${preset.ordem}`,
         ")",
@@ -45,6 +48,7 @@ function buildInsertStatements(): string[] {
         "  keywords = EXCLUDED.keywords,",
         "  exclusoes = EXCLUDED.exclusoes,",
         "  name_stems = EXCLUDED.name_stems,",
+        "  aliases = EXCLUDED.aliases,",
         "  ordem = EXCLUDED.ordem;",
       ].join("\n"),
     );
@@ -53,7 +57,7 @@ function buildInsertStatements(): string[] {
   for (const preset of segments) {
     stmts.push(
       [
-        "INSERT INTO niche_presets (slug, nome, grupo, perfil_score, parent_id, keywords, exclusoes, name_stems, curado, ordem)",
+        "INSERT INTO niche_presets (slug, nome, grupo, perfil_score, parent_id, keywords, exclusoes, name_stems, aliases, curado, ordem)",
         "VALUES (",
         `  '${escapeSqlString(preset.slug)}',`,
         `  '${escapeSqlString(preset.nome)}',`,
@@ -63,6 +67,7 @@ function buildInsertStatements(): string[] {
         `  ${formatTextArray(preset.keywords)},`,
         `  ${formatTextArray(preset.exclusoes)},`,
         `  ${formatTextArray(preset.name_stems)},`,
+        `  ${formatTextArray(preset.aliases)},`,
         "  false,",
         `  ${preset.ordem}`,
         ")",
@@ -72,6 +77,7 @@ function buildInsertStatements(): string[] {
         "  keywords = EXCLUDED.keywords,",
         "  exclusoes = EXCLUDED.exclusoes,",
         "  name_stems = EXCLUDED.name_stems,",
+        "  aliases = EXCLUDED.aliases,",
         "  ordem = EXCLUDED.ordem;",
       ].join("\n"),
     );

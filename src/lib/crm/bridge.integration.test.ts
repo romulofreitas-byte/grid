@@ -1,0 +1,129 @@
+import { describe, expect, it, vi } from "vitest";
+import { bridgeQualifiedLeadsToCrm, type CrmBridgeRepo } from "./bridge";
+import type { CrmDealCard, CrmPipeline, CrmPipelineSummary } from "./types";
+import type { LeadDossier, Search } from "@/lib/types";
+import { DEFAULT_FILTERS } from "@/lib/types";
+
+function search(patch: Partial<Search> = {}): Search {
+  return {
+    id: "search-1",
+    user_id: "user-1",
+    nome: "Lista · Clínicas",
+    filtros: {
+      ...DEFAULT_FILTERS,
+      segmentIds: ["seg-1"],
+      ufs: ["MG"],
+      municipioIds: [3106200],
+    },
+    total_found: 1,
+    created_at: new Date().toISOString(),
+    saved: true,
+    ...patch,
+  };
+}
+
+describe("bridgeQualifiedLeadsToCrm", () => {
+  it("no-ops when the list is not saved", async () => {
+    const repo = {
+      listCrmPipelines: vi.fn(),
+      createCrmPipeline: vi.fn(),
+      findCrmDealByCnpj: vi.fn(),
+      createCrmDeal: vi.fn(),
+      getDossier: vi.fn(),
+      getPreset: vi.fn(),
+    } satisfies CrmBridgeRepo;
+
+    const out = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search({ saved: false }),
+      cnpjs: ["12345678000190"],
+    });
+    expect(out.created).toBe(0);
+    expect(repo.createCrmDeal).not.toHaveBeenCalled();
+  });
+
+  it("creates a niche pipeline deal and skips duplicates", async () => {
+    const pipeline: CrmPipelineSummary = {
+      id: "pipe-1",
+      user_id: "user-1",
+      nome: "Clínicas estética",
+      position: 0,
+      created_at: new Date().toISOString(),
+      deal_count: 0,
+    };
+    const deal: CrmDealCard = {
+      id: "deal-1",
+      pipeline_id: pipeline.id,
+      stage_id: "stage-1",
+      company_name: "Clínica X",
+      contact_name: "Ana",
+      secretaries: [],
+      phones: ["(31) 99999-0000"],
+      notes: "",
+      cnpj: "12345678000190",
+      meta: { source: "qualify_bridge" },
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      next_activity: null,
+    };
+
+    const createCrmDeal = vi
+      .fn()
+      .mockResolvedValueOnce(deal)
+      .mockResolvedValueOnce(deal);
+    const findCrmDealByCnpj = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(deal);
+
+    const repo: CrmBridgeRepo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
+      createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      findCrmDealByCnpj,
+      createCrmDeal,
+      getDossier: vi.fn().mockResolvedValue({
+        establishment: {
+          nome_fantasia: "Clínica X",
+          cnpj: "12345678000190",
+        },
+        company: { razao_social: "CLINICA X LTDA" },
+        decisor: { nome: "Ana" },
+        contacts: [{ ddd: "31", telefone: "999990000" }],
+      } as unknown as LeadDossier),
+      getPreset: vi.fn().mockResolvedValue({
+        id: "seg-1",
+        nome: "Clínicas estética",
+      }),
+    };
+
+    const first = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search(),
+      cnpjs: ["12345678000190"],
+    });
+    expect(first.created).toBe(1);
+    expect(first.pipelineNome).toBe("Clínicas estética");
+    expect(createCrmDeal).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        pipelineId: "pipe-1",
+        cnpj: "12345678000190",
+        meta: expect.objectContaining({
+          searchId: "search-1",
+          ufs: ["MG"],
+          source: "qualify_bridge",
+        }),
+      }),
+    );
+
+    const second = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search(),
+      cnpjs: ["12345678000190"],
+    });
+    expect(second.created).toBe(0);
+    expect(second.skipped).toBe(1);
+    expect(createCrmDeal).toHaveBeenCalledTimes(1);
+  });
+});

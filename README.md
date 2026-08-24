@@ -13,7 +13,8 @@ Briefing: [`briefing_claude_proximo_passo.md`](./briefing_claude_proximo_passo.m
 - Design: base **navy** `#0B1A2E` + accent amarelo `#F5B301`
 - Dados: `DATA_SOURCE=mock` **ou** `postgres`/`supabase` com `DATABASE_URL` (SQL via `pg`, não PostgREST)
 - Worker de enriquecimento: `pnpm worker:dev` / `pnpm worker:once`
-- Export: ExcelJS (XLSX/CSV) · PDF simplificado
+- Export: ExcelJS (XLSX/CSV) · PDF branded (`@react-pdf/renderer`)
+- Guards: `assertProdEnv()` no boot; banner de demo quando `DATA_SOURCE=mock`
 
 ## Começar (mock, sem banco)
 
@@ -35,10 +36,13 @@ Mock atual: **5.000** empresas em **27 UFs**, **5.571** municípios IBGE, **106*
 | `pnpm test` | Vitest (telefone, selos, domínio, extração, robots, Minuto de Ouro) |
 | `pnpm worker:dev` | Worker de enriquecimento em loop |
 | `pnpm worker:once -- --cnpj=...` | Processa um job e sai |
-| `pnpm validate:phones` | Relatório `reports/phone-sharing.md` |
 | `pnpm ingest` | Pipeline RF (precisa `DATABASE_URL` + zips) |
 | `pnpm seed:presets` | SQL/seed dos 16 presets (upsert por slug) |
+| `pnpm seed:pg-mock` | Carrega amostra do mock no Postgres local (dev prod-like) |
 | `pnpm seed:mock` | Resumo do store mock |
+| `pnpm db:verify-rf` | Confere establishments/MVs RF no Postgres |
+| `pnpm launch:ready` | Checklist env + RF + próximo passo ops |
+| `pnpm validate:phones` | Relatório phone-sharing (exige DB; `--allow-mock` libera mock) |
 | `pnpm audit:segments` | Relatório `reports/segment-coverage.md` |
 | `pnpm db:dump-supabase` | Dump do Postgres local para restaurar no Supabase |
 
@@ -77,7 +81,7 @@ Docker (`docker compose up -d`) fica só para dev/offline.
 
 ## Relatório de telefone compartilhado
 
-`reports/phone-sharing.md` — nesta máquina está rotulado **MOCK**. O limiar de 3 CNPJs **não foi validado** contra MG/SP reais. No mock, a regra de sócios separa o cluster 200–207 (Grupo) do telefone de escritório (Contabilidade).
+`reports/phone-sharing.md` — rode `pnpm validate:phones` com `DATABASE_URL` apontando para RF real. Sem DB, o script **falha** (use `--allow-mock` só para demo). O limiar de 3 CNPJs precisa ser revalidado em MG/SP reais.
 
 ## Regras do produto
 
@@ -87,6 +91,6 @@ Docker (`docker compose up -d`) fica só para dev/offline.
 - CNAEs só via `ref_cnae` + keywords (nunca literais nos presets)
 - OSM só confirma número já conhecido — o número do OSM não vai para o export
 - Sem LLM no Minuto de Ouro
-- Sem cobrança (Fase 3)
+- Produção: sem mock auth, sem `DATA_SOURCE=mock`, sem billing memory, sem `MOCK_PREVIEW_SEALS`
 
 Para passar o estado a outra sessão, use `briefing_claude_proximo_passo.md`.

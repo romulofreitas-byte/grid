@@ -4,6 +4,27 @@ export const COPY = {
   landingPromessa:
     "Escolha o nicho. Saia com a lista na ordem de quem ligar — telefone da empresa e sócio que decide.",
   landingPrimeiraVez: "Crie a conta. Depois você monta o capacete.",
+  landingHowEyebrow: "Como funciona",
+  landingHowTitle: "Três voltas até a ligação",
+  landingHowStep1Title: "Escolhe nicho e região",
+  landingHowStep1Body:
+    "Você define o mercado e onde ligar. O GRID busca na base da Receita — sem scrapear mapa. MEI fica de fora por padrão.",
+  landingHowStep2Title: "Ordena quem ligar primeiro",
+  landingHowStep2Body:
+    "A lista sai em ordem de prioridade. P1, P2, P3 — a pista já montada.",
+  landingHowStep3Title: "Telefone e sócio que decide",
+  landingHowStep3Body:
+    "Cada linha traz o contato da empresa e o nome de quem pode fechar.",
+  landingMeiNote:
+    "MEI não entra na busca padrão: faturamento ainda em desenvolvimento e menos espaço para investimentos mais robustos.",
+  landingBenefitsEyebrow: "O que vem na lista",
+  landingBenefitsTitle: "Pole, grid da frente, ordem",
+  landingFinalTitle: "Monte o capacete",
+  landingFinalBody:
+    "Crie a conta, escolha o nicho e saia ligando na ordem certa.",
+  landingPreviewLabel: "Assim sai a pista",
+  landingSignedInCta: "Continuar no GRID",
+  landingSwitchAccount: "Entrar com outra conta",
   loginConfirm:
     "Enviamos um link de confirmação. Olhe a caixa de entrada e o spam. Se o e-mail estiver errado, volte e crie a conta de novo. Se já tem conta, entre.",
   loginRecover:
@@ -39,8 +60,20 @@ export const COPY = {
   qualificacaoFicha:
     "Ativos digitais do lead: site, redes e o que falta. Isso qualifica o contato — não é o briefing da Anatomia.",
   b2c: "Vende para o consumidor final na cidade.",
-  b2b: "Vende para outras empresas.",
+  b2b: "Vende para outras empresas — indústria, serviços, logística e atacado.",
   emailGratuito: "Gmail, Hotmail e outros provedores pessoais.",
+  emailSharedTitle: "E-mail compartilhado",
+  emailSharedBody:
+    "Aparece em várias empresas na Receita — costuma ser do contador ou do grupo, não o contato direto desta loja.",
+  emailAccountantTitle: "Domínio de contabilidade",
+  emailAccountantBody:
+    "O endereço parece de escritório contábil. Não use como e-mail ou site da marca.",
+  emailSharedAccountantTitle: "E-mail compartilhado (possível contabilidade)",
+  emailSharedAccountantBody:
+    "Este endereço está em mais de uma empresa e o domínio parece de escritório contábil — provavelmente não é o contato direto desta loja.",
+  emailFreeTitle: "Provedor gratuito",
+  emailFreeBody:
+    "Gmail, Hotmail e similares — confiança menor para contato comercial.",
   dominioProprio: "E-mail @daempresa, não Gmail.",
   especialidade: "No que você é especialista.",
   area: "Em qual parte do negócio você atua.",
@@ -53,8 +86,13 @@ export const COPY = {
   qualificarMarque:
     "Selecione para cruzar site e Receita — telefone e nome mais confiáveis, e a ponte digital da ligação. 2 créditos cada. A ordem pode mudar depois.",
   qualificarEstaEmpresa: "Qualificar esta empresa",
-  qualificarFichaLead:
-    "A Receita já está na ficha. Qualificar cruza site, redes e Google Meu Negócio — telefone com mais veracidade, nomes mais atuais, e os cards dos ativos digitais.",
+  atualizarQualificacao: "Atualizar",
+  atualizarQualificacaoHint:
+    "Mantém a qualificação atual e roda de novo a auditoria (site, redes e Maps). Consome 2 créditos — só quando você pedir.",
+  atualizandoQualificacao: "Atualizando…",
+  qualificarFichaLead: "Cruzar site, redes e Maps com a Receita.",
+  qualificarFichaLeadHint:
+    "Sem crawl, dor digital e selos Confirmado/Atualizado ficam vazios — isso não significa que a empresa “não tem dor”.",
   qualificarBeneficioTelefone:
     "Telefone cruzado (site × Receita) e selo de conferência",
   qualificarBeneficioContato:

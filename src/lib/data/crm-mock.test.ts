@@ -64,6 +64,29 @@ describe("crm mock board", () => {
     });
     expect(updated?.phones).toEqual(["(34) 99999-0000", "(34) 3333-2020"]);
   });
+
+  it("dedupes deals by CNPJ inside the same pipeline", async () => {
+    const pipelines = await mockRepo.listCrmPipelines(USER);
+    const pipelineId = pipelines[0]!.id;
+    const first = await mockRepo.createCrmDeal(USER, {
+      pipelineId,
+      company_name: "Empresa A",
+      cnpj: "12.345.678/0001-90",
+    });
+    const second = await mockRepo.createCrmDeal(USER, {
+      pipelineId,
+      company_name: "Empresa A duplicada",
+      cnpj: "12345678000190",
+    });
+    expect(first?.id).toBeTruthy();
+    expect(second?.id).toBe(first!.id);
+    const found = await mockRepo.findCrmDealByCnpj(
+      USER,
+      pipelineId,
+      "12345678000190",
+    );
+    expect(found?.id).toBe(first!.id);
+  });
 });
 
 describe("seeded telemetry mix", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDown, Search } from "lucide-react";
@@ -8,7 +8,11 @@ import { AppShell } from "@/components/AppShell";
 import { BackLink } from "@/components/BackLink";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
+import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { SectionTitle } from "@/components/SectionTitle";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { ChoiceTile } from "@/components/ui/ChoiceTile";
 import { COPY, PORTE_LABELS } from "@/lib/copy";
 import { BACK, gridHref, parseGridFrom } from "@/lib/back";
 import { filterStepFilled } from "@/lib/filter-summary";
@@ -33,18 +37,33 @@ import {
   type SearchFilters,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { normalizeText } from "@/lib/niches";
+import { presetMatchesQuery, rankPresetMatch } from "@/lib/segment-aliases";
 
 type NicheTree = {
   id: string;
   nome: string;
   grupo: string;
-  segments: Array<{ id: string; nome: string }>;
+  segments: Array<{
+    id: string;
+    nome: string;
+    slug?: string;
+    aliases?: string[];
+    keywords?: string[];
+  }>;
 };
 
 const ALL_UFS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ];
+
+function cnaeScopeKey(
+  segmentIds: string[],
+  intentQuery: string | null | undefined,
+): string {
+  return `${[...segmentIds].sort().join(",")}|${intentQuery ?? ""}`;
+}
 
 function useDebounced<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -108,21 +127,16 @@ function ToggleRow({
       onClick={() => onChange(!checked)}
       className={cn(
         "flex min-h-14 w-full items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition",
-        recommended && checked && "recommend-pulse",
         checked
-          ? recommended
-            ? "border-podium-yellow bg-podium-yellow/15"
-            : "border-podium-yellow/40 bg-podium-yellow/10"
-          : recommended
-            ? "border-podium-yellow/50 bg-white/[0.02] hover:border-podium-yellow/70"
-            : "border-white/10 bg-white/[0.02] hover:border-white/20",
+          ? "border-white/25 bg-white/[0.06]"
+          : "border-white/10 bg-white/[0.02] hover:border-white/20",
       )}
     >
       <span>
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-bold text-podium-white">{title}</span>
+          <span className="text-sm font-semibold text-podium-white">{title}</span>
           {recommended ? (
-            <span className="rounded-full bg-podium-yellow px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-podium-navy">
+            <span className="rounded-lg border border-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-podium-muted">
               Recomendado
             </span>
           ) : null}
@@ -134,7 +148,7 @@ function ToggleRow({
       <span
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full transition",
-          checked ? "bg-podium-yellow" : "bg-white/15",
+          checked ? "bg-podium-yellow/80" : "bg-white/15",
         )}
       >
         <span
@@ -172,11 +186,12 @@ function LargadaWizard() {
   const [step, setStep] = useState(1);
   const [filters, setFilters] = useState<SearchFilters>({ ...DEFAULT_FILTERS });
   const [openNiche, setOpenNiche] = useState<string | null>(null);
+  const [segmentQuery, setSegmentQuery] = useState("");
   const [intentDraft, setIntentDraft] = useState("");
   const [munQuery, setMunQuery] = useState("");
   const [munLetter, setMunLetter] = useState<string | null>(null);
   const [citiesOpen, setCitiesOpen] = useState(false);
-  const [showCnaePanel, setShowCnaePanel] = useState(false);
+  const [showCnaePanel, setShowCnaePanel] = useState(true);
   const [cnaeDraft, setCnaeDraft] = useState("");
   const [companyLabels, setCompanyLabels] = useState<Record<string, string>>({});
   const [cnaeLabels, setCnaeLabels] = useState<Record<string, string>>({});
@@ -186,6 +201,8 @@ function LargadaWizard() {
   const [sourceSearchId, setSourceSearchId] = useState<string | null>(null);
   const [moreFilters, setMoreFilters] = useState(false);
   const autoOpenedNiche = useRef(false);
+  /** Evita reaplicar o default de CNAEs no mesmo escopo (segmento/intenção). */
+  const autoCnaeScopeKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (hydrated) return;
@@ -225,6 +242,10 @@ function LargadaWizard() {
           setSourceNome(search.nome);
           setSourceSearchId(search.id);
           setMode("ajustar");
+          autoCnaeScopeKey.current =
+            next.cnaes.length > 0
+              ? cnaeScopeKey(next.segmentIds, next.intentQuery)
+              : null;
           if (next.cnaes.length > 0) setShowCnaePanel(true);
         } catch {
           if (!cancelled) setMode("nova");
@@ -244,6 +265,10 @@ function LargadaWizard() {
         setCnaeLabels(draft.cnaeLabels ?? {});
         setSourceSearchId(draft.fromSearch);
         setMode("continuar");
+        autoCnaeScopeKey.current =
+          next.cnaes.length > 0
+            ? cnaeScopeKey(next.segmentIds, next.intentQuery)
+            : null;
         if (next.cnaes.length > 0) setShowCnaePanel(true);
       }
       if (!cancelled) setHydrated(true);
@@ -311,7 +336,6 @@ function LargadaWizard() {
       "cnae-preview",
       filters.segmentIds,
       filters.intentQuery,
-      filters.cnaes,
       filters.ufs,
     ],
     queryFn: async () => {
@@ -321,7 +345,7 @@ function LargadaWizard() {
         body: JSON.stringify({
           segmentIds: filters.segmentIds,
           intentQuery: filters.intentQuery,
-          cnaes: filters.cnaes,
+          cnaes: [] as string[],
           ufs: filters.ufs,
         }),
       });
@@ -333,10 +357,26 @@ function LargadaWizard() {
       }>;
     },
     enabled:
-      showCnaePanel &&
-      (filters.segmentIds.length > 0 ||
-        (!!filters.intentQuery && filters.intentQuery.length >= 2)),
+      filters.segmentIds.length > 0 ||
+      (!!filters.intentQuery && filters.intentQuery.length >= 2),
   });
+
+  useEffect(() => {
+    const rows = cnaePreview.data;
+    if (!rows?.length) return;
+    if (filters.segmentIds.length === 0 && !filters.intentQuery) return;
+    const key = cnaeScopeKey(filters.segmentIds, filters.intentQuery);
+    if (autoCnaeScopeKey.current === key) return;
+    autoCnaeScopeKey.current = key;
+    const codes = rows.map((r) => r.codigo);
+    setFilters((f) => ({ ...f, cnaes: codes }));
+    setCnaeLabels((m) => {
+      const next = { ...m };
+      for (const r of rows) next[r.codigo] = r.descricao;
+      return next;
+    });
+    setShowCnaePanel(true);
+  }, [cnaePreview.data, filters.segmentIds, filters.intentQuery]);
 
   const cnaeQ = useDebounced(cnaeDraft, 300);
   const cnaeSearchQuery = useQuery({
@@ -375,14 +415,120 @@ function LargadaWizard() {
     () => (Array.isArray(treeQuery.data) ? treeQuery.data : []),
     [treeQuery.data],
   );
+  const segmentSearch = normalizeText(segmentQuery);
+  const filteredNicheTree = useMemo(() => {
+    if (!segmentSearch) return nicheTree;
+    return nicheTree
+      .map((n) => {
+        const nicheHit = normalizeText(n.nome).includes(segmentSearch);
+        const segments = (
+          nicheHit
+            ? n.segments
+            : n.segments.filter((s) =>
+                presetMatchesQuery(
+                  {
+                    nome: s.nome,
+                    slug: s.slug,
+                    aliases: s.aliases,
+                    keywords: s.keywords,
+                  },
+                  segmentQuery,
+                ),
+              )
+        )
+          .slice()
+          .sort(
+            (a, b) =>
+              rankPresetMatch(
+                { nome: b.nome, slug: b.slug, aliases: b.aliases, keywords: b.keywords },
+                segmentQuery,
+              ) -
+              rankPresetMatch(
+                { nome: a.nome, slug: a.slug, aliases: a.aliases, keywords: a.keywords },
+                segmentQuery,
+              ),
+          );
+        return { ...n, segments };
+      })
+      .filter((n) => n.segments.length > 0)
+      .sort((a, b) => {
+        const score = (n: NicheTree) =>
+          Math.max(
+            0,
+            ...n.segments.map((s) =>
+              rankPresetMatch(
+                { nome: s.nome, slug: s.slug, aliases: s.aliases, keywords: s.keywords },
+                segmentQuery,
+              ),
+            ),
+          );
+        return score(b) - score(a);
+      });
+  }, [nicheTree, segmentSearch, segmentQuery]);
   const b2c = useMemo(
-    () => nicheTree.filter((n) => n.grupo === "b2c_local"),
-    [nicheTree],
+    () => filteredNicheTree.filter((n) => n.grupo === "b2c_local"),
+    [filteredNicheTree],
   );
   const b2b = useMemo(
-    () => nicheTree.filter((n) => n.grupo === "b2b_industria"),
-    [nicheTree],
+    () => filteredNicheTree.filter((n) => n.grupo === "b2b_industria"),
+    [filteredNicheTree],
   );
+  const matchedSegmentCount = useMemo(
+    () => filteredNicheTree.reduce((n, x) => n + x.segments.length, 0),
+    [filteredNicheTree],
+  );
+
+  useEffect(() => {
+    if (!segmentSearch || filteredNicheTree.length === 0) return;
+    setOpenNiche((prev) => {
+      if (prev && filteredNicheTree.some((n) => n.id === prev)) return prev;
+      return filteredNicheTree[0]?.id ?? null;
+    });
+  }, [segmentSearch, filteredNicheTree]);
+
+  function applyIntentFromSearch() {
+    const q = segmentQuery.trim();
+    if (q.length < 2) return;
+    autoCnaeScopeKey.current = null;
+    setFilters((f) => ({
+      ...f,
+      presetId: null,
+      segmentIds: [],
+      intentQuery: q,
+      cnaes: [],
+    }));
+    setSegmentQuery("");
+    setShowCnaePanel(true);
+  }
+
+  function onSegmentSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (!segmentSearch) return;
+    const ranked = filteredNicheTree
+      .flatMap((n) => n.segments.map((s) => ({ nicheId: n.id, seg: s })))
+      .map((x) => ({
+        ...x,
+        score: rankPresetMatch(
+          {
+            nome: x.seg.nome,
+            slug: x.seg.slug,
+            aliases: x.seg.aliases,
+            keywords: x.seg.keywords,
+          },
+          segmentQuery,
+        ),
+      }))
+      .sort((a, b) => b.score - a.score);
+    const top = ranked[0];
+    if (top && top.score >= 70 && (ranked.length === 1 || top.score > (ranked[1]?.score ?? 0))) {
+      setOpenNiche(top.nicheId);
+      toggleSegment(top.seg.id);
+      setSegmentQuery("");
+      return;
+    }
+    applyIntentFromSearch();
+  }
 
   const segmentNames = useMemo(() => {
     const map = new Map<string, string>();
@@ -396,6 +542,11 @@ function LargadaWizard() {
     () => (Array.isArray(municipiosQuery.data) ? municipiosQuery.data : []),
     [municipiosQuery.data],
   );
+  const municipioNames = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const m of municipiosAll) map[m.id] = m.nome;
+    return map;
+  }, [municipiosAll]);
   const munLetterOptions = useMemo(
     () => municipioLetters(municipiosAll),
     [municipiosAll],
@@ -424,12 +575,16 @@ function LargadaWizard() {
   function toggleSegment(id: string) {
     setFilters((f) => {
       const has = f.segmentIds.includes(id);
+      autoCnaeScopeKey.current = null;
       return {
         ...f,
         presetId: null,
         segmentIds: has ? [] : [id],
+        intentQuery: has ? f.intentQuery : null,
+        cnaes: [],
       };
     });
+    setShowCnaePanel(true);
   }
 
   function toggleCnae(codigo: string) {
@@ -514,13 +669,14 @@ function LargadaWizard() {
     hint: string;
     items: NicheTree[];
   }) {
+    if (items.length === 0) return null;
     return (
       <GlassCard className="p-5">
         <h3 className="font-bold text-podium-yellow">{title}</h3>
         <Hint className="mt-1">{hint}</Hint>
         <div className="mt-3 space-y-2">
           {items.map((n) => {
-            const open = openNiche === n.id;
+            const open = openNiche === n.id || (!!segmentSearch && items.length <= 3);
             const selectedCount = n.segments.filter((s) =>
               filters.segmentIds.includes(s.id),
             ).length;
@@ -549,20 +705,19 @@ function LargadaWizard() {
                   <div className="grid gap-2 border-t border-white/10 p-3 sm:grid-cols-2">
                     {n.segments.map((s) => {
                       const on = filters.segmentIds.includes(s.id);
+                      const nameHit =
+                        !!segmentSearch &&
+                        normalizeText(s.nome).includes(segmentSearch);
                       return (
-                        <button
+                        <ChoiceTile
                           key={s.id}
-                          type="button"
+                          density="card"
+                          selected={on}
                           onClick={() => toggleSegment(s.id)}
-                          className={cn(
-                            "rounded-xl border px-3 py-3 text-left text-sm transition",
-                            on
-                              ? "border-podium-yellow/40 bg-podium-yellow/10"
-                              : "border-white/10 hover:border-white/25",
-                          )}
+                          className={nameHit ? "ring-1 ring-podium-yellow/50" : undefined}
                         >
-                          <span className="font-bold">{s.nome}</span>
-                        </button>
+                          {s.nome}
+                        </ChoiceTile>
                       );
                     })}
                   </div>
@@ -619,24 +774,31 @@ function LargadaWizard() {
               ).map(([n, label]) => {
                 const filled = filterStepFilled(n, filters);
                 return (
-                  <button
+                  <Button
                     key={n}
-                    type="button"
+                    size="sm"
+                    variant={
+                      step === n ? "accent" : filled ? "secondary" : "ghost"
+                    }
                     onClick={() => setStep(n)}
                     className={cn(
-                      "rounded-xl px-3 py-1.5 text-xs font-bold",
-                      step === n
-                        ? "bg-podium-yellow text-podium-navy"
-                        : filled
-                          ? "border border-podium-yellow/40 bg-white/5 text-podium-yellow"
-                          : "bg-white/5 text-podium-muted",
+                      step !== n &&
+                        filled &&
+                        "border-podium-yellow/30 text-podium-yellow",
                     )}
                   >
                     {n} {label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
+            <ListSummaryBadges
+              filters={filters}
+              municipioNames={municipioNames}
+              sticky
+              includeSemContabil={step === 3}
+              className="mt-3"
+            />
           </div>
 
           {step === 1 && (
@@ -650,9 +812,10 @@ function LargadaWizard() {
                         patch({ intentQuery: null });
                         setIntentDraft("");
                       }}
-                      className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
                     >
-                      {filters.intentQuery} ×
+                      <Badge variant="accent">
+                        {filters.intentQuery} ×
+                      </Badge>
                     </button>
                   ) : null}
                   {filters.cnpjs.map((cnpj) => (
@@ -664,9 +827,10 @@ function LargadaWizard() {
                           cnpjs: filters.cnpjs.filter((c) => c !== cnpj),
                         })
                       }
-                      className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
                     >
-                      {companyLabels[cnpj] ?? formatCnpj(cnpj)} ×
+                      <Badge variant="accent">
+                        {companyLabels[cnpj] ?? formatCnpj(cnpj)} ×
+                      </Badge>
                     </button>
                   ))}
                 </div>
@@ -677,18 +841,46 @@ function LargadaWizard() {
                   <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
                   <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
                 </div>
-              ) : filters.segmentIds.length > 0 ? null : (
+              ) : filters.segmentIds.length > 0 || filters.intentQuery ? null : (
                 <>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
+                      <input
+                        value={segmentQuery}
+                        onChange={(e) => setSegmentQuery(e.target.value)}
+                        onKeyDown={onSegmentSearchKeyDown}
+                        placeholder="Buscar segmento (ex.: água mineral, co-packing, vazamentos)"
+                        className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+                      />
+                    </div>
+                    {segmentSearch.length >= 2 ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Hint>
+                          {matchedSegmentCount > 0
+                            ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"} · Enter seleciona o melhor match`
+                            : "Nenhum segmento com esse nome"}
+                        </Hint>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={applyIntentFromSearch}
+                        >
+                          Buscar pelo termo “{segmentQuery.trim()}”
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                   <NicheGroup title="B2C local" hint={COPY.b2c} items={b2c} />
                   <NicheGroup
-                    title="B2B e indústria"
+                    title="B2B"
                     hint={COPY.b2b}
                     items={b2b}
                   />
                 </>
               )}
 
-              {filters.segmentIds.length > 0 && (
+              {filters.segmentIds.length > 0 ? (
                 <div>
                   <div className="flex flex-wrap gap-2">
                     {filters.segmentIds.map((id) => (
@@ -696,34 +888,36 @@ function LargadaWizard() {
                         key={id}
                         type="button"
                         onClick={() => toggleSegment(id)}
-                        className="rounded-lg bg-podium-yellow/15 px-2.5 py-1 text-xs font-bold text-podium-yellow"
                       >
-                        {segmentNames.get(id) ?? id} ×
+                        <Badge variant="accent">
+                          {segmentNames.get(id) ?? id} ×
+                        </Badge>
                       </button>
                     ))}
                   </div>
                   <Hint className="mt-2">Toque no nicho para escolher outro.</Hint>
                 </div>
-              )}
+              ) : null}
 
               <GlassCard className="p-5" highlight>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-bold">
+                    <h3 className="font-semibold">
                       Buscar e refinar atividade (CNAE)
                     </h3>
                     <Hint className="mt-1">
                       {COPY.cnae} Busque qualquer código ou descrição — não só os
-                      do segmento.
+                      do segmento. As atividades do nicho já vêm marcadas;
+                      desmarque o que quiser tirar da lista.
                     </Hint>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={() => setShowCnaePanel((v) => !v)}
-                    className="rounded-xl border border-podium-yellow/30 px-4 py-2 text-xs font-bold text-podium-yellow"
                   >
-                    {showCnaePanel ? "Ocultar atividades" : "Ver atividades (CNAE)"}
-                  </button>
+                    {showCnaePanel ? "Ocultar atividades" : "Mostrar atividades"}
+                  </Button>
                 </div>
                 <div className="relative mt-4">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
@@ -739,136 +933,155 @@ function LargadaWizard() {
                     {(cnaeSearchQuery.data ?? [])
                       .filter((c) => !filters.cnaes.includes(c.codigo))
                       .map((c) => (
-                        <button
+                        <ChoiceTile
                           key={c.codigo}
-                          type="button"
-                          onClick={() => addCnaeFromSearch(c.codigo, c.descricao)}
-                          className="flex w-full flex-col rounded-xl border border-white/10 px-3 py-2 text-left hover:border-podium-yellow/40"
+                          density="row"
+                          selected={false}
+                          onClick={() =>
+                            addCnaeFromSearch(c.codigo, c.descricao)
+                          }
+                          meta={`${c.count} empresas`}
                         >
-                          <span className="text-sm">
-                            <span className="font-mono text-xs text-podium-muted">
-                              {formatCnae(c.codigo) ?? c.codigo}
-                            </span>{" "}
-                            {c.descricao}
-                          </span>
-                          <span className="text-xs text-podium-muted">
-                            {c.count} empresas
-                          </span>
-                        </button>
+                          <span className="font-mono text-xs text-podium-muted">
+                            {formatCnae(c.codigo) ?? c.codigo}
+                          </span>{" "}
+                          {c.descricao}
+                        </ChoiceTile>
                       ))}
                   </div>
                 )}
                 {filters.cnaes.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {filters.cnaes.map((codigo) => (
-                      <button
-                        key={codigo}
-                        type="button"
-                        onClick={() => toggleCnae(codigo)}
-                        className="rounded-lg bg-white/10 px-2.5 py-1 text-xs text-podium-gray"
-                      >
-                        {formatCnae(codigo) ?? codigo}
-                        {cnaeLabels[codigo] ? ` · ${cnaeLabels[codigo]}` : ""} ×
-                      </button>
-                    ))}
+                  <div className="mt-3">
+                    <Hint>
+                      {filters.cnaes.length}{" "}
+                      {filters.cnaes.length === 1
+                        ? "atividade selecionada"
+                        : "atividades selecionadas"}
+                    </Hint>
+                    <div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
+                      {filters.cnaes.map((codigo) => (
+                        <button
+                          key={codigo}
+                          type="button"
+                          title={cnaeLabels[codigo] ?? codigo}
+                          onClick={() => toggleCnae(codigo)}
+                        >
+                          <Badge variant="neutral">
+                            {formatCnae(codigo) ?? codigo} ×
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {showCnaePanel && (
                   <div className="mt-4 max-h-64 space-y-2 overflow-auto">
-                    {(cnaePreview.data ?? []).length === 0 ? (
+                    {cnaePreview.isLoading ? (
                       <p className="text-sm text-podium-muted">
-                        Selecione segmentos ou uma intenção para listar as
+                        Carregando atividades do nicho…
+                      </p>
+                    ) : (cnaePreview.data ?? []).length === 0 ? (
+                      <p className="text-sm text-podium-muted">
+                        Selecione um segmento ou uma intenção para listar as
                         atividades do nicho — ou busque um CNAE acima.
                       </p>
                     ) : (
                       (cnaePreview.data ?? []).map((c) => {
                         const on = filters.cnaes.includes(c.codigo);
                         return (
-                          <label
+                          <ChoiceTile
                             key={c.codigo}
-                            className={cn(
-                              "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5",
-                              on
-                                ? "border-podium-yellow/40 bg-podium-yellow/10"
-                                : "border-white/10",
-                            )}
+                            density="row"
+                            selected={on}
+                            onClick={() => {
+                              if (!on) {
+                                setCnaeLabels((m) => ({
+                                  ...m,
+                                  [c.codigo]: c.descricao,
+                                }));
+                              }
+                              toggleCnae(c.codigo);
+                            }}
+                            meta={`${c.count} empresas`}
                           >
-                            <input
-                              type="checkbox"
-                              checked={on}
-                              onChange={() => toggleCnae(c.codigo)}
-                              className="mt-1 accent-podium-yellow"
-                            />
-                            <span className="text-sm">
-                              <span className="font-mono text-xs text-podium-muted">
-                                {c.codigo}
-                              </span>{" "}
-                              <span className="font-medium">{c.descricao}</span>
-                              <span className="mt-0.5 block text-xs text-podium-muted">
-                                {c.count} empresas
-                              </span>
+                            <span className="font-mono text-xs text-podium-muted">
+                              {formatCnae(c.codigo) ?? c.codigo}
+                            </span>{" "}
+                            <span className="font-medium text-podium-white">
+                              {c.descricao}
                             </span>
-                          </label>
+                          </ChoiceTile>
                         );
                       })
                     )}
                     {filters.cnaes.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => patch({ cnaes: [] })}
-                        className="text-xs text-podium-muted underline"
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          autoCnaeScopeKey.current = cnaeScopeKey(
+                            filters.segmentIds,
+                            filters.intentQuery,
+                          );
+                          patch({ cnaes: [] });
+                        }}
+                        className="underline"
                       >
                         Limpar atividades selecionadas (usar só segmentos)
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )}
               </GlassCard>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
                 disabled={!canContinueStep1}
                 onClick={() => setStep(2)}
-                className="rounded-xl bg-podium-yellow px-5 py-3 text-sm font-bold text-podium-navy disabled:opacity-40"
               >
                 Continuar para região
-              </button>
+              </Button>
             </div>
           )}
 
           {step === 2 && (
             <GlassCard className="space-y-4 p-5">
-              <h3 className="font-bold">Região — um estado</h3>
+              <h3 className="font-semibold">Região — um estado</h3>
               <p className="text-xs text-podium-muted">
                 Escolha um estado. Depois você pode refinar por município.
               </p>
-              {filters.ufs.length === 1 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-xl bg-podium-yellow px-3 py-2 text-sm font-bold text-podium-navy">
-                    {filters.ufs[0]}
-                  </span>
-                  <button
-                    type="button"
-                    className="text-xs font-bold text-podium-yellow"
-                    onClick={() => patch({ ufs: [], municipioIds: [] })}
-                  >
-                    Trocar estado
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {ALL_UFS.map((uf) => (
-                    <button
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-9">
+                {ALL_UFS.map((uf) => {
+                  const on = filters.ufs[0] === uf;
+                  return (
+                    <ChoiceTile
                       key={uf}
-                      type="button"
-                      onClick={() => patch({ ufs: [uf], municipioIds: [] })}
-                      className="rounded-xl bg-white/5 px-3 py-2 text-sm font-bold text-podium-gray hover:bg-white/10"
+                      density="compact"
+                      selected={on}
+                      aria-label={`Estado ${uf}`}
+                      onClick={() => {
+                        if (on) return;
+                        patch({ ufs: [uf], municipioIds: [] });
+                      }}
                     >
                       {uf}
-                    </button>
-                  ))}
+                    </ChoiceTile>
+                  );
+                })}
+              </div>
+              {filters.ufs.length === 1 ? (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Badge variant="accent">{filters.ufs[0]}</Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => patch({ ufs: [], municipioIds: [] })}
+                  >
+                    Limpar estado
+                  </Button>
                 </div>
-              )}
+              ) : null}
               <div className="rounded-xl border border-white/10">
                 <button
                   type="button"
@@ -876,7 +1089,7 @@ function LargadaWizard() {
                   className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
                 >
                   <span>
-                    <span className="block text-sm font-bold">
+                    <span className="block text-sm font-semibold">
                       Refinar por município
                     </span>
                     <span className="text-xs text-podium-muted">
@@ -895,31 +1108,34 @@ function LargadaWizard() {
                 {citiesOpen && (
                   <div className="border-t border-white/10 p-3">
                     <p className="mb-2 text-xs text-podium-muted">
-                      Sem município selecionado = estado inteiro. Busque municípios pelo nome.
+                      Sem município selecionado = estado inteiro. Busque
+                      municípios pelo nome.
                     </p>
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        className="text-xs font-bold text-podium-yellow"
+                    <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={async () => {
                           const res = await fetch(
                             `/api/ref/municipios?ufs=${filters.ufs.join(",")}&capitals=1`,
                           );
-                          const caps = (await res.json()) as Array<{ id: number }>;
+                          const caps = (await res.json()) as Array<{
+                            id: number;
+                          }>;
                           patch({ municipioIds: caps.map((c) => c.id) });
                         }}
                         disabled={!filters.ufs.length}
                       >
                         Selecionar capitais
-                      </button>
+                      </Button>
                       {filters.municipioIds.length > 0 && (
-                        <button
-                          type="button"
-                          className="text-xs text-podium-muted underline"
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => patch({ municipioIds: [] })}
                         >
                           Limpar (usar o estado inteiro)
-                        </button>
+                        </Button>
                       )}
                     </div>
                     <input
@@ -930,66 +1146,63 @@ function LargadaWizard() {
                       className="mb-3 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40 disabled:opacity-40"
                     />
                     {munLetterOptions.length > 0 ? (
-                      <div className="mb-3 flex flex-wrap gap-1">
+                      <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1">
                         {munLetterOptions.map((letter) => {
                           const on = munLetter === letter;
                           return (
-                            <button
+                            <ChoiceTile
                               key={letter}
-                              type="button"
+                              density="compact"
+                              selected={on}
+                              className="min-h-8 text-xs"
                               onClick={() =>
                                 setMunLetter(on ? null : letter)
                               }
-                              className={cn(
-                                "min-w-8 rounded-lg px-2 py-1 text-xs font-bold",
-                                on
-                                  ? "bg-podium-yellow text-podium-navy"
-                                  : "bg-white/5 text-podium-muted hover:text-podium-gray",
-                              )}
                             >
                               {letter}
-                            </button>
+                            </ChoiceTile>
                           );
                         })}
                       </div>
                     ) : null}
-                    <div className="flex max-h-56 flex-wrap gap-2 overflow-auto">
+                    <div className="grid max-h-56 grid-cols-2 gap-2 overflow-auto sm:grid-cols-3 md:grid-cols-4">
                       {municipiosShown.map((m) => {
                         const on = filters.municipioIds.includes(m.id);
                         return (
-                          <button
+                          <ChoiceTile
                             key={m.id}
-                            type="button"
+                            density="chip"
+                            selected={on}
+                            className="min-w-0 flex-none"
                             onClick={() =>
                               patch({
                                 municipioIds: on
-                                  ? filters.municipioIds.filter((id) => id !== m.id)
+                                  ? filters.municipioIds.filter(
+                                      (id) => id !== m.id,
+                                    )
                                   : [...filters.municipioIds, m.id],
                               })
                             }
-                            className={cn(
-                              "rounded-xl px-3 py-2 text-xs",
-                              on
-                                ? "bg-podium-yellow/20 text-podium-yellow"
-                                : "bg-white/5 text-podium-muted",
-                            )}
                           >
-                            {m.nome}/{m.uf}
-                          </button>
+                            <span className="truncate">
+                              {m.nome}
+                              <span className="text-podium-muted">/{m.uf}</span>
+                            </span>
+                          </ChoiceTile>
                         );
                       })}
                     </div>
                   </div>
                 )}
               </div>
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={() => setStep(3)}
                 disabled={!filters.ufs.length}
-                className="rounded-xl bg-podium-yellow px-5 py-3 text-sm font-bold text-podium-navy disabled:opacity-40"
               >
                 Continuar para qualidade
-              </button>
+              </Button>
             </GlassCard>
           )}
 
@@ -1036,7 +1249,7 @@ function LargadaWizard() {
               <button
                 type="button"
                 onClick={() => setMoreFilters((v) => !v)}
-                className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-podium-gray hover:border-white/20"
+                className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-podium-gray hover:border-white/20"
               >
                 Mais filtros
                 <ChevronDown
@@ -1050,8 +1263,8 @@ function LargadaWizard() {
               {moreFilters ? (
               <GlassCard className="space-y-5 p-5">
                 <div>
-                  <h3 className="font-bold">Porte</h3>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <h3 className="font-semibold">Porte</h3>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {[
                       ["01", PORTE_LABELS["01"]],
                       ["03", PORTE_LABELS["03"]],
@@ -1059,9 +1272,10 @@ function LargadaWizard() {
                     ].map(([code, label]) => {
                       const on = filters.portes.includes(code);
                       return (
-                        <button
+                        <ChoiceTile
                           key={code}
-                          type="button"
+                          density="card"
+                          selected={on}
                           onClick={() =>
                             patch({
                               portes: on
@@ -1069,37 +1283,26 @@ function LargadaWizard() {
                                 : [...filters.portes, code],
                             })
                           }
-                          className={cn(
-                            "min-h-12 rounded-xl px-5 text-sm font-bold",
-                            on
-                              ? "bg-podium-yellow text-podium-navy"
-                              : "bg-white/5 text-podium-gray",
-                          )}
                         >
                           {label}
-                        </button>
+                        </ChoiceTile>
                       );
                     })}
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-bold">Empresa aberta há mais de</h3>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <h3 className="font-semibold">Empresa aberta há mais de</h3>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[0, 3, 5, 10].map((y) => (
-                      <button
+                      <ChoiceTile
                         key={y}
-                        type="button"
+                        density="compact"
+                        selected={filters.idadeMinimaAnos === y}
                         onClick={() => patch({ idadeMinimaAnos: y })}
-                        className={cn(
-                          "min-h-12 rounded-xl px-5 text-sm font-bold",
-                          filters.idadeMinimaAnos === y
-                            ? "bg-podium-yellow text-podium-navy"
-                            : "bg-white/5 text-podium-gray",
-                        )}
                       >
                         {y === 0 ? "Qualquer" : `${y} anos`}
-                      </button>
+                      </ChoiceTile>
                     ))}
                   </div>
                 </div>
@@ -1127,18 +1330,21 @@ function LargadaWizard() {
               </GlassCard>
               ) : null}
 
-              <button
-                type="button"
-                disabled={runSearch.isPending || !canContinueStep1 || !filters.ufs.length}
+              <Button
+                variant="primary"
+                size="lg"
+                disabled={
+                  runSearch.isPending || !canContinueStep1 || !filters.ufs.length
+                }
                 onClick={() => runSearch.mutate()}
-                className="w-full rounded-xl bg-podium-yellow py-4 text-sm font-extrabold text-podium-navy disabled:opacity-40"
+                className="w-full"
               >
                 {runSearch.isPending
                   ? "Montando grid…"
                   : mode === "ajustar"
                     ? COPY.verNovoGrid
                     : COPY.verResultados}
-              </button>
+              </Button>
             </div>
           )}
         </div>

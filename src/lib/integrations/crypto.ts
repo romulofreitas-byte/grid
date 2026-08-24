@@ -1,10 +1,16 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import { isRuntimeProduction } from "@/lib/env/deploy";
 
 const DEV_SALT = "grid-podium-integrations";
 
 function kmsKey(): Buffer {
   const raw = process.env.INTEGRATION_KMS_KEY?.trim();
   if (!raw) {
+    if (isRuntimeProduction()) {
+      throw new Error(
+        "INTEGRATION_KMS_KEY é obrigatória em produção para credenciais de Conexões.",
+      );
+    }
     return scryptSync("grid-dev-integrations", DEV_SALT, 32);
   }
   if (/^[0-9a-f]{64}$/i.test(raw)) {

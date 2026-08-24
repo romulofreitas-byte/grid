@@ -30,6 +30,8 @@ export async function GET(req: Request) {
               id: s.id,
               slug: s.slug,
               nome: s.nome,
+              aliases: s.aliases ?? [],
+              keywords: s.keywords ?? [],
             })),
         }));
       return NextResponse.json(payload);

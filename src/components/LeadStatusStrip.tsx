@@ -1,7 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Phone } from "lucide-react";
-import { FichaChip } from "@/components/FichaChip";
+import { Button } from "@/components/ui/Button";
+import { ChoiceTile } from "@/components/ui/ChoiceTile";
 import { GlassCard } from "@/components/GlassCard";
 import type { LeadStatus } from "@/lib/types";
 
@@ -19,6 +21,7 @@ export function LeadStatusStrip({
   onStatus,
   onRecordCall,
   onNotasBlur,
+  callAction,
 }: {
   status: LeadStatus;
   notas: string | null;
@@ -26,29 +29,33 @@ export function LeadStatusStrip({
   onStatus: (status: LeadStatus) => void;
   onRecordCall: () => void;
   onNotasBlur: (notas: string) => void;
+  callAction?: ReactNode;
 }) {
   return (
-    <GlassCard className="space-y-3 p-4 hover:translate-y-0">
+    <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
+      {callAction ? <div>{callAction}</div> : null}
       <div className="flex flex-wrap items-center gap-2">
         {STATUSES.map((s) => (
-          <FichaChip
+          <ChoiceTile
             key={s.id}
-            type="button"
-            active={status === s.id}
+            density="chip"
+            selected={status === s.id}
             onClick={() => onStatus(s.id)}
+            className="min-w-0 flex-none"
           >
             {s.label}
-          </FichaChip>
+          </ChoiceTile>
         ))}
-        <FichaChip
-          type="button"
+        <Button
+          size="sm"
+          variant="ghost"
           disabled={recordPending}
           onClick={onRecordCall}
-          className="ml-auto"
+          className="ml-auto gap-1.5"
         >
           <Phone className="h-3.5 w-3.5" />
           {recordPending ? "Registrando…" : "Registrei"}
-        </FichaChip>
+        </Button>
       </div>
       <textarea
         defaultValue={notas ?? ""}

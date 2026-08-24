@@ -158,7 +158,25 @@ describe("buildAuditSignals", () => {
       "instagram",
     );
     expect(isAuditGap(gap)).toBe(true);
-    expect(gap.hint).toMatch(/sem Instagram/i);
+    expect(gap.hint).toMatch(/Instagram/i);
+  });
+
+  it("marks Serper Instagram without confirmed site as candidate, not live", () => {
+    const candidate = byId(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        socials: { instagram: "https://instagram.com/colegiogenesis" },
+        fonte: {
+          instagram: { fonte: "serper", coletado_em: "2026-08-19T12:00:00.000Z" },
+        },
+      }),
+      "instagram",
+    );
+    expect(candidate.found).toBe(true);
+    expect(candidate.unverified).toBe(true);
+    expect(isAuditLive(candidate)).toBe(false);
+    expect(candidate.hint).toMatch(/candidato/i);
   });
 
   it("formats WhatsApp and treats a missing channel as a gap on a confirmed site", () => {

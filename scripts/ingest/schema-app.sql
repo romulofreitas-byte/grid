@@ -88,9 +88,13 @@ create table if not exists niche_presets (
   keywords     text[] not null,
   exclusoes    text[] default '{}',
   name_stems   text[] default '{}',
+  aliases      text[] default '{}',
   curado       boolean default false,
   ordem        int default 0
 );
+
+-- Idempotent for existing DBs
+alter table niche_presets add column if not exists aliases text[] default '{}';
 
 create table if not exists niche_preset_cnaes (
   preset_id  uuid not null references niche_presets(id) on delete cascade,

@@ -1,4 +1,5 @@
 import { getDataSource, hasLiveDatabase } from "@/lib/data";
+import { isRuntimeProduction } from "@/lib/env/deploy";
 import { isUndefinedTableError } from "@/lib/data/pg";
 import {
   ENRICH_CREDIT_COST,
@@ -74,9 +75,22 @@ function sortLots(lots: CreditLot[]): CreditLot[] {
 
 export function providerForMethod(method: PaymentMethod): "asaas" | "stripe" | "mock" {
   if (method === "card_intl") {
-    return stripeConfigured() ? "stripe" : "mock";
+    if (stripeConfigured()) return "stripe";
+    if (isRuntimeProduction()) {
+      throw new BillingError(
+        "Stripe não configurado — pagamento internacional indisponível.",
+        503,
+      );
+    }
+    return "mock";
   }
   if (asaasConfigured()) return "asaas";
+  if (isRuntimeProduction()) {
+    throw new BillingError(
+      "Asaas não configurado — checkout indisponível em produção.",
+      503,
+    );
+  }
   return "mock";
 }
 
@@ -306,7 +320,11 @@ export async function createCheckout(input: {
   });
   if (!updated) throw new BillingError("Pedido não encontrado", 500);
 
-  if (providerId === "mock" && (method === "card_br" || method === "card_intl")) {
+  if (
+    !isRuntimeProduction() &&
+    providerId === "mock" &&
+    (method === "card_br" || method === "card_intl")
+  ) {
     await applyPaymentPaid(updated.id);
     return (await store.getOrder(updated.id)) ?? updated;
   }
@@ -322,6 +340,7 @@ export async function getOrderForProfile(
   if (!order || order.profileId !== profileId) return null;
 
   if (
+    !isRuntimeProduction() &&
     order.status === "pending" &&
     order.provider === "mock" &&
     order.method !== "boleto" &&
@@ -334,6 +353,9 @@ export async function getOrderForProfile(
 }
 
 export async function simulateMockPayment(orderId: string, profileId: string): Promise<BillingOrder> {
+  if (isRuntimeProduction()) {
+    throw new BillingError("Confirmação demo indisponível em produção", 403);
+  }
   const store = await getBillingStore();
   const order = await store.getOrder(orderId);
   if (!order || order.profileId !== profileId) {
@@ -635,6 +657,7 @@ export async function debitEnrich(
   profileId: string,
   cnpjs: string[],
   searchId: string | null,
+  options?: { forceCharge?: boolean },
 ): Promise<CreditBalance> {
   const balance = await getBalance(profileId);
   if (!balance.enrichAllowed) throw new EnrichmentNotAllowedError();
@@ -642,7 +665,12 @@ export async function debitEnrich(
   const store = await getBillingStore();
   const toCharge: string[] = [];
   for (const cnpj of unique) {
-    if (!(await store.isCnpjBilled(profileId, cnpj, "enrich"))) toCharge.push(cnpj);
+    if (
+      options?.forceCharge ||
+      !(await store.isCnpjBilled(profileId, cnpj, "enrich"))
+    ) {
+      toCharge.push(cnpj);
+    }
   }
   const needed = toCharge.length * ENRICH_CREDIT_COST;
   const result = needed

@@ -2,19 +2,19 @@
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnatomyCard } from "@/components/AnatomyCard";
-import { ApproachDoors } from "@/components/ApproachDoors";
+import { SociosPanel } from "@/components/ApproachDoors";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
 import { DigitalAuditPanel } from "@/components/DigitalAuditPanel";
-import { FichaChip } from "@/components/FichaChip";
 import { GlassCard } from "@/components/GlassCard";
 import { LeadCompanyCard } from "@/components/LeadCompanyCard";
 import { LeadStatusStrip } from "@/components/LeadStatusStrip";
+import { Button } from "@/components/ui/Button";
 import { leadBack, leadHref, parseGridFrom } from "@/lib/back";
 import {
   blockQualifyIfFree,
@@ -39,6 +39,7 @@ import {
   fetchLeadDossier,
   leadPreviewKey,
   leadQueryKey,
+  normalizeLeadCnpj,
   type LeadPreview,
 } from "@/lib/lead-query";
 import { cn } from "@/lib/utils";
@@ -69,18 +70,28 @@ function LeadPreviewShell({
   const cityLine = [preview.municipio, preview.uf].filter(Boolean).join(" · ");
   return (
     <AppShell fill title="Ficha" back={back}>
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-        <GlassCard className="p-6 hover:translate-y-0">
-          <p className="text-xs uppercase tracking-wide text-podium-gray">Fale com</p>
-          <p className="mt-1 text-lg font-extrabold text-podium-yellow">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4">
+        <LeadCompanyCard
+          title={displayCompanyName(preview.nomeFantasia, preview.razaoSocial)}
+          razaoSocial={preview.razaoSocial}
+          showRazao={Boolean(preview.nomeFantasia)}
+          cityLine={cityLine}
+          cnaeDescricao={preview.cnaeDescricao}
+          cnpj={preview.cnpj}
+        />
+        <GlassCard className="border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+            Contato
+          </p>
+          <p className="mt-1 text-lg font-semibold text-podium-white">
             {preview.decisorNome ?? "Sem sócio no quadro"}
           </p>
           {phone ? (
-            <div className="mt-5 rounded-2xl border border-podium-yellow/25 bg-podium-yellow/5 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-podium-muted">
-                Ligar agora
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-podium-muted">
+                Telefone
               </p>
-              <p className="mt-1 text-lg font-extrabold">{phone}</p>
+              <p className="mt-1 text-lg font-semibold">{phone}</p>
               {preview.seal ? (
                 <ContactSealBadge
                   seal={preview.seal}
@@ -94,17 +105,7 @@ function LeadPreviewShell({
             <p className="mt-4 text-sm text-podium-muted">Carregando contato…</p>
           )}
         </GlassCard>
-        <div className="flex min-h-0 flex-col gap-4">
-          <LeadCompanyCard
-            title={displayCompanyName(preview.nomeFantasia, preview.razaoSocial)}
-            razaoSocial={preview.razaoSocial}
-            showRazao={Boolean(preview.nomeFantasia)}
-            cityLine={cityLine}
-            cnaeDescricao={preview.cnaeDescricao}
-            cnpj={preview.cnpj}
-          />
-          <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
-        </div>
+        <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
       </div>
     </AppShell>
   );
@@ -120,19 +121,24 @@ export default function LeadPage() {
   const { openPaywall } = usePaywall();
   const billingQuery = useBillingMe();
   const [qualifyQueued, setQualifyQueued] = useState(false);
+  const [refreshQueued, setRefreshQueued] = useState(false);
   const [qualifyError, setQualifyError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
+  const heldCompleteRef = useRef<LeadEnrichment | null>(null);
 
   useEffect(() => {
     setQualifyQueued(false);
+    setRefreshQueued(false);
     setQualifyError(null);
     setCalling(false);
+    heldCompleteRef.current = null;
   }, [params.cnpj]);
 
   const dossierQuery = useQuery({
     queryKey: leadQueryKey(params.cnpj, searchId),
     queryFn: () => fetchLeadDossier(params.cnpj, searchId),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchInterval: (q) => {
       const status = q.state.data?.status;
       const tabulated = status === "reuniao" || status === "descartado";
@@ -150,9 +156,9 @@ export default function LeadPage() {
   });
 
   const streamQuery = useQuery({
-    queryKey: ["lead-stream", params.cnpj],
+    queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
     queryFn: async () => {
-      const res = await fetch(`/api/enrich?cnpj=${params.cnpj}`);
+      const res = await fetch(`/api/enrich?cnpj=${normalizeLeadCnpj(params.cnpj)}`);
       if (!res.ok) {
         return {
           enrichment: null as LeadEnrichment | null,
@@ -166,10 +172,15 @@ export default function LeadPage() {
     },
     enabled:
       qualifyQueued ||
+      refreshQueued ||
       dossierQuery.data?.enrichmentJobStatus === "pending" ||
       dossierQuery.data?.enrichmentJobStatus === "running" ||
+      // Job finished on the grid but dossier cache may still lack enrichment.
+      (dossierQuery.data?.enrichmentJobStatus === "done" &&
+        dossierQuery.data?.enrichment == null) ||
       (dossierQuery.data?.enrichment != null &&
-        enrichmentStage(dossierQuery.data.enrichment) !== "complete"),
+        enrichmentStage(dossierQuery.data.enrichment) !== "complete" &&
+        !refreshQueued),
     refetchInterval: 1000,
   });
 
@@ -211,14 +222,42 @@ export default function LeadPage() {
     streamQuery.data?.jobStatus ?? d?.enrichmentJobStatus ?? null;
 
   useEffect(() => {
+    if (liveEnrichment && enrichmentStage(liveEnrichment) === "complete") {
+      heldCompleteRef.current = liveEnrichment;
+    }
+  }, [liveEnrichment]);
+
+  // Keep yesterday's complete audit on screen while a paid refresh runs.
+  const displayEnrichment =
+    refreshQueued &&
+    heldCompleteRef.current &&
+    (!liveEnrichment || enrichmentStage(liveEnrichment) !== "complete")
+      ? heldCompleteRef.current
+      : liveEnrichment;
+
+  const hasCompleteAudit =
+    (displayEnrichment != null &&
+      enrichmentStage(displayEnrichment) === "complete") ||
+    heldCompleteRef.current != null;
+
+  useEffect(() => {
     const job = liveJobStatus;
     const stage = liveEnrichment ? enrichmentStage(liveEnrichment) : null;
     const finished =
       stage === "complete" || job === "failed" || job === "skipped";
-    if (!finished || !qualifyQueued) return;
+    if (!finished || (!qualifyQueued && !refreshQueued)) return;
     setQualifyQueued(false);
+    setRefreshQueued(false);
     void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
-  }, [liveJobStatus, liveEnrichment, qualifyQueued, params.cnpj, qc, searchId]);
+  }, [
+    liveJobStatus,
+    liveEnrichment,
+    qualifyQueued,
+    refreshQueued,
+    params.cnpj,
+    qc,
+    searchId,
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: async (patch: { status?: LeadStatus; notas?: string }) => {
@@ -254,27 +293,33 @@ export default function LeadPage() {
   });
 
   const qualifyMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { refresh?: boolean }) => {
       const res = await fetch("/api/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(searchId ? { searchId } : {}),
           cnpjs: [params.cnpj],
+          ...(opts?.refresh ? { refresh: true } : {}),
         }),
       });
       const json = (await res.json()) as { error?: string };
       throwIfBillingGate(res.status, json, openPaywall, "qualify");
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
+      if (!res.ok) {
+        throw new Error(
+          json.error ??
+            (opts?.refresh
+              ? "Não foi possível atualizar a qualificação"
+              : "Não foi possível qualificar"),
+        );
+      }
       return json;
-    },
-    onMutate: () => {
-      setQualifyQueued(true);
-      setQualifyError(null);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
-      void qc.invalidateQueries({ queryKey: ["lead-stream", params.cnpj] });
+      void qc.invalidateQueries({
+        queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
+      });
       void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
       if (searchId) {
         void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
@@ -283,11 +328,31 @@ export default function LeadPage() {
     },
     onError: (err: Error) => {
       setQualifyQueued(false);
+      setRefreshQueued(false);
       if (isBillingGateError(err)) return;
       setQualifyError(err.message);
     },
   });
 
+  function runQualify(refresh = false) {
+    if (
+      blockQualifyIfFree(
+        billingQuery.data?.balance.enrichAllowed,
+        openPaywall,
+      )
+    ) {
+      return;
+    }
+    setQualifyError(null);
+    if (refresh) {
+      setRefreshQueued(true);
+      setQualifyQueued(false);
+    } else {
+      setQualifyQueued(true);
+      setRefreshQueued(false);
+    }
+    qualifyMutation.mutate(refresh ? { refresh: true } : undefined);
+  }
   const confirmSiteMutation = useMutation({
     mutationFn: async (input: { action: "confirm" | "reject"; domain: string }) => {
       const res = await fetch("/api/enrich", {
@@ -310,7 +375,13 @@ export default function LeadPage() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
-      void qc.invalidateQueries({ queryKey: ["lead-stream", params.cnpj] });
+      void qc.invalidateQueries({
+        queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
+      });
+      if (searchId) {
+        void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
+        void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      }
     },
     onError: (err: Error) => {
       setQualifyQueued(false);
@@ -370,11 +441,35 @@ export default function LeadPage() {
 
   return (
     <AppShell fill title="Ficha" back={back}>
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-        <div className="order-1 flex min-h-0 flex-col gap-4">
-          <GlassCard className={cn("p-6", fillCard)}>
-            <p className="text-xs uppercase tracking-wide text-podium-gray">Fale com</p>
-            <p className="mt-1 text-lg font-extrabold text-podium-yellow">
+      <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-4">
+        <LeadCompanyCard
+          title={companyTitle}
+          razaoSocial={company.razao_social}
+          showRazao={Boolean(est.nome_fantasia)}
+          cityLine={cityLine}
+          cnaeDescricao={d.cnaeDescricao}
+          cnpj={est.cnpj}
+          gridPosition={d.gridPosition}
+          gridScore={d.gridScore}
+          hasAudit={Boolean(displayEnrichment)}
+          company={company}
+          establishment={est}
+          municipioNome={d.municipioNome}
+          addressSharedCount={d.addressSharedCount}
+          emailSeal={d.emailSeal}
+        />
+
+        <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+          <GlassCard
+            className={cn(
+              "h-full border-white/10 bg-white/[0.03] p-5",
+              fillCard,
+            )}
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+              Contato
+            </p>
+            <p className="mt-1 text-lg font-semibold text-podium-white">
               {d.decisor?.nome ?? "Sem sócio no quadro"}
             </p>
             <p className="mt-1 text-xs text-podium-gray">
@@ -384,8 +479,8 @@ export default function LeadPage() {
             </p>
 
             {primary ? (
-              <div className="mt-5 rounded-2xl border border-podium-yellow/25 bg-podium-yellow/5 p-4">
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-podium-muted">
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-podium-muted">
                   {callConnection &&
                   d.status !== "reuniao" &&
                   d.status !== "descartado" &&
@@ -398,10 +493,10 @@ export default function LeadPage() {
                       em chamada
                     </>
                   ) : (
-                    "Ligar agora"
+                    "Telefone"
                   )}
                 </p>
-                <p className="mt-1 text-lg font-extrabold">
+                <p className="mt-1 text-lg font-semibold">
                   {formatPhone(primary.ddd, primary.telefone)}
                 </p>
                 <ContactSealBadge
@@ -410,7 +505,9 @@ export default function LeadPage() {
                   className="mt-1"
                 />
                 {primary.sideNote ? (
-                  <p className="mt-1 text-xs text-podium-muted">{primary.sideNote}</p>
+                  <p className="mt-1 text-xs text-podium-muted">
+                    {primary.sideNote}
+                  </p>
                 ) : null}
                 {needsMapsHint ? (
                   <p className="mt-2 text-xs text-podium-muted">
@@ -440,7 +537,7 @@ export default function LeadPage() {
                   return (
                     <Link
                       href={leadHref(next.cnpj, next.searchId, from)}
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-podium-yellow/40 px-4 py-2.5 text-sm font-extrabold text-podium-yellow hover:bg-podium-yellow/10"
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-podium-gray hover:border-white/25 hover:text-podium-white"
                     >
                       P{next.gridPosition} · {next.nome}
                     </Link>
@@ -448,12 +545,14 @@ export default function LeadPage() {
                 })()}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-podium-muted">Sem telefone neste lead.</p>
+              <p className="mt-4 text-sm text-podium-muted">
+                Sem telefone neste lead.
+              </p>
             )}
 
             {others.length > 0 ? (
               <div className="mt-4 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
                   Outros números
                 </p>
                 {others.map((c, i) => (
@@ -464,7 +563,7 @@ export default function LeadPage() {
                     <div className="min-w-0">
                       <a
                         href={`tel:+55${c.ddd}${c.telefone}`}
-                        className="text-sm font-bold"
+                        className="text-sm font-semibold"
                       >
                         {formatPhone(c.ddd, c.telefone)}
                       </a>
@@ -475,7 +574,9 @@ export default function LeadPage() {
                         className="mt-0.5"
                       />
                       {c.sideNote ? (
-                        <p className="mt-0.5 text-xs text-podium-muted">{c.sideNote}</p>
+                        <p className="mt-0.5 text-xs text-podium-muted">
+                          {c.sideNote}
+                        </p>
                       ) : null}
                     </div>
                     <CallButton
@@ -498,91 +599,60 @@ export default function LeadPage() {
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {wa ? (
-                <FichaChip as="a" href={wa} target="_blank" rel="noreferrer">
+                <a
+                  href={wa}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-podium-muted hover:bg-white/5 hover:text-podium-gray"
+                >
                   <MessageCircle className="h-3.5 w-3.5" />
                   WhatsApp
-                </FichaChip>
+                </a>
               ) : (
-                <FichaChip type="button" disabled>
+                <Button size="sm" variant="ghost" disabled className="gap-1.5">
                   <MessageCircle className="h-3.5 w-3.5" />
                   WhatsApp
-                </FichaChip>
+                </Button>
               )}
               {needsMapsHint ? (
-                <FichaChip as="a" href={mapsUrl} target="_blank" rel="noreferrer">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-podium-muted hover:bg-white/5 hover:text-podium-gray"
+                >
                   <MapPin className="h-3.5 w-3.5" />
                   Conferir no Maps
-                </FichaChip>
+                </a>
               ) : null}
-              <ApproachDoors
-                decisorNome={d.decisor?.nome}
-                socios={d.socios ?? []}
-                enrichment={liveEnrichment}
-              />
             </div>
+
+            <SociosPanel
+              embedded
+              decisorNome={d.decisor?.nome}
+              socios={d.socios ?? []}
+              enrichment={displayEnrichment}
+            />
           </GlassCard>
 
-          <AnatomyCard
-            market={d.market}
-            uf={est.uf}
-            decisorNome={d.decisor?.nome}
-            volta={
-              statsQuery.data
-                ? `volta ${statsQuery.data.hoje}/${statsQuery.data.meta}`
-                : null
-            }
-          />
-
-          <LeadStatusStrip
-            key={params.cnpj}
-            status={d.status}
-            notas={d.notas}
-            recordPending={recordCall.isPending}
-            onStatus={(status) => saveMutation.mutate({ status })}
-            onRecordCall={() => recordCall.mutate()}
-            onNotasBlur={(notas) => saveMutation.mutate({ notas })}
-          />
-        </div>
-
-        <div className="order-2 flex min-h-0 flex-col gap-4">
-          <LeadCompanyCard
-            title={companyTitle}
-            razaoSocial={company.razao_social}
-            showRazao={Boolean(est.nome_fantasia)}
-            cityLine={cityLine}
-            cnaeDescricao={d.cnaeDescricao}
-            cnpj={est.cnpj}
-            gridPosition={d.gridPosition}
-            gridScore={d.gridScore}
-            company={company}
-            establishment={est}
-            municipioNome={d.municipioNome}
-            addressSharedCount={d.addressSharedCount}
-            emailSeal={d.emailSeal}
-          />
-
           <DigitalAuditPanel
-            enrichment={liveEnrichment}
+            className="h-full border-white/10 bg-white/[0.03]"
+            enrichment={displayEnrichment}
             qualifying={
-              qualifyQueued ||
-              liveJobStatus === "pending" ||
-              liveJobStatus === "running" ||
-              (liveEnrichment != null &&
-                enrichmentStage(liveEnrichment) !== "complete")
+              !hasCompleteAudit &&
+              (qualifyQueued ||
+                liveJobStatus === "pending" ||
+                liveJobStatus === "running" ||
+                (liveEnrichment != null &&
+                  enrichmentStage(liveEnrichment) !== "complete"))
             }
+            refreshing={refreshQueued}
             qualifyPending={qualifyMutation.isPending}
             qualifyError={qualifyError}
-            onQualify={() => {
-              if (
-                blockQualifyIfFree(
-                  billingQuery.data?.balance.enrichAllowed,
-                  openPaywall,
-                )
-              ) {
-                return;
-              }
-              qualifyMutation.mutate();
-            }}
+            onQualify={() => runQualify(false)}
+            onRefresh={
+              hasCompleteAudit ? () => runQualify(true) : undefined
+            }
             mapsUrl={mapsUrl}
             goldenMinute={d.goldenMinute}
             confirmPending={confirmSiteMutation.isPending}
@@ -594,6 +664,40 @@ export default function LeadPage() {
             }
           />
         </div>
+
+        <AnatomyCard
+          market={d.market}
+          uf={est.uf}
+          decisorNome={d.decisor?.nome}
+          volta={
+            statsQuery.data
+              ? `volta ${statsQuery.data.hoje}/${statsQuery.data.meta}`
+              : null
+          }
+        />
+
+        <LeadStatusStrip
+          key={params.cnpj}
+          status={d.status}
+          notas={d.notas}
+          recordPending={recordCall.isPending}
+          onStatus={(status) => saveMutation.mutate({ status })}
+          onRecordCall={() => recordCall.mutate()}
+          onNotasBlur={(notas) => saveMutation.mutate({ notas })}
+          callAction={
+            primary ? (
+              <CallButton
+                telHref={`tel:+55${primary.ddd}${primary.telefone}`}
+                connection={callConnection}
+                cnpj={params.cnpj}
+                searchId={searchId}
+                to={primaryE164 ? `+${primaryE164}` : undefined}
+                variant="cockpit"
+                onCalled={markLigando}
+              />
+            ) : null
+          }
+        />
       </div>
     </AppShell>
   );

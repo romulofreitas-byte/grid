@@ -46,6 +46,11 @@ function mapStage(row: QueryResultRow): CrmStage {
 }
 
 function mapDeal(row: QueryResultRow): CrmDeal {
+  const metaRaw = row.meta;
+  const meta =
+    metaRaw && typeof metaRaw === "object" && !Array.isArray(metaRaw)
+      ? (metaRaw as CrmDeal["meta"])
+      : {};
   return {
     id: String(row.id),
     pipeline_id: String(row.pipeline_id),
@@ -55,6 +60,8 @@ function mapDeal(row: QueryResultRow): CrmDeal {
     secretaries: asStringList(row.secretaries),
     phones: asStringList(row.phones),
     notes: String(row.notes ?? ""),
+    cnpj: row.cnpj == null || row.cnpj === "" ? null : String(row.cnpj),
+    meta,
     position: Number(row.position),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
@@ -437,6 +444,23 @@ export const crmPgMethods = {
   ): Promise<CrmDealCard | null> {
     return withTransaction(async (q) => {
       if (!(await ownedPipeline(q, userId, input.pipelineId))) return null;
+      const cnpj =
+        input.cnpj == null || input.cnpj === ""
+          ? null
+          : String(input.cnpj).replace(/\D/g, "").padStart(14, "0");
+      if (cnpj) {
+        const existing = await q(
+          `select d.id
+             from crm_deals d
+             join crm_pipelines p on p.id = d.pipeline_id
+            where d.pipeline_id = $1 and d.cnpj = $2 and p.user_id = $3
+            limit 1`,
+          [input.pipelineId, cnpj, userId],
+        );
+        if (existing.rows[0]) {
+          return loadCard(q, String(existing.rows[0].id));
+        }
+      }
       const first = await q(
         `select id from crm_stages
           where pipeline_id = $1
@@ -452,8 +476,8 @@ export const crmPgMethods = {
       );
       const inserted = await q(
         `insert into crm_deals (
-           pipeline_id, stage_id, company_name, contact_name, secretaries, phones, notes, position
-         ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8)
+           pipeline_id, stage_id, company_name, contact_name, secretaries, phones, notes, cnpj, meta, position
+         ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9::jsonb, $10)
          returning *`,
         [
           input.pipelineId,
@@ -463,11 +487,31 @@ export const crmPgMethods = {
           JSON.stringify(asStringList(input.secretaries)),
           JSON.stringify(asStringList(input.phones)),
           input.notes?.trim() ?? "",
+          cnpj,
+          JSON.stringify(input.meta ?? {}),
           Number(count.rows[0]?.n ?? 0),
         ],
       );
       return loadCard(q, String(inserted.rows[0]!.id));
     });
+  },
+
+  async findCrmDealByCnpj(
+    userId: string,
+    pipelineId: string,
+    cnpj: string,
+  ): Promise<CrmDealCard | null> {
+    const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+    const { rows } = await query(
+      `select d.id
+         from crm_deals d
+         join crm_pipelines p on p.id = d.pipeline_id
+        where d.pipeline_id = $1 and d.cnpj = $2 and p.user_id = $3
+        limit 1`,
+      [pipelineId, digits, userId],
+    );
+    if (!rows[0]) return null;
+    return loadCard(query, String(rows[0].id));
   },
 
   async updateCrmDeal(

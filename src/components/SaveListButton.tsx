@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BookmarkPlus } from "lucide-react";
 import { SaveListDialog } from "@/components/SaveListDialog";
+import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
-import { cn } from "@/lib/utils";
 
 export function SaveListButton({
   searchId,
@@ -47,23 +47,20 @@ export function SaveListButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="primary"
+        size={cockpit ? "lg" : "sm"}
         onClick={() => {
           setName(nome);
           setError(null);
           setOpen(true);
         }}
-        className={cn(
-          "inline-flex items-center font-extrabold text-podium-navy hover:brightness-110",
-          cockpit
-            ? "justify-center gap-3 rounded-xl bg-podium-yellow px-8 py-4 text-base"
-            : "gap-1.5 rounded-xl bg-podium-yellow px-3 py-2 text-xs",
-        )}
+        className={cockpit ? "gap-2" : undefined}
       >
-        <BookmarkPlus className={cockpit ? "h-5 w-5" : "h-3.5 w-3.5"} />
+        <BookmarkPlus className={cockpit ? "h-4 w-4" : "h-3.5 w-3.5"} />
         {COPY.salvarLista}
-      </button>
+      </Button>
       <SaveListDialog
         open={open}
         saved={false}

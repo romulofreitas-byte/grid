@@ -16,7 +16,7 @@ export const PONTE_CHIP: Record<DigitalSignalId, string> = {
   "copyright-antigo": "Site parado",
   "sem-instagram": "Sem Instagram",
   "sem-whatsapp": "Sem WhatsApp",
-  "midia-paga": "Já anuncia",
+  "midia-paga": "Sinal de anúncio",
 };
 
 export const GOLDEN_MINUTE_PLACEHOLDER =
@@ -79,7 +79,8 @@ export const CONTEXT_RULES: ContextRule[] = [
     when: (e) =>
       e.domain_status === "confirmado" &&
       (e.tech.metaPixel || e.tech.googleAds),
-    phrase: () => "vi que vocês já investem em anúncio",
+    phrase: () =>
+      "vi um sinal de anúncio no site de vocês (pixel ou tag) — não prova verba ativa",
     fonte: () => "pixel / tag AW- no HTML",
   },
 ];

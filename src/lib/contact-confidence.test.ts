@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { deriveSeal, verdictFromPartnerOverlap } from "./contact-confidence";
+import {
+  deriveSeal,
+  emailDomainCorrelatesWithBrand,
+  isFreeEmail,
+  receitaProviderDomain,
+  verdictFromPartnerOverlap,
+} from "./contact-confidence";
 import { normalizePhoneBR } from "./phone";
 
 const receita = normalizePhoneBR("3133334444")!;
@@ -153,5 +159,59 @@ describe("verdictFromPartnerOverlap", () => {
       ["10101010", ["G"]],
     ]);
     expect(verdictFromPartnerOverlap(10, map)).toBe("contabilidade");
+  });
+});
+
+describe("isFreeEmail / emailDomainCorrelatesWithBrand", () => {
+  it("treats uai.com.br as a free/portal mailbox", () => {
+    expect(isFreeEmail("serconsjn@uai.com.br")).toBe(true);
+  });
+
+  it("rejects email hosts that do not carry the brand", () => {
+    expect(
+      emailDomainCorrelatesWithBrand(
+        "serconsjn@empresaxyz.com.br",
+        "AUTO PECAS STELA LTDA",
+        "AUTO PECAS SAO LUIZ",
+        "Descoberto",
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts corporate hosts that embed a strong brand token", () => {
+    expect(
+      emailDomainCorrelatesWithBrand(
+        "contato@colegiogenesis.com.br",
+        "Genesis Sociedade de Ensino Ltda",
+        "Genesis",
+        "Belo Horizonte",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("receitaProviderDomain", () => {
+  it("returns host when e-mail is shared (accountant without contab in name)", () => {
+    expect(
+      receitaProviderDomain("processos@contajul.com", { shared: true }),
+    ).toBe("contajul.com");
+  });
+
+  it("returns host for accountant keyword hints without shared flag", () => {
+    expect(
+      receitaProviderDomain("contato@assessoriacontabil.com.br"),
+    ).toBe("assessoriacontabil.com.br");
+  });
+
+  it("ignores free mailbox hosts even when shared", () => {
+    expect(
+      receitaProviderDomain("loja@gmail.com", { shared: true }),
+    ).toBeNull();
+  });
+
+  it("ignores unique corporate e-mail without provider flags", () => {
+    expect(
+      receitaProviderDomain("contato@tnaslubrificacao.com.br"),
+    ).toBeNull();
   });
 });

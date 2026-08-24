@@ -9,12 +9,14 @@ import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
 import { EmptyValue } from "@/components/EmptyValue";
-import { FilterSummary } from "@/components/FilterSummary";
 import { GlassCard } from "@/components/GlassCard";
+import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { PositionBadge } from "@/components/PositionBadge";
 import { SaveListDialog } from "@/components/SaveListDialog";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SelectToggle } from "@/components/SelectToggle";
+import { Badge } from "@/components/ui/Badge";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
 import { gridBack, largadaEditHref, leadHref, parseGridFrom } from "@/lib/back";
@@ -27,13 +29,14 @@ import {
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { sealLabel } from "@/lib/contact-confidence";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
-import { formatCnae, formatPhone } from "@/lib/format";
+import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
 import {
   fetchLeadDossier,
   gridRowToPreview,
   leadPreviewKey,
   leadQueryKey,
+  normalizeLeadCnpj,
 } from "@/lib/lead-query";
 import { ExportDownload } from "@/components/ExportDownload";
 import { pickCallConnection } from "@/lib/integrations/call-target";
@@ -57,7 +60,10 @@ async function fetchPage(searchId: string, cursor: number) {
 type EnrichBody = {
   cnpjs?: string[];
   scope?: "first_unaudited" | "all_unaudited";
+  limit?: 10 | 20 | 50;
 };
+
+const QUALIFY_BATCH_SIZES = [10, 20, 50] as const;
 
 function isInteractiveTarget(target: EventTarget | null) {
   return (
@@ -69,13 +75,24 @@ function isInteractiveTarget(target: EventTarget | null) {
 function jobChip(status: GridRow["enrichmentStatus"]) {
   if (status === "pending") return "na fila";
   if (status === "running") return "cruzando";
-  if (status === "done" || status === "skipped") return "cruzado";
+  if (status === "done" || status === "skipped") return "qualificado";
   if (status === "failed") return "não deu";
   return null;
 }
 
+function rowCompanyMeta(row: GridRow): string {
+  const parts = [`${row.municipio}/${row.uf}`];
+  const cnae = formatCnae(row.cnaeCodigo);
+  if (cnae) parts.push(cnae);
+  if (row.porte) {
+    const porte = formatPorte(row.porte);
+    if (porte !== "NÃO ENCONTRADO") parts.push(porte);
+  }
+  return parts.join(" · ");
+}
+
 function rowSourceLabel(row: GridRow): string {
-  return jobChip(row.enrichmentStatus) ?? (row.hasAudit ? "Cruzado" : "Receita");
+  return jobChip(row.enrichmentStatus) ?? (row.hasAudit ? "Qualificado" : "Receita");
 }
 
 function RowSourceStatus({
@@ -86,12 +103,12 @@ function RowSourceStatus({
   className?: string;
 }) {
   const label = rowSourceLabel(row);
-  const crossed = label === "Cruzado" || label === "cruzado";
+  const qualified = label === "Qualificado" || label === "qualificado";
+  if (qualified) return null;
   return (
     <p
       className={cn(
-        "text-[10px] uppercase tracking-wide",
-        crossed ? "text-podium-yellow" : "text-podium-muted",
+        "text-[10px] uppercase tracking-wide text-podium-muted",
         className,
       )}
     >
@@ -119,24 +136,36 @@ function GridRowActions({
 }) {
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
+  const qualified =
+    row.hasAudit ||
+    row.enrichmentStatus === "done" ||
+    row.enrichmentStatus === "skipped";
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <SelectToggle
-        pressed={selected}
-        disabled={row.hasAudit}
-        onToggle={onToggle}
-        idleLabel="Selecionar"
-        pressedLabel="Selecionada"
-        ariaLabel={
-          selected ? `Selecionada ${name}` : `Selecionar ${name}`
-        }
-      />
+      {qualified ? (
+        <Badge
+          variant="success"
+          className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
+        >
+          Qualificado
+        </Badge>
+      ) : (
+        <SelectToggle
+          pressed={selected}
+          onToggle={onToggle}
+          idleLabel="Selecionar"
+          pressedLabel="Selecionada"
+          ariaLabel={
+            selected ? `Selecionada ${name}` : `Selecionar ${name}`
+          }
+        />
+      )}
       <Link
         href={leadHref(row.cnpj, searchId, from)}
         onPointerEnter={onWarm}
         onFocus={onWarm}
         onClick={onWarm}
-        className="inline-flex h-9 items-center rounded-xl bg-podium-yellow px-3 text-xs font-extrabold text-podium-navy hover:brightness-110"
+        className={buttonClassName({ variant: "primary", size: "sm" })}
       >
         Abrir
       </Link>
@@ -231,6 +260,7 @@ export default function GridPage() {
   });
 
   const [creditHint, setCreditHint] = useState<string | null>(null);
+  const [crmHint, setCrmHint] = useState<string | null>(null);
 
   const pushMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -290,17 +320,37 @@ export default function GridPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ searchId, ...body }),
       });
-      const json = (await res.json()) as { error?: string; upgradeUrl?: string };
+      const json = (await res.json()) as {
+        error?: string;
+        upgradeUrl?: string;
+        crmBridge?: {
+          created: number;
+          skipped: number;
+          pipelineNome: string | null;
+        } | null;
+      };
       throwIfBillingGate(res.status, json, openPaywall, "qualify");
       if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (json) => {
       setCreditHint(null);
+      const bridge = json.crmBridge;
+      if (bridge?.created && bridge.pipelineNome) {
+        setCrmHint(
+          bridge.created === 1
+            ? `1 lead no CRM · ${bridge.pipelineNome}`
+            : `${bridge.created} leads no CRM · ${bridge.pipelineNome}`,
+        );
+      } else {
+        setCrmHint(null);
+      }
       setSelected(new Set());
       setConfirmAll(false);
       void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
       void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      void qc.invalidateQueries({ queryKey: ["lead"] });
+      void qc.invalidateQueries({ queryKey: ["lead-stream"] });
       void qc.invalidateQueries({ queryKey: ["profile"] });
       void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
     },
@@ -366,22 +416,34 @@ export default function GridPage() {
   const allCost = unaudited * ENRICH_CREDIT_COST;
 
   const prevDoneJobs = useRef<number | null>(null);
+  const prevDoneCnpjs = useRef<Set<string>>(new Set());
   useEffect(() => {
     prevDoneJobs.current = null;
+    prevDoneCnpjs.current = new Set();
   }, [searchId]);
   useEffect(() => {
     if (jobs.length === 0) return;
+    const doneCnpjs = jobs
+      .filter((j) => j.status === "done" || j.status === "skipped")
+      .map((j) => normalizeLeadCnpj(j.cnpj));
     if (prevDoneJobs.current == null) {
       prevDoneJobs.current = doneJobs;
+      prevDoneCnpjs.current = new Set(doneCnpjs);
       return;
     }
     if (doneJobs <= prevDoneJobs.current) return;
     prevDoneJobs.current = doneJobs;
+    const newlyDone = doneCnpjs.filter((c) => !prevDoneCnpjs.current.has(c));
+    prevDoneCnpjs.current = new Set(doneCnpjs);
     void qc.invalidateQueries(
       { queryKey: ["grid", searchId] },
       { cancelRefetch: false },
     );
-  }, [doneJobs, jobs.length, qc, searchId]);
+    for (const cnpj of newlyDone) {
+      void qc.invalidateQueries({ queryKey: leadQueryKey(cnpj, searchId) });
+      void qc.invalidateQueries({ queryKey: ["lead-stream", cnpj] });
+    }
+  }, [doneJobs, jobs, qc, searchId]);
 
   function toggleRow(row: GridRow) {
     if (row.hasAudit) return;
@@ -395,10 +457,18 @@ export default function GridPage() {
 
   function warmLead(row: GridRow) {
     qc.setQueryData(leadPreviewKey(row.cnpj), gridRowToPreview(row));
+    const key = leadQueryKey(row.cnpj, searchId);
+    // After qualify on the grid, force a fresh dossier so the ficha shows the audit.
+    if (row.hasAudit || row.enrichmentStatus === "done") {
+      void qc.invalidateQueries({ queryKey: key });
+      void qc.invalidateQueries({
+        queryKey: ["lead-stream", normalizeLeadCnpj(row.cnpj)],
+      });
+    }
     void qc.prefetchQuery({
-      queryKey: leadQueryKey(row.cnpj, searchId),
+      queryKey: key,
       queryFn: () => fetchLeadDossier(row.cnpj, searchId),
-      staleTime: 30_000,
+      staleTime: row.hasAudit ? 0 : 30_000,
     });
   }
 
@@ -445,14 +515,15 @@ export default function GridPage() {
               <div className="h-9 w-28 animate-pulse rounded-xl bg-white/5" />
             ) : search?.saved ? (
               <div className="inline-flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={() => setSaveOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-podium-success/15 px-3 py-2 text-xs font-bold text-podium-success hover:bg-podium-success/25"
+                  className="border-podium-success/30 bg-podium-success/15 text-podium-success hover:border-podium-success/40 hover:bg-podium-success/25 hover:text-podium-success"
                 >
                   <Check className="h-3.5 w-3.5" />
                   {renamed ? "Nome atualizado" : COPY.listaSalva}
-                </button>
+                </Button>
                 <Link
                   href="/listas"
                   className="text-xs font-bold text-podium-muted hover:text-podium-yellow"
@@ -461,18 +532,19 @@ export default function GridPage() {
                 </Link>
               </div>
             ) : (
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={() => setSaveOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110"
               >
                 <BookmarkPlus className="h-3.5 w-3.5" />
                 {COPY.salvarLista}
-              </button>
+              </Button>
             )}
             <Link
               href={largadaEditHref(searchId, from)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+              className={buttonClassName({ variant: "secondary", size: "sm" })}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               {COPY.ajustarNichoQualidade}
@@ -496,7 +568,11 @@ export default function GridPage() {
             </span>
           </span>
           {search?.filtros ? (
-            <FilterSummary filters={search.filtros} className="contents" />
+            <ListSummaryBadges
+              filters={search.filtros}
+              includeSemContabil
+              className="contents"
+            />
           ) : null}
         </div>
 
@@ -509,34 +585,39 @@ export default function GridPage() {
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            title={`${ENRICH_CREDIT_COST} créditos cada`}
-            disabled={enrichMutation.isPending || unaudited === 0}
-            onClick={() => requestQualify({ scope: "first_unaudited" })}
-            className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
-          >
-            Qualificar os 50 primeiros
-          </button>
+          {QUALIFY_BATCH_SIZES.map((size) => (
+            <Button
+              key={size}
+              size="sm"
+              variant="secondary"
+              title={`${ENRICH_CREDIT_COST} créditos cada`}
+              disabled={enrichMutation.isPending || unaudited === 0}
+              onClick={() =>
+                requestQualify({ scope: "first_unaudited", limit: size })
+              }
+            >
+              Qualificar {size}
+            </Button>
+          ))}
           {confirmAll ? (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="primary"
               disabled={enrichMutation.isPending || unaudited === 0}
               onClick={() => requestQualify({ scope: "all_unaudited" })}
-              className="rounded-xl border border-podium-yellow/40 px-3 py-2 text-xs font-bold text-podium-yellow"
             >
               Confirmar {unaudited} · {allCost} créditos
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="secondary"
               title={`${ENRICH_CREDIT_COST} créditos cada`}
               disabled={unaudited === 0}
               onClick={() => setConfirmAll(true)}
-              className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
             >
               Qualificar a lista inteira ({unaudited})
-            </button>
+            </Button>
           )}
           {(() => {
             const destinations = (connectionsQuery.data?.connections ?? []).filter(
@@ -548,7 +629,10 @@ export default function GridPage() {
               return (
                 <Link
                   href="/conexoes"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "sm",
+                  })}
                 >
                   <Send className="h-3.5 w-3.5" />
                   Conectar envio
@@ -560,7 +644,7 @@ export default function GridPage() {
                 <select
                   value={connectionId || destinations[0]?.id || ""}
                   onChange={(e) => setConnectionId(e.target.value)}
-                  className="rounded-xl border border-white/15 bg-podium-panel px-3 py-2 text-xs text-podium-white"
+                  className="h-8 rounded-lg border border-white/15 bg-podium-panel px-3 text-xs text-podium-white"
                 >
                   {destinations.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -568,17 +652,18 @@ export default function GridPage() {
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  variant="primary"
                   disabled={pushMutation.isPending || rows.length === 0}
                   onClick={() =>
                     pushMutation.mutate(connectionId || destinations[0]!.id)
                   }
-                  className="inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
+                  className="gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" />
                   Enviar
-                </button>
+                </Button>
                 {lastPush ? (
                   <span className="text-[11px] text-podium-muted">
                     {lastPush.status === "done"
@@ -603,6 +688,9 @@ export default function GridPage() {
       </div>
       {creditHint ? (
         <p className="mb-4 text-sm text-podium-yellow">{creditHint}</p>
+      ) : null}
+      {crmHint ? (
+        <p className="mb-4 text-sm text-podium-muted">{crmHint}</p>
       ) : null}
 
       <SaveListDialog
@@ -633,20 +721,25 @@ export default function GridPage() {
       ) : query.isError && !query.data ? (
         <GlassCard className="p-5 text-sm text-podium-muted">
           <p>Não foi possível carregar a lista. Tente de novo.</p>
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => void query.refetch()}
-            className="mt-3 inline-flex items-center rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110"
+            className="mt-3"
           >
             Tentar de novo
-          </button>
+          </Button>
         </GlassCard>
       ) : rows.length === 0 ? (
         <GlassCard className="p-5 text-sm text-podium-muted">
           <p>{COPY.gridEmptyAdjust}</p>
           <Link
             href={largadaEditHref(searchId, from)}
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy"
+            className={cn(
+              buttonClassName({ variant: "primary", size: "sm" }),
+              "mt-3",
+            )}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {COPY.ajustarNichoQualidade}
@@ -711,7 +804,6 @@ export default function GridPage() {
             {rows.map((row) => {
               const ddd = row.telefone?.slice(0, 2) ?? null;
               const tel = row.telefone?.slice(2) ?? null;
-              const cnae = formatCnae(row.cnaeCodigo);
               const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
               return (
                 <tr
@@ -735,7 +827,11 @@ export default function GridPage() {
                     />
                   </td>
                   <td className="px-2 py-3 align-middle">
-                    <PositionBadge position={row.gridPosition} score={row.gridScore} />
+                    <PositionBadge
+                      position={row.gridPosition}
+                      score={row.gridScore}
+                      hasAudit={row.hasAudit}
+                    />
                     <RowSourceStatus row={row} className="mt-1" />
                   </td>
                   <td className="min-w-0 px-3 py-3 align-middle">
@@ -753,9 +849,16 @@ export default function GridPage() {
                       className="truncate text-xs text-podium-muted"
                       title={row.cnaeDescricao}
                     >
-                      {row.municipio}/{row.uf}
-                      {cnae ? ` · ${cnae}` : ""}
+                      {rowCompanyMeta(row)}
                     </p>
+                    {row.email ? (
+                      <p
+                        className="mt-0.5 truncate text-[11px] text-podium-muted/80"
+                        title={row.email}
+                      >
+                        {row.email}
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 align-middle">
                     {formatPhone(ddd, tel) ? (
@@ -790,7 +893,6 @@ export default function GridPage() {
         {rows.map((row) => {
           const ddd = row.telefone?.slice(0, 2) ?? null;
           const tel = row.telefone?.slice(2) ?? null;
-          const cnae = formatCnae(row.cnaeCodigo);
           const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
           return (
             <GlassCard
@@ -815,16 +917,27 @@ export default function GridPage() {
                   >
                     {name}
                   </p>
-                  <PositionBadge position={row.gridPosition} score={row.gridScore} />
+                  <PositionBadge
+                    position={row.gridPosition}
+                    score={row.gridScore}
+                    hasAudit={row.hasAudit}
+                  />
                 </div>
                 <RowSourceStatus row={row} />
                 <p
                   className="mt-1 truncate text-xs text-podium-muted"
                   title={row.cnaeDescricao}
                 >
-                  {row.municipio}/{row.uf}
-                  {cnae ? ` · ${cnae}` : ""}
+                  {rowCompanyMeta(row)}
                 </p>
+                {row.email ? (
+                  <p
+                    className="mt-0.5 truncate text-[11px] text-podium-muted/80"
+                    title={row.email}
+                  >
+                    {row.email}
+                  </p>
+                ) : null}
                 <p className="mt-2 text-sm tabular-nums">
                   {formatPhone(ddd, tel) ?? <EmptyValue />}
                 </p>
@@ -898,26 +1011,28 @@ export default function GridPage() {
             </p>
             <div className="flex gap-2">
               {selectedCount > 0 ? (
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant="secondary"
                   onClick={() => setSelected(new Set())}
-                  className="rounded-xl border border-white/15 px-4 py-2 text-xs font-bold text-podium-gray"
                 >
                   Limpar
-                </button>
+                </Button>
               ) : null}
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="primary"
                 disabled={enrichMutation.isPending || selectedCount === 0}
                 onClick={() => requestQualify({ cnpjs: [...selected] })}
-                className="rounded-xl bg-podium-yellow px-4 py-2 text-xs font-extrabold text-podium-navy disabled:opacity-40"
               >
                 {enrichMutation.isPending
                   ? "Qualificando…"
                   : selectedCount > 0
                     ? `Qualificar ${selectedCount}`
                     : "Qualificar"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

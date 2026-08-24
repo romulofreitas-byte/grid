@@ -56,16 +56,18 @@ export function detectCopyrightYear(html: string): number | undefined {
 
 export function midiaPagaLabel(tech: TechSignals, domainConfirmed: boolean): {
   label: string;
-  verificado_automaticamente: false;
+  verificado_automaticamente: boolean;
 } {
   if (!domainConfirmed) {
     return { label: "NÃO VERIFICADO", verificado_automaticamente: false };
   }
-  if (tech.metaPixel && tech.googleAds) {
+  const hasPaidSignal =
+    tech.metaPixel || tech.googleAds || tech.tiktokPixel;
+  if (hasPaidSignal) {
     return {
-      label: "sinais de mídia paga detectados",
-      verificado_automaticamente: false,
+      label: "sinal de tag de anúncio no HTML (não prova verba)",
+      verificado_automaticamente: true,
     };
   }
-  return { label: "sem sinal de mídia paga", verificado_automaticamente: false };
+  return { label: "sem sinal de tag de anúncio no HTML", verificado_automaticamente: true };
 }

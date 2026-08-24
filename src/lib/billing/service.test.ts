@@ -134,6 +134,22 @@ describe("billing service", () => {
     expect(second.total).toBe(898);
   });
 
+  it("forceCharge debits enrich again for an already-billed CNPJ", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const first = await debitEnrich(profileId, ["12345678000190"], "s1");
+    expect(first.total).toBe(898);
+    const refresh = await debitEnrich(profileId, ["12345678000190"], "s1", {
+      forceCharge: true,
+    });
+    expect(refresh.total).toBe(896);
+  });
+
   it("throws when credits run out", async () => {
     await getBalance(profileId);
     await expect(debitCredits(profileId, 26, "export", "x")).rejects.toBeInstanceOf(

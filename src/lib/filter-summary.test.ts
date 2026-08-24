@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS } from "@/lib/types";
 import {
   filterStepFilled,
+  listSummaryBadges,
   qualityDiffersFromDefault,
   segmentNameMap,
   summarizeFilters,
@@ -132,5 +133,56 @@ describe("qualityDiffersFromDefault", () => {
         filters({ ocultarTelefonesCompartilhados: false }),
       ),
     ).toBe(true);
+  });
+});
+
+describe("listSummaryBadges", () => {
+  it("builds nicho, local, matriz and sem contábil when allowed", () => {
+    const badges = listSummaryBadges(
+      filters({
+        segmentIds: ["clinicas"],
+        ufs: ["SP"],
+        municipioIds: [3550308],
+        soMatriz: true,
+        ocultarTelefonesCompartilhados: true,
+      }),
+      {
+        segmentNames: names,
+        municipioNames: { 3550308: "São Paulo" },
+        includeSemContabil: true,
+      },
+    );
+    expect(badges.map((b) => `${b.key}:${b.label}`)).toEqual([
+      "nicho:Clínica odontológica",
+      "local:SP · São Paulo",
+      "matriz:Só matriz",
+      "sem-contabil:Sem contábil",
+    ]);
+  });
+
+  it("omits sem contábil outside qualidade even when filter is on", () => {
+    const badges = listSummaryBadges(
+      filters({
+        segmentIds: ["clinicas"],
+        ocultarTelefonesCompartilhados: true,
+      }),
+      { segmentNames: names },
+    );
+    expect(badges.map((b) => b.key)).toEqual(["nicho"]);
+  });
+
+  it("labels whole-state local and omits sem contábil when off", () => {
+    const badges = listSummaryBadges(
+      filters({
+        intentQuery: "pet shop",
+        ufs: ["MG"],
+        ocultarTelefonesCompartilhados: false,
+      }),
+      { includeSemContabil: true },
+    );
+    expect(badges.map((b) => `${b.key}:${b.label}`)).toEqual([
+      "nicho:pet shop",
+      "local:MG · estado inteiro",
+    ]);
   });
 });

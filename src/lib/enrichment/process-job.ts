@@ -1,4 +1,8 @@
 import { getDataSource, getRepo } from "@/lib/data";
+import {
+  hasAccountantDomainHint,
+  receitaProviderDomain,
+} from "@/lib/contact-confidence";
 import { enrichCompany, type CascadeCompany } from "@/lib/enrichment/cascade";
 import {
   applyOsmFollowup,
@@ -165,10 +169,18 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       scoreProfile,
       qsaNomes: dossier.socios.map((s) => s.nome),
     };
+    const isRefresh = job.payload?.refresh === true;
+    const providerHost = receitaProviderDomain(dossier.establishment.email, {
+      shared: dossier.emailSeal?.shared === true,
+      accountantHint:
+        dossier.emailSeal?.accountantHint === true ||
+        hasAccountantDomainHint(dossier.establishment.email),
+    });
     const { row, timings } = await enrichCompany(
       company,
       cache,
-      (partial) => repo.upsertEnrichment(partial),
+      // Keep the prior complete audit visible until the new crawl finishes.
+      isRefresh ? undefined : (partial) => repo.upsertEnrichment(partial),
       {
         discardedDomains: [
           ...(existing?.discarded_domains ?? []),
@@ -176,9 +188,11 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
           ...(job.payload?.action === "reject" && job.payload.domain
             ? [job.payload.domain]
             : []),
+          ...(providerHost ? [providerHost] : []),
         ],
         forceConfirmDomain:
           job.payload?.action === "confirm" ? (job.payload.domain ?? null) : null,
+        emailShared: dossier.emailSeal?.shared === true,
       },
     );
     const upsertStarted = Date.now();

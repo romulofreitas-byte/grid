@@ -1,9 +1,10 @@
 "use client";
 
+import { Badge } from "@/components/ui/Badge";
 import { GlassCard } from "@/components/GlassCard";
-import { FichaChip } from "@/components/FichaChip";
 import {
   MES_CURTO,
+  MES_NOME,
   mesNumero,
   peakCaption,
   peakMonths,
@@ -16,7 +17,26 @@ import { cn } from "@/lib/utils";
 const SEASON_PILL: Record<SeasonStatus, string | null> = {
   agora: "neste mês",
   "na-porta": "mês que vem",
-  fora: "fora",
+  fora: "fora do pico",
+  nenhuma: null,
+};
+
+const SEASON_BANNER: Record<
+  SeasonStatus,
+  { title: string; className: string } | null
+> = {
+  agora: {
+    title: "Janela aberta — pico de demanda deste nicho",
+    className: "border-podium-yellow/40 bg-podium-yellow/10 text-podium-yellow",
+  },
+  "na-porta": {
+    title: "Pico na porta — prepare abordagem este mês",
+    className: "border-podium-info/35 bg-podium-info/10 text-podium-info",
+  },
+  fora: {
+    title: "Fora do pico — use ângulo de calendário com cuidado",
+    className: "border-white/10 bg-white/[0.03] text-podium-muted",
+  },
   nenhuma: null,
 };
 
@@ -41,7 +61,7 @@ function Cue({
   return (
     <div
       className={cn(
-        "rounded-2xl border px-3 py-2.5 text-left",
+        "rounded-xl border px-3 py-2.5 text-left",
         live
           ? "border-podium-yellow/40 bg-podium-yellow/10"
           : "border-white/10 bg-white/[0.03]",
@@ -50,7 +70,7 @@ function Cue({
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
-            "text-[9px] font-bold uppercase tracking-[0.16em]",
+            "text-[9px] font-semibold uppercase tracking-[0.16em]",
             live ? "text-podium-yellow" : "text-podium-muted",
           )}
         >
@@ -59,7 +79,7 @@ function Cue({
         {pill ? (
           <span
             className={cn(
-              "rounded-xl px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+              "rounded-lg px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
               live
                 ? "bg-podium-yellow text-podium-navy"
                 : "border border-white/15 text-podium-muted",
@@ -71,7 +91,7 @@ function Cue({
       </div>
       <p
         className={cn(
-          "mt-1 text-xs font-extrabold leading-snug",
+          "mt-1 text-xs font-semibold leading-snug",
           live ? "text-podium-yellow" : "text-podium-white",
         )}
       >
@@ -86,45 +106,120 @@ function Cue({
   );
 }
 
-function PeakChips({
+function SeasonCalendar({
   months,
   now,
+  sazonalidade,
 }: {
   months: number[];
   now: Date;
+  sazonalidade: string | null;
 }) {
   const current = mesNumero(now);
   const peaks = peakMonths(months);
-  if (peaks.length === 0) return null;
+  const status = seasonStatus(months, now);
   const caption = peakCaption(months, now);
+  const banner = SEASON_BANNER[status];
+
+  if (peaks.length === 0 && !sazonalidade?.trim()) {
+    return (
+      <p className="mt-3 text-sm text-podium-muted">
+        Sem calendário de pico curado para este nicho.
+      </p>
+    );
+  }
+
   return (
-    <div className="mt-3">
-      <ol className="flex flex-wrap gap-1">
-        {MES_CURTO.map((label, index) => {
-          const month = index + 1;
-          const inSeason = peaks.includes(month);
-          const isNow = month === current;
-          return (
-            <li key={month}>
-              <span
-                className={cn(
-                  "inline-flex h-6 min-w-[1.85rem] items-center justify-center rounded-md px-1.5 text-[10px] font-bold",
-                  inSeason && isNow && "bg-podium-yellow text-podium-navy",
-                  inSeason && !isNow && "bg-podium-yellow/20 text-podium-yellow",
-                  !inSeason && isNow && "border border-podium-yellow/40 text-podium-yellow",
-                  !inSeason && !isNow && "border border-white/10 text-podium-muted",
-                )}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+    <div className="mt-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+            Calendário de mercado
+          </p>
+          <p className="mt-1 text-sm font-semibold text-podium-white">
+            Picos e janelas de oportunidade
+          </p>
+        </div>
+        {SEASON_PILL[status] ? (
+          <Badge variant={status === "agora" ? "accent" : "neutral"}>
+            {SEASON_PILL[status]}
+          </Badge>
+        ) : null}
+      </div>
+
+      {banner ? (
+        <p
+          className={cn(
+            "mt-3 rounded-xl border px-3 py-2 text-xs font-semibold leading-snug",
+            banner.className,
+          )}
+        >
+          {banner.title}
+        </p>
+      ) : null}
+
+      {peaks.length > 0 ? (
+        <ol className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-12">
+          {MES_CURTO.map((label, index) => {
+            const month = index + 1;
+            const inSeason = peaks.includes(month);
+            const isNow = month === current;
+            return (
+              <li key={month}>
+                <span
+                  title={MES_NOME[index]}
+                  className={cn(
+                    "flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center",
+                    inSeason &&
+                      isNow &&
+                      "border-podium-yellow bg-podium-yellow text-podium-navy",
+                    inSeason &&
+                      !isNow &&
+                      "border-podium-yellow/35 bg-podium-yellow/15 text-podium-yellow",
+                    !inSeason &&
+                      isNow &&
+                      "border-podium-yellow/40 text-podium-yellow",
+                    !inSeason &&
+                      !isNow &&
+                      "border-white/10 text-podium-muted",
+                  )}
+                >
+                  <span className="text-[10px] font-semibold uppercase">
+                    {label}
+                  </span>
+                  {inSeason ? (
+                    <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-80">
+                      pico
+                    </span>
+                  ) : isNow ? (
+                    <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-70">
+                      agora
+                    </span>
+                  ) : (
+                    <span className="mt-0.5 text-[8px] opacity-0">·</span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+
       {caption ? (
-        <p className="mt-1.5 text-[11px] leading-relaxed text-podium-muted">
+        <p className="mt-2 text-[11px] leading-relaxed text-podium-gray">
           {caption}
         </p>
+      ) : null}
+
+      {sazonalidade?.trim() ? (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+            Contexto do nicho
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-podium-gray">
+            {sazonalidade.trim()}
+          </p>
+        </div>
       ) : null}
     </div>
   );
@@ -147,30 +242,20 @@ export function AnatomyCard({
   const place = [market.cidade, uf].filter(Boolean).join(" · ");
   const seasonTitle =
     status === "nenhuma"
-      ? "Sem pico"
+      ? "Sem pico curado"
       : (market.sazonalidadeChip ?? "Janela");
-  const seasonHook =
-    market.sazonalidadeAtiva && market.sazonalidade?.trim()
-      ? market.sazonalidade.trim()
-      : null;
-  const tip = [market.dorPrincipal.trim(), seasonHook]
-    .filter(Boolean)
-    .join(" ");
+  const tip = market.dorPrincipal.trim();
   const angulo = market.perguntaConsideracao.trim();
 
   return (
-    <GlassCard className="relative overflow-hidden p-5 hover:translate-y-0" highlight>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-12 top-0 h-56 w-56 bg-[radial-gradient(circle,rgba(245,179,1,0.10),transparent_65%)]"
-      />
+    <GlassCard className="relative overflow-hidden border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-              Anatomia
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
+              Mercado
             </p>
-            <h2 className="mt-1 text-lg font-extrabold leading-tight text-podium-yellow">
+            <h2 className="mt-1 text-lg font-semibold leading-tight text-podium-white">
               {market.dorChip}
             </h2>
             <p className="mt-1 truncate text-xs capitalize text-podium-gray">
@@ -179,16 +264,16 @@ export function AnatomyCard({
             </p>
           </div>
           {volta ? (
-            <FichaChip as="span" active className="shrink-0">
+            <Badge variant="neutral" className="shrink-0">
               {volta}
-            </FichaChip>
+            </Badge>
           ) : null}
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <Cue kicker="Quem" title={firstName(decisorNome)} />
           <Cue
-            kicker="Calendário"
+            kicker="Sazonalidade"
             title={seasonTitle}
             live={status === "agora"}
             pill={SEASON_PILL[status]}
@@ -202,11 +287,15 @@ export function AnatomyCard({
           <p className="mt-4 text-xs leading-relaxed text-podium-gray">{tip}</p>
         ) : null}
 
-        <PeakChips months={market.sazonalidadeMeses} now={now} />
+        <SeasonCalendar
+          months={market.sazonalidadeMeses}
+          now={now}
+          sazonalidade={market.sazonalidade}
+        />
 
         {angulo ? (
           <div className="mt-4 border-t border-white/10 pt-3">
-            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
               Ângulo
             </p>
             <p className="mt-1 text-xs font-medium leading-snug text-podium-white/80">

@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 export function SelectToggle({
@@ -29,18 +30,17 @@ export function SelectToggle({
       aria-label={ariaLabel ?? label}
       onClick={onToggle}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 font-extrabold transition",
         variant === "text" &&
-          "normal-case tracking-normal text-xs text-podium-yellow hover:underline",
-        variant === "button" && "h-9 rounded-xl px-2.5 text-xs",
+          "inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-podium-yellow transition hover:underline",
         variant === "button" &&
-          (pressed
-            ? "bg-podium-yellow text-podium-navy"
-            : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-yellow"),
+          buttonClassName({
+            variant: pressed ? "primary" : "secondary",
+            size: "sm",
+          }),
       )}
     >
       {variant === "button" && pressed ? (
-        <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+        <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
       ) : null}
       {label}
     </button>

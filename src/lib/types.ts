@@ -45,6 +45,7 @@ export type GmbListing = {
 
 export type EnrichmentJobPayload = {
   force?: boolean;
+  refresh?: boolean;
   action?: "confirm" | "reject";
   domain?: string;
   discarded_domains?: string[];
@@ -133,7 +134,8 @@ export type LeadEnrichment = {
   fonte: Record<string, { fonte: string; coletado_em: string }>;
   midiaPaga: {
     label: string;
-    verificado_automaticamente: false;
+    /** True when domain is confirmed and pixel/ads heuristics fired on HTML. */
+    verificado_automaticamente: boolean;
   };
   /** null/omit = not extracted yet (legacy row). [] = crawled, none found. */
   people?: SitePerson[] | null;
@@ -234,6 +236,8 @@ export type NichePreset = {
   exclusoes: string[];
   /** stems used to generate coherent mock company names */
   name_stems: string[];
+  /** commercial findability terms (envasadoras, cervejaria, …) */
+  aliases: string[];
   curado: boolean;
   ordem: number;
 };
@@ -421,6 +425,8 @@ export type GridRow = {
   sharedCount: number;
   decisorNome: string | null;
   porte: string | null;
+  /** Receita Federal email when present — display-only on grid. */
+  email: string | null;
   gridScore: number;
   gridPosition: number;
   sharedVerdict?: SharedPhoneVerdict;
@@ -454,6 +460,7 @@ export type GridRowSnapshot = {
   sharedVerdict?: SharedPhoneVerdict;
   decisorNome: string | null;
   porte: string | null;
+  email: string | null;
 };
 
 export type CountMode = "total" | "full";

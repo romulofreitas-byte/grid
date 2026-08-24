@@ -279,7 +279,11 @@ function instagramValue(raw: string | undefined): string {
 }
 
 function presenceSearched(e: LeadEnrichment, key: string): boolean {
-  return Boolean(e.fonte[key]);
+  const fonte = e.fonte[key]?.fonte;
+  if (!fonte || fonte === "skipped_no_site" || fonte === "skipped_weak_brand") {
+    return false;
+  }
+  return true;
 }
 
 function socialHint(
@@ -295,6 +299,21 @@ function socialHint(
   if (searched) return missingSearch;
   if (confirmed) return missingConfirmed;
   return blocked;
+}
+
+function socialLiveHint(fonte: string | undefined, confirmed = true): string {
+  if (fonte === "site") return "Link encontrado no site confirmado.";
+  if (fonte === "serper" && !confirmed) {
+    return "Candidato na busca — confirme o site para validar.";
+  }
+  if (fonte === "serper") {
+    return "Perfil correlacionado à marca na busca (título/handle).";
+  }
+  return "Perfil encontrado no site confirmado ou na busca com a marca.";
+}
+
+function socialBlockedHint(asset: string): string {
+  return `Sem site confirmado e sem marca distintiva — confirme o site para cruzar o ${asset}.`;
 }
 
 function siteNote(e: LeadEnrichment): string | undefined {
@@ -319,8 +338,8 @@ function siteNote(e: LeadEnrichment): string | undefined {
 
 function paidMediaHint(found: boolean): string {
   return found
-    ? "Já investe em anúncio (sinal no HTML, não é prova de verba)."
-    : "Sem sinal de mídia paga no HTML.";
+    ? "Sinal de tag de anúncio no HTML — não é prova de verba ativa."
+    : "Sem sinal de tag de anúncio no HTML.";
 }
 
 export function isAuditGap(signal: AuditSignal): boolean {
@@ -504,7 +523,10 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.instagram,
       found: Boolean(e.socials.instagram),
-      unverified: !e.socials.instagram && !presenceSearched(e, "instagram") && !confirmed,
+      unverified:
+        Boolean(e.socials.instagram)
+          ? e.fonte.instagram?.fonte === "serper" && !confirmed
+          : !presenceSearched(e, "instagram") && !confirmed,
       href: absUrl(e.socials.instagram, "instagram.com"),
       openLabel: e.socials.instagram ? "Abrir Instagram" : null,
       value: instagramValue(e.socials.instagram),
@@ -512,10 +534,10 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.instagram),
         presenceSearched(e, "instagram"),
         confirmed,
-        "Perfil encontrado na busca ou no site.",
-        "Site sem Instagram linkado.",
-        "Busca no Instagram não achou o perfil.",
-        "Ainda não buscamos o Instagram desta empresa.",
+        socialLiveHint(e.fonte.instagram?.fonte, confirmed),
+        "Não achei link de Instagram no site confirmado.",
+        "Não achei Instagram no site nem na busca com a marca.",
+        socialBlockedHint("Instagram"),
       ),
       links: igAds
         ? [{ label: "Biblioteca de Anúncios", href: igAds }]
@@ -526,7 +548,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.facebook,
       found: Boolean(e.socials.facebook),
-      unverified: !e.socials.facebook && !presenceSearched(e, "facebook"),
+      unverified: Boolean(e.socials.facebook)
+        ? e.fonte.facebook?.fonte === "serper" && !confirmed
+        : !presenceSearched(e, "facebook"),
       href: absUrl(e.socials.facebook, "facebook.com"),
       openLabel: e.socials.facebook ? "Abrir Facebook" : null,
       value: e.socials.facebook ?? "NÃO ENCONTRADO",
@@ -534,10 +558,10 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.facebook),
         presenceSearched(e, "facebook"),
         confirmed,
-        "Página encontrada na busca ou no site.",
-        "Facebook não apareceu nos links do site.",
-        "Busca no Facebook não achou a página.",
-        "Ainda não buscamos o Facebook desta empresa.",
+        socialLiveHint(e.fonte.facebook?.fonte, confirmed),
+        "Não achei link de Facebook no site confirmado.",
+        "Não achei Facebook no site nem na busca com a marca.",
+        socialBlockedHint("Facebook"),
       ),
     }),
     signal({
@@ -545,7 +569,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.linkedin,
       found: Boolean(e.socials.linkedin),
-      unverified: !e.socials.linkedin && !presenceSearched(e, "linkedin"),
+      unverified: Boolean(e.socials.linkedin)
+        ? e.fonte.linkedin?.fonte === "serper" && !confirmed
+        : !presenceSearched(e, "linkedin"),
       href: absUrl(e.socials.linkedin, "linkedin.com"),
       openLabel: e.socials.linkedin ? "Abrir LinkedIn" : null,
       value: e.socials.linkedin ?? "NÃO ENCONTRADO",
@@ -553,10 +579,10 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.linkedin),
         presenceSearched(e, "linkedin"),
         confirmed,
-        "Perfil encontrado na busca ou no site.",
-        "LinkedIn não apareceu nos links do site.",
-        "Busca no LinkedIn não achou o perfil.",
-        "Ainda não buscamos o LinkedIn desta empresa.",
+        socialLiveHint(e.fonte.linkedin?.fonte, confirmed),
+        "Não achei link de LinkedIn no site confirmado.",
+        "Não achei LinkedIn no site nem na busca com a marca.",
+        socialBlockedHint("LinkedIn"),
       ),
     }),
     signal({
@@ -564,7 +590,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.youtube,
       found: Boolean(e.socials.youtube),
-      unverified: !e.socials.youtube && !presenceSearched(e, "youtube"),
+      unverified: Boolean(e.socials.youtube)
+        ? e.fonte.youtube?.fonte === "serper" && !confirmed
+        : !presenceSearched(e, "youtube"),
       href: absUrl(e.socials.youtube, "youtube.com"),
       openLabel: e.socials.youtube ? "Abrir YouTube" : null,
       value: e.socials.youtube ?? "NÃO ENCONTRADO",
@@ -572,10 +600,10 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.youtube),
         presenceSearched(e, "youtube"),
         confirmed,
-        "Canal encontrado na busca ou no site.",
-        "YouTube não apareceu nos links do site.",
-        "Busca no YouTube não achou o canal.",
-        "Ainda não buscamos o YouTube desta empresa.",
+        socialLiveHint(e.fonte.youtube?.fonte, confirmed),
+        "Não achei link de YouTube no site confirmado.",
+        "Não achei YouTube no site nem na busca com a marca.",
+        socialBlockedHint("YouTube"),
       ),
     }),
     signal({

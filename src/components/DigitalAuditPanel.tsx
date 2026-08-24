@@ -1,10 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ExternalLink, MapPin } from "lucide-react";
+import { ChevronDown, ExternalLink, MapPin } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { AuditLogo } from "@/components/AuditLogo";
-import { FichaChip } from "@/components/FichaChip";
+import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/GlassCard";
 import { SectionTitle } from "@/components/SectionTitle";
 import {
@@ -26,21 +26,53 @@ import { cn } from "@/lib/utils";
 
 type GoldenMinute = LeadDossier["goldenMinute"];
 
-function QualifyHeader({ mapsUrl }: { mapsUrl?: string | null }) {
+function QualifyHeader({
+  mapsUrl,
+  showRefresh,
+  refreshing,
+  onRefresh,
+}: {
+  mapsUrl?: string | null;
+  showRefresh?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+}) {
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-podium-yellow">
           Qualificação
         </p>
-        <SectionTitle className="mt-1 text-base md:text-base">Ativos digitais</SectionTitle>
+        <SectionTitle className="mt-1 text-base md:text-base">
+          Ativos digitais
+        </SectionTitle>
       </div>
-      {mapsUrl ? (
-        <FichaChip as="a" href={mapsUrl} target="_blank" rel="noreferrer">
-          <MapPin className="h-3.5 w-3.5" />
-          Maps
-        </FichaChip>
-      ) : null}
+      <div className="flex shrink-0 items-center gap-0.5">
+        {showRefresh && onRefresh ? (
+          <button
+            type="button"
+            title={COPY.atualizarQualificacaoHint}
+            disabled={refreshing}
+            onClick={onRefresh}
+            className="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-xs font-semibold text-podium-muted transition hover:bg-white/5 hover:text-podium-gray disabled:opacity-50"
+          >
+            {refreshing
+              ? COPY.atualizandoQualificacao
+              : `${COPY.atualizarQualificacao} · ${ENRICH_CREDIT_COST}`}
+          </button>
+        ) : null}
+        {mapsUrl ? (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-podium-muted transition hover:bg-white/5 hover:text-podium-gray"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            Maps
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -88,8 +120,11 @@ function statusLabel(
   if (isAuditLive(signal)) {
     return { text: "Encontrado", className: "text-podium-success" };
   }
+  if (signal.found && signal.unverified) {
+    return { text: "Candidato", className: "text-podium-yellow" };
+  }
   if (isAuditGap(signal)) {
-    return { text: "Falta", className: "text-amber-400" };
+    return { text: "Falta", className: "text-amber-300" };
   }
   return { text: "Sem sinal", className: "text-podium-muted" };
 }
@@ -111,17 +146,21 @@ function OpenLinks({
   return (
     <div className="mt-3 flex flex-wrap gap-2">
       {items.map((link, i) => (
-          <FichaChip
-            as="a"
-            key={link.href}
-            href={link.href}
-            target="_blank"
-            rel="noreferrer"
-            active={primary && i === 0}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            {link.label}
-          </FichaChip>
+        <a
+          key={link.href}
+          href={link.href}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition",
+            primary && i === 0
+              ? "border-white/20 bg-white/[0.06] text-podium-white"
+              : "border-white/10 text-podium-muted hover:border-white/20 hover:text-podium-gray",
+          )}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          {link.label}
+        </a>
       ))}
     </div>
   );
@@ -249,16 +288,16 @@ function SignalTile({
       aria-busy={scanning || undefined}
       onClick={onSelect}
       className={cn(
-        "group box-border flex h-[7.25rem] w-full min-w-0 flex-col items-center justify-between rounded-2xl border px-1.5 py-2.5 text-center transition-[border-color,background-color] duration-300",
+        "group box-border flex h-[7.25rem] w-full min-w-0 flex-col items-center justify-between rounded-2xl border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
         selected
-          ? "border-podium-yellow/50 bg-podium-yellow/10"
+          ? "border-podium-yellow/50 bg-podium-yellow/10 shadow-[inset_0_0_0_1px_rgba(245,179,1,0.15)]"
           : scanning
             ? "border-podium-yellow/40 bg-podium-yellow/[0.06]"
             : live
-              ? "border-podium-yellow/25 bg-white/[0.04] hover:border-podium-yellow/40"
+              ? "border-podium-success/45 bg-podium-success/10 hover:border-podium-success/60"
               : gap
-                ? "border-amber-400/35 bg-amber-400/[0.06] hover:border-amber-400/50"
-                : "border-white/[0.08] bg-white/[0.03] hover:border-white/15",
+                ? "border-amber-400/50 bg-amber-400/10 hover:border-amber-400/70"
+                : "border-dashed border-white/15 bg-transparent hover:border-white/25",
         scanning && !selected && !reduce && "audit-scan-pulse",
         gap && !scanning && !selected && !reduce && "audit-gap-pulse",
       )}
@@ -272,13 +311,13 @@ function SignalTile({
       />
       <span
         className={cn(
-          "line-clamp-2 h-[2.5em] w-full text-[10px] font-bold leading-tight",
+          "line-clamp-2 h-[2.5em] w-full text-[10px] font-semibold leading-tight",
           selected || scanning
             ? "text-podium-yellow"
             : live
-              ? "text-podium-gray"
+              ? "text-podium-white"
               : gap
-                ? "text-amber-300"
+                ? "text-amber-200"
                 : "text-podium-muted",
         )}
       >
@@ -290,9 +329,55 @@ function SignalTile({
           status.className,
         )}
       >
+        {live && !scanning ? "● " : gap && !scanning ? "○ " : ""}
         {status.text}
       </span>
     </button>
+  );
+}
+
+function SignalTileGrid({
+  items,
+  selectedId,
+  scanningIds,
+  pickSignal,
+  reduce,
+  tileTransition,
+}: {
+  items: AuditSignal[];
+  selectedId: string | null;
+  scanningIds: Set<string>;
+  pickSignal: (id: string) => void;
+  reduce: boolean | null;
+  tileTransition: {
+    duration: number;
+    ease?: readonly [number, number, number, number];
+  };
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-3 grid grid-cols-4 gap-2 [grid-template-columns:repeat(4,minmax(0,1fr))]">
+      {items.map((signal, index) => (
+        <motion.div
+          key={signal.id}
+          className="min-w-0"
+          initial={reduce ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            ...tileTransition,
+            delay: reduce ? 0 : index * 0.03,
+          }}
+        >
+          <SignalTile
+            signal={signal}
+            selected={selectedId === signal.id}
+            scanning={scanningIds.has(signal.id)}
+            onSelect={() => pickSignal(signal.id)}
+            reduce={Boolean(reduce)}
+          />
+        </motion.div>
+      ))}
+    </div>
   );
 }
 
@@ -300,30 +385,37 @@ export function DigitalAuditPanel({
   enrichment,
   compact = false,
   qualifying = false,
+  refreshing = false,
   qualifyPending = false,
   qualifyError = null,
   onQualify,
+  onRefresh,
   mapsUrl = null,
   goldenMinute = null,
   confirmPending = false,
   onConfirmSite,
   onRejectSite,
+  className,
 }: {
   enrichment: LeadEnrichment | null;
   compact?: boolean;
   qualifying?: boolean;
+  /** Paid re-run of an already-complete audit — keep prior result visible. */
+  refreshing?: boolean;
   qualifyPending?: boolean;
   qualifyError?: string | null;
   onQualify?: () => void;
+  onRefresh?: () => void;
   mapsUrl?: string | null;
   goldenMinute?: GoldenMinute | null;
   confirmPending?: boolean;
   onConfirmSite?: (domain: string) => void;
   onRejectSite?: (domain: string) => void;
+  className?: string;
 }) {
   const reduce = useReducedMotion();
   const detailRef = useRef<HTMLDivElement>(null);
-  const streaming = qualifying || qualifyPending;
+  const firstRunStreaming = (qualifying || qualifyPending) && !refreshing;
   const complete =
     enrichment != null && enrichmentStage(enrichment) === "complete";
   const signals = useMemo(
@@ -333,7 +425,7 @@ export function DigitalAuditPanel({
   const scanningIds = useMemo(() => {
     const ids = scanningSignalIds(
       enrichment ? enrichmentStage(enrichment) : null,
-      streaming && !complete,
+      firstRunStreaming && !complete,
       enrichment,
     );
     return new Set(
@@ -342,7 +434,7 @@ export function DigitalAuditPanel({
         return signal ? !isAuditLive(signal) : true;
       }),
     );
-  }, [enrichment, streaming, complete, signals]);
+  }, [enrichment, firstRunStreaming, complete, signals]);
   const auditKey = enrichment
     ? `${enrichment.cnpj}:${enrichment.collected_at}`
     : "pending";
@@ -350,9 +442,11 @@ export function DigitalAuditPanel({
     defaultAuditSelection(signals),
   );
   const [logosOpen, setLogosOpen] = useState(!compact);
+  const [toolsMissingOpen, setToolsMissingOpen] = useState(false);
 
   useEffect(() => {
     setSelectedId(defaultAuditSelection(signals));
+    setToolsMissingOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when auditKey changes
   }, [auditKey]);
 
@@ -371,8 +465,19 @@ export function DigitalAuditPanel({
   const tileTransition = reduce
     ? { duration: 0 }
     : { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const };
-  const showBoard = !compact || logosOpen;
-  const showQualifyCta = Boolean(onQualify) && !streaming && !complete;
+  // First-time only — never replace a completed audit with the Qualificar CTA.
+  const showQualifyCta =
+    Boolean(onQualify) && !onRefresh && !firstRunStreaming && !complete;
+  // Always keep Atualizar when the parent offers it (completed audit).
+  const showRefresh = Boolean(onRefresh);
+  const awaitingAudit =
+    !enrichment && !firstRunStreaming && !showQualifyCta && !refreshing;
+  /** Empty CTA: show Presença tiles as preview; Ferramentas wait until audit starts. */
+  const previewPresence = showQualifyCta;
+  const auditActive = Boolean(enrichment || firstRunStreaming || refreshing);
+  const showBoard =
+    (previewPresence || auditActive) && (!compact || logosOpen);
+  const showTools = auditActive;
   const siteDown =
     enrichment != null &&
     enrichment.domain != null &&
@@ -381,41 +486,64 @@ export function DigitalAuditPanel({
   const canConfirmSite =
     Boolean(onConfirmSite && onRejectSite && enrichment?.domain) &&
     complete &&
-    !streaming &&
+    !firstRunStreaming &&
+    !refreshing &&
     enrichment?.domain_status === "nao_confirmado";
 
   return (
-    <GlassCard className="p-5 hover:translate-y-0">
-      <QualifyHeader mapsUrl={mapsUrl} />
+    <GlassCard className={cn("p-5 hover:translate-y-0", className)}>
+      <QualifyHeader
+        mapsUrl={mapsUrl}
+        showRefresh={showRefresh}
+        refreshing={refreshing || (Boolean(onRefresh) && qualifyPending)}
+        onRefresh={onRefresh}
+      />
       {showQualifyCta ? (
         <>
-          <p className="mt-3 text-sm leading-relaxed text-podium-gray">
+          <p className="mt-3 text-sm text-podium-muted">
             {COPY.qualificarFichaLead}
           </p>
           {qualifyError ? (
             <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
           ) : null}
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="lg"
             disabled={qualifyPending}
             onClick={onQualify}
-            className="mt-4 w-full rounded-xl bg-podium-yellow px-4 py-3 text-sm font-extrabold text-podium-navy disabled:opacity-40"
+            title={COPY.qualificarFichaLeadHint}
+            className="mt-4 w-full"
           >
             {qualifyPending
               ? "Qualificando…"
-              : `${COPY.qualificarEstaEmpresa} · ${ENRICH_CREDIT_COST} créditos`}
-          </button>
+              : `${COPY.qualificar} · ${ENRICH_CREDIT_COST} créditos`}
+          </Button>
         </>
       ) : null}
-      {(streaming || (enrichment && !complete)) && (
+      {qualifyError && !showQualifyCta ? (
+        <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
+      ) : null}
+      {refreshing ? (
+        <p className="mt-3 flex items-center gap-2 text-sm font-bold text-podium-yellow">
+          <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-podium-yellow" />
+          {COPY.atualizandoQualificacao} Mantendo a auditoria atual até terminar.
+        </p>
+      ) : null}
+      {awaitingAudit ? (
+        <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm leading-relaxed text-podium-gray">
+          Auditoria digital ainda não rodou nesta empresa. O ranking e o Minuto
+          de Ouro usam só a Receita até você qualificar.
+        </p>
+      ) : null}
+      {(firstRunStreaming || (enrichment && !complete && !refreshing)) && (
         <CompactTrail
           enrichment={enrichment}
-          qualifying={streaming || !complete}
+          qualifying={firstRunStreaming || !complete}
         />
       )}
       {complete ? <GoldenFacts goldenMinute={goldenMinute} /> : null}
 
-      {selected && showBoard ? (
+      {selected && showBoard && !previewPresence ? (
         <div className="mt-4">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
             Em foco
@@ -455,7 +583,7 @@ export function DigitalAuditPanel({
         <button
           type="button"
           onClick={() => setLogosOpen((open) => !open)}
-          className="mt-4 text-xs font-bold text-podium-yellow hover:underline"
+          className="mt-4 text-xs font-semibold text-podium-muted hover:text-podium-yellow hover:underline"
         >
           {logosOpen ? "Recolher cards" : "Ver cards dos ativos"}
         </button>
@@ -463,7 +591,37 @@ export function DigitalAuditPanel({
 
       {showBoard &&
         AUDIT_GROUPS.map((group) => {
+          if (group.id === "ferramentas" && !showTools) return null;
           const items = signals.filter((s) => s.group === group.id);
+          if (group.id !== "ferramentas") {
+            return (
+              <section key={group.id} className="mt-5">
+                <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
+                  <span className="inline-block h-4 w-0.5 rounded-sm bg-podium-yellow" />
+                  {group.label}
+                </h3>
+                {!previewPresence ? (
+                  <p className="mt-1 text-xs text-podium-muted">{group.hint}</p>
+                ) : null}
+                <SignalTileGrid
+                  items={items}
+                  selectedId={selectedId}
+                  scanningIds={scanningIds}
+                  pickSignal={pickSignal}
+                  reduce={reduce}
+                  tileTransition={tileTransition}
+                />
+              </section>
+            );
+          }
+
+          const found = items.filter(
+            (s) => isAuditLive(s) || scanningIds.has(s.id),
+          );
+          const missing = items.filter(
+            (s) => !isAuditLive(s) && !scanningIds.has(s.id),
+          );
+
           return (
             <section key={group.id} className="mt-5">
               <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
@@ -471,28 +629,51 @@ export function DigitalAuditPanel({
                 {group.label}
               </h3>
               <p className="mt-1 text-xs text-podium-muted">{group.hint}</p>
-              <div className="mt-3 grid grid-cols-4 gap-2 [grid-template-columns:repeat(4,minmax(0,1fr))]">
-                {items.map((signal, index) => (
-                  <motion.div
-                    key={signal.id}
-                    className="min-w-0"
-                    initial={reduce ? false : { opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      ...tileTransition,
-                      delay: reduce ? 0 : index * 0.03,
-                    }}
+              <SignalTileGrid
+                items={found}
+                selectedId={selectedId}
+                scanningIds={scanningIds}
+                pickSignal={pickSignal}
+                reduce={reduce}
+                tileTransition={tileTransition}
+              />
+              {found.length === 0 && missing.length > 0 && !toolsMissingOpen ? (
+                <p className="mt-3 text-xs text-podium-muted">
+                  Nenhuma ferramenta encontrada ainda.
+                </p>
+              ) : null}
+              {missing.length > 0 ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    aria-expanded={toolsMissingOpen}
+                    onClick={() => setToolsMissingOpen((v) => !v)}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-white/15 px-3 py-2 text-left text-podium-muted hover:border-white/25 hover:text-podium-gray"
                   >
-                    <SignalTile
-                      signal={signal}
-                      selected={selectedId === signal.id}
-                      scanning={scanningIds.has(signal.id)}
-                      onSelect={() => pickSignal(signal.id)}
-                      reduce={Boolean(reduce)}
+                    <span className="text-xs font-semibold">
+                      {toolsMissingOpen
+                        ? "Recolher"
+                        : `Ver ${missing.length} ferramenta${missing.length === 1 ? "" : "s"} sem sinal`}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition",
+                        toolsMissingOpen && "rotate-180",
+                      )}
                     />
-                  </motion.div>
-                ))}
-              </div>
+                  </button>
+                  {toolsMissingOpen ? (
+                    <SignalTileGrid
+                      items={missing}
+                      selectedId={selectedId}
+                      scanningIds={scanningIds}
+                      pickSignal={pickSignal}
+                      reduce={reduce}
+                      tileTransition={tileTransition}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </section>
           );
         })}

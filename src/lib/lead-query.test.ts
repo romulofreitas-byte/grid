@@ -21,6 +21,7 @@ const row: GridRow = {
   sharedCount: 1,
   decisorNome: "Ana",
   porte: "01",
+  email: "ana@padaria.com.br",
   gridScore: 10,
   gridPosition: 1,
   enrichmentStatus: null,

@@ -8,6 +8,7 @@ export function redactGridRow(row: GridRow, enrichAllowed: boolean): GridRow {
   return {
     ...row,
     telefone: row.telefone ? MASK_PHONE : null,
+    email: row.email ? "••••@••••" : null,
     decisorNome: null,
   };
 }

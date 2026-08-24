@@ -34,6 +34,13 @@ export type CrmStage = {
   created_at: string;
 };
 
+export type CrmDealMeta = {
+  searchId?: string;
+  ufs?: string[];
+  municipioIds?: number[];
+  source?: "qualify_bridge";
+};
+
 export type CrmDeal = {
   id: string;
   pipeline_id: string;
@@ -43,6 +50,9 @@ export type CrmDeal = {
   secretaries: string[];
   phones: string[];
   notes: string;
+  /** Digits-only CNPJ when bridged from Grid qualify; null for manual deals. */
+  cnpj: string | null;
+  meta: CrmDealMeta;
   position: number;
   created_at: string;
   updated_at: string;
@@ -74,6 +84,8 @@ export type CrmDealCreateInput = {
   secretaries?: string[];
   phones?: string[];
   notes?: string;
+  cnpj?: string | null;
+  meta?: CrmDealMeta;
 };
 
 export type CrmDealPatch = {

@@ -167,3 +167,77 @@ export function summarizeFiltersShort(
     .map((c) => c.label)
     .join(" · ");
 }
+
+/** Stable list-identity badges (nicho · local · matriz · sem contábil). */
+export type ListSummaryBadgeKey =
+  | "nicho"
+  | "local"
+  | "matriz"
+  | "sem-contabil";
+
+export type ListSummaryBadge = {
+  key: ListSummaryBadgeKey;
+  label: string;
+};
+
+export function listSummaryBadges(
+  filters: SearchFilters,
+  opts: {
+    segmentNames?: Record<string, string>;
+    municipioNames?: Record<number, string>;
+    /** Only on Qualidade (step 3) — default off is true so it would spam earlier steps. */
+    includeSemContabil?: boolean;
+  } = {},
+): ListSummaryBadge[] {
+  const badges: ListSummaryBadge[] = [];
+  const segmentNames = opts.segmentNames ?? {};
+  const municipioNames = opts.municipioNames ?? {};
+  const includeSemContabil = opts.includeSemContabil === true;
+  const segmentIds = asList(filters.segmentIds);
+  const ufs = asList(filters.ufs);
+  const municipioIds = asList(filters.municipioIds);
+  const cnaes = asList(filters.cnaes);
+  const cnpjs = asList(filters.cnpjs);
+
+  const namedSegments = segmentIds
+    .map((id) => segmentNames[id])
+    .filter((nome): nome is string => !!nome);
+  let nicho: string | null = null;
+  if (namedSegments.length === 1) nicho = namedSegments[0]!;
+  else if (namedSegments.length > 1) {
+    nicho = `${namedSegments[0]} +${namedSegments.length - 1}`;
+  } else if (filters.intentQuery && filters.intentQuery.trim().length >= 2) {
+    nicho = filters.intentQuery.trim();
+  } else if (cnpjs.length > 0) {
+    nicho = cnpjs.length === 1 ? "1 empresa" : `${cnpjs.length} empresas`;
+  } else if (cnaes.length > 0) {
+    nicho = cnaes.length === 1 ? "1 CNAE" : `${cnaes.length} CNAEs`;
+  } else if (segmentIds.length > 0) {
+    nicho =
+      segmentIds.length === 1 ? "1 segmento" : `${segmentIds.length} segmentos`;
+  }
+  if (nicho) badges.push({ key: "nicho", label: nicho });
+
+  if (ufs.length > 0) {
+    const ufLabel = ufs.join(", ");
+    let local: string;
+    if (municipioIds.length === 0) {
+      local = `${ufLabel} · estado inteiro`;
+    } else if (municipioIds.length === 1) {
+      const name = municipioNames[municipioIds[0]!];
+      local = name ? `${ufLabel} · ${name}` : `${ufLabel} · 1 cidade`;
+    } else {
+      local = `${ufLabel} · ${municipioIds.length} cidades`;
+    }
+    badges.push({ key: "local", label: local });
+  }
+
+  if (filters.soMatriz) {
+    badges.push({ key: "matriz", label: "Só matriz" });
+  }
+  if (includeSemContabil && filters.ocultarTelefonesCompartilhados) {
+    badges.push({ key: "sem-contabil", label: "Sem contábil" });
+  }
+
+  return badges;
+}

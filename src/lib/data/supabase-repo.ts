@@ -8,6 +8,7 @@ import { pickDecisor, qualificacaoLabel, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { buildGoldenMinute } from "@/lib/golden-minute";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import {
   resolveMarketBrief,
   resolveMarketPackForPonte,
@@ -19,6 +20,7 @@ import {
   resolveCnaesFromKeywords,
   resolvePresetCnaes,
 } from "@/lib/niches";
+import { presetMatchesQuery } from "@/lib/segment-aliases";
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
@@ -142,6 +144,16 @@ function freeEmailSql(alias: string): string {
     "terra",
     "ig.com",
     "live.com",
+    "uai.com",
+    "globo.com",
+    "zipmail",
+    "icloud",
+    "proton",
+    "aol.com",
+    "msn.com",
+    "r7.com",
+    "oi.com.br",
+    "pop.com.br",
   ];
   return needles
     .map(
@@ -250,6 +262,7 @@ function mapPreset(r: Record<string, unknown>): NichePreset {
     keywords: (r.keywords as string[]) ?? [],
     exclusoes: (r.exclusoes as string[]) ?? [],
     name_stems: (r.name_stems as string[]) ?? [],
+    aliases: (r.aliases as string[]) ?? [],
     curado: Boolean(r.curado),
     ordem: Number(r.ordem ?? 0),
   };
@@ -354,10 +367,23 @@ function mapEnrichment(r: Record<string, unknown>): LeadEnrichment {
     dor_digital: Number(r.dor_digital ?? 0),
     contexto: Array.isArray(r.contexto) ? (r.contexto as string[]) : [],
     fonte: (r.fonte ?? {}) as LeadEnrichment["fonte"],
-    midiaPaga: {
-      label: "NÃO VERIFICADO",
-      verificado_automaticamente: false,
-    },
+    midiaPaga: midiaPagaLabel(
+      {
+        metaPixel: Boolean(tech.metaPixel),
+        gtm: Boolean(tech.gtm),
+        ga4: Boolean(tech.ga4),
+        googleAds: Boolean(tech.googleAds),
+        tiktokPixel: Boolean(tech.tiktokPixel),
+        rdStation: Boolean(tech.rdStation),
+        hotjar: Boolean(tech.hotjar),
+        clarity: Boolean(tech.clarity),
+        chat: tech.chat ?? null,
+        plataforma: tech.plataforma ?? null,
+        https: Boolean(tech.https),
+        viewport: Boolean(tech.viewport),
+      },
+      ((r.domain_status as DomainStatus) ?? "nao_encontrado") === "confirmado",
+    ),
     people: Array.isArray(r.people)
       ? (r.people as LeadEnrichment["people"])
       : r.people == null
@@ -1292,12 +1318,7 @@ async function resolveAllowedCnaes(filters: SearchFilters): Promise<Set<string> 
     );
     for (const p of presets) {
       if (!p.parent_id) continue;
-      const hit =
-        normalizeText(p.nome).includes(q) ||
-        p.keywords.some(
-          (k) => normalizeText(k).includes(q) || q.includes(normalizeText(k)),
-        );
-      if (hit) {
+      if (presetMatchesQuery(p, filters.intentQuery)) {
         matched.push(...resolveCnaesFromKeywords(p.keywords, p.exclusoes, refCnaes));
       }
     }
@@ -1671,6 +1692,7 @@ async function rowsFromReceita(
       sharedVerdict: phone.sharedVerdict,
       decisorNome: decisor?.nome ?? null,
       porte: company.porte,
+      email: est.email?.trim() || null,
       gridScore: lead.gridScore,
       gridPosition: lead.gridPosition,
       enrichmentStatus: hasAudit ? "done" : null,
@@ -2374,6 +2396,7 @@ export const supabaseRepo: GridRepo = {
           sharedVerdict: primary?.sharedVerdict,
           decisorNome,
           porte: company.porte,
+          email: est.email?.trim() || null,
         };
         return { est, score, snapshot };
       })

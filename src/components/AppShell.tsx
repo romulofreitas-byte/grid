@@ -12,6 +12,7 @@ import {
 import { AngularBackground } from "@/components/AngularBackground";
 import { BackLink } from "@/components/BackLink";
 import { BrandLogo } from "@/components/BrandLogo";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { SupportDock } from "@/components/SupportDock";
@@ -43,6 +44,7 @@ export function AppShell({
   return (
     <div className="relative min-h-screen text-podium-white">
       <AngularBackground />
+      <DemoModeBanner />
       <header className="sticky top-0 z-40 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Link href="/box" className="flex shrink-0 items-center">

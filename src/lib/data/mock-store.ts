@@ -270,6 +270,7 @@ function buildNichePresets(): NichePreset[] {
     keywords: seed.keywords,
     exclusoes: seed.exclusoes,
     name_stems: seed.name_stems,
+    aliases: seed.aliases ?? [],
     curado: false,
     ordem: seed.ordem,
   }));

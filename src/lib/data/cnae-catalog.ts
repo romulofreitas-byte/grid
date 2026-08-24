@@ -1,6 +1,6 @@
 import type { RefCnae } from "@/lib/types";
 
-/** ~300 CNAE codes aligned with TAXONOMY segment keywords. */
+/** ~404 CNAE codes aligned with TAXONOMY segment keywords. */
 export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "9602502",
@@ -341,14 +341,6 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "6821801",
     "descricao": "Corretagem de imoveis e corretor de imoveis"
-  },
-  {
-    "codigo": "6821801",
-    "descricao": "Intermediacao na compra e venda de imoveis"
-  },
-  {
-    "codigo": "6821801",
-    "descricao": "Corretagem imobiliaria"
   },
   {
     "codigo": "4110700",
@@ -771,6 +763,58 @@ export const REF_CNAE: RefCnae[] = [
     "descricao": "Producao de ferro gusa siderurgia"
   },
   {
+    "codigo": "1121600",
+    "descricao": "Fabricacao de aguas envasadas industria de bebidas"
+  },
+  {
+    "codigo": "1113502",
+    "descricao": "Fabricacao de cervejas"
+  },
+  {
+    "codigo": "1122401",
+    "descricao": "Fabricacao de refrigerantes"
+  },
+  {
+    "codigo": "1121600",
+    "descricao": "Fabricacao de aguas envasadas"
+  },
+  {
+    "codigo": "1121600",
+    "descricao": "Agua mineral envasada"
+  },
+  {
+    "codigo": "1121600",
+    "descricao": "Envasadora de agua mineral"
+  },
+  {
+    "codigo": "1113502",
+    "descricao": "Cervejaria artesanal"
+  },
+  {
+    "codigo": "1113501",
+    "descricao": "Fabricacao de malte"
+  },
+  {
+    "codigo": "1122402",
+    "descricao": "Fabricacao de cha mate e outros chas prontos"
+  },
+  {
+    "codigo": "1122403",
+    "descricao": "Fabricacao de refrescos, xaropes e pos para refrescos"
+  },
+  {
+    "codigo": "8299701",
+    "descricao": "Envasamento e empacotamento sob contrato"
+  },
+  {
+    "codigo": "8299701",
+    "descricao": "Empacotamento sob contrato"
+  },
+  {
+    "codigo": "8299701",
+    "descricao": "Servicos de envasamento sob contrato"
+  },
+  {
     "codigo": "4120400",
     "descricao": "Construcao de edificios construtora e reformas"
   },
@@ -781,18 +825,6 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "4399103",
     "descricao": "Obras de acabamento em construcao civil"
-  },
-  {
-    "codigo": "4110700",
-    "descricao": "Incorporacao de empreendimentos incorporadora de obras"
-  },
-  {
-    "codigo": "4110700",
-    "descricao": "Desenvolvimento imobiliario incorporadora"
-  },
-  {
-    "codigo": "4110700",
-    "descricao": "Incorporadora de obras e empreendimentos"
   },
   {
     "codigo": "4399101",
@@ -829,6 +861,198 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "7111100",
     "descricao": "Projeto arquitetonico e arquitetura"
+  },
+  {
+    "codigo": "4120400",
+    "descricao": "Construcao de edificios reformas residenciais"
+  },
+  {
+    "codigo": "4399103",
+    "descricao": "Obras de acabamento reformas residenciais"
+  },
+  {
+    "codigo": "4330404",
+    "descricao": "Obras de acabamento em pintura e reformas"
+  },
+  {
+    "codigo": "4120400",
+    "descricao": "Construcao de edificios obras industriais e galpoes"
+  },
+  {
+    "codigo": "4299501",
+    "descricao": "Obras de engenharia civil industriais"
+  },
+  {
+    "codigo": "4211101",
+    "descricao": "Construcao de galpoes industriais"
+  },
+  {
+    "codigo": "4313400",
+    "descricao": "Obras de terraplanagem"
+  },
+  {
+    "codigo": "4299501",
+    "descricao": "Obras de engenharia civil terraplanagem"
+  },
+  {
+    "codigo": "4313400",
+    "descricao": "Movimentacao de terra e terraplanagem"
+  },
+  {
+    "codigo": "4211101",
+    "descricao": "Construcao de rodovias e ferrovias pavimentacao"
+  },
+  {
+    "codigo": "4292801",
+    "descricao": "Obras de urbanizacao asfalto e pavimentacao"
+  },
+  {
+    "codigo": "4211101",
+    "descricao": "Pavimentacao e asfalto"
+  },
+  {
+    "codigo": "4312600",
+    "descricao": "Obras de fundacoes"
+  },
+  {
+    "codigo": "4299501",
+    "descricao": "Obras de engenharia civil fundacoes e contencoes"
+  },
+  {
+    "codigo": "4312600",
+    "descricao": "Fundacoes profundas e estacas"
+  },
+  {
+    "codigo": "4321500",
+    "descricao": "Instalacoes hidraulicas, sanitarias e de gas"
+  },
+  {
+    "codigo": "4322301",
+    "descricao": "Obras de instalacoes hidraulicas"
+  },
+  {
+    "codigo": "4321500",
+    "descricao": "Encanamento e instalacoes hidraulicas"
+  },
+  {
+    "codigo": "4321300",
+    "descricao": "Instalacoes eletricas"
+  },
+  {
+    "codigo": "4322301",
+    "descricao": "Obras de instalacoes eletricas"
+  },
+  {
+    "codigo": "4321300",
+    "descricao": "Eletricista instalacoes eletricas prediais"
+  },
+  {
+    "codigo": "4399102",
+    "descricao": "Impermeabilizacao em construcao civil"
+  },
+  {
+    "codigo": "4399103",
+    "descricao": "Obras de acabamento impermeabilizacao"
+  },
+  {
+    "codigo": "4321500",
+    "descricao": "Instalacoes hidraulicas sanitarias e de gas vazamentos"
+  },
+  {
+    "codigo": "4330404",
+    "descricao": "Pintura para construcao civil"
+  },
+  {
+    "codigo": "4399103",
+    "descricao": "Obras de acabamento pintura predial"
+  },
+  {
+    "codigo": "4330404",
+    "descricao": "Pintura predial e fachadas"
+  },
+  {
+    "codigo": "4330405",
+    "descricao": "Obras de acabamento em gesso e estuque"
+  },
+  {
+    "codigo": "4399103",
+    "descricao": "Obras de acabamento gesso drywall"
+  },
+  {
+    "codigo": "4330405",
+    "descricao": "Instalacao de gesso e drywall"
+  },
+  {
+    "codigo": "4322302",
+    "descricao": "Instalacao e manutencao de sistemas centrais de ar condicionado"
+  },
+  {
+    "codigo": "4322303",
+    "descricao": "Instalacoes de sistema de ventilacao e refrigeracao"
+  },
+  {
+    "codigo": "4322302",
+    "descricao": "Climatizacao e ar condicionado predial"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Serviços de engenharia topografia"
+  },
+  {
+    "codigo": "7119702",
+    "descricao": "Atividades tecnicas relacionadas a engenharia geotecnia"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Topografia e geotecnia"
+  },
+  {
+    "codigo": "8130300",
+    "descricao": "Atividades paisagisticas"
+  },
+  {
+    "codigo": "7111100",
+    "descricao": "Serviços de arquitetura paisagismo"
+  },
+  {
+    "codigo": "8130300",
+    "descricao": "Projeto e execucao de paisagismo"
+  },
+  {
+    "codigo": "7410202",
+    "descricao": "Design de interiores"
+  },
+  {
+    "codigo": "7111100",
+    "descricao": "Serviços de arquitetura design de interiores"
+  },
+  {
+    "codigo": "7410202",
+    "descricao": "Projeto de interiores e decoracao"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Serviços de engenharia laudos e pericias"
+  },
+  {
+    "codigo": "7119702",
+    "descricao": "Atividades tecnicas relacionadas a engenharia pericias"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Laudos tecnicos de engenharia"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Serviços de engenharia calculo estrutural"
+  },
+  {
+    "codigo": "7119701",
+    "descricao": "Consultoria em engenharia estrutural"
+  },
+  {
+    "codigo": "7112000",
+    "descricao": "Projeto estrutural e calculo"
   },
   {
     "codigo": "0810006",
@@ -901,6 +1125,198 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "4330403",
     "descricao": "Acabamentos para construcao revestimentos"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes"
+  },
+  {
+    "codigo": "2330302",
+    "descricao": "Fabricacao de estruturas pre-moldadas de concreto armado"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Pre-moldados e concreto para construcao"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes blocos"
+  },
+  {
+    "codigo": "2341900",
+    "descricao": "Fabricacao de produtos ceramicos nao-refratarios tijolos"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Fabricacao de blocos e tijolos"
+  },
+  {
+    "codigo": "2341900",
+    "descricao": "Fabricacao de produtos ceramicos nao-refratarios para uso estrutural"
+  },
+  {
+    "codigo": "2342702",
+    "descricao": "Fabricacao de produtos ceramicos telhas e argila"
+  },
+  {
+    "codigo": "2341900",
+    "descricao": "Cerâmica telhas e argila"
+  },
+  {
+    "codigo": "2330305",
+    "descricao": "Fabricacao de cimento"
+  },
+  {
+    "codigo": "4671100",
+    "descricao": "Comercio atacadista de cimento"
+  },
+  {
+    "codigo": "2330305",
+    "descricao": "Cimento e agregados"
+  },
+  {
+    "codigo": "0810001",
+    "descricao": "Extracao de areia, cascalho ou pedregulho"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de materiais de construcao em geral areia brita"
+  },
+  {
+    "codigo": "0810001",
+    "descricao": "Areia e brita para construcao"
+  },
+  {
+    "codigo": "4741500",
+    "descricao": "Comercio varejista de tintas e materiais para pintura"
+  },
+  {
+    "codigo": "2031200",
+    "descricao": "Fabricacao de tintas, vernizes, esmaltes"
+  },
+  {
+    "codigo": "4741500",
+    "descricao": "Tintas e vernizes para obra"
+  },
+  {
+    "codigo": "4744003",
+    "descricao": "Comercio varejista de pedras para revestimento pisos"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de material de construcao porcelanato"
+  },
+  {
+    "codigo": "2342701",
+    "descricao": "Fabricacao de revestimentos ceramicos pisos"
+  },
+  {
+    "codigo": "4744004",
+    "descricao": "Comercio varejista de materiais hidraulicos"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de material de construcao loucas"
+  },
+  {
+    "codigo": "4744004",
+    "descricao": "Loucas e metais sanitarios"
+  },
+  {
+    "codigo": "4744005",
+    "descricao": "Comercio varejista de madeiras e artefatos"
+  },
+  {
+    "codigo": "1610201",
+    "descricao": "Serrarias com desdobramento de madeira"
+  },
+  {
+    "codigo": "4744005",
+    "descricao": "Madeira e compensados para obra"
+  },
+  {
+    "codigo": "2330303",
+    "descricao": "Fabricacao de artefatos de fibrocimento telhas"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de materiais de construcao em geral telhas"
+  },
+  {
+    "codigo": "2330303",
+    "descricao": "Telhas e coberturas"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes argamassa"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de materiais de construcao em geral rejunte"
+  },
+  {
+    "codigo": "2330301",
+    "descricao": "Argamassas e rejunte"
+  },
+  {
+    "codigo": "2330304",
+    "descricao": "Fabricacao de produtos de gesso"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de materiais de construcao em geral drywall"
+  },
+  {
+    "codigo": "2330304",
+    "descricao": "Drywall e placas de gesso"
+  },
+  {
+    "codigo": "1622601",
+    "descricao": "Fabricacao de portas, janelas e outros elementos"
+  },
+  {
+    "codigo": "2511000",
+    "descricao": "Serralheria, exceto esquadrias portoes"
+  },
+  {
+    "codigo": "1622601",
+    "descricao": "Portas e portoes"
+  },
+  {
+    "codigo": "4744002",
+    "descricao": "Comercio varejista de ferragens e ferramentas"
+  },
+  {
+    "codigo": "4744002",
+    "descricao": "Ferragens e parafusos para construcao"
+  },
+  {
+    "codigo": "4744002",
+    "descricao": "Loja de ferragens"
+  },
+  {
+    "codigo": "2229301",
+    "descricao": "Fabricacao de produtos de material plastico isolamento"
+  },
+  {
+    "codigo": "4744001",
+    "descricao": "Comercio varejista de materiais de construcao em geral isolamento"
+  },
+  {
+    "codigo": "2229301",
+    "descricao": "Isolamento termico e acustico"
+  },
+  {
+    "codigo": "4781400",
+    "descricao": "Comercio varejista de artigos de vestuario epi"
+  },
+  {
+    "codigo": "4759801",
+    "descricao": "Comercio varejista de equipamentos e artigos de uso pessoal e domestico"
+  },
+  {
+    "codigo": "4781400",
+    "descricao": "EPIs de obra e seguranca"
   },
   {
     "codigo": "6920601",

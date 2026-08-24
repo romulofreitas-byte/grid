@@ -19,6 +19,7 @@ const snap: GridRowSnapshot = {
   sharedVerdict: "proprio",
   decisorNome: "Maria Silva",
   porte: "03",
+  email: "contato@xyz.com.br",
 };
 
 describe("parseGridSnapshot", () => {

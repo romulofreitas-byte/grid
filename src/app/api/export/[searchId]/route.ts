@@ -6,6 +6,7 @@ import { insufficientCreditsPayload } from "@/lib/billing/paywall";
 import { InsufficientCreditsError } from "@/lib/billing/types";
 import { getRepo } from "@/lib/data";
 import { buildCsv, buildXlsx } from "@/lib/export/xlsx-csv";
+import { buildPdf } from "@/lib/export/pdf";
 
 export const maxDuration = 60;
 
@@ -60,14 +61,18 @@ export async function GET(
   }
 
   if (format === "pdf") {
-    const text = leads
-      .map(
-        (l, i) =>
-          `P${l.gridPosition ?? i + 1} · ${l.company.razao_social}\nDecisor: ${l.decisor?.nome ?? "NÃO ENCONTRADO"}\nTel: ${l.contacts[0] ? `(${l.contacts[0].ddd}) ${l.contacts[0].telefone}` : "NÃO ENCONTRADO"} · ${l.contacts[0]?.seal ?? ""}\nScore: ${l.gridScore}\n---`,
-      )
-      .join("\n");
-    const pdfish = `%PDF-GRID-MOCK\n${text}`;
-    return new NextResponse(pdfish, {
+    const segments = await repo.listSegments();
+    const segmentNames = Object.fromEntries(
+      segments.map((s) => [s.id, s.nome] as const),
+    );
+    const buf = await buildPdf(leads, {
+      nome: search.nome,
+      total: search.total_found ?? leads.length,
+      created_at: search.created_at,
+      filters: search.filtros,
+      segmentNames,
+    });
+    return new NextResponse(new Uint8Array(buf), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="grid-${searchId}.pdf"`,

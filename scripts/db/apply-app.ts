@@ -23,6 +23,7 @@ const FILES = [
   "supabase/migrations/20260826000000_presence_gmb.sql",
   "supabase/migrations/20260827000000_crm.sql",
   "supabase/migrations/20260828000000_crm_phones.sql",
+  "supabase/migrations/20260829000000_crm_deal_cnpj.sql",
 ] as const;
 
 async function main(): Promise<void> {

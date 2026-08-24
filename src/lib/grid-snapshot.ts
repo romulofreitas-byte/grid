@@ -40,6 +40,7 @@ export function parseGridSnapshot(raw: unknown): GridRowSnapshot | null {
     decisorNome:
       inner.decisorNome == null ? null : String(inner.decisorNome),
     porte: inner.porte == null ? null : String(inner.porte),
+    email: inner.email == null ? null : String(inner.email),
   };
 }
 
@@ -62,6 +63,7 @@ export function gridRowFromSnapshot(
     sharedVerdict: snap.sharedVerdict,
     decisorNome: snap.decisorNome,
     porte: snap.porte,
+    email: snap.email ?? null,
     gridScore: lead.gridScore,
     gridPosition: lead.gridPosition,
     enrichmentStatus: null,
@@ -87,6 +89,7 @@ export function gridRowStub(
     sharedCount: 0,
     decisorNome: null,
     porte: null,
+    email: null,
     gridScore: lead.gridScore,
     gridPosition: lead.gridPosition,
     enrichmentStatus: null,

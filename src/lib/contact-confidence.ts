@@ -3,6 +3,7 @@ import type {
   PhoneEvidence,
   SharedPhoneVerdict,
 } from "@/lib/types";
+import { presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
 import { sameNumberBR, type NormalizedPhone } from "@/lib/phone";
 
 export const CONTACT_RULES = {
@@ -33,16 +34,41 @@ export const CONTACT_RULES = {
     "terra",
     "ig.com",
     "live.com",
+    // portais / ISP BR — não são site da empresa
+    "uai.com",
+    "uai.com.br",
+    "globo.com",
+    "globomail",
+    "zipmail",
+    "icloud",
+    "me.com",
+    "proton",
+    "protonmail",
+    "aol.com",
+    "msn.com",
+    "r7.com",
+    "oi.com.br",
+    "superig",
+    "pop.com.br",
+    "sercomtel",
+    "itelefonica",
+    "ig.com.br",
   ],
 } as const;
 
 export type ContactSealType = ContactSeal;
 
 export function previewSealsEnabled(): boolean {
-  return (
-    (process.env.DATA_SOURCE ?? "mock") === "mock" &&
-    process.env.MOCK_PREVIEW_SEALS === "1"
-  );
+  // Never lottery CONFIRMADO/ATUALIZADO outside explicit local mock preview.
+  if (process.env.MOCK_PREVIEW_SEALS !== "1") return false;
+  if ((process.env.DATA_SOURCE ?? "mock") !== "mock") return false;
+  if (
+    process.env.GRID_ENV === "production" ||
+    process.env.VERCEL_ENV === "production"
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function sealLabel(
@@ -136,6 +162,57 @@ export function hasAccountantDomainHint(email: string | null | undefined): boole
   if (!email || !email.includes("@")) return false;
   const domain = email.split("@")[1]?.toLowerCase() ?? "";
   return CONTACT_RULES.accountantDomainHints.some((h) => domain.includes(h));
+}
+
+/**
+ * Host do e-mail da Receita quando é provedor (compartilhado / contabilidade).
+ * Não é site da empresa — deve ir para discardedDomains na qualificação.
+ * E-mails gratuitos não geram host (gmail etc. não são “site do contador”).
+ */
+export function receitaProviderDomain(
+  email: string | null | undefined,
+  opts?: { shared?: boolean; accountantHint?: boolean },
+): string | null {
+  if (!email || !email.includes("@")) return null;
+  if (isFreeEmail(email)) return null;
+  const ban =
+    opts?.shared === true ||
+    opts?.accountantHint === true ||
+    hasAccountantDomainHint(email);
+  if (!ban) return null;
+  const host = (email.split("@")[1] ?? "")
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .trim();
+  return host || null;
+}
+
+/**
+ * E-mail da Receita só pode sugerir o site da empresa se o domínio/local-part
+ * carregar token forte da marca (evita uai.com.br a partir de serconsjn@uai…).
+ */
+export function emailDomainCorrelatesWithBrand(
+  email: string | null | undefined,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  if (!email || !email.includes("@")) return false;
+  const [localRaw, hostRaw] = email.split("@");
+  const local = (localRaw ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+  const host = (hostRaw ?? "").toLowerCase();
+  const label = (host.split(".")[0] ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "");
+  const hay = `${local}${label}`;
+  const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
+  if (strong.length === 0) return false;
+  return strong.some((t) => hay.includes(t));
 }
 
 export function isOwnDomainEmail(email: string | null | undefined): boolean {

@@ -343,6 +343,16 @@ export const crmMockMethods = {
     const store = getMockStore();
     const pipeline = ownPipeline(store, userId, input.pipelineId);
     if (!pipeline) return null;
+    const cnpj =
+      input.cnpj == null || input.cnpj === ""
+        ? null
+        : String(input.cnpj).replace(/\D/g, "").padStart(14, "0");
+    if (cnpj) {
+      const existing = store.crm_deals.find(
+        (row) => row.pipeline_id === pipeline.id && row.cnpj === cnpj,
+      );
+      if (existing) return toCard(store, existing);
+    }
     const first = stagesOf(store, pipeline.id)[0];
     if (!first) return null;
     const position = store.crm_deals.filter(
@@ -358,12 +368,28 @@ export const crmMockMethods = {
       secretaries: cleanList(input.secretaries),
       phones: cleanList(input.phones),
       notes: input.notes?.trim() ?? "",
+      cnpj,
+      meta: input.meta ?? {},
       position,
       created_at: created,
       updated_at: created,
     };
     store.crm_deals.push(deal);
     return toCard(store, deal);
+  },
+
+  async findCrmDealByCnpj(
+    userId: string,
+    pipelineId: string,
+    cnpj: string,
+  ): Promise<CrmDealCard | null> {
+    const store = getMockStore();
+    if (!ownPipeline(store, userId, pipelineId)) return null;
+    const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+    const deal = store.crm_deals.find(
+      (row) => row.pipeline_id === pipelineId && row.cnpj === digits,
+    );
+    return deal ? toCard(store, deal) : null;
   },
 
   async updateCrmDeal(

@@ -15,6 +15,7 @@ const gridRow: GridRow = {
   sharedCount: 1,
   decisorNome: "JOSE SILVA",
   porte: "01",
+  email: "contato@acme.com.br",
   gridScore: 80,
   gridPosition: 1,
   enrichmentStatus: null,
@@ -22,9 +23,10 @@ const gridRow: GridRow = {
 };
 
 describe("redactGridRow", () => {
-  it("masks phone and decisor on free plan", () => {
+  it("masks phone, email and decisor on free plan", () => {
     const out = redactGridRow(gridRow, false);
     expect(out.telefone).toBe("••••-••••");
+    expect(out.email).toBe("••••@••••");
     expect(out.decisorNome).toBeNull();
     expect(out.razaoSocial).toBe("ACME LTDA");
   });
@@ -82,7 +84,6 @@ describe("redactDossier", () => {
       ddd2: null,
       telefone2: null,
       email: "contato@acme.com",
-      updated_at: "2026-01-01T00:00:00.000Z",
     },
     company: {
       cnpj_basico: "12345678",
@@ -91,7 +92,6 @@ describe("redactDossier", () => {
       qualificacao_responsavel: 1,
       capital_social: 10000,
       porte: "01",
-      updated_at: "2026-01-01T00:00:00.000Z",
     },
     cnaeDescricao: "Restaurante",
     municipioNome: "Belo Horizonte",
@@ -161,12 +161,29 @@ describe("redactDossier", () => {
       dor_digital: 3,
       contexto: ["site"],
       fonte: {},
+      midiaPaga: {
+        label: "sinais de mídia paga detectados",
+        verificado_automaticamente: true,
+      },
       stage: "complete" as const,
       collected_at: "2026-01-01T00:00:00.000Z",
       expires_at: "2026-12-01T00:00:00.000Z",
     },
     enrichmentJobStatus: null,
-    market: { headline: "", sideNote: "" },
+    market: {
+      slug: "generico",
+      nome: "este ramo",
+      dorPrincipal: "dor",
+      dorChip: "Indicação",
+      perguntaConsideracao: "pergunta",
+      sazonalidade: null,
+      sazonalidadeChip: null,
+      sazonalidadeMeses: [],
+      sazonalidadeAtiva: false,
+      janelaHorario: "De manhã",
+      janelaChip: "De manhã",
+      cidade: "Belo Horizonte",
+    },
     goldenMinute: { contexto: "", facts: [], insufficient: true },
   } satisfies LeadDossier;
 

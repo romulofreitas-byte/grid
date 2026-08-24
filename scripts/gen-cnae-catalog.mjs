@@ -152,11 +152,7 @@ const SEGMENT_CNAES = [
     ["6821801", "Imobiliaria compra e venda de imoveis"],
     ["6821802", "Gestao e administracao de imoveis proprios"],
     ["6821801", "Intermediacao imobiliaria de imoveis"],
-  ]],
-  ["corretoras-imoveis", [
     ["6821801", "Corretagem de imoveis e corretor de imoveis"],
-    ["6821801", "Intermediacao na compra e venda de imoveis"],
-    ["6821801", "Corretagem imobiliaria"],
   ]],
   ["incorporadoras-varejo", [
     ["4110700", "Incorporacao de empreendimentos imobiliarios"],
@@ -338,16 +334,36 @@ const SEGMENT_CNAES = [
     ["2421100", "Laminacao de aco siderurgia"],
     ["2412100", "Producao de ferro gusa siderurgia"],
   ]],
+  ["bebidas-industrial", [
+    ["1121600", "Fabricacao de aguas envasadas industria de bebidas"],
+    ["1113502", "Fabricacao de cervejas"],
+    ["1122401", "Fabricacao de refrigerantes"],
+  ]],
+  ["aguas-envasadas", [
+    ["1121600", "Fabricacao de aguas envasadas"],
+    ["1121600", "Agua mineral envasada"],
+    ["1121600", "Envasadora de agua mineral"],
+  ]],
+  ["cervejarias", [
+    ["1113502", "Fabricacao de cervejas"],
+    ["1113502", "Cervejaria artesanal"],
+    ["1113501", "Fabricacao de malte"],
+  ]],
+  ["refrigerantes-sucos", [
+    ["1122401", "Fabricacao de refrigerantes"],
+    ["1122402", "Fabricacao de cha mate e outros chas prontos"],
+    ["1122403", "Fabricacao de refrescos, xaropes e pos para refrescos"],
+  ]],
+  ["envasamento-empacotamento", [
+    ["8299701", "Envasamento e empacotamento sob contrato"],
+    ["8299701", "Empacotamento sob contrato"],
+    ["8299701", "Servicos de envasamento sob contrato"],
+  ]],
   // Construção civil
   ["construtoras-reformas", [
     ["4120400", "Construcao de edificios construtora e reformas"],
     ["4120400", "Construtora reformas e ampliacoes"],
     ["4399103", "Obras de acabamento em construcao civil"],
-  ]],
-  ["incorporadoras-obras", [
-    ["4110700", "Incorporacao de empreendimentos incorporadora de obras"],
-    ["4110700", "Desenvolvimento imobiliario incorporadora"],
-    ["4110700", "Incorporadora de obras e empreendimentos"],
   ]],
   ["empreiteiras", [
     ["4399101", "Empreiteira execucao de obras"],
@@ -363,6 +379,86 @@ const SEGMENT_CNAES = [
     ["7111100", "Serviços de arquitetura projeto arquitetonico"],
     ["7111100", "Escritorio de arquitetura e projetos"],
     ["7111100", "Projeto arquitetonico e arquitetura"],
+  ]],
+  ["reformas-residenciais", [
+    ["4120400", "Construcao de edificios reformas residenciais"],
+    ["4399103", "Obras de acabamento reformas residenciais"],
+    ["4330404", "Obras de acabamento em pintura e reformas"],
+  ]],
+  ["obras-industriais", [
+    ["4120400", "Construcao de edificios obras industriais e galpoes"],
+    ["4299501", "Obras de engenharia civil industriais"],
+    ["4211101", "Construcao de galpoes industriais"],
+  ]],
+  ["terraplanagem", [
+    ["4313400", "Obras de terraplanagem"],
+    ["4299501", "Obras de engenharia civil terraplanagem"],
+    ["4313400", "Movimentacao de terra e terraplanagem"],
+  ]],
+  ["pavimentacao", [
+    ["4211101", "Construcao de rodovias e ferrovias pavimentacao"],
+    ["4292801", "Obras de urbanizacao asfalto e pavimentacao"],
+    ["4211101", "Pavimentacao e asfalto"],
+  ]],
+  ["fundacoes", [
+    ["4312600", "Obras de fundacoes"],
+    ["4299501", "Obras de engenharia civil fundacoes e contencoes"],
+    ["4312600", "Fundacoes profundas e estacas"],
+  ]],
+  ["instalacoes-hidraulicas", [
+    ["4321500", "Instalacoes hidraulicas, sanitarias e de gas"],
+    ["4322301", "Obras de instalacoes hidraulicas"],
+    ["4321500", "Encanamento e instalacoes hidraulicas"],
+  ]],
+  ["instalacoes-eletricas", [
+    ["4321300", "Instalacoes eletricas"],
+    ["4322301", "Obras de instalacoes eletricas"],
+    ["4321300", "Eletricista instalacoes eletricas prediais"],
+  ]],
+  ["impermeabilizacao-vazamentos", [
+    ["4399102", "Impermeabilizacao em construcao civil"],
+    ["4399103", "Obras de acabamento impermeabilizacao"],
+    ["4321500", "Instalacoes hidraulicas sanitarias e de gas vazamentos"],
+  ]],
+  ["pintura-predial", [
+    ["4330404", "Pintura para construcao civil"],
+    ["4399103", "Obras de acabamento pintura predial"],
+    ["4330404", "Pintura predial e fachadas"],
+  ]],
+  ["gesso-drywall", [
+    ["4330405", "Obras de acabamento em gesso e estuque"],
+    ["4399103", "Obras de acabamento gesso drywall"],
+    ["4330405", "Instalacao de gesso e drywall"],
+  ]],
+  ["climatizacao", [
+    ["4322302", "Instalacao e manutencao de sistemas centrais de ar condicionado"],
+    ["4322303", "Instalacoes de sistema de ventilacao e refrigeracao"],
+    ["4322302", "Climatizacao e ar condicionado predial"],
+  ]],
+  ["topografia", [
+    ["7112000", "Serviços de engenharia topografia"],
+    ["7119702", "Atividades tecnicas relacionadas a engenharia geotecnia"],
+    ["7112000", "Topografia e geotecnia"],
+  ]],
+  ["paisagismo", [
+    ["8130300", "Atividades paisagisticas"],
+    ["7111100", "Serviços de arquitetura paisagismo"],
+    ["8130300", "Projeto e execucao de paisagismo"],
+  ]],
+  ["design-interiores", [
+    ["7410202", "Design de interiores"],
+    ["7111100", "Serviços de arquitetura design de interiores"],
+    ["7410202", "Projeto de interiores e decoracao"],
+  ]],
+  ["laudos-pericias-engenharia", [
+    ["7112000", "Serviços de engenharia laudos e pericias"],
+    ["7119702", "Atividades tecnicas relacionadas a engenharia pericias"],
+    ["7112000", "Laudos tecnicos de engenharia"],
+  ]],
+  ["calculo-estrutural", [
+    ["7112000", "Serviços de engenharia calculo estrutural"],
+    ["7119701", "Consultoria em engenharia estrutural"],
+    ["7112000", "Projeto estrutural e calculo"],
   ]],
   // Insumos construção
   ["marmorarias", [
@@ -394,6 +490,86 @@ const SEGMENT_CNAES = [
     ["4744003", "Comercio de revestimentos ceramicos pisos e revestimentos"],
     ["2342701", "Fabricacao de revestimentos ceramicos"],
     ["4330403", "Acabamentos para construcao revestimentos"],
+  ]],
+  ["pre-moldados-concreto", [
+    ["2330301", "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes"],
+    ["2330302", "Fabricacao de estruturas pre-moldadas de concreto armado"],
+    ["2330301", "Pre-moldados e concreto para construcao"],
+  ]],
+  ["blocos-tijolos", [
+    ["2330301", "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes blocos"],
+    ["2341900", "Fabricacao de produtos ceramicos nao-refratarios tijolos"],
+    ["2330301", "Fabricacao de blocos e tijolos"],
+  ]],
+  ["ceramica-argila-telhas", [
+    ["2341900", "Fabricacao de produtos ceramicos nao-refratarios para uso estrutural"],
+    ["2342702", "Fabricacao de produtos ceramicos telhas e argila"],
+    ["2341900", "Cerâmica telhas e argila"],
+  ]],
+  ["cimento-agregados", [
+    ["2330305", "Fabricacao de cimento"],
+    ["4671100", "Comercio atacadista de cimento"],
+    ["2330305", "Cimento e agregados"],
+  ]],
+  ["areia-brita", [
+    ["0810001", "Extracao de areia, cascalho ou pedregulho"],
+    ["4744001", "Comercio varejista de materiais de construcao em geral areia brita"],
+    ["0810001", "Areia e brita para construcao"],
+  ]],
+  ["tintas-vernizes", [
+    ["4741500", "Comercio varejista de tintas e materiais para pintura"],
+    ["2031200", "Fabricacao de tintas, vernizes, esmaltes"],
+    ["4741500", "Tintas e vernizes para obra"],
+  ]],
+  ["pisos-porcelanatos", [
+    ["4744003", "Comercio varejista de pedras para revestimento pisos"],
+    ["4744001", "Comercio varejista de material de construcao porcelanato"],
+    ["2342701", "Fabricacao de revestimentos ceramicos pisos"],
+  ]],
+  ["loucas-metais-sanitarios", [
+    ["4744004", "Comercio varejista de materiais hidraulicos"],
+    ["4744001", "Comercio varejista de material de construcao loucas"],
+    ["4744004", "Loucas e metais sanitarios"],
+  ]],
+  ["madeira-compensados", [
+    ["4744005", "Comercio varejista de madeiras e artefatos"],
+    ["1610201", "Serrarias com desdobramento de madeira"],
+    ["4744005", "Madeira e compensados para obra"],
+  ]],
+  ["telhas-coberturas", [
+    ["2330303", "Fabricacao de artefatos de fibrocimento telhas"],
+    ["4744001", "Comercio varejista de materiais de construcao em geral telhas"],
+    ["2330303", "Telhas e coberturas"],
+  ]],
+  ["argamassas-rejunte", [
+    ["2330301", "Fabricacao de artefatos de concreto, cimento, fibrocimento, gesso e materiais semelhantes argamassa"],
+    ["4744001", "Comercio varejista de materiais de construcao em geral rejunte"],
+    ["2330301", "Argamassas e rejunte"],
+  ]],
+  ["drywall-placas", [
+    ["2330304", "Fabricacao de produtos de gesso"],
+    ["4744001", "Comercio varejista de materiais de construcao em geral drywall"],
+    ["2330304", "Drywall e placas de gesso"],
+  ]],
+  ["portas-portoes", [
+    ["1622601", "Fabricacao de portas, janelas e outros elementos"],
+    ["2511000", "Serralheria, exceto esquadrias portoes"],
+    ["1622601", "Portas e portoes"],
+  ]],
+  ["ferragens-parafusos", [
+    ["4744002", "Comercio varejista de ferragens e ferramentas"],
+    ["4744002", "Ferragens e parafusos para construcao"],
+    ["4744002", "Loja de ferragens"],
+  ]],
+  ["isolamento-termico", [
+    ["2229301", "Fabricacao de produtos de material plastico isolamento"],
+    ["4744001", "Comercio varejista de materiais de construcao em geral isolamento"],
+    ["2229301", "Isolamento termico e acustico"],
+  ]],
+  ["epis-obra", [
+    ["4781400", "Comercio varejista de artigos de vestuario epi"],
+    ["4759801", "Comercio varejista de equipamentos e artigos de uso pessoal e domestico"],
+    ["4781400", "EPIs de obra e seguranca"],
   ]],
   // Contabilidade e jurídico
   ["escritorios-contabeis", [

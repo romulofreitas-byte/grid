@@ -22,6 +22,7 @@ import {
   resolveCnaesFromKeywords,
   resolvePresetCnaes,
 } from "@/lib/niches";
+import { presetMatchesQuery } from "@/lib/segment-aliases";
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
@@ -160,13 +161,7 @@ function resolveAllowedCnaes(
     );
     for (const p of store.niche_presets) {
       if (!p.parent_id) continue;
-      const hit =
-        normalizeText(p.nome).includes(q) ||
-        p.keywords.some(
-          (k) =>
-            normalizeText(k).includes(q) || q.includes(normalizeText(k)),
-        );
-      if (hit) {
+      if (presetMatchesQuery(p, filters.intentQuery)) {
         matched.push(
           ...resolveCnaesFromKeywords(p.keywords, p.exclusoes, store.ref_cnae),
         );
@@ -914,6 +909,7 @@ export const mockRepo: GridRepo = {
         sharedVerdict: phone.sharedVerdict,
         decisorNome: decisor?.nome ?? null,
         porte: company.porte,
+        email: est.email?.trim() || null,
         gridScore: lead.grid_score ?? 0,
         gridPosition: lead.grid_position ?? 0,
         enrichmentStatus: job?.status ?? (hasAudit ? "done" : null),

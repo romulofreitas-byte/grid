@@ -1,9 +1,10 @@
 #!/usr/bin/env tsx
 /**
  * Shared-phone hypothesis report.
- * Uses live Postgres when DATABASE_URL is set; otherwise the in-memory mock
- * (labeled MOCK in the markdown — not a substitute for MG/SP ingest).
+ * Default: live Postgres via DATABASE_URL.
+ * Pass `--allow-mock` to fall back to the in-memory store (labeled MOCK).
  */
+import "../../src/lib/load-env";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -250,7 +251,19 @@ function renderReport(
 }
 
 async function main() {
+  const allowMock = process.argv.includes("--allow-mock");
   const live = await fromPostgres();
+  if (!live && !allowMock) {
+    console.error(
+      JSON.stringify({
+        event: "phone_sharing_requires_db",
+        message:
+          "DATABASE_URL ausente ou phone_shared_verdict indisponível. " +
+          "Rode após ingest RF, ou passe --allow-mock para o store sintético.",
+      }),
+    );
+    process.exit(1);
+  }
   const source: "mock" | "supabase" = live ? "supabase" : "mock";
   const { rows, samples } = live ?? fromMock();
   const md = renderReport(source, rows, samples);

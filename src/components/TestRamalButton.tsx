@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Phone } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { testCallDestination } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 
@@ -35,18 +36,26 @@ export function TestRamalButton({
 
   return (
     <div className="space-y-1">
-      <button
-        type="button"
+      <Button
+        size="sm"
+        variant="secondary"
         disabled={!dest.ok || test.isPending}
         onClick={() => test.mutate()}
         title={dest.ok ? "Ligar para o meu ramal" : dest.error}
-        className="inline-flex items-center gap-2 rounded-xl border border-podium-yellow/40 px-3 py-2 text-xs font-bold text-podium-yellow disabled:opacity-40"
+        className="gap-1.5"
       >
         <Phone className="h-3.5 w-3.5" />
-        {test.isPending ? "Ligando…" : done ? "Ramal chamado" : "Ligar para o meu ramal"}
-      </button>
+        {test.isPending
+          ? "Ligando…"
+          : done
+            ? "Ramal chamado"
+            : "Ligar para o meu ramal"}
+      </Button>
+      {!dest.ok ? (
+        <p className="text-[11px] text-podium-muted">{dest.error}</p>
+      ) : null}
       {test.error ? (
-        <p className="text-[11px] text-red-400">{test.error.message}</p>
+        <p className="text-[11px] text-podium-alert">{test.error.message}</p>
       ) : null}
     </div>
   );
