@@ -73,7 +73,7 @@ export function normalizeSocialUrl(raw: string): string | null {
     u.hash = "";
     u.search = "";
     u.hostname = u.hostname.replace(/^www\./i, "").toLowerCase();
-    let path = u.pathname.replace(/\/+$/, "") || "";
+    const path = u.pathname.replace(/\/+$/, "") || "";
     if (!path || path === "/") return null;
     return `https://${u.hostname}${path}`;
   } catch {

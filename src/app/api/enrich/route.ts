@@ -61,7 +61,7 @@ export async function POST(req: Request) {
   const userId = gated.userId;
   const repo = getRepo();
   const searchId = parsed.data.searchId ?? null;
-  let search =
+  const search =
     searchId != null ? await repo.getSearch(searchId) : undefined;
   if (searchId) {
     if (!search || search.user_id !== userId) {
