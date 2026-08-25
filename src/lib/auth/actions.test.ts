@@ -8,6 +8,7 @@ describe("parseAuthAction", () => {
     expect(parseAuthAction({ action: "recover" })).toBe("recover");
     expect(parseAuthAction({ action: "resend" })).toBe("resend");
     expect(parseAuthAction({ action: "password" })).toBe("password");
+    expect(parseAuthAction({ action: "logout" })).toBe("logout");
   });
 
   it("maps google provider or action", () => {

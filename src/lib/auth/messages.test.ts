@@ -64,6 +64,7 @@ describe("authCatchMessage", () => {
     expect(authCatchMessage("login")).toBe("Não foi possível entrar");
     expect(authCatchMessage("recover")).toMatch(/recuperação/);
     expect(authCatchMessage("password")).toMatch(/senha/);
+    expect(authCatchMessage("logout")).toBe("Não foi possível sair");
   });
 });
 

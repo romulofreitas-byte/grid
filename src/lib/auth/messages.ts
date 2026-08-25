@@ -86,6 +86,7 @@ export function authCatchMessage(action: AuthAction | null): string {
   if (action === "resend") return "Não foi possível reenviar";
   if (action === "password") return "Não foi possível salvar a senha";
   if (action === "google") return "Não foi possível entrar com o Google";
+  if (action === "logout") return "Não foi possível sair";
   return "Não foi possível entrar";
 }
 

@@ -3,9 +3,10 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Cable, Settings, UserRound, Wallet } from "lucide-react";
+import { Cable, LogOut, Settings, UserRound, Wallet } from "lucide-react";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { AnchorPopover } from "@/components/AnchorPopover";
+import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,21 @@ const menu = [
   { href: "/admin/nichos", label: "Admin", icon: Settings, adminOnly: true },
 ] as const;
 
+const itemClass =
+  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white";
+
+function clearLocalSession() {
+  try {
+    localStorage.removeItem("grid_mock_session");
+    sessionStorage.removeItem(CATCHUP_SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function PilotHeaderAvatar() {
   const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const query = useQuery({
@@ -28,6 +42,22 @@ export function PilotHeaderAvatar() {
       return (await res.json()) as Profile & { isAdmin?: boolean };
     },
   });
+
+  async function logout() {
+    if (leaving) return;
+    setLeaving(true);
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } catch {
+      /* still leave */
+    }
+    clearLocalSession();
+    window.location.assign("/entrar");
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -79,15 +109,24 @@ export function PilotHeaderAvatar() {
                 href={item.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white",
-                )}
+                className={itemClass}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
           })}
+          <div className="my-1 border-t border-white/10" />
+          <button
+            type="button"
+            role="menuitem"
+            disabled={leaving}
+            onClick={() => void logout()}
+            className={cn(itemClass, "disabled:opacity-60")}
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </button>
         </div>
       </AnchorPopover>
     </div>

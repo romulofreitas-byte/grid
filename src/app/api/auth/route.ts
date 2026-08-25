@@ -47,6 +47,16 @@ export async function POST(req: NextRequest) {
     const dest = safeInternalPath(body.next);
     const callbackNext = dest === "/box" ? "/entrar?go=1" : dest;
 
+    if (action === "logout") {
+      if (usesMockAuth()) {
+        return json({ mock: true, ok: true });
+      }
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      return json({ ok: true });
+    }
+
     if (usesMockAuth()) {
       if (action === "recover") {
         return json({ mock: true, ok: true, recover: true });

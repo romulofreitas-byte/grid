@@ -5,6 +5,7 @@ export const AUTH_ACTIONS = [
   "resend",
   "google",
   "password",
+  "logout",
 ] as const;
 
 export type AuthAction = (typeof AUTH_ACTIONS)[number];
@@ -19,7 +20,8 @@ export function parseAuthAction(body: {
     body.action === "signup" ||
     body.action === "recover" ||
     body.action === "resend" ||
-    body.action === "password"
+    body.action === "password" ||
+    body.action === "logout"
   ) {
     return body.action;
   }
