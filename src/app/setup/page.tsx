@@ -3,11 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { AnatomyAssembler } from "@/components/AnatomyAssembler";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { PhotoPicker } from "@/components/PhotoPicker";
-import { ScriptPreview } from "@/components/ScriptPreview";
 import { SectionTitle } from "@/components/SectionTitle";
 import { BACK } from "@/lib/back";
 import { COPY } from "@/lib/copy";
@@ -173,6 +173,7 @@ export default function SetupPage() {
                 Como você se chama na ligação
                 <Hint className="mt-0.5">{COPY.comoChama}</Hint>
                 <input
+                  id="como_chama"
                   value={form.como_chama}
                   onChange={(e) =>
                     setDraft({ ...form, como_chama: e.target.value })
@@ -180,7 +181,7 @@ export default function SetupPage() {
                   className={fieldClass}
                 />
               </label>
-              <fieldset>
+              <fieldset id="tratamento">
                 <legend className="text-sm text-podium-gray">
                   Aqui é…
                   <Hint className="mt-0.5">{COPY.tratamento}</Hint>
@@ -211,6 +212,7 @@ export default function SetupPage() {
               <label className="block text-sm text-podium-gray">
                 Empresa
                 <input
+                  id="empresa_usuario"
                   value={form.empresa_usuario}
                   onChange={(e) =>
                     setDraft({ ...form, empresa_usuario: e.target.value })
@@ -221,6 +223,7 @@ export default function SetupPage() {
               <label className="block text-sm text-podium-gray">
                 Cidade
                 <input
+                  id="cidade_usuario"
                   value={form.cidade_usuario}
                   onChange={(e) =>
                     setDraft({ ...form, cidade_usuario: e.target.value })
@@ -253,20 +256,26 @@ export default function SetupPage() {
                   className={fieldClass}
                 />
               </label>
-              <label className="block text-sm text-podium-gray">
-                Promessa
-                <Hint className="mt-0.5">{COPY.promessa}</Hint>
-                <input
+              <label className="block rounded-2xl border border-podium-yellow/35 bg-podium-yellow/10 p-4 text-sm text-podium-gray">
+                A promessa do piloto
+                <Hint className="mt-0.5">{COPY.promessaCompromisso}</Hint>
+                <textarea
+                  id="promessa"
+                  rows={3}
                   value={form.promessa}
                   onChange={(e) =>
                     setDraft({ ...form, promessa: e.target.value })
                   }
-                  className={fieldClass}
+                  className={cn(
+                    fieldClass,
+                    "resize-none border-podium-yellow/30 bg-podium-navy/40 text-podium-white focus:border-podium-yellow/60",
+                  )}
                 />
               </label>
               <label className="block text-sm text-podium-gray">
                 Duração da reunião (minutos)
                 <input
+                  id="duracao_reuniao"
                   type="number"
                   min={5}
                   max={120}
@@ -310,7 +319,7 @@ export default function SetupPage() {
             </>
           ) : null}
 
-          <ScriptPreview profile={previewProfile} />
+          <AnatomyAssembler profile={previewProfile} step={step} />
         </GlassCard>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

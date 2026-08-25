@@ -28,6 +28,7 @@ const FILES = [
   "supabase/migrations/20260831000000_crm_stage_keys.sql",
   "supabase/migrations/20260901000000_search_jobs.sql",
   "supabase/migrations/20260902000000_user_catchup_state.sql",
+  "supabase/migrations/20260903000000_lock_postgrest.sql",
 ] as const;
 
 async function main(): Promise<void> {

@@ -18,8 +18,27 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { getDatabaseUrl, REPO_ROOT } from "../ingest/config";
 
-const PROJECT_URL = "https://smroraizzrbbrkwpaukh.supabase.co";
-const PROJECT_REF = "smroraizzrbbrkwpaukh";
+function projectRef(): string {
+  const explicit = process.env.SUPABASE_PROJECT_REF?.trim();
+  if (explicit) return explicit;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!url) return "";
+  try {
+    const host = new URL(url).hostname;
+    const m = host.match(/^([a-z0-9]+)\.supabase\.co$/i);
+    return m?.[1] ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function projectUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (url) return url.replace(/\/$/, "");
+  const ref = projectRef();
+  return ref ? `https://${ref}.supabase.co` : "";
+}
+
 const DUMP_DIR = path.join(REPO_ROOT, "tmp", "supabase-dump");
 const POSTGRES_IMAGE = "postgres:16";
 const DEFAULT_POOLER_REGION = "us-west-2";
@@ -167,9 +186,11 @@ function main() {
   const skipDump = process.argv.includes("--skip-dump");
   const dest = process.env.SUPABASE_DB_URL?.trim();
 
+  const destUrl = projectUrl();
+  const destRef = projectRef();
   console.log("GRID → Supabase dump/restore\n");
-  console.log(`Project: ${PROJECT_URL}`);
-  console.log(`Ref:     ${PROJECT_REF}`);
+  console.log(`Project: ${destUrl || "(defina NEXT_PUBLIC_SUPABASE_URL ou SUPABASE_PROJECT_REF)"}`);
+  console.log(`Ref:     ${destRef || "(ausente)"}`);
   console.log(`Source:  ${source.replace(/:[^:@/]+@/, ":***@")}`);
   console.log("");
   console.log("Use the Direct connection (port 5432), not the transaction pooler (6543).");
@@ -221,7 +242,9 @@ function main() {
   console.log("Then: pnpm seed:presets");
   console.log("");
   console.log("App .env.local after cutover:");
-  console.log(`  NEXT_PUBLIC_SUPABASE_URL=${PROJECT_URL}`);
+  console.log(
+    `  NEXT_PUBLIC_SUPABASE_URL=${destUrl || "https://YOUR_PROJECT.supabase.co"}`,
+  );
   console.log("  DATABASE_URL=<SUPABASE_DB_URL>");
   console.log("  DATA_SOURCE=postgres\n");
 

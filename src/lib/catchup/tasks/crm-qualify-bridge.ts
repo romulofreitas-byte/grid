@@ -1,5 +1,6 @@
 import { CATCHUP_BATCH_SIZE, CRM_QUALIFY_BRIDGE_TASK } from "@/lib/catchup/constants";
 import type { CatchUpRunResult, CatchUpTask } from "@/lib/catchup/types";
+import { crmAllowed } from "@/lib/billing/service";
 import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
 import type { GridRepo } from "@/lib/data/repo";
 
@@ -20,6 +21,9 @@ export async function runCrmQualifyBridge(
   userId: string,
   opts?: { searchId?: string; cnpjs?: string[] },
 ): Promise<CatchUpRunResult> {
+  if (!(await crmAllowed(userId))) {
+    return { created: 0, skipped: 0, hasMore: false };
+  }
   if (opts?.searchId && opts.cnpjs?.length) {
     const search = await repo.getSearch(opts.searchId);
     if (!search || search.user_id !== userId || !search.saved) {

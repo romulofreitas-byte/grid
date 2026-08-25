@@ -137,10 +137,3 @@ export function computeGridScore(input: ScoreInput): number {
   const normalized = Math.round((raw / max) * 100);
   return Math.min(100, Math.max(0, normalized));
 }
-
-export function scoreBand(score: number): "POLE" | "FRENTE" | "MEIO" | "FUNDO" {
-  if (score >= 85) return "POLE";
-  if (score >= 70) return "FRENTE";
-  if (score >= 50) return "MEIO";
-  return "FUNDO";
-}

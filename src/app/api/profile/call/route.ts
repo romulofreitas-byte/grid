@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getSearchForUser } from "@/lib/auth/search-access";
+import { crmAllowed } from "@/lib/billing/service";
 import { advanceCrmOnCall } from "@/lib/crm/lead-sync";
 import { getRepo } from "@/lib/data";
 
@@ -28,14 +29,16 @@ export async function POST(req: Request) {
     await repo.updateLead(parsed.data.savedLeadId, { status: "ligando" });
   }
   try {
-    const search = parsed.data.searchId
-      ? await getSearchForUser(gated.userId, parsed.data.searchId)
-      : null;
-    await advanceCrmOnCall(repo, {
-      userId: gated.userId,
-      cnpj: parsed.data.cnpj,
-      search,
-    });
+    if (await crmAllowed(gated.userId)) {
+      const search = parsed.data.searchId
+        ? await getSearchForUser(gated.userId, parsed.data.searchId)
+        : null;
+      await advanceCrmOnCall(repo, {
+        userId: gated.userId,
+        cnpj: parsed.data.cnpj,
+        search,
+      });
+    }
   } catch {
     // Call stats still count even if the CRM card cannot move.
   }

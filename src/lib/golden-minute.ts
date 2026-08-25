@@ -1,5 +1,8 @@
 import type { MarketPack } from "@/lib/market/packs";
+import { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
 import type { DigitalSignalId, LeadEnrichment } from "@/lib/types";
+
+export { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
 
 export type ContextRule = {
   id: DigitalSignalId;
@@ -18,9 +21,6 @@ export const PONTE_CHIP: Record<DigitalSignalId, string> = {
   "sem-whatsapp": "Sem WhatsApp",
   "midia-paga": "Sinal de anúncio",
 };
-
-export const GOLDEN_MINUTE_PLACEHOLDER =
-  "Qualifique esta empresa para cruzar o site com a Receita.";
 
 export const CONTEXT_RULES: ContextRule[] = [
   {

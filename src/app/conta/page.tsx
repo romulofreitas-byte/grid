@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AnatomyAssembler } from "@/components/AnatomyAssembler";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { PhotoPicker } from "@/components/PhotoPicker";
-import { ScriptPreview } from "@/components/ScriptPreview";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { COPY } from "@/lib/copy";
@@ -143,12 +143,13 @@ export default function ContaPage() {
               Como se chama na ligação
               <Hint className="mt-0.5">{COPY.comoChama}</Hint>
               <input
+                id="como_chama"
                 defaultValue={p.como_chama ?? ""}
                 onBlur={(e) => save.mutate({ como_chama: e.target.value })}
                 className={fieldClass}
               />
             </label>
-            <fieldset>
+            <fieldset id="tratamento">
               <legend className="text-sm text-podium-gray">
                 Aqui é…
                 <Hint className="mt-0.5">{COPY.tratamento}</Hint>
@@ -177,29 +178,37 @@ export default function ContaPage() {
                 ["cidade_usuario", "Cidade", null],
                 ["especialidade", "Especialidade", COPY.especialidade],
                 ["area", "Área", COPY.area],
-                ["promessa", "Promessa", COPY.promessa],
               ] as const
             ).map(([key, label, hint]) => (
-              <label
-                key={key}
-                id={key === "promessa" ? "promessa" : undefined}
-                className={cn(
-                  "block scroll-mt-24 rounded-xl text-sm text-podium-gray",
-                  key === "promessa" && "p-1",
-                )}
-              >
+              <label key={key} className="block text-sm text-podium-gray">
                 {label}
                 {hint ? <Hint className="mt-0.5">{hint}</Hint> : null}
                 <input
+                  id={key}
                   defaultValue={p[key] ?? ""}
                   onBlur={(e) => save.mutate({ [key]: e.target.value })}
                   className={fieldClass}
                 />
               </label>
             ))}
+            <label className="block scroll-mt-24 rounded-2xl border border-podium-yellow/35 bg-podium-yellow/10 p-4 text-sm text-podium-gray">
+              A promessa do piloto
+              <Hint className="mt-0.5">{COPY.promessaCompromisso}</Hint>
+              <textarea
+                id="promessa"
+                rows={3}
+                defaultValue={p.promessa ?? ""}
+                onBlur={(e) => save.mutate({ promessa: e.target.value })}
+                className={cn(
+                  fieldClass,
+                  "resize-none border-podium-yellow/30 bg-podium-navy/40 text-podium-white focus:border-podium-yellow/60",
+                )}
+              />
+            </label>
             <label className="block text-sm text-podium-gray">
               Duração da reunião (minutos)
               <input
+                id="duracao_reuniao"
                 type="number"
                 min={5}
                 max={120}
@@ -230,7 +239,7 @@ export default function ContaPage() {
                 ))}
               </div>
             </div>
-            <ScriptPreview profile={p} />
+            <AnatomyAssembler profile={p} />
             <Hint>{COPY.anatomiaDaLigacao}</Hint>
             <p className="pt-2 text-sm text-podium-muted">
               Discador, VOIP e CRM ficam em{" "}

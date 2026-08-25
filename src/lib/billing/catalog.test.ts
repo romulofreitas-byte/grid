@@ -17,11 +17,20 @@ describe("catalog", () => {
   });
 
   it("blocks enrichment on free", () => {
-    expect(getCatalogItem("free")).toMatchObject({
+    const free = getCatalogItem("free");
+    expect(free).toMatchObject({
       kind: "plan",
       enrichAllowed: false,
       credits: 25,
     });
+    expect(free?.kind === "plan" ? free.highlights : []).toContain(
+      "Sem qualificação nem CRM",
+    );
+  });
+
+  it("lists native CRM on Piloto", () => {
+    const piloto = getCatalogItem("piloto");
+    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain("CRM nativo");
   });
 
   it("prices packs above the subscription unit cost", () => {

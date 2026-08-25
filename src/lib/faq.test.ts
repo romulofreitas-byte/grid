@@ -17,6 +17,13 @@ describe("filterFaq", () => {
   });
 });
 
+describe("crm-nativo FAQ", () => {
+  it("says the pista starts on Plano Piloto", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "crm-nativo");
+    expect(item?.answer).toMatch(/Plano Piloto/);
+  });
+});
+
 describe("conexoes FAQ", () => {
   it("says GRID dials with VoIP and falls back to the device phone", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "conexoes");

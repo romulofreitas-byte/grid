@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getSearchForUser } from "@/lib/auth/search-access";
-import { getBillingStore, getBalance } from "@/lib/billing/service";
+import { getBillingStore, getBalance, crmAllowed } from "@/lib/billing/service";
 import { redactDossier } from "@/lib/billing/redact";
 import { FICHA_MOVE_KEYS } from "@/lib/crm/cadence";
 import {
@@ -58,11 +58,13 @@ export async function GET(
     showEnrichment: enriched,
     showContacts: balance.enrichAllowed,
   });
-  const crm = await loadLeadCrm(repo, {
-    userId: gated.userId,
-    cnpj,
-    search,
-  });
+  const crm = balance.enrichAllowed
+    ? await loadLeadCrm(repo, {
+        userId: gated.userId,
+        cnpj,
+        search,
+      })
+    : null;
   return NextResponse.json({
     ...safe,
     notas: crm?.notes || safe.notas,
@@ -93,37 +95,39 @@ export async function PATCH(
     : null;
 
   let status: LeadStatus | undefined = body.status;
-  if (body.crmStageKey) {
-    const moved = await moveLeadCrmFromFicha(repo, {
-      userId: gated.userId,
-      cnpj,
-      search,
-      targetKey: body.crmStageKey,
-    });
-    if (moved.status) status = moved.status;
-  } else if (body.status === "ligando") {
-    await advanceCrmOnCall(repo, {
-      userId: gated.userId,
-      cnpj,
-      search,
-    });
-  } else if (body.status === "reuniao" || body.status === "descartado") {
-    const moved = await moveLeadCrmFromFicha(repo, {
-      userId: gated.userId,
-      cnpj,
-      search,
-      targetKey: body.status === "reuniao" ? "reuniao_agendada" : "descartado",
-    });
-    if (moved.status) status = moved.status;
-  }
+  if (await crmAllowed(gated.userId)) {
+    if (body.crmStageKey) {
+      const moved = await moveLeadCrmFromFicha(repo, {
+        userId: gated.userId,
+        cnpj,
+        search,
+        targetKey: body.crmStageKey,
+      });
+      if (moved.status) status = moved.status;
+    } else if (body.status === "ligando") {
+      await advanceCrmOnCall(repo, {
+        userId: gated.userId,
+        cnpj,
+        search,
+      });
+    } else if (body.status === "reuniao" || body.status === "descartado") {
+      const moved = await moveLeadCrmFromFicha(repo, {
+        userId: gated.userId,
+        cnpj,
+        search,
+        targetKey: body.status === "reuniao" ? "reuniao_agendada" : "descartado",
+      });
+      if (moved.status) status = moved.status;
+    }
 
-  if (body.notas != null) {
-    await syncCrmDealNotes(repo, {
-      userId: gated.userId,
-      cnpj,
-      search,
-      notes: body.notas,
-    });
+    if (body.notas != null) {
+      await syncCrmDealNotes(repo, {
+        userId: gated.userId,
+        cnpj,
+        search,
+        notes: body.notas,
+      });
+    }
   }
 
   if (body.savedLeadId && (status !== undefined || body.notas !== undefined)) {

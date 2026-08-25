@@ -1,10 +1,17 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runUserCatchUp } from "@/lib/catchup/run";
 import { onSearchSaved } from "@/lib/catchup/saved-list";
 import { runCrmQualifyBridge } from "@/lib/catchup/tasks/crm-qualify-bridge";
 import { mockRepo } from "@/lib/data/mock-repo";
 import { getMockStore } from "@/lib/data/mock-store";
 import { DEFAULT_FILTERS, type LeadEnrichment, type SavedLead, type Search } from "@/lib/types";
+
+const crmAllowed = vi.hoisted(() => vi.fn(async () => true));
+
+vi.mock("@/lib/billing/service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/billing/service")>();
+  return { ...actual, crmAllowed };
+});
 
 const USER = "catchup-crm-user";
 
@@ -69,7 +76,10 @@ function cleanup() {
 }
 
 describe("crm qualify catch-up", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    crmAllowed.mockResolvedValue(true);
+    cleanup();
+  });
 
   it("bridges a saved list with an old qualify and skips the second run", async () => {
     const store = getMockStore();
@@ -152,5 +162,20 @@ describe("crm qualify catch-up", () => {
     expect(saved?.saved).toBe(true);
     await onSearchSaved(USER, saved!, mockRepo);
     expect(await mockRepo.listCrmDealCnpjs(USER, [est.cnpj])).toEqual([est.cnpj]);
+  });
+
+  it("does not create deals on Treino livre", async () => {
+    crmAllowed.mockResolvedValue(false);
+    const store = getMockStore();
+    const est = store.establishments[2];
+    expect(est).toBeTruthy();
+    const cnpj = est!.cnpj;
+    store.searches.push(searchRow("saved-free", true));
+    store.saved_leads.push(leadRow("lead-free", "saved-free", cnpj));
+    store.lead_enrichment.push(auditFor(cnpj));
+
+    const out = await runCrmQualifyBridge(mockRepo, USER);
+    expect(out).toEqual({ created: 0, skipped: 0, hasMore: false });
+    expect(await mockRepo.listCrmDealCnpjs(USER, [cnpj])).toEqual([]);
   });
 });

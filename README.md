@@ -2,9 +2,13 @@
 
 SaaS de criação de lista e qualificação de leads para cold call.
 
-**Estado:** app liga em Postgres via `DATABASE_URL` (`DATA_SOURCE=postgres`). Docker é opcional para desenvolvimento local. O projeto Supabase é [smroraizzrbbrkwpaukh](https://smroraizzrbbrkwpaukh.supabase.co).
+**Estado:** app liga em Postgres via `DATABASE_URL` (`DATA_SOURCE=postgres`). Docker é opcional para desenvolvimento local.
 
 Briefing: [`briefing_claude_proximo_passo.md`](./briefing_claude_proximo_passo.md). Plano original: `plano_app_prospeccao_mundo_podium.md`.
+
+## Repo
+
+Software proprietário (ver `LICENSE`). O GitHub deste projeto **deve ser privado**. Nunca commitar `.env` / `.env.local`. Dados da Receita e enriquecimento só saem pelas APIs autenticadas do Next.js — não pelo PostgREST / anon key do browser. Antes de um push: `pnpm launch:secrets`.
 
 ## Stack
 
@@ -41,25 +45,26 @@ Mock atual: **5.000** empresas em **27 UFs**, **5.571** municípios IBGE, **106*
 | `pnpm seed:pg-mock` | Carrega amostra do mock no Postgres local (dev prod-like) |
 | `pnpm seed:mock` | Resumo do store mock |
 | `pnpm db:verify-rf` | Confere establishments/MVs RF no Postgres |
-| `pnpm launch:ready` | Checklist env + RF + próximo passo ops |
+| `pnpm launch:ready` | Checklist secrets + env + RF + próximo passo ops |
+| `pnpm launch:secrets` | Recusa `.env` no git, ref de projeto e cupom no `.env.example` |
 | `pnpm validate:phones` | Relatório phone-sharing (exige DB; `--allow-mock` libera mock) |
 | `pnpm audit:segments` | Relatório `reports/segment-coverage.md` |
 | `pnpm db:dump-supabase` | Dump do Postgres local para restaurar no Supabase |
 
 ## Ligar o Supabase (sair do Docker)
 
-Projeto: `https://smroraizzrbbrkwpaukh.supabase.co`
+Copie `.env.example` → `.env.local` e preencha URL/keys do **seu** projeto (Settings → API). Não cole o ref no git.
 
 A base RF de MG+SP costuma passar dos **500 MB do Free** — o plano Pro é o caminho mais seguro. Use a **conexão direta (porta 5432)**, não o pooler transaction (6543).
 
 1. No dashboard: copiar anon key, service role e a senha do `postgres`.
 2. Conferir o tamanho local: `psql postgresql://grid:grid@127.0.0.1:5432/grid -c "\l+"`.
 3. Dump: `pnpm db:dump-supabase`
-4. Restore: definir `SUPABASE_DB_URL=postgresql://postgres.[SENHA]@db.smroraizzrbbrkwpaukh.supabase.co:5432/postgres?sslmode=require` e `pnpm db:dump-supabase -- --restore`
+4. Restore: definir `SUPABASE_DB_URL` (direct 5432, `sslmode=require`) e `pnpm db:dump-supabase -- --restore`
    (ou os comandos `pg_restore` / `psql … post-restore.sql` que o script imprime)
 5. `pnpm seed:presets`
 6. `.env.local`:
-   - `NEXT_PUBLIC_SUPABASE_URL=https://smroraizzrbbrkwpaukh.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY=…`
    - `DATABASE_URL=…sslmode=require` (direct 5432)
    - `DATA_SOURCE=postgres`

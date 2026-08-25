@@ -6,6 +6,7 @@
 import "../../src/lib/load-env";
 import { collectLaunchEnvIssues } from "../../src/lib/env/deploy";
 import { getDataSource, hasLiveDatabase } from "../../src/lib/data";
+import { collectSecretIssues } from "./check-secrets";
 
 async function rfSnapshot(): Promise<Record<string, unknown>> {
   if (!hasLiveDatabase()) {
@@ -56,6 +57,17 @@ async function rfSnapshot(): Promise<Record<string, unknown>> {
 }
 
 async function main() {
+  const secretIssues = collectSecretIssues();
+  if (secretIssues.length) {
+    console.log(
+      JSON.stringify(
+        { event: "live_readiness", secretIssues },
+        null,
+        2,
+      ),
+    );
+    process.exit(1);
+  }
   const issues = collectLaunchEnvIssues();
   const rf = await rfSnapshot();
   console.log(

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BillingGateError,
+  blockCrmIfFree,
   blockQualifyIfFree,
   insufficientCreditsPayload,
   isBillingGateError,
@@ -81,7 +82,15 @@ describe("paywallCopy", () => {
 
   it("points plan qualify to /planos", () => {
     const copy = paywallCopy({ kind: "plan", feature: "qualify" });
-    expect(copy.title).toMatch(/Plano Piloto/);
+    expect(copy.title).toMatch(/Qualificação/);
+    expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
+    expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
+  });
+
+  it("points plan crm to /planos", () => {
+    const copy = paywallCopy({ kind: "plan", feature: "crm" });
+    expect(copy.title).toMatch(/CRM/);
+    expect(copy.body).toMatch(/pista/);
     expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
     expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
   });
@@ -131,6 +140,19 @@ describe("blockQualifyIfFree", () => {
     const trialOpen = vi.fn();
     expect(blockQualifyIfFree(false, trialOpen, { trialExpired: true })).toBe(true);
     expect(trialOpen).toHaveBeenCalledWith({ kind: "trial", feature: "qualify" });
+  });
+});
+
+describe("blockCrmIfFree", () => {
+  it("blocks only when enrich is explicitly disallowed", () => {
+    const open = vi.fn();
+    expect(blockCrmIfFree(false, open)).toBe(true);
+    expect(open).toHaveBeenCalledWith({ kind: "plan", feature: "crm" });
+    expect(blockCrmIfFree(true, open)).toBe(false);
+    expect(blockCrmIfFree(undefined, open)).toBe(false);
+    const trialOpen = vi.fn();
+    expect(blockCrmIfFree(false, trialOpen, { trialExpired: true })).toBe(true);
+    expect(trialOpen).toHaveBeenCalledWith({ kind: "trial", feature: "crm" });
   });
 });
 

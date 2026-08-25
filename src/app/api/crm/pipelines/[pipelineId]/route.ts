@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { jsonError, readJson } from "@/app/api/crm/_http";
+import { isGuardReject } from "@/lib/auth/api-guard";
+import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { pipelinePatchSchema } from "@/lib/crm/schema";
 
@@ -8,7 +8,7 @@ export async function GET(
   req: Request,
   ctx: { params: Promise<{ pipelineId: string }> },
 ) {
-  const gated = await guardApi(req, "read");
+  const gated = await guardCrmApi(req, "read");
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
   const board = await getRepo().getCrmBoard(gated.userId, pipelineId);
@@ -20,7 +20,7 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ pipelineId: string }> },
 ) {
-  const gated = await guardApi(req, "crm");
+  const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
   const parsed = pipelinePatchSchema.safeParse(await readJson(req));
@@ -38,7 +38,7 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ pipelineId: string }> },
 ) {
-  const gated = await guardApi(req, "crm");
+  const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
   const ok = await getRepo().deleteCrmPipeline(gated.userId, pipelineId);

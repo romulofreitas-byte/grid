@@ -3,7 +3,7 @@ export const RECARGA_URL = "/planos#recarga";
 
 export type BillingGateCode = "plan_required" | "insufficient_credits" | "trial_expired";
 export type PaywallKind = "plan" | "credits" | "trial";
-export type PaywallFeature = "qualify" | "export" | "crm_push";
+export type PaywallFeature = "qualify" | "export" | "crm_push" | "crm";
 
 export type BillingGate = {
   kind: PaywallKind;
@@ -146,6 +146,19 @@ export function blockQualifyIfFree(
   return true;
 }
 
+export function blockCrmIfFree(
+  enrichAllowed: boolean | undefined,
+  openPaywall: (input: PaywallOpen) => void,
+  options?: { trialExpired?: boolean },
+): boolean {
+  if (enrichAllowed !== false) return false;
+  openPaywall({
+    kind: options?.trialExpired ? "trial" : "plan",
+    feature: "crm",
+  });
+  return true;
+}
+
 export function paywallCopy(state: PaywallOpen): PaywallCopy {
   if (state.kind === "trial") {
     return {
@@ -157,6 +170,15 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     };
   }
   if (state.kind === "plan") {
+    if (state.feature === "crm") {
+      return {
+        eyebrow: "Plano Piloto",
+        title: "CRM só a partir do Plano Piloto",
+        body: "Buscar e ver a lista continua grátis. A pista do nicho entra no Piloto.",
+        primary: { href: PLANOS_URL, label: "Ver planos" },
+        secondary: { action: "close", label: "Fechar" },
+      };
+    }
     return {
       eyebrow: "Plano Piloto",
       title: "Qualificação só a partir do Plano Piloto",

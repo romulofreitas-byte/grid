@@ -49,7 +49,7 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       "25 créditos / mês",
       "Exportação de cadastro + decisor",
-      "Sem qualificação",
+      "Sem qualificação nem CRM",
     ],
   },
   {
@@ -64,6 +64,7 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       "900 créditos / mês",
       "500 exportações + 200 qualificações",
+      "CRM nativo",
       "Pix, cartão ou boleto",
     ],
   },

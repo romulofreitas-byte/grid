@@ -1,6 +1,5 @@
-import { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute";
 import { DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
-import type { MarketBrief, Profile } from "@/lib/types";
+import type { MarketBrief, Profile, Tratamento } from "@/lib/types";
 
 export type ScriptProfile = Pick<
   Profile,
@@ -17,20 +16,56 @@ export type ScriptProfile = Pick<
 
 export type AnatomyInput = {
   decisorNome?: string | null;
-  market: Pick<
-    MarketBrief,
-    "nome" | "dorPrincipal" | "perguntaConsideracao" | "sazonalidade" | "sazonalidadeAtiva"
-  >;
+  market?: Pick<MarketBrief, "slug" | "perguntaConsideracao"> | null;
 };
 
-function slot(value: string | null | undefined, fallback: string): string {
+export const CONSIDERATION_LINE = "Como vocês resolvem isso hoje?";
+
+export const ANATOMY_SLOT_IDS = [
+  "artigo",
+  "nome",
+  "empresa",
+  "cidade",
+  "promessa",
+  "consideracao",
+  "duracao",
+] as const;
+
+export type AnatomySlotId = (typeof ANATOMY_SLOT_IDS)[number];
+
+export type AnatomySlot = {
+  id: AnatomySlotId;
+  label: string;
+  value: string | null;
+  source: "profile" | "lead";
+  fieldId: string;
+};
+
+const SLOT_META: Record<
+  AnatomySlotId,
+  { label: string; fieldId: string; source: AnatomySlot["source"] }
+> = {
+  artigo: { label: "artigo", fieldId: "tratamento", source: "profile" },
+  nome: { label: "nome", fieldId: "como_chama", source: "profile" },
+  empresa: { label: "empresa", fieldId: "empresa_usuario", source: "profile" },
+  cidade: { label: "cidade", fieldId: "cidade_usuario", source: "profile" },
+  promessa: { label: "promessa", fieldId: "promessa", source: "profile" },
+  consideracao: { label: "consideração", fieldId: "promessa", source: "lead" },
+  duracao: { label: "minutos", fieldId: "duracao_reuniao", source: "profile" },
+};
+
+function filled(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : fallback;
+  return trimmed ? trimmed : null;
 }
 
 function firstName(nome: string | null | undefined): string | null {
   const first = nome?.trim().split(/\s+/)[0];
   return first || null;
+}
+
+function slot(value: string | null | undefined, fallback: string): string {
+  return filled(value) ?? fallback;
 }
 
 function artigo(profile: ScriptProfile): string {
@@ -39,33 +74,97 @@ function artigo(profile: ScriptProfile): string {
   return "o ";
 }
 
-function motiveLine(
+function artigoValue(tratamento: Tratamento | null | undefined): string | null {
+  if (tratamento === "a" || tratamento === "e" || tratamento === "o") {
+    return tratamento;
+  }
+  return null;
+}
+
+function endSentence(text: string): string {
+  const trimmed = text.trim().replace(/\.*$/, "");
+  return trimmed ? `${trimmed}.` : "";
+}
+
+/** First spoken sentence. Drops the subjective clause after the first stop. */
+export function spokenLine(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const stop = trimmed.search(/[.!?]/);
+  const first = (stop >= 0 ? trimmed.slice(0, stop + 1) : trimmed).trim();
+  if (/[?!]$/.test(first)) return first;
+  return endSentence(first);
+}
+
+function isRealMarket(
   market: AnatomyInput["market"],
-): string {
-  const dor = market.dorPrincipal.trim();
-  const season =
-    market.sazonalidadeAtiva && market.sazonalidade?.trim()
-      ? ` ${market.sazonalidade.trim().replace(/\.*$/, "")}.`
-      : "";
-  return `A gente acompanha ${market.nome}. ${dor}.${season}`;
+): market is NonNullable<AnatomyInput["market"]> {
+  const slug = market?.slug?.trim();
+  return Boolean(slug && slug !== "generico");
+}
+
+function considerationLine(input: AnatomyInput = {}): string {
+  if (!isRealMarket(input.market)) return CONSIDERATION_LINE;
+  const spoken = spokenLine(input.market.perguntaConsideracao);
+  if (!spoken) return CONSIDERATION_LINE;
+  if (/[?]$/.test(spoken)) return spoken;
+  return `${spoken.replace(/\.$/, "")}?`;
+}
+
+function promiseLine(promessa: string): string {
+  return `A gente entrega ${promessa.trim().replace(/\.*$/, "")}.`;
+}
+
+export function anatomyAssembly(profile: ScriptProfile): Record<AnatomySlotId, AnatomySlot> {
+  const nome = filled(profile.como_chama) ?? firstName(profile.nome);
+  const promessa = filled(profile.promessa);
+  const duracao = profile.duracao_reuniao || DEFAULT_MEETING_MINUTES;
+
+  const values: Record<AnatomySlotId, string | null> = {
+    artigo: artigoValue(profile.tratamento),
+    nome,
+    empresa: filled(profile.empresa_usuario),
+    cidade: filled(profile.cidade_usuario),
+    promessa,
+    consideracao: promessa ? CONSIDERATION_LINE : null,
+    duracao: String(duracao),
+  };
+
+  return Object.fromEntries(
+    ANATOMY_SLOT_IDS.map((id) => [
+      id,
+      {
+        id,
+        label: SLOT_META[id].label,
+        value: values[id],
+        source: SLOT_META[id].source,
+        fieldId: SLOT_META[id].fieldId,
+      },
+    ]),
+  ) as Record<AnatomySlotId, AnatomySlot>;
 }
 
 export function buildOpeningScript(
   profile: ScriptProfile,
-  input: AnatomyInput,
+  input: AnatomyInput = {},
 ): string {
   const decisor = firstName(input.decisorNome) ?? "aí";
-  const comoChama = slot(profile.como_chama, slot(firstName(profile.nome), "Piloto"));
+  const comoChama = slot(
+    profile.como_chama,
+    slot(firstName(profile.nome), "Piloto"),
+  );
   const empresa = slot(profile.empresa_usuario, "empresa");
   const cidade = slot(profile.cidade_usuario, "cidade");
   const duracao = profile.duracao_reuniao || DEFAULT_MEETING_MINUTES;
-  const pergunta =
-    input.market.perguntaConsideracao.trim() || GOLDEN_MINUTE_PLACEHOLDER;
+  const promessa = filled(profile.promessa);
+
+  const hello = `Olá ${decisor}, aqui é ${artigo(profile)}${comoChama} da ${empresa} de ${cidade}.`;
+  const beat1 = promessa ? `${hello} ${promiseLine(promessa)}` : hello;
 
   return [
-    `Olá ${decisor}, aqui é ${artigo(profile)}${comoChama} da ${empresa} de ${cidade}. ${motiveLine(input.market)}`,
-    pergunta,
-    `Queria te apresentar numa conversa de ${duracao} minutos — sem compromisso de produto. Como está sua agenda?`,
+    beat1,
+    considerationLine(input),
+    `Queria te mostrar isso em ${duracao} minutos. Como está sua agenda?`,
   ].join("\n");
 }
 

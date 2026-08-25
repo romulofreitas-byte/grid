@@ -58,7 +58,7 @@ export const COPY = {
   clarezaDeMercado:
     "Na ficha, a Anatomia já leva o briefing: dor do ramo, meses de pico e o melhor horário.",
   anatomiaDaLigacao:
-    "Na ficha, briefing do nicho — dor, calendário e ângulo. Não é um texto para recitar. No capacete, nome, empresa e cidade entram como quem você é.",
+    "No capacete, nome, empresa, cidade e a promessa montam quem você é na ligação. Na ficha, o briefing do nicho — dor, calendário e ângulo — não é texto para recitar.",
   qualificacaoFicha:
     "Ativos digitais do lead: site, redes e o que falta. Isso qualifica o contato — não é o briefing da Anatomia.",
   b2c: "Vende para o consumidor final na cidade.",
@@ -81,6 +81,8 @@ export const COPY = {
   area: "Em qual parte do negócio você atua.",
   comoChama: "Como você se apresenta na ligação.",
   promessa: "Uma linha do que você entrega.",
+  promessaCompromisso:
+    "O compromisso do dia. Entra no motivo, na consideração e no convite da reunião.",
   tratamento: "Artigo na abertura: o, a ou e.",
   novaLista: "Nova lista",
   continuarLista: "Continuar lista",

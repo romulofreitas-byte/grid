@@ -129,6 +129,13 @@ export class EnrichmentNotAllowedError extends Error {
   }
 }
 
+export class CrmNotAllowedError extends Error {
+  constructor(message = "CRM não está no Treino livre. Escolha um plano.") {
+    super(message);
+    this.name = "CrmNotAllowedError";
+  }
+}
+
 export class BillingError extends Error {
   status: number;
   constructor(message: string, status = 400) {

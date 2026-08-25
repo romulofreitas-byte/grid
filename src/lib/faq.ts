@@ -48,7 +48,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o Capacete?",
     answer:
-      "Nome, empresa e cidade. Entram como quem você é. O motivo da ligação vem do mercado do lead — não da sua especialidade.",
+      "Nome, empresa, cidade e a promessa. Quem você é e o que entrega. A especialidade não vira prosa na ligação.",
     links: [{ href: "/setup", label: "Completar o capacete" }],
   },
   {
@@ -86,7 +86,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra na volta?",
     answer:
-      "O CRM do GRID é a pista do nicho. Qualifique uma lista salva e os leads entram em Entrada de Lista. Listas salvas que já tinham qualificação entram na pista quando você abre o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
+      "O CRM do GRID é a pista do nicho. A pista entra a partir do Plano Piloto. Qualifique uma lista salva e os leads entram em Entrada de Lista. Listas salvas que já tinham qualificação entram na pista quando você abre o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },

@@ -156,10 +156,9 @@ function pack(
 }
 
 export const GENERIC_PACK: MarketPack = pack("generico", "este ramo", {
-  dorPrincipal:
-    "Em {cidade}, cliente novo entra sobretudo por indicação. Sem fila própria, o mês depende de quem já conhece.",
+  dorPrincipal: "Em {cidade}, cliente novo entra por indicação.",
   perguntaConsideracao:
-    "Como vocês estão trazendo cliente novo hoje, além de quem já chega por indicação?",
+    "Como vocês captam cliente novo além da indicação?",
   sazonalidade: null,
   janelaHorario: "De manhã, antes do pico do expediente",
 });

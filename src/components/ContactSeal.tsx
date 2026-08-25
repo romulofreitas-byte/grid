@@ -1,4 +1,4 @@
-import { sealDisplay, type ContactSealType } from "@/lib/contact-confidence";
+import { sealDisplay, type ContactSealType } from "@/lib/seal-display";
 import { cn } from "@/lib/utils";
 
 export function ContactSealBadge({

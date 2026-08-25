@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { jsonError, readJson } from "@/app/api/crm/_http";
+import { isGuardReject } from "@/lib/auth/api-guard";
+import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { dealPatchSchema } from "@/lib/crm/schema";
 
@@ -8,7 +8,7 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ dealId: string }> },
 ) {
-  const gated = await guardApi(req, "crm");
+  const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { dealId } = await ctx.params;
   const parsed = dealPatchSchema.safeParse(await readJson(req));
@@ -22,7 +22,7 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ dealId: string }> },
 ) {
-  const gated = await guardApi(req, "crm");
+  const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { dealId } = await ctx.params;
   const ok = await getRepo().deleteCrmDeal(gated.userId, dealId);

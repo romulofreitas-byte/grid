@@ -20,6 +20,7 @@
     "launch:status": "tsx scripts/launch/status-env.ts",
     "launch:ready": "tsx scripts/launch/live-readiness.ts",
     "launch:webhooks": "tsx scripts/launch/print-webhooks.ts",
+    "launch:secrets": "tsx scripts/launch/check-secrets.ts",
     "launch:smoke": "tsx scripts/launch/smoke-search.ts",
     "seed:presets": "tsx scripts/seed/presets.ts",
     "seed:pg-mock": "tsx scripts/seed/pg-from-mock.ts",

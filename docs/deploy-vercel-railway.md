@@ -132,7 +132,7 @@ Validar volumetria (~68M `establishments`, ~28M `companies`).
 | `STRIPE_SECRET_KEY` | opcional internacional |
 | `STRIPE_WEBHOOK_SECRET` | whsec_... |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | pk_live_... |
-| `BILLING_PLATFORM_COUPON` | `PILOTOPODIUM` |
+| `BILLING_PLATFORM_COUPON` | cupom da Plataforma (só no painel da Vercel, não no git) |
 | `NEXT_PUBLIC_SUPPORT_WHATSAPP` | E.164 sem + |
 
 **Não definir:** `GRID_MOCK_AUTH`, `BILLING_STORE=memory`.
@@ -236,7 +236,7 @@ Em produção, secrets são **obrigatórios** — webhooks sem token são rejeit
 - [ ] Admin só para e-mails em `GRID_ADMIN_EMAILS`
 - [ ] Worker processando jobs
 - [ ] Webhook teste (Asaas sandbox ou Stripe test mode)
-- [ ] `platform_subscribers` populado para cupom `PILOTOPODIUM`
+- [ ] `platform_subscribers` populado para o cupom da Plataforma
 - [ ] Upstash recebendo keys `count:v1:*` e `rl:v1:*`
 
 ### Comandos úteis

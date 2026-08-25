@@ -28,7 +28,7 @@ import {
   throwIfBillingGate,
 } from "@/lib/billing/paywall";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
-import { sealLabel } from "@/lib/contact-confidence";
+import { sealLabel } from "@/lib/seal-display";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
@@ -144,24 +144,55 @@ function RowSourceStatus({
   );
 }
 
-function GridRowActions({
+function GridCompanyLink({
   row,
   searchId,
   from,
-  callConnection,
-  selected,
-  qualifying,
-  onToggle,
   onWarm,
+  className,
 }: {
   row: GridRow;
   searchId: string;
   from: ReturnType<typeof parseGridFrom>;
+  onWarm: () => void;
+  className?: string;
+}) {
+  const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
+  return (
+    <Link
+      href={leadHref(row.cnpj, searchId, from)}
+      onPointerEnter={onWarm}
+      onFocus={onWarm}
+      onClick={onWarm}
+      title={
+        row.nomeFantasia
+          ? `${row.nomeFantasia} · ${row.razaoSocial}`
+          : row.razaoSocial
+      }
+      className={cn(
+        "truncate font-bold hover:text-podium-yellow focus-visible:outline-none focus-visible:text-podium-yellow",
+        className,
+      )}
+    >
+      {name}
+    </Link>
+  );
+}
+
+function GridRowActions({
+  row,
+  searchId,
+  callConnection,
+  selected,
+  qualifying,
+  onToggle,
+}: {
+  row: GridRow;
+  searchId: string;
   callConnection: ReturnType<typeof pickCallConnection>;
   selected: boolean;
   qualifying: boolean;
   onToggle: () => void;
-  onWarm: () => void;
 }) {
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
@@ -201,15 +232,6 @@ function GridRowActions({
           }
         />
       )}
-      <Link
-        href={leadHref(row.cnpj, searchId, from)}
-        onPointerEnter={onWarm}
-        onFocus={onWarm}
-        onClick={onWarm}
-        className={buttonClassName({ variant: "primary", size: "sm" })}
-      >
-        Abrir
-      </Link>
       <CallButton
         telHref={telHref}
         connection={callConnection}
@@ -888,7 +910,7 @@ export default function GridPage() {
       <GlassCard className="hidden hover:translate-y-0 lg:block">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[18rem]" />
+            <col className="w-[14rem]" />
             <col className="w-[4.5rem]" />
             <col />
             <col className="w-[11.5rem]" />
@@ -919,7 +941,6 @@ export default function GridPage() {
             {rows.map((row) => {
               const ddd = row.telefone?.slice(0, 2) ?? null;
               const tel = row.telefone?.slice(2) ?? null;
-              const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
               return (
                 <tr
                   key={row.cnpj}
@@ -934,12 +955,10 @@ export default function GridPage() {
                     <GridRowActions
                       row={row}
                       searchId={searchId}
-                      from={from}
                       callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
                       qualifying={isRowQualifying(row, pendingCnpjs)}
                       onToggle={() => toggleRow(row)}
-                      onWarm={() => warmLead(row)}
                     />
                   </td>
                   <td className="px-2 py-3 align-middle">
@@ -951,16 +970,13 @@ export default function GridPage() {
                     <RowSourceStatus row={row} className="mt-1" />
                   </td>
                   <td className="min-w-0 px-3 py-3 align-middle">
-                    <p
-                      className="truncate font-bold"
-                      title={
-                        row.nomeFantasia
-                          ? `${row.nomeFantasia} · ${row.razaoSocial}`
-                          : row.razaoSocial
-                      }
-                    >
-                      {name}
-                    </p>
+                    <GridCompanyLink
+                      row={row}
+                      searchId={searchId}
+                      from={from}
+                      onWarm={() => warmLead(row)}
+                      className="block"
+                    />
                     <p
                       className="truncate text-xs text-podium-muted"
                       title={row.cnaeDescricao}
@@ -1009,7 +1025,6 @@ export default function GridPage() {
         {rows.map((row) => {
           const ddd = row.telefone?.slice(0, 2) ?? null;
           const tel = row.telefone?.slice(2) ?? null;
-          const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
           return (
             <GlassCard
               key={row.cnpj}
@@ -1023,16 +1038,13 @@ export default function GridPage() {
             >
               <div className="min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <p
-                    className="truncate font-bold"
-                    title={
-                      row.nomeFantasia
-                        ? `${row.nomeFantasia} · ${row.razaoSocial}`
-                        : row.razaoSocial
-                    }
-                  >
-                    {name}
-                  </p>
+                  <GridCompanyLink
+                    row={row}
+                    searchId={searchId}
+                    from={from}
+                    onWarm={() => warmLead(row)}
+                    className="min-w-0"
+                  />
                   <PositionBadge
                     position={row.gridPosition}
                     score={row.gridScore}
@@ -1072,12 +1084,10 @@ export default function GridPage() {
                   <GridRowActions
                     row={row}
                     searchId={searchId}
-                    from={from}
                     callConnection={callConnection}
                     selected={selected.has(row.cnpj)}
                     qualifying={isRowQualifying(row, pendingCnpjs)}
                     onToggle={() => toggleRow(row)}
-                    onWarm={() => warmLead(row)}
                   />
                 </div>
               </div>

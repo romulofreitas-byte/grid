@@ -31,6 +31,7 @@ import {
 import type { BillingStore } from "@/lib/billing/store";
 import {
   BillingError,
+  CrmNotAllowedError,
   EnrichmentNotAllowedError,
   InsufficientCreditsError,
   type BillingOrder,
@@ -222,6 +223,23 @@ export async function ensureStartingCredits(profileId: string): Promise<CreditBa
 
 export async function getBalance(profileId: string): Promise<CreditBalance> {
   return ensureStartingCredits(profileId);
+}
+
+export async function crmAllowed(profileId: string): Promise<boolean> {
+  const balance = await getBalance(profileId);
+  return balance.enrichAllowed;
+}
+
+export async function assertCrmAccess(profileId: string): Promise<CreditBalance> {
+  const balance = await getBalance(profileId);
+  if (!balance.enrichAllowed) {
+    throw new CrmNotAllowedError(
+      balance.trialExpired
+        ? "Os 30 dias do Piloto da Plataforma acabaram. Recarregue ou assine o Piloto."
+        : undefined,
+    );
+  }
+  return balance;
 }
 
 export async function createCheckout(input: {

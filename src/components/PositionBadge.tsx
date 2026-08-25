@@ -1,4 +1,4 @@
-import { scoreBand } from "@/lib/scoring";
+import { scoreBand } from "@/lib/score-band";
 import { cn } from "@/lib/utils";
 
 export function PositionBadge({

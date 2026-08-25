@@ -1,3 +1,4 @@
+import { crmAllowed } from "@/lib/billing/service";
 import { getRepo } from "@/lib/data";
 import { advanceCrmOnCall } from "@/lib/crm/lead-sync";
 import { toE164 } from "@/lib/format";
@@ -180,11 +181,13 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       await repo.updateLead(dossier.savedLeadId, { status: "ligando" });
     }
     try {
-      await advanceCrmOnCall(repo, {
-        userId: job.user_id,
-        cnpj,
-        search: job.search_id ? ((await repo.getSearch(job.search_id)) ?? null) : null,
-      });
+      if (await crmAllowed(job.user_id)) {
+        await advanceCrmOnCall(repo, {
+          userId: job.user_id,
+          cnpj,
+          search: job.search_id ? ((await repo.getSearch(job.search_id)) ?? null) : null,
+        });
+      }
     } catch {
       // Originate still succeeded.
     }

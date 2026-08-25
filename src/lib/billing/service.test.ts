@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { resetBillingMemory } from "@/lib/billing/memory-store";
 import {
+  assertCrmAccess,
   createCheckout,
+  crmAllowed,
   debitCredits,
   debitEnrich,
   debitExport,
@@ -10,7 +12,11 @@ import {
   getBillingMe,
   handleNormalizedEvent,
 } from "@/lib/billing/service";
-import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
+import {
+  CrmNotAllowedError,
+  EnrichmentNotAllowedError,
+  InsufficientCreditsError,
+} from "@/lib/billing/types";
 
 vi.mock("@/lib/platform/subscribers", () => ({
   isPlatformSubscriber: vi.fn(async (email: string | null | undefined) => {
@@ -119,6 +125,25 @@ describe("billing service", () => {
     await expect(
       debitEnrich(profileId, ["12345678000190"], null),
     ).rejects.toBeInstanceOf(EnrichmentNotAllowedError);
+  });
+
+  it("blocks CRM on free and allows it on Piloto", async () => {
+    await getBalance(profileId);
+    expect(await crmAllowed(profileId)).toBe(false);
+    await expect(assertCrmAccess(profileId)).rejects.toBeInstanceOf(CrmNotAllowedError);
+
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    expect(await crmAllowed(profileId)).toBe(true);
+    await expect(assertCrmAccess(profileId)).resolves.toMatchObject({
+      enrichAllowed: true,
+      plano: "piloto",
+    });
   });
 
   it("debits enrich once per CNPJ", async () => {
