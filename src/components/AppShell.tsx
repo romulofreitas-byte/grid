@@ -33,20 +33,29 @@ export function AppShell({
   back,
   fill = false,
   wide = false,
+  lockHeight = false,
 }: {
   children: React.ReactNode;
   title?: string;
   back?: { href: string; label: string };
   fill?: boolean;
   wide?: boolean;
+  lockHeight?: boolean;
 }) {
   const pathname = usePathname();
 
   return (
-    <div className="relative min-h-screen text-podium-white">
+    <div
+      className={cn(
+        "relative text-podium-white",
+        lockHeight ? "flex h-dvh flex-col overflow-hidden" : "min-h-screen",
+      )}
+    >
       <AngularBackground />
-      <DemoModeBanner />
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
+      <div className="shrink-0">
+        <DemoModeBanner />
+      </div>
+      <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
           <Link href="/box" className="flex shrink-0 items-center">
             <BrandLogo
@@ -100,7 +109,8 @@ export function AppShell({
         className={cn(
           "mx-auto flex flex-col pb-24 md:pb-10",
           wide ? "max-w-none px-3 pt-4" : "max-w-7xl px-4 pt-6",
-          fill && "min-h-[calc(100dvh-3.5rem)]",
+          fill && !lockHeight && "min-h-[calc(100dvh-3.5rem)]",
+          lockHeight && "min-h-0 flex-1 overflow-hidden",
         )}
       >
         {back ? (
@@ -109,7 +119,14 @@ export function AppShell({
           </div>
         ) : null}
         {fill ? (
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col",
+              lockHeight && "overflow-hidden",
+            )}
+          >
+            {children}
+          </div>
         ) : (
           children
         )}

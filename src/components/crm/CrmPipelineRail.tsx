@@ -111,7 +111,7 @@ export function CrmPipelineRail({
   return (
     <aside
       className={cn(
-        "relative flex shrink-0 flex-col overflow-hidden border-r border-white/10",
+        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-white/10",
         !dragging && "transition-[width] duration-200 ease-out",
       )}
       style={{ width: open ? width : COLLAPSED }}
@@ -244,14 +244,14 @@ export function CrmPipelineRail({
                 if (event.key === "Escape") setCreating(false);
               }}
               placeholder={COPY.crmNewPipeline}
-              className={cn(CRM_FIELD, "mx-1 mb-2 py-1 text-xs")}
+              className={cn(CRM_FIELD, "mx-1 mb-2 shrink-0 py-1 text-xs")}
               autoFocus
             />
           ) : (
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="mb-2 inline-flex items-center gap-1 px-2 py-1.5 text-[11px] text-podium-muted hover:text-podium-yellow"
+              className="mb-2 inline-flex shrink-0 items-center gap-1 px-2 py-1.5 text-[11px] text-podium-muted hover:text-podium-yellow"
             >
               <Plus className="h-3 w-3" />
               {COPY.crmNewPipeline}

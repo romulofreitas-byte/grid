@@ -39,7 +39,7 @@ export function CrmLane({
     <section
       ref={setNodeRef}
       className={cn(
-        "flex h-full w-[17.5rem] shrink-0 flex-col rounded-2xl border border-white/[0.07] bg-podium-navy/40",
+        "flex h-full min-h-0 w-[17.5rem] shrink-0 flex-col rounded-2xl border border-white/[0.07] bg-podium-navy/40",
         isOver && "border-podium-yellow/35 bg-podium-yellow/[0.04]",
       )}
     >
@@ -75,7 +75,7 @@ export function CrmLane({
           {deals.length} {deals.length === 1 ? "negócio" : "negócios"}
         </p>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
         <SortableContext
           items={deals.map((deal) => deal.id)}
           strategy={verticalListSortingStrategy}

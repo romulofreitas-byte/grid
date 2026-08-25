@@ -90,7 +90,7 @@ async function CrmPageInner(sp: { pipeline?: string; deal?: string }) {
     : null;
 
   return (
-    <AppShell title={COPY.crmNav} fill wide>
+    <AppShell title={COPY.crmNav} fill wide lockHeight>
       <CrmBoard
         initialPipelines={pipelines}
         initialBoard={board}

@@ -261,8 +261,8 @@ export function CrmBoard({
   const activeDeal = activeId ? dealsById.get(activeId) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-podium-yellow">
             {COPY.crmNav}
@@ -292,8 +292,10 @@ export function CrmBoard({
           </button>
         </div>
       </div>
-      {error ? <p className="mb-3 text-sm text-red-400">{error}</p> : null}
-      <div className="flex min-h-0 flex-1 gap-3">
+      {error ? (
+        <p className="mb-3 shrink-0 text-sm text-red-400">{error}</p>
+      ) : null}
+      <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
         <CrmPipelineRail
           pipelines={pipelines}
           activeId={board?.pipeline.id ?? null}
@@ -338,47 +340,49 @@ export function CrmBoard({
             if (next) await loadPipeline(next.id);
           }}
         />
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDragEnd={onDragEnd}
-          onDragCancel={onDragCancel}
-        >
-          <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto pb-2">
-            {board?.stages.map((stage, index) => (
-              <CrmLane
-                key={stage.id}
-                stage={stage}
-                index={index}
-                deals={(columns[stage.id] ?? [])
-                  .map((id) => dealsById.get(id))
-                  .filter((deal): deal is Deal => Boolean(deal))}
-                onOpenDeal={setOpenDealId}
-                onRename={async (stageId, nome) => {
-                  await crmFetch(`/api/crm/stages/${stageId}`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ nome }),
-                  });
-                  setBoard((current) =>
-                    current
-                      ? {
-                          ...current,
-                          stages: current.stages.map((row) =>
-                            row.id === stageId ? { ...row, nome } : row,
-                          ),
-                        }
-                      : current,
-                  );
-                }}
-              />
-            ))}
-          </div>
-          <DragOverlay dropAnimation={null}>
-            {activeDeal ? <CrmDealCardView deal={activeDeal} overlay /> : null}
-          </DragOverlay>
-        </DndContext>
+        <div className="flex min-h-0 min-w-0 flex-1">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragCancel}
+          >
+            <div className="flex h-full min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden pb-2">
+              {board?.stages.map((stage, index) => (
+                <CrmLane
+                  key={stage.id}
+                  stage={stage}
+                  index={index}
+                  deals={(columns[stage.id] ?? [])
+                    .map((id) => dealsById.get(id))
+                    .filter((deal): deal is Deal => Boolean(deal))}
+                  onOpenDeal={setOpenDealId}
+                  onRename={async (stageId, nome) => {
+                    await crmFetch(`/api/crm/stages/${stageId}`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ nome }),
+                    });
+                    setBoard((current) =>
+                      current
+                        ? {
+                            ...current,
+                            stages: current.stages.map((row) =>
+                              row.id === stageId ? { ...row, nome } : row,
+                            ),
+                          }
+                        : current,
+                    );
+                  }}
+                />
+              ))}
+            </div>
+            <DragOverlay dropAnimation={null}>
+              {activeDeal ? <CrmDealCardView deal={activeDeal} overlay /> : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
       </div>
       {openDeal ? (
         <CrmDealDrawer
