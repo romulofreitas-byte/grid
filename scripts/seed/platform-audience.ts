@@ -2,11 +2,12 @@
 /**
  * Import Mundo Pódium audience e-mails into platform_subscribers.
  *
- * Fonte (primeira que existir):
+ * Fonte (export Circle mais recente em supabase/, depois data/platform-audience.csv):
+ *   supabase/*audience_list.csv (arquivo ou pasta)
+ *   supabase/*audience_list.csv.zip
  *   data/platform-audience.csv
- *   supabase/community_mundo_podium_356405_1787003890_audience_list.csv (arquivo ou pasta)
- *   supabase/community_mundo_podium_356405_1787003890_audience_list.csv.zip
- *   supabase/*audience*.csv / supabase/*audience*.zip
+ *
+ * A tabela fica igual ao arquivo: insere novos e remove quem saiu da lista.
  *
  *   pnpm seed:platform-audience
  */
@@ -25,10 +26,24 @@ import { getDatabaseUrl, REPO_ROOT } from "../ingest/config";
 
 const DATA_DIR = path.join(REPO_ROOT, "data");
 const CSV_OUT = path.join(DATA_DIR, "platform-audience.csv");
-const ZIP_NAME =
-  "community_mundo_podium_356405_1787003890_audience_list.csv.zip";
-const AUDIENCE_BASENAME =
-  "community_mundo_podium_356405_1787003890_audience_list.csv";
+const AUDIENCE_STAMP_RE = /(\d+)_audience_list/i;
+
+export function audienceExportStamp(name: string): number {
+  const match = name.match(AUDIENCE_STAMP_RE);
+  return match ? Number(match[1]) : 0;
+}
+
+export function pickNewestAudienceNames(names: string[]): string[] {
+  return [...names]
+    .filter((name) => /audience/i.test(name))
+    .sort((a, b) => {
+      const stamp = audienceExportStamp(b) - audienceExportStamp(a);
+      if (stamp !== 0) return stamp;
+      const zipA = /\.zip$/i.test(a) ? 1 : 0;
+      const zipB = /\.zip$/i.test(b) ? 1 : 0;
+      return zipA - zipB;
+    });
+}
 
 function normalizeEmail(raw: string): string | null {
   const email = raw.trim().toLowerCase().replace(/^"|"$/g, "");
@@ -100,6 +115,7 @@ export function parseCsvEmails(text: string): string[] {
 
 export function resolveAudienceCsvPath(candidate: string): string | null {
   if (!existsSync(candidate)) return null;
+  if (/\.zip$/i.test(candidate)) return null;
   const st = statSync(candidate);
   if (st.isFile()) return candidate;
   if (!st.isDirectory()) return null;
@@ -152,37 +168,24 @@ async function extractZipToCsv(zipPath: string, outPath: string): Promise<void> 
 }
 
 async function resolveSourceCsv(): Promise<string> {
-  if (existsSync(CSV_OUT)) return CSV_OUT;
-
-  const namedBase = path.join(REPO_ROOT, "supabase", AUDIENCE_BASENAME);
-  const fromNamed = resolveAudienceCsvPath(namedBase);
-  if (fromNamed) return fromNamed;
-
-  const namedZip = path.join(REPO_ROOT, "supabase", ZIP_NAME);
-  if (existsSync(namedZip) && statSync(namedZip).isFile()) {
-    mkdirSync(DATA_DIR, { recursive: true });
-    await extractZipToCsv(namedZip, CSV_OUT);
-    return CSV_OUT;
-  }
-
   const supabaseDir = path.join(REPO_ROOT, "supabase");
   if (existsSync(supabaseDir)) {
-    for (const name of readdirSync(supabaseDir)) {
+    for (const name of pickNewestAudienceNames(readdirSync(supabaseDir))) {
       const full = path.join(supabaseDir, name);
-      if (/audience/i.test(name)) {
-        const csv = resolveAudienceCsvPath(full);
-        if (csv) return csv;
-        if (/\.zip$/i.test(name) && statSync(full).isFile()) {
-          mkdirSync(DATA_DIR, { recursive: true });
-          await extractZipToCsv(full, CSV_OUT);
-          return CSV_OUT;
-        }
+      const csv = resolveAudienceCsvPath(full);
+      if (csv) return csv;
+      if (/\.zip$/i.test(name) && existsSync(full) && statSync(full).isFile()) {
+        mkdirSync(DATA_DIR, { recursive: true });
+        await extractZipToCsv(full, CSV_OUT);
+        return CSV_OUT;
       }
     }
   }
 
+  if (existsSync(CSV_OUT) && statSync(CSV_OUT).isFile()) return CSV_OUT;
+
   throw new Error(
-    `Audience CSV not found. Place ${AUDIENCE_BASENAME} (file or folder) or ${ZIP_NAME} in supabase/, or data/platform-audience.csv`,
+    "Audience CSV not found. Place the Circle *audience_list.csv (file or folder) or *.zip in supabase/, or data/platform-audience.csv",
   );
 }
 
@@ -217,21 +220,32 @@ async function main(): Promise<void> {
   await client.connect();
   try {
     await client.query(sql);
+    await client.query("begin");
     let inserted = 0;
-    for (const email of emails) {
-      const res = await client.query(
-        `insert into platform_subscribers (email) values ($1)
-         on conflict (email) do nothing`,
-        [email],
+    try {
+      for (const email of emails) {
+        const res = await client.query(
+          `insert into platform_subscribers (email) values ($1)
+           on conflict (email) do nothing`,
+          [email],
+        );
+        if (res.rowCount) inserted += 1;
+      }
+      const removed = await client.query(
+        `delete from platform_subscribers where not (email = any($1::text[]))`,
+        [emails],
       );
-      if (res.rowCount) inserted += 1;
+      await client.query("commit");
+      const { rows } = await client.query<{ n: number }>(
+        `select count(*)::int as n from platform_subscribers`,
+      );
+      console.log(
+        `platform_subscribers: ${rows[0]?.n ?? 0} total (${inserted} new, ${removed.rowCount ?? 0} removed; ${emails.length} in file)`,
+      );
+    } catch (err) {
+      await client.query("rollback");
+      throw err;
     }
-    const { rows } = await client.query<{ n: number }>(
-      `select count(*)::int as n from platform_subscribers`,
-    );
-    console.log(
-      `platform_subscribers: ${rows[0]?.n ?? 0} total (${inserted} new from ${emails.length} in file)`,
-    );
   } finally {
     await client.end();
   }

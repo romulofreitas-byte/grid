@@ -1,9 +1,11 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  audienceExportStamp,
   parseCsvEmails,
   parseCsvRecords,
+  pickNewestAudienceNames,
   resolveAudienceCsvPath,
 } from "../../scripts/seed/platform-audience";
 import { REPO_ROOT } from "../ingest/config";
@@ -27,26 +29,45 @@ describe("parseCsvEmails", () => {
   });
 });
 
+describe("pickNewestAudienceNames", () => {
+  it("prefers the Circle export with the highest stamp", () => {
+    expect(
+      pickNewestAudienceNames([
+        "community_mundo_podium_356405_1787003890_audience_list.csv",
+        "config.toml",
+        "community_mundo_podium_356405_1787654806_audience_list.csv.zip",
+        "community_mundo_podium_356405_1787654806_audience_list.csv",
+      ])[0],
+    ).toBe("community_mundo_podium_356405_1787654806_audience_list.csv");
+    expect(
+      audienceExportStamp(
+        "community_mundo_podium_356405_1787654806_audience_list.csv",
+      ),
+    ).toBe(1787654806);
+  });
+});
+
 describe("resolveAudienceCsvPath", () => {
-  it("finds csv inside audience folder in supabase", () => {
-    const folder = path.join(
-      REPO_ROOT,
-      "supabase",
-      "community_mundo_podium_356405_1787003890_audience_list.csv",
+  it("finds csv inside the newest audience folder in supabase", () => {
+    const supabaseDir = path.join(REPO_ROOT, "supabase");
+    const newest = pickNewestAudienceNames(readdirSync(supabaseDir)).find(
+      (name) => !name.toLowerCase().endsWith(".zip"),
     );
-    const resolved = resolveAudienceCsvPath(folder);
+    if (!newest) return;
+    const resolved = resolveAudienceCsvPath(path.join(supabaseDir, newest));
     expect(resolved).toMatch(/audience_list\.csv$/);
+    expect(resolved).toMatch(/1787654806/);
   });
 });
 
 describe("Circle audience file", () => {
-  it("parses at least one member e-mail from the bundled export", () => {
-    const folder = path.join(
-      REPO_ROOT,
-      "supabase",
-      "community_mundo_podium_356405_1787003890_audience_list.csv",
+  it("parses at least one member e-mail from the newest bundled export", () => {
+    const supabaseDir = path.join(REPO_ROOT, "supabase");
+    const newest = pickNewestAudienceNames(readdirSync(supabaseDir)).find(
+      (name) => !name.toLowerCase().endsWith(".zip"),
     );
-    const csvPath = resolveAudienceCsvPath(folder);
+    if (!newest) return;
+    const csvPath = resolveAudienceCsvPath(path.join(supabaseDir, newest));
     if (!csvPath) return;
     const emails = parseCsvEmails(readFileSync(csvPath, "utf8"));
     expect(emails.length).toBeGreaterThan(0);
