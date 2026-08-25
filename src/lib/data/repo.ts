@@ -1,4 +1,9 @@
 import type {
+  CatchUpCandidate,
+  CatchUpLockResult,
+  CatchUpRunResult,
+} from "@/lib/catchup/types";
+import type {
   IntegrationConnectionRecord,
   IntegrationEventRecord,
   IntegrationJobRecord,
@@ -16,6 +21,7 @@ import type {
   CrmPipelineSummary,
   CrmStage,
 } from "@/lib/crm/types";
+import type { SearchJob, SearchJobStatus } from "@/lib/search-jobs";
 import type {
   CallEventSource,
   CompanySearchHit,
@@ -73,6 +79,26 @@ export type GridRepo = {
     nome: string,
     filters: SearchFilters,
   ): Promise<Search>;
+  enqueueSearchJob(
+    userId: string,
+    nome: string,
+    filters: SearchFilters,
+  ): Promise<SearchJob>;
+  findReusableSearchJob(
+    userId: string,
+    filters: SearchFilters,
+  ): Promise<SearchJob | null>;
+  getSearchJob(id: string, userId: string): Promise<SearchJob | null>;
+  countSearchJobsAhead(job: SearchJob): Promise<number>;
+  claimSearchJob(): Promise<SearchJob | null>;
+  finishSearchJob(
+    id: string,
+    patch: {
+      status: Extract<SearchJobStatus, "done" | "failed">;
+      search_id?: string | null;
+      error?: string | null;
+    },
+  ): Promise<void>;
   getSearch(searchId: string): Promise<Search | undefined>;
   listSearches(userId: string, opts?: { limit?: number }): Promise<Search[]>;
   listRecentSearches(userId: string, opts?: { limit?: number }): Promise<Search[]>;
@@ -260,4 +286,17 @@ export type GridRepo = {
     notes: string,
     next?: CrmNextAction | null,
   ): Promise<CrmDealCard | null>;
+  listCatchUpQualifiedCnpjs(
+    userId: string,
+    opts?: { searchId?: string; limit?: number },
+  ): Promise<CatchUpCandidate[]>;
+  tryBeginCatchUp(
+    userId: string,
+    taskId: string,
+  ): Promise<CatchUpLockResult>;
+  finishCatchUp(
+    userId: string,
+    taskId: string,
+    result: CatchUpRunResult,
+  ): Promise<void>;
 };

@@ -72,5 +72,6 @@ export async function fetchLeadDossier(cnpj: string, searchId?: string) {
     enrichAllowed?: boolean;
     searchSaved?: boolean;
     crm?: LeadCrmState | null;
+    wasQualified?: boolean;
   };
 }

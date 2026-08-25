@@ -126,6 +126,7 @@ export default function LeadPage() {
   const [qualifyError, setQualifyError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const heldCompleteRef = useRef<LeadEnrichment | null>(null);
+  const ensuringRef = useRef<string | null>(null);
 
   useEffect(() => {
     setQualifyQueued(false);
@@ -227,6 +228,40 @@ export default function LeadPage() {
       heldCompleteRef.current = liveEnrichment;
     }
   }, [liveEnrichment]);
+
+  const ensureKey = `${params.cnpj}:${searchId ?? ""}`;
+  useEffect(() => {
+    const wasQualified =
+      Boolean(d?.wasQualified) ||
+      (d?.enrichment != null && enrichmentStage(d.enrichment) === "complete") ||
+      heldCompleteRef.current != null;
+    if (!d?.searchSaved || d.crm || !wasQualified || !searchId) return;
+    if (ensuringRef.current === ensureKey) return;
+    ensuringRef.current = ensureKey;
+    void fetch("/api/session/catch-up", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ searchId, cnpjs: [params.cnpj] }),
+    }).then((res) => {
+      if (!res.ok) {
+        ensuringRef.current = null;
+        return;
+      }
+      void qc.invalidateQueries({
+        queryKey: leadQueryKey(params.cnpj, searchId),
+      });
+      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+    });
+  }, [
+    d?.searchSaved,
+    d?.crm,
+    d?.wasQualified,
+    d?.enrichment,
+    ensureKey,
+    params.cnpj,
+    qc,
+    searchId,
+  ]);
 
   // Keep yesterday's complete audit on screen while a paid refresh runs.
   const displayEnrichment =
@@ -690,6 +725,7 @@ export default function LeadPage() {
           key={params.cnpj}
           crm={d.crm ?? null}
           searchSaved={Boolean(d.searchSaved)}
+          wasQualified={Boolean(displayEnrichment) || Boolean(d.wasQualified)}
           notas={d.notas}
           recordPending={recordCall.isPending}
           onStage={(crmStageKey) => saveMutation.mutate({ crmStageKey })}

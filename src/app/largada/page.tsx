@@ -36,14 +36,46 @@ import {
   type Search as GridSearch,
   type SearchFilters,
 } from "@/lib/types";
+import type { SearchJobPublic } from "@/lib/search-jobs";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/niches";
-import { presetMatchesQuery, rankPresetMatch } from "@/lib/segment-aliases";
+import {
+  presetMatchesQuery,
+  rankPresetMatch,
+  rankTextMatch,
+} from "@/lib/segment-aliases";
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForSearchJob(
+  jobId: string,
+  onQueue: (position: number) => void,
+): Promise<GridSearch> {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
+    const res = await fetch(`/api/search/jobs/${encodeURIComponent(jobId)}`);
+    const body = (await res.json()) as SearchJobPublic & { error?: string };
+    if (!res.ok) {
+      throw new Error(body.error ?? "Não foi possível montar o grid");
+    }
+    onQueue(body.queuePosition);
+    if (body.status === "done" && body.search) return body.search;
+    if (body.status === "failed") {
+      throw new Error(body.error ?? "Não foi possível montar o grid");
+    }
+    await sleep(2000);
+  }
+  throw new Error("A fila está demorando. Abra Minhas listas em instantes.");
+}
 
 type NicheTree = {
   id: string;
+  slug?: string;
   nome: string;
   grupo: string;
+  aliases?: string[];
+  keywords?: string[];
   segments: Array<{
     id: string;
     nome: string;
@@ -52,6 +84,21 @@ type NicheTree = {
     keywords?: string[];
   }>;
 };
+
+const PICKER_CNAE_LIMIT = 10;
+
+function segmentFields(
+  niche: Pick<NicheTree, "nome">,
+  seg: NicheTree["segments"][number],
+) {
+  return {
+    nome: seg.nome,
+    slug: seg.slug,
+    aliases: seg.aliases,
+    keywords: seg.keywords,
+    parentNome: niche.nome,
+  };
+}
 
 const ALL_UFS = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -195,6 +242,7 @@ function LargadaWizard() {
   const [cnaeDraft, setCnaeDraft] = useState("");
   const [companyLabels, setCompanyLabels] = useState<Record<string, string>>({});
   const [cnaeLabels, setCnaeLabels] = useState<Record<string, string>>({});
+  const [queuePosition, setQueuePosition] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const [mode, setMode] = useState<"nova" | "continuar" | "ajustar">("nova");
   const [sourceNome, setSourceNome] = useState<string | null>(null);
@@ -368,15 +416,47 @@ function LargadaWizard() {
     const key = cnaeScopeKey(filters.segmentIds, filters.intentQuery);
     if (autoCnaeScopeKey.current === key) return;
     autoCnaeScopeKey.current = key;
-    const codes = rows.map((r) => r.codigo);
-    setFilters((f) => ({ ...f, cnaes: codes }));
     setCnaeLabels((m) => {
       const next = { ...m };
       for (const r of rows) next[r.codigo] = r.descricao;
       return next;
     });
     setShowCnaePanel(true);
+    if (filters.segmentIds.length === 0 && filters.intentQuery) return;
+    const codes = rows.map((r) => r.codigo);
+    setFilters((f) => ({ ...f, cnaes: codes }));
   }, [cnaePreview.data, filters.segmentIds, filters.intentQuery]);
+
+  const pickerCnaeQ = useDebounced(segmentQuery, 300);
+  const pickerCnaeQuery = useQuery({
+    queryKey: ["cnae-picker", pickerCnaeQ],
+    queryFn: async ({ signal }) => {
+      const res = await fetch(
+        `/api/ref/cnaes?q=${encodeURIComponent(pickerCnaeQ.trim())}`,
+        { signal },
+      );
+      return (await res.json()) as Array<{
+        codigo: string;
+        descricao: string;
+        count: number;
+      }>;
+    },
+    enabled:
+      pickerCnaeQ.trim().length >= 2 &&
+      filters.segmentIds.length === 0 &&
+      !filters.intentQuery,
+  });
+  const pickerCnaes = useMemo(() => {
+    const rows = Array.isArray(pickerCnaeQuery.data) ? pickerCnaeQuery.data : [];
+    return rows
+      .slice()
+      .sort(
+        (a, b) =>
+          rankTextMatch(b.descricao, segmentQuery) -
+            rankTextMatch(a.descricao, segmentQuery) || b.count - a.count,
+      )
+      .slice(0, PICKER_CNAE_LIMIT);
+  }, [pickerCnaeQuery.data, segmentQuery]);
 
   const cnaeQ = useDebounced(cnaeDraft, 300);
   const cnaeSearchQuery = useQuery({
@@ -420,33 +500,27 @@ function LargadaWizard() {
     if (!segmentSearch) return nicheTree;
     return nicheTree
       .map((n) => {
-        const nicheHit = normalizeText(n.nome).includes(segmentSearch);
+        const nicheHit = presetMatchesQuery(
+          {
+            nome: n.nome,
+            slug: n.slug,
+            aliases: n.aliases,
+            keywords: n.keywords,
+          },
+          segmentQuery,
+        );
         const segments = (
           nicheHit
             ? n.segments
             : n.segments.filter((s) =>
-                presetMatchesQuery(
-                  {
-                    nome: s.nome,
-                    slug: s.slug,
-                    aliases: s.aliases,
-                    keywords: s.keywords,
-                  },
-                  segmentQuery,
-                ),
+                presetMatchesQuery(segmentFields(n, s), segmentQuery),
               )
         )
           .slice()
           .sort(
             (a, b) =>
-              rankPresetMatch(
-                { nome: b.nome, slug: b.slug, aliases: b.aliases, keywords: b.keywords },
-                segmentQuery,
-              ) -
-              rankPresetMatch(
-                { nome: a.nome, slug: a.slug, aliases: a.aliases, keywords: a.keywords },
-                segmentQuery,
-              ),
+              rankPresetMatch(segmentFields(n, b), segmentQuery) -
+              rankPresetMatch(segmentFields(n, a), segmentQuery),
           );
         return { ...n, segments };
       })
@@ -456,10 +530,7 @@ function LargadaWizard() {
           Math.max(
             0,
             ...n.segments.map((s) =>
-              rankPresetMatch(
-                { nome: s.nome, slug: s.slug, aliases: s.aliases, keywords: s.keywords },
-                segmentQuery,
-              ),
+              rankPresetMatch(segmentFields(n, s), segmentQuery),
             ),
           );
         return score(b) - score(a);
@@ -506,18 +577,10 @@ function LargadaWizard() {
     e.preventDefault();
     if (!segmentSearch) return;
     const ranked = filteredNicheTree
-      .flatMap((n) => n.segments.map((s) => ({ nicheId: n.id, seg: s })))
+      .flatMap((n) => n.segments.map((s) => ({ nicheId: n.id, seg: s, niche: n })))
       .map((x) => ({
         ...x,
-        score: rankPresetMatch(
-          {
-            nome: x.seg.nome,
-            slug: x.seg.slug,
-            aliases: x.seg.aliases,
-            keywords: x.seg.keywords,
-          },
-          segmentQuery,
-        ),
+        score: rankPresetMatch(segmentFields(x.niche, x.seg), segmentQuery),
       }))
       .sort((a, b) => b.score - a.score);
     const top = ranked[0];
@@ -607,9 +670,24 @@ function LargadaWizard() {
     setShowCnaePanel(true);
   }
 
+  function pickCnaeAsNiche(codigo: string, descricao: string) {
+    autoCnaeScopeKey.current = null;
+    setCnaeLabels((m) => ({ ...m, [codigo]: descricao }));
+    setFilters((f) => ({
+      ...f,
+      presetId: null,
+      segmentIds: [],
+      intentQuery: null,
+      cnaes: [codigo],
+    }));
+    setSegmentQuery("");
+    setShowCnaePanel(true);
+  }
+
   const runSearch = useMutation({
     mutationKey: ["search-run"],
     mutationFn: async () => {
+      setQueuePosition(0);
       const parts = filters.segmentIds
         .map((id) => segmentNames.get(id))
         .filter(Boolean)
@@ -629,8 +707,14 @@ function LargadaWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, filters }),
       });
-      if (!res.ok) throw new Error("Não foi possível montar o grid");
-      return (await res.json()) as GridSearch;
+      const body = (await res.json()) as SearchJobPublic & { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error ?? "Não foi possível montar o grid");
+      }
+      if (body.search?.id) return body.search;
+      if (!body.jobId) throw new Error("Não foi possível montar o grid");
+      setQueuePosition(body.queuePosition);
+      return waitForSearchJob(body.jobId, setQueuePosition);
     },
     onSuccess: (search) => {
       clearDraft();
@@ -707,7 +791,7 @@ function LargadaWizard() {
                       const on = filters.segmentIds.includes(s.id);
                       const nameHit =
                         !!segmentSearch &&
-                        normalizeText(s.nome).includes(segmentSearch);
+                        rankPresetMatch(segmentFields(n, s), segmentQuery) >= 70;
                       return (
                         <ChoiceTile
                           key={s.id}
@@ -850,7 +934,7 @@ function LargadaWizard() {
                         value={segmentQuery}
                         onChange={(e) => setSegmentQuery(e.target.value)}
                         onKeyDown={onSegmentSearchKeyDown}
-                        placeholder="Buscar segmento (ex.: água mineral, co-packing, vazamentos)"
+                        placeholder="Buscar nicho (ex.: barbearia, clínica médica, farmácia)"
                         className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
                       />
                     </div>
@@ -858,8 +942,14 @@ function LargadaWizard() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Hint>
                           {matchedSegmentCount > 0
-                            ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"} · Enter seleciona o melhor match`
+                            ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"}`
                             : "Nenhum segmento com esse nome"}
+                          {pickerCnaes.length > 0
+                            ? ` · ${pickerCnaes.length} atividade${pickerCnaes.length === 1 ? "" : "s"} da Receita`
+                            : ""}
+                          {matchedSegmentCount > 0
+                            ? " · Enter seleciona o melhor match"
+                            : ""}
                         </Hint>
                         <Button
                           size="sm"
@@ -868,6 +958,29 @@ function LargadaWizard() {
                         >
                           Buscar pelo termo “{segmentQuery.trim()}”
                         </Button>
+                      </div>
+                    ) : null}
+                    {segmentSearch.length >= 2 && pickerCnaes.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-podium-muted">
+                          Atividades da Receita
+                        </p>
+                        <div className="max-h-48 space-y-1 overflow-auto">
+                          {pickerCnaes.map((c) => (
+                            <ChoiceTile
+                              key={c.codigo}
+                              density="row"
+                              selected={filters.cnaes.includes(c.codigo)}
+                              onClick={() => pickCnaeAsNiche(c.codigo, c.descricao)}
+                              meta={`${c.count} empresas`}
+                            >
+                              <span className="font-mono text-xs text-podium-muted">
+                                {formatCnae(c.codigo) ?? c.codigo}
+                              </span>{" "}
+                              {c.descricao}
+                            </ChoiceTile>
+                          ))}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -1340,11 +1453,23 @@ function LargadaWizard() {
                 className="w-full"
               >
                 {runSearch.isPending
-                  ? "Montando grid…"
+                  ? queuePosition > 1
+                    ? `Na fila · ${queuePosition} à frente`
+                    : COPY.filaMontando
                   : mode === "ajustar"
                     ? COPY.verNovoGrid
                     : COPY.verResultados}
               </Button>
+              {runSearch.isPending && queuePosition > 1 ? (
+                <p className="mt-2 text-center text-xs text-podium-muted">
+                  {COPY.filaPodeFechar}
+                </p>
+              ) : null}
+              {runSearch.error ? (
+                <p className="mt-2 text-center text-xs text-podium-alert">
+                  {runSearch.error.message}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
@@ -1374,6 +1499,11 @@ function LargadaWizard() {
                     ? `${(count.total ?? 0).toLocaleString("pt-BR")}+`
                     : (count?.total ?? 0).toLocaleString("pt-BR")}
                 </p>
+                {countQuery.isFetching ? (
+                  <p className="mt-1 text-xs text-podium-yellow">
+                    {COPY.filaContando}
+                  </p>
+                ) : null}
                 {step === 2 ? (
                   <p className="mt-2 text-xs text-podium-muted">
                     {count?.capped

@@ -1,5 +1,9 @@
+"use client";
+
 import { Check } from "lucide-react";
+import { StartingLights } from "@/components/StartingLights";
 import { buttonClassName } from "@/components/ui/Button";
+import { useHoldLights } from "@/hooks/usePodiumWait";
 import { cn } from "@/lib/utils";
 
 export function SelectToggle({
@@ -43,6 +47,26 @@ export function SelectToggle({
         <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
       ) : null}
       {label}
+    </button>
+  );
+}
+
+export function QualifyPendingButton({ ariaLabel }: { ariaLabel: string }) {
+  const { litCount } = useHoldLights(true, true);
+
+  return (
+    <button
+      type="button"
+      disabled
+      aria-busy
+      aria-label={ariaLabel}
+      className={buttonClassName({
+        variant: "secondary",
+        size: "sm",
+        className: "min-w-[5.25rem] pointer-events-none disabled:opacity-100",
+      })}
+    >
+      <StartingLights size="micro" phase="hold" litCount={litCount} />
     </button>
   );
 }

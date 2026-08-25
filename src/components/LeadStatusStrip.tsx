@@ -9,11 +9,13 @@ import { GlassCard } from "@/components/GlassCard";
 import { COPY } from "@/lib/copy";
 import { crmHref } from "@/lib/back";
 import { FIRST_MILE_CHIP_LABELS, type FichaMoveKey } from "@/lib/crm/cadence";
+import { fichaCrmPrompt } from "@/lib/crm/ficha-prompt";
 import type { LeadCrmState } from "@/lib/crm/types";
 
 export function LeadStatusStrip({
   crm,
   searchSaved,
+  wasQualified = false,
   notas,
   recordPending,
   onStage,
@@ -23,6 +25,7 @@ export function LeadStatusStrip({
 }: {
   crm: LeadCrmState | null;
   searchSaved: boolean;
+  wasQualified?: boolean;
   notas: string | null;
   recordPending: boolean;
   onStage: (key: FichaMoveKey) => void;
@@ -33,6 +36,17 @@ export function LeadStatusStrip({
   const crmLink = crm
     ? crmHref({ pipeline: crm.pipelineId, deal: crm.dealId })
     : "/crm";
+  const prompt = fichaCrmPrompt({
+    hasDeal: Boolean(crm),
+    searchSaved,
+    wasQualified,
+  });
+  const promptCopy =
+    prompt === "entering"
+      ? COPY.crmEnteringPista
+      : prompt === "save"
+        ? COPY.crmSaveListToEnter
+        : COPY.crmQualifyToEnter;
 
   return (
     <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
@@ -80,9 +94,7 @@ export function LeadStatusStrip({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-podium-muted">
-            {searchSaved ? COPY.crmQualifyToEnter : COPY.crmSaveListToEnter}
-          </p>
+          <p className="text-sm text-podium-muted">{promptCopy}</p>
           <Button
             size="sm"
             variant="ghost"

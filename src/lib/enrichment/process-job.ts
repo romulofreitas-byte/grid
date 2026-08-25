@@ -1,4 +1,7 @@
 import { getDataSource, getRepo } from "@/lib/data";
+import { isUndefinedTableError } from "@/lib/data/pg";
+import type { SearchJob } from "@/lib/search-jobs";
+import { searchJobConcurrency } from "@/lib/search-jobs";
 import {
   hasAccountantDomainHint,
   receitaProviderDomain,
@@ -273,6 +276,110 @@ export async function drainJobs(
   });
 }
 
+export async function processSearchJob(job: SearchJob): Promise<void> {
+  const repo = getRepo();
+  try {
+    const search = await repo.runSearch(job.user_id, job.nome, job.filtros);
+    await repo.finishSearchJob(job.id, {
+      status: "done",
+      search_id: search.id,
+    });
+    console.log(
+      JSON.stringify({
+        event: "search_job_done",
+        id: job.id,
+        searchId: search.id,
+      }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await repo.finishSearchJob(job.id, { status: "failed", error: message });
+    console.error(
+      JSON.stringify({
+        event: "search_job_failed",
+        id: job.id,
+        error: message,
+      }),
+    );
+  }
+}
+
+export async function drainSearchJobs(
+  concurrency = searchJobConcurrency(),
+): Promise<number> {
+  const repo = getRepo();
+  try {
+    return await runJobPool({
+      concurrency,
+      claim: () => repo.claimSearchJob(),
+      run: processSearchJob,
+    });
+  } catch (err) {
+    if (isUndefinedTableError(err)) return 0;
+    throw err;
+  }
+}
+
+export async function runSearchJobWorker(
+  options: {
+    concurrency?: number;
+    idleMs?: number;
+    signal?: AbortSignal;
+  } = {},
+): Promise<void> {
+  const concurrency = options.concurrency ?? searchJobConcurrency();
+  const idleMs = options.idleMs ?? DEFAULT_WORKER_IDLE_MS;
+  const repo = getRepo();
+
+  async function slot(slotId: number): Promise<void> {
+    while (!options.signal?.aborted) {
+      try {
+        const job = await repo.claimSearchJob();
+        if (!job) {
+          await sleep(idleMs, options.signal);
+          continue;
+        }
+        await processSearchJob(job);
+      } catch (err) {
+        if (!isUndefinedTableError(err)) {
+          console.error(
+            JSON.stringify({
+              event: "search_worker_slot_error",
+              slot: slotId,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        }
+        await sleep(idleMs, options.signal);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, (_, i) => slot(i)));
+}
+
+export async function runGridWorker(
+  options: {
+    searchConcurrency?: number;
+    enrichConcurrency?: number;
+    idleMs?: number;
+    signal?: AbortSignal;
+  } = {},
+): Promise<void> {
+  await Promise.all([
+    runSearchJobWorker({
+      concurrency: options.searchConcurrency,
+      idleMs: options.idleMs,
+      signal: options.signal,
+    }),
+    runEnrichmentWorker({
+      concurrency: options.enrichConcurrency,
+      idleMs: options.idleMs,
+      signal: options.signal,
+    }),
+  ]);
+}
+
 export async function runEnrichmentWorker(
   options: {
     concurrency?: number;
@@ -314,5 +421,6 @@ export function drainJobsIfMock(
   concurrency = DEFAULT_ENRICH_CONCURRENCY,
 ): void {
   if (getDataSource() !== "mock") return;
+  void drainSearchJobs(1);
   void drainJobs(concurrency);
 }

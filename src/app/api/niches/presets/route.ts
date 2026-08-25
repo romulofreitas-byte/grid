@@ -24,6 +24,8 @@ export async function GET(req: Request) {
           slug: n.slug,
           nome: n.nome,
           grupo: n.grupo,
+          aliases: n.aliases ?? [],
+          keywords: n.keywords ?? [],
           segments: presets
             .filter((s) => s.parent_id === n.id)
             .map((s) => ({

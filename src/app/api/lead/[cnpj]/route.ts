@@ -69,6 +69,7 @@ export async function GET(
     profile,
     enrichAllowed: balance.enrichAllowed,
     searchSaved: search?.saved ?? false,
+    wasQualified: enriched,
     crm,
   });
 }

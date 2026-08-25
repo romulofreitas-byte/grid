@@ -93,8 +93,9 @@ export function collectLaunchEnvIssues(): EnvIssue[] {
 
   if (isRuntimeProduction() && !process.env.UPSTASH_REDIS_REST_URL?.trim()) {
     issues.push({
-      level: "warn",
-      message: "Upstash Redis ausente — rate limit e count cache só in-memory.",
+      level: "error",
+      message:
+        "Upstash Redis ausente — count cache, rate limit e fila de contagem exigem Redis em produção.",
     });
   }
 

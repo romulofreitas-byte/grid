@@ -169,6 +169,9 @@ export const COPY = {
   crmOpenFicha: "Abrir ficha",
   crmQualifyToEnter: "Qualifique para entrar na pista.",
   crmSaveListToEnter: "Salve a lista para os qualificados entrarem na pista.",
+  crmEnteringPista: "Colocando na pista…",
+  crmCatchUpToastOne: "1 lead das suas listas salvas entrou na pista.",
+  crmCatchUpToastMany: "{n} leads das suas listas salvas entraram na pista.",
   crmPastFirstMile: "A partir daqui a pista continua no CRM.",
   crmFirstMileLocked: "Faixa da ficha — dá para renomear, não apagar.",
   crmBoxTitle: "Abra a pista",
@@ -176,6 +179,20 @@ export const COPY = {
     "Leads qualificados entram sozinhos na pista do nicho. A ficha movimenta até a reunião; o restante fica no CRM.",
   crmBoxCta: "Abrir CRM",
   crmPistaPrefix: "Pista",
+  conexoesStandbyBanner:
+    "Conexões em stand-by nesta primeira onda. Ligar usa o telefone do aparelho. VoIP nativo volta em seguida.",
+  conexoesStandbyEmpty:
+    "Nenhuma conexão nesta conta. A montagem fica para a próxima onda.",
+  conexoesStandbyForm:
+    "A montagem de VoIP está pausada nesta onda. O botão Ligar abre o telefone do aparelho.",
+  boxLigarStandbyTitle: "Ligar pelo aparelho",
+  boxLigarStandbyBody:
+    "VoIP nativo volta na próxima onda. Por agora o botão Ligar abre o telefone do aparelho.",
+  boxLigarStandbyCta: "Em breve",
+  filaMontando: "Na fila — montando sua lista",
+  filaPodeFechar: "Pode sair: a lista aparece em Minhas listas.",
+  filaContando: "Contando — fila curta.",
+  filaQualificando: "Na fila — qualificando",
 } as const;
 
 export const PORTE_LABELS: Record<string, string> = {

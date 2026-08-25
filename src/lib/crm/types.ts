@@ -42,7 +42,7 @@ export type CrmDealMeta = {
   searchId?: string;
   ufs?: string[];
   municipioIds?: number[];
-  source?: "qualify_bridge";
+  source?: "qualify_bridge" | "catchup_bridge";
 };
 
 export type CrmDeal = {

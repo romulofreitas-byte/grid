@@ -238,3 +238,12 @@ export const memoryBillingStore: BillingStore = {
       .map(clone);
   },
 };
+
+export function listMemoryBilledCnpjs(
+  profileId: string,
+  kind: "export" | "enrich",
+): string[] {
+  return db()
+    .billed.filter((row) => row.profileId === profileId && row.kind === kind)
+    .map((row) => row.cnpj);
+}

@@ -6,7 +6,9 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   "clinicas-estetica": ["clinica de estetica", "estetica", "beleza"],
   "harmonizacao-facial": ["harmonizacao", "preenchimento", "botox", "acido hialuronico"],
   "depilacao-laser": ["depilacao", "laser", "depilacao definitiva"],
-  "saloes-premium": ["salao de beleza", "cabeleireiro", "cabeleireiros", "hair"],
+  "saloes-premium": ["salao de beleza", "salao", "cabeleireiro", "cabeleireiros", "hair"],
+  barbearias: ["barbearia", "barbearias", "barbeiro", "barbeiros", "barbershop"],
+  "estudio-tatuagem": ["tatuagem", "tattoo", "estudio de tatuagem", "piercing"],
   "micropigmentacao": ["micropigmentacao", "design de sobrancelha", "dermopigmentacao"],
   "manicure-podologia": ["manicure", "pedicure", "unhas", "podologia"],
   "spa-bem-estar": ["spa", "day spa", "massagem", "bem estar"],
@@ -17,6 +19,12 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   "massagem-terapeutica": ["massagem", "massoterapeuta", "quiropraxia"],
 
   // Saúde
+  "clinicas-medicas": [
+    "clinica medica",
+    "clinica geral",
+    "consultorio medico",
+    "medicina",
+  ],
   ortopedia: ["ortopedista", "traumatologia", "osso"],
   dermatologia: ["dermatologista", "pele"],
   odontologia: ["dentista", "odontologo", "clinica odontologica", "ortodontia"],
@@ -61,6 +69,7 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   blindagem: ["blindagem", "carro blindado"],
   "oficinas-motos": ["oficina de moto", "motopecas", "motocicleta"],
   guincho: ["guincho", "reboque", "guincho 24h"],
+  "postos-combustivel": ["posto", "posto de gasolina", "posto de combustivel", "combustivel"],
 
   // Imobiliário
   imobiliarias: ["imobiliaria", "imoveis", "corretor de imoveis", "corretora", "corretoras"],
@@ -88,6 +97,8 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   "casa-jardim": ["jardinagem", "floricultura", "plantas", "flores"],
   colchoes: ["colchao", "colchoaria"],
   "utensilios-domesticos": ["cama mesa banho", "utensilios", "armarinho"],
+  "farmacias-drogarias": ["farmacia", "farmacias", "drogaria", "drogarias", "drugstore"],
+  supermercados: ["supermercado", "supermercados", "hipermercado", "mercado", "mercearia"],
 
   // Alimentação
   restaurantes: ["restaurante", "comida"],
@@ -282,6 +293,28 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   cambio: ["cambio", "corretora de cambio"],
   "fintech-pagamentos": ["fintech", "meios de pagamento", "gateway de pagamento"],
   "cobranca-extrajudicial": ["cobranca", "cobranca extrajudicial", "recuperacao de credito", "assessoria de cobranca"],
+
+  // Pais (busca pelo nicho amplo)
+  "estetica-e-beleza": ["estetica", "beleza"],
+  "saude-e-clinicas": ["saude", "clinica medica"],
+  pet: ["pet", "pets"],
+  automotivo: ["automotivo", "auto"],
+  imobiliario: ["imobiliario", "imoveis"],
+  varejo: ["varejo", "loja"],
+  "alimentacao-fora-do-lar": ["alimentacao", "food service"],
+  educacao: ["educacao", "ensino"],
+  "turismo-e-hotelaria": ["turismo", "hotelaria"],
+  "esporte-e-fitness": ["esporte", "fitness", "academia"],
+  academias: ["academia", "academias", "gym", "musculacao", "crossfit", "box de crossfit"],
+  "servicos-locais": ["servicos locais", "servico local"],
+  lavanderias: ["lavanderia", "lavanderias", "lavandaria", "tinturaria"],
+  industria: ["industria", "fabrica"],
+  "construcao-civil": ["construcao civil", "construcao"],
+  "insumos-para-construcao": ["insumos", "material de construcao"],
+  "contabilidade-e-juridico": ["contabilidade e juridico"],
+  "tech-e-software": ["tech", "software"],
+  "logistica-e-transporte": ["logistica", "transporte"],
+  "financeiro-e-seguros": ["financeiro", "seguros"],
 };
 
 export function aliasesForSlug(slug: string): string[] {
@@ -293,7 +326,106 @@ export type SearchablePreset = {
   slug?: string;
   aliases?: string[];
   keywords?: string[];
+  parentNome?: string;
 };
+
+const QUERY_STOPWORDS = new Set([
+  "a",
+  "as",
+  "o",
+  "os",
+  "um",
+  "uma",
+  "de",
+  "da",
+  "do",
+  "das",
+  "dos",
+  "e",
+  "em",
+  "no",
+  "na",
+  "nos",
+  "nas",
+  "para",
+  "com",
+  "ou",
+  "por",
+]);
+
+/** Ignore reverse alias hits like "barbearia" matching alias "bar". */
+const REVERSE_ALIAS_MIN = 4;
+
+function resolvedAliases(preset: SearchablePreset): string[] {
+  return [
+    ...(preset.aliases ?? []),
+    ...(preset.slug ? aliasesForSlug(preset.slug) : []),
+  ];
+}
+
+function fieldHitsQuery(field: string, q: string): boolean {
+  const n = normalizeText(field);
+  if (!n) return false;
+  if (n.includes(q)) return true;
+  return q.includes(n) && n.length >= REVERSE_ALIAS_MIN;
+}
+
+/** Accent-folded tokens, stopwords dropped. Min length 3 except when the whole query is short. */
+export function queryTokens(rawQuery: string): string[] {
+  const q = normalizeText(rawQuery);
+  if (q.length < 2) return [];
+  const parts = q
+    .split(/[^a-z0-9]+/g)
+    .filter((t) => t.length >= 3 && !QUERY_STOPWORDS.has(t));
+  if (parts.length) return [...new Set(parts)];
+  return [q];
+}
+
+export function searchableDocument(preset: SearchablePreset): string {
+  return [
+    preset.nome,
+    preset.parentNome ?? "",
+    ...resolvedAliases(preset),
+    ...(preset.keywords ?? []),
+  ]
+    .map(normalizeText)
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** True when every query token appears in the text (or the whole phrase is a substring). */
+export function textMatchesQuery(text: string, rawQuery: string): boolean {
+  const q = normalizeText(rawQuery);
+  if (q.length < 2) return false;
+  const doc = normalizeText(text);
+  if (doc.includes(q)) return true;
+  const tokens = queryTokens(rawQuery);
+  if (!tokens.length) return false;
+  return tokens.every((t) => doc.includes(t));
+}
+
+export function cnaeMatchesQuery(
+  codigo: string,
+  descricao: string,
+  rawQuery: string,
+): boolean {
+  const q = normalizeText(rawQuery);
+  if (q.length < 2) return false;
+  const digits = rawQuery.replace(/\D/g, "");
+  if (digits.length >= 2 && codigo.includes(digits)) return true;
+  return textMatchesQuery(descricao, rawQuery);
+}
+
+export function rankTextMatch(text: string, rawQuery: string): number {
+  const q = normalizeText(rawQuery);
+  if (!q) return 0;
+  const d = normalizeText(text);
+  if (d === q) return 100;
+  if (d.startsWith(q)) return 90;
+  if (d.includes(q)) return 80;
+  if (textMatchesQuery(text, rawQuery)) return 55;
+  return 0;
+}
 
 /** True when query matches display name, commercial aliases, or CNAE keywords. */
 export function presetMatchesQuery(
@@ -303,36 +435,34 @@ export function presetMatchesQuery(
   const q = normalizeText(rawQuery);
   if (q.length < 2) return false;
   if (normalizeText(preset.nome).includes(q)) return true;
-  const aliases = [
-    ...(preset.aliases ?? []),
-    ...(preset.slug ? aliasesForSlug(preset.slug) : []),
-  ];
-  if (aliases.some((a) => {
-    const n = normalizeText(a);
-    return n.includes(q) || q.includes(n);
-  })) {
-    return true;
-  }
-  return (preset.keywords ?? []).some((k) => {
-    const n = normalizeText(k);
-    return n.includes(q) || q.includes(n);
-  });
+  if (preset.parentNome && normalizeText(preset.parentNome).includes(q)) return true;
+  if (resolvedAliases(preset).some((a) => fieldHitsQuery(a, q))) return true;
+  if ((preset.keywords ?? []).some((k) => fieldHitsQuery(k, q))) return true;
+  const tokens = queryTokens(rawQuery);
+  if (!tokens.length) return false;
+  const doc = searchableDocument(preset);
+  return tokens.every((t) => doc.includes(t));
 }
 
 export function rankPresetMatch(preset: SearchablePreset, rawQuery: string): number {
   const q = normalizeText(rawQuery);
   if (!q) return 0;
   const nome = normalizeText(preset.nome);
+  const aliases = resolvedAliases(preset).map(normalizeText);
   if (nome === q) return 100;
-  if (nome.startsWith(q)) return 90;
-  if (nome.includes(q)) return 80;
-  const aliases = [
-    ...(preset.aliases ?? []),
-    ...(preset.slug ? aliasesForSlug(preset.slug) : []),
-  ].map(normalizeText);
   if (aliases.some((a) => a === q)) return 95;
-  if (aliases.some((a) => a.startsWith(q) || q.startsWith(a))) return 85;
-  if (aliases.some((a) => a.includes(q) || q.includes(a))) return 70;
+  if (nome.startsWith(q)) return 90;
+  if (aliases.some((a) => a.startsWith(q) || (q.startsWith(a) && a.length >= REVERSE_ALIAS_MIN))) {
+    return 85;
+  }
+  if (nome.includes(q)) return 80;
+  if (preset.parentNome && normalizeText(preset.parentNome).includes(q)) return 75;
+  if (aliases.some((a) => a.includes(q) || (q.includes(a) && a.length >= REVERSE_ALIAS_MIN))) {
+    return 70;
+  }
+  const tokens = queryTokens(rawQuery);
+  const doc = searchableDocument(preset);
+  if (tokens.length && tokens.every((t) => doc.includes(t))) return 55;
   if ((preset.keywords ?? []).some((k) => normalizeText(k).includes(q))) return 40;
   return 0;
 }

@@ -159,7 +159,8 @@ export async function POST(req: Request) {
         search,
         cnpjs,
       });
-    } catch {
+    } catch (err) {
+      console.error("crm_qualify_bridge_error", err);
       crmBridge = null;
     }
   }

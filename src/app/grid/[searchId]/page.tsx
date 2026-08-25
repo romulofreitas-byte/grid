@@ -14,11 +14,12 @@ import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { PositionBadge } from "@/components/PositionBadge";
 import { SaveListDialog } from "@/components/SaveListDialog";
 import { SectionTitle } from "@/components/SectionTitle";
-import { SelectToggle } from "@/components/SelectToggle";
+import { QualifyPendingButton, SelectToggle } from "@/components/SelectToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
+import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
 import { gridBack, largadaEditHref, leadHref, parseGridFrom, crmHref } from "@/lib/back";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
 import {
@@ -80,6 +81,32 @@ function jobChip(status: GridRow["enrichmentStatus"]) {
   return null;
 }
 
+function isQualifyingStatus(status: GridRow["enrichmentStatus"]) {
+  return status === "pending" || status === "running";
+}
+
+function isRowQualifying(row: GridRow, pendingCnpjs: Set<string>) {
+  return pendingCnpjs.has(row.cnpj) || isQualifyingStatus(row.enrichmentStatus);
+}
+
+function resolveQualifyTargets(body: EnrichBody, rows: GridRow[]): string[] {
+  if (body.cnpjs?.length) return body.cnpjs;
+  const unaudited = rows.filter(
+    (r) =>
+      !r.hasAudit &&
+      r.enrichmentStatus !== "done" &&
+      r.enrichmentStatus !== "skipped" &&
+      !isQualifyingStatus(r.enrichmentStatus),
+  );
+  if (body.scope === "first_unaudited") {
+    return unaudited.slice(0, body.limit ?? 10).map((r) => r.cnpj);
+  }
+  if (body.scope === "all_unaudited") {
+    return unaudited.map((r) => r.cnpj);
+  }
+  return [];
+}
+
 function rowCompanyMeta(row: GridRow): string {
   const parts = [`${row.municipio}/${row.uf}`];
   const cnae = formatCnae(row.cnaeCodigo);
@@ -123,6 +150,7 @@ function GridRowActions({
   from,
   callConnection,
   selected,
+  qualifying,
   onToggle,
   onWarm,
 }: {
@@ -131,6 +159,7 @@ function GridRowActions({
   from: ReturnType<typeof parseGridFrom>;
   callConnection: ReturnType<typeof pickCallConnection>;
   selected: boolean;
+  qualifying: boolean;
   onToggle: () => void;
   onWarm: () => void;
 }) {
@@ -159,6 +188,8 @@ function GridRowActions({
             </Badge>
           ) : null}
         </>
+      ) : qualifying ? (
+        <QualifyPendingButton ariaLabel={`Qualificando ${name}`} />
       ) : (
         <SelectToggle
           pressed={selected}
@@ -206,7 +237,9 @@ export default function GridPage() {
   const [confirmAll, setConfirmAll] = useState(false);
   const [connectionId, setConnectionId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
+  const rowsRef = useRef<GridRow[]>([]);
 
   const searchQuery = useQuery({
     queryKey: ["search", searchId],
@@ -345,6 +378,17 @@ export default function GridPage() {
       if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
       return json;
     },
+    onMutate: (body) => {
+      const targets = resolveQualifyTargets(body, rowsRef.current);
+      if (targets.length) {
+        setPendingCnpjs((prev) => {
+          const next = new Set(prev);
+          for (const cnpj of targets) next.add(cnpj);
+          return next;
+        });
+      }
+      return { targets };
+    },
     onSuccess: (json) => {
       setCreditHint(null);
       const bridge = json.crmBridge;
@@ -371,7 +415,14 @@ export default function GridPage() {
       void qc.invalidateQueries({ queryKey: ["profile"] });
       void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
     },
-    onError: (err: Error) => {
+    onError: (err: Error, _body, ctx) => {
+      if (ctx?.targets.length) {
+        setPendingCnpjs((prev) => {
+          const next = new Set(prev);
+          for (const cnpj of ctx.targets) next.delete(cnpj);
+          return next;
+        });
+      }
       if (isBillingGateError(err)) return;
       setCreditHint(err.message);
     },
@@ -417,13 +468,14 @@ export default function GridPage() {
       };
     });
   }, [query.data, jobByCnpj]);
+  rowsRef.current = rows;
 
   const total = query.data?.pages[0]?.total ?? 0;
   const unaudited = query.data?.pages[0]?.unaudited ?? 0;
 
   const visibleUnaudited = useMemo(
-    () => rows.filter((r) => !r.hasAudit),
-    [rows],
+    () => rows.filter((r) => !r.hasAudit && !isRowQualifying(r, pendingCnpjs)),
+    [rows, pendingCnpjs],
   );
   const selectedCount = selected.size;
   const allVisibleSelected =
@@ -437,6 +489,7 @@ export default function GridPage() {
   useEffect(() => {
     prevDoneJobs.current = null;
     prevDoneCnpjs.current = new Set();
+    setPendingCnpjs(new Set());
   }, [searchId]);
   useEffect(() => {
     if (jobs.length === 0) return;
@@ -462,8 +515,32 @@ export default function GridPage() {
     }
   }, [doneJobs, jobs, qc, searchId]);
 
+  useEffect(() => {
+    setPendingCnpjs((prev) => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Set(prev);
+      for (const cnpj of prev) {
+        const row = rows.find((r) => r.cnpj === cnpj);
+        const status = jobByCnpj.get(cnpj)?.status ?? row?.enrichmentStatus;
+        if (
+          row?.hasAudit ||
+          status === "pending" ||
+          status === "running" ||
+          status === "done" ||
+          status === "skipped" ||
+          status === "failed"
+        ) {
+          next.delete(cnpj);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [jobByCnpj, rows]);
+
   function toggleRow(row: GridRow) {
-    if (row.hasAudit) return;
+    if (row.hasAudit || isRowQualifying(row, pendingCnpjs)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(row.cnpj)) next.delete(row.cnpj);
@@ -595,9 +672,14 @@ export default function GridPage() {
 
         {jobs.length > 0 ? (
           <p className="text-xs text-podium-gray">
-            Qualificando {doneJobs}/{jobs.length}
+            {activeJobs > 0 &&
+            !jobs.some((j) => j.status === "running")
+              ? `${COPY.filaQualificando} ${doneJobs}/${jobs.length}`
+              : `Qualificando ${doneJobs}/${jobs.length}`}
             {failedJobs ? ` · ${failedJobs} falhas` : ""}
-            {activeJobs ? " · em andamento" : ""}
+            {activeJobs && jobs.some((j) => j.status === "running")
+              ? " · em andamento"
+              : ""}
           </p>
         ) : null}
 
@@ -643,6 +725,7 @@ export default function GridPage() {
             const pushJobs = pushJobsQuery.data?.jobs ?? [];
             const lastPush = pushJobs[0];
             if (destinations.length === 0) {
+              if (CONNECTIONS_STANDBY) return null;
               return (
                 <Link
                   href="/conexoes"
@@ -852,6 +935,7 @@ export default function GridPage() {
                       from={from}
                       callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
+                      qualifying={isRowQualifying(row, pendingCnpjs)}
                       onToggle={() => toggleRow(row)}
                       onWarm={() => warmLead(row)}
                     />
@@ -989,6 +1073,7 @@ export default function GridPage() {
                     from={from}
                     callConnection={callConnection}
                     selected={selected.has(row.cnpj)}
+                    qualifying={isRowQualifying(row, pendingCnpjs)}
                     onToggle={() => toggleRow(row)}
                     onWarm={() => warmLead(row)}
                   />

@@ -9,6 +9,7 @@ import type {
   CrmPipeline,
   CrmStage,
 } from "@/lib/crm/types";
+import type { SearchJob } from "@/lib/search-jobs";
 import type {
   AddressUsage,
   Company,
@@ -69,6 +70,7 @@ export type MockStore = {
   }>;
   profiles: Profile[];
   searches: Search[];
+  search_jobs: SearchJob[];
   saved_leads: SavedLead[];
   opt_outs: OptOut[];
   call_events: import("@/lib/types").CallEvent[];
@@ -79,6 +81,18 @@ export type MockStore = {
   crm_stages: CrmStage[];
   crm_deals: CrmDeal[];
   crm_activities: CrmActivity[];
+  billed_cnpjs: Array<{
+    profile_id: string;
+    cnpj: string;
+    kind: "export" | "enrich";
+  }>;
+  user_catchup_state: Array<{
+    user_id: string;
+    task_id: string;
+    status: "idle" | "running";
+    last_ran_at: string | null;
+    has_more: boolean;
+  }>;
 };
 
 const ACCOUNTANT_PHONE = "33334444";
@@ -644,6 +658,7 @@ function createMockStore(): MockStore {
       },
     ],
     searches: [],
+    search_jobs: [],
     saved_leads: [],
     opt_outs: [],
     call_events: [],
@@ -654,6 +669,8 @@ function createMockStore(): MockStore {
     crm_stages: [],
     crm_deals: [],
     crm_activities: [],
+    billed_cnpjs: [],
+    user_catchup_state: [],
   };
 
   rebuildUsageViews(store);
@@ -719,7 +736,7 @@ function seedApproachDoorsEnrichment(store: MockStore): void {
   });
 }
 
-const MOCK_STORE_VERSION = 12;
+const MOCK_STORE_VERSION = 14;
 
 const globalForMock = globalThis as typeof globalThis & {
   __gridMockStore?: MockStore;

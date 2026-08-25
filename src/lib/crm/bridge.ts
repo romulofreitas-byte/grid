@@ -73,12 +73,16 @@ export type BridgeQualifyResult = {
   pipelineNome: string | null;
 };
 
-function localMeta(filters: SearchFilters, searchId: string): CrmDealMeta {
+function localMeta(
+  filters: SearchFilters,
+  searchId: string,
+  source: NonNullable<CrmDealMeta["source"]> = "qualify_bridge",
+): CrmDealMeta {
   return {
     searchId,
     ufs: filters.ufs,
     municipioIds: filters.municipioIds,
-    source: "qualify_bridge",
+    source,
   };
 }
 
@@ -92,6 +96,7 @@ export async function bridgeQualifiedLeadsToCrm(
     userId: string;
     search: Search;
     cnpjs: string[];
+    source?: NonNullable<CrmDealMeta["source"]>;
   },
 ): Promise<BridgeQualifyResult> {
   const empty: BridgeQualifyResult = {
@@ -119,7 +124,11 @@ export async function bridgeQualifiedLeadsToCrm(
   const pipeline =
     existing ?? (await repo.createCrmPipeline(input.userId, pipelineNome));
 
-  const meta = localMeta(input.search.filtros, input.search.id);
+  const meta = localMeta(
+    input.search.filtros,
+    input.search.id,
+    input.source ?? "qualify_bridge",
+  );
   let created = 0;
   let skipped = 0;
 

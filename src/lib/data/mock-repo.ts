@@ -22,7 +22,7 @@ import {
   resolveCnaesFromKeywords,
   resolvePresetCnaes,
 } from "@/lib/niches";
-import { presetMatchesQuery } from "@/lib/segment-aliases";
+import { cnaeMatchesQuery, presetMatchesQuery } from "@/lib/segment-aliases";
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
@@ -31,9 +31,11 @@ import {
 } from "@/lib/data/company-search";
 import { municipioListLimit } from "@/lib/municipios";
 import { crmMockMethods } from "@/lib/data/crm-mock";
+import { catchupMockMethods } from "@/lib/data/catchup-mock";
 import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
+import type { SearchJob } from "@/lib/search-jobs";
 import type {
   CompanySearchHit,
   ContactInfo,
@@ -155,9 +157,8 @@ function resolveAllowedCnaes(
     }
     scoped = codes.size ? codes : new Set(["__none__"]);
   } else if (filters.intentQuery && filters.intentQuery.trim().length >= 2) {
-    const q = normalizeText(filters.intentQuery);
     const matched: RefCnae[] = store.ref_cnae.filter((c) =>
-      normalizeText(c.descricao).includes(q),
+      cnaeMatchesQuery(c.codigo, c.descricao, filters.intentQuery!),
     );
     for (const p of store.niche_presets) {
       if (!p.parent_id) continue;
@@ -606,12 +607,8 @@ export const mockRepo: GridRepo = {
 
   async searchCnaes(query: string, limit = 30) {
     const store = getMockStore();
-    const q = normalizeText(query);
     return store.ref_cnae
-      .filter((c) => {
-        const d = normalizeText(c.descricao);
-        return d.includes(q) || c.codigo.includes(q);
-      })
+      .filter((c) => cnaeMatchesQuery(c.codigo, c.descricao, query))
       .slice(0, limit)
       .map((c) => ({
         ...c,
@@ -800,6 +797,82 @@ export const mockRepo: GridRepo = {
     });
 
     return search;
+  },
+
+  async enqueueSearchJob(userId, nome, filters) {
+    const store = getMockStore();
+    const job: SearchJob = {
+      id: randomId(),
+      user_id: userId,
+      nome,
+      filtros: filters,
+      status: "pending",
+      search_id: null,
+      error: null,
+      attempts: 0,
+      locked_at: null,
+      created_at: new Date().toISOString(),
+      finished_at: null,
+    };
+    store.search_jobs.push(job);
+    return job;
+  },
+
+  async findReusableSearchJob(userId, filters) {
+    const key = JSON.stringify(filters);
+    const store = getMockStore();
+    return (
+      [...store.search_jobs]
+        .reverse()
+        .find(
+          (j) =>
+            j.user_id === userId &&
+            (j.status === "pending" || j.status === "running") &&
+            JSON.stringify(j.filtros) === key,
+        ) ?? null
+    );
+  },
+
+  async getSearchJob(id, userId) {
+    return (
+      getMockStore().search_jobs.find((j) => j.id === id && j.user_id === userId) ??
+      null
+    );
+  },
+
+  async countSearchJobsAhead(job) {
+    if (job.status !== "pending") return 0;
+    return getMockStore().search_jobs.filter(
+      (j) =>
+        j.status === "pending" &&
+        j.created_at < job.created_at,
+    ).length;
+  },
+
+  async claimSearchJob() {
+    const store = getMockStore();
+    const stale = Date.now() - 10 * 60 * 1000;
+    const job = store.search_jobs.find(
+      (j) =>
+        j.status === "pending" ||
+        (j.status === "running" &&
+          j.locked_at &&
+          new Date(j.locked_at).getTime() < stale),
+    );
+    if (!job) return null;
+    job.status = "running";
+    job.locked_at = new Date().toISOString();
+    job.attempts += 1;
+    return job;
+  },
+
+  async finishSearchJob(id, patch) {
+    const job = getMockStore().search_jobs.find((j) => j.id === id);
+    if (!job) return;
+    job.status = patch.status;
+    if (patch.search_id !== undefined) job.search_id = patch.search_id;
+    if (patch.error !== undefined) job.error = patch.error;
+    job.finished_at = new Date().toISOString();
   },
 
   async getSearch(searchId: string) {
@@ -1324,4 +1397,5 @@ export const mockRepo: GridRepo = {
   },
 
   ...crmMockMethods,
+  ...catchupMockMethods,
 };

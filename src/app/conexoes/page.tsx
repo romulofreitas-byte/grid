@@ -26,6 +26,8 @@ import type {
   IntegrationJobRecord,
 } from "@/lib/integrations/records";
 import { voipSetup, type VoipField } from "@/lib/integrations/voip-setup";
+import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
+import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 type CreateResponse = {
@@ -297,10 +299,19 @@ function ConexoesInner() {
   return (
     <AppShell title="Conexões" back={BACK.box}>
       <SectionTitle>Conexões VoIP</SectionTitle>
-      <p className="mt-2 max-w-2xl text-sm text-podium-muted">
-        Cole o token e o ramal. O GRID liga no clique — sem URL, sem HMAC, sem
-        Make. CRM e discador entram na próxima onda.
-      </p>
+      {CONNECTIONS_STANDBY ? (
+        <p
+          role="status"
+          className="mt-3 max-w-2xl rounded-xl border border-podium-yellow/30 bg-podium-yellow/10 px-4 py-3 text-sm text-podium-yellow"
+        >
+          {COPY.conexoesStandbyBanner}
+        </p>
+      ) : (
+        <p className="mt-2 max-w-2xl text-sm text-podium-muted">
+          Cole o token e o ramal. O GRID liga no clique — sem URL, sem HMAC, sem
+          Make. CRM e discador entram na próxima onda.
+        </p>
+      )}
       {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
         <p className="mt-3 max-w-2xl text-sm text-podium-yellow">
           {kindFromUrl === "crm" ? "CRM" : "Discador"} ainda não conecta nativo.
@@ -329,7 +340,9 @@ function ConexoesInner() {
                 <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
               ) : sortedConnections.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-sm text-podium-muted">
-                  Nenhuma conexão ainda. Escolha o VoIP e cole o token.
+                  {CONNECTIONS_STANDBY
+                    ? COPY.conexoesStandbyEmpty
+                    : "Nenhuma conexão ainda. Escolha o VoIP e cole o token."}
                 </p>
               ) : (
                 sortedConnections.map((c) => (
@@ -350,13 +363,15 @@ function ConexoesInner() {
               VoIP
             </h3>
             <p className="mt-1 text-sm text-podium-gray">
-              API4COM, Zenvia, Twilio e Telnyx conectam agora. Asterisk, 3CX e
-              Issabel ficam para o connector on-prem.
+              {CONNECTIONS_STANDBY
+                ? "A montagem nativa está pausada. API4COM, Zenvia, Twilio e Telnyx voltam na próxima onda."
+                : "API4COM, Zenvia, Twilio e Telnyx conectam agora. Asterisk, 3CX e Issabel ficam para o connector on-prem."}
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
               {voipItems.map((item) => {
                 const on = selectedId === item.id;
-                const available = catalogAvailability(item) === "live";
+                const available =
+                  catalogAvailability(item) === "live" && !CONNECTIONS_STANDBY;
                 const already = connections.some(
                   (c) => c.catalog_id === item.id && c.status === "active",
                 );
@@ -410,11 +425,17 @@ function ConexoesInner() {
                   Conectar {selected.name}
                 </p>
                 <p className="text-[11px] text-podium-muted">
-                  {live ? "Token + ramal · teste na hora" : "Em breve"}
+                  {CONNECTIONS_STANDBY
+                    ? "Em breve"
+                    : live
+                      ? "Token + ramal · teste na hora"
+                      : "Em breve"}
                 </p>
               </div>
             </div>
-            {live && setup ? (
+            {CONNECTIONS_STANDBY ? (
+              <p className="text-sm text-podium-muted">{COPY.conexoesStandbyForm}</p>
+            ) : live && setup ? (
               <>
                 {setup.fields.map((field: VoipField) => (
                   <Field key={field.id} label={field.label}>
@@ -472,10 +493,20 @@ function ConexoesInner() {
               Como funciona
             </p>
             <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-relaxed text-podium-gray">
-              <li>Cole o token do painel do VoIP e o ramal (ou seu número).</li>
-              <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
-              <li>Testar ligação toca o Webphone / seu celular.</li>
-              <li>Na ficha, Ligar dispara a chamada. O hangup volta para o lead.</li>
+              {CONNECTIONS_STANDBY ? (
+                <>
+                  <li>Nesta onda o VoIP nativo fica em stand-by.</li>
+                  <li>Ligar na ficha abre o telefone do aparelho.</li>
+                  <li>Quando a montagem voltar, você cola o token e o ramal aqui.</li>
+                </>
+              ) : (
+                <>
+                  <li>Cole o token do painel do VoIP e o ramal (ou seu número).</li>
+                  <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
+                  <li>Testar ligação toca o Webphone / seu celular.</li>
+                  <li>Na ficha, Ligar dispara a chamada. O hangup volta para o lead.</li>
+                </>
+              )}
             </ol>
           </GlassCard>
         </aside>

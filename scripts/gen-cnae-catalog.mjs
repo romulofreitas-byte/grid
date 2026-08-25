@@ -29,6 +29,16 @@ const SEGMENT_CNAES = [
     ["9602502", "Salao de beleza com tratamento capilar"],
     ["9609208", "Atividades de tratamento de beleza capilar"],
   ]],
+  ["barbearias", [
+    ["9602501", "Cabeleireiros barbearia e barbeiro"],
+    ["9602501", "Barbearia e salao masculino"],
+    ["9602502", "Servicos de barbearia e corte masculino"],
+  ]],
+  ["estudio-tatuagem", [
+    ["9609208", "Estudio de tatuagem e piercing"],
+    ["9609208", "Atividades de tatuagem e body piercing"],
+    ["9602502", "Tatuagem artistica e piercing"],
+  ]],
   ["micropigmentacao", [
     ["9609206", "Micropigmentacao e dermopigmentacao estetica"],
     ["9602502", "Estudio de micropigmentacao de sobrancelhas"],
@@ -90,6 +100,11 @@ const SEGMENT_CNAES = [
     ["8630502", "Medicina preventiva e clinica integrativa"],
     ["8630501", "Atividade medica ambulatorial integrativa"],
   ]],
+  ["clinicas-medicas", [
+    ["8630501", "Atividade medica ambulatorial clinica"],
+    ["8630502", "Clinica medica geral e consultorio medico"],
+    ["8630503", "Clinica medica ambulatorial com procedimentos"],
+  ]],
   // Pet
   ["clinicas-veterinarias", [
     ["7500100", "Clinica veterinaria e atendimento veterinario"],
@@ -146,6 +161,11 @@ const SEGMENT_CNAES = [
     ["4520005", "Estetica automotiva polimento e vitrificacao"],
     ["4520005", "Serviços de higienizacao automotiva"],
     ["4520005", "Centro de estetica automotiva"],
+  ]],
+  ["postos-combustivel", [
+    ["4731800", "Comercio varejista de combustiveis para veiculos"],
+    ["4731800", "Posto de combustivel e gasolina"],
+    ["4732600", "Comercio varejista de lubrificantes"],
   ]],
   // Imobiliário
   ["imobiliarias", [
@@ -209,6 +229,26 @@ const SEGMENT_CNAES = [
     ["4772500", "Comercio varejista de cosmeticos e perfumaria"],
     ["4772500", "Perfumaria e produtos de higiene pessoal"],
     ["4772500", "Loja de cosmeticos e perfumaria"],
+  ]],
+  ["farmacias-drogarias", [
+    ["4771701", "Comercio varejista de produtos farmaceuticos"],
+    ["4771702", "Comercio varejista de produtos farmaceuticos homeopaticos"],
+    ["4771701", "Farmacia e drogaria varejista"],
+  ]],
+  ["supermercados", [
+    ["4711302", "Comercio varejista de mercadorias em geral supermercados"],
+    ["4711301", "Hipermercados"],
+    ["4712100", "Minimercados mercearias e armazens"],
+  ]],
+  ["academias", [
+    ["9313100", "Atividades de condicionamento fisico academia"],
+    ["9313100", "Academia de ginastica e musculacao"],
+    ["9313100", "Centro de condicionamento fisico e gym"],
+  ]],
+  ["lavanderias", [
+    ["9601701", "Lavanderias, tinturarias e toalheiros"],
+    ["9601701", "Lavanderia self service e tinturaria"],
+    ["9601702", "Toalheiros hospedagem lavanderia"],
   ]],
   // Alimentação
   ["restaurantes", [

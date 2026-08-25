@@ -4,6 +4,7 @@ import {
   pickCallConnection,
   type CallConnectionPick,
 } from "@/lib/integrations/call-target";
+import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
 import { hasScriptIdentity } from "@/lib/pilot-profile";
 import type { Profile } from "@/lib/types";
 
@@ -121,10 +122,14 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       id: "ligar",
       label: "Ligar",
       done: ligarReady,
-      title: "Conecte VoIP ou discador",
-      body: "Ligue direto da ficha. A ligação é grátis; a assinatura cobre o resto da volta.",
+      title: CONNECTIONS_STANDBY
+        ? COPY.boxLigarStandbyTitle
+        : "Conecte VoIP ou discador",
+      body: CONNECTIONS_STANDBY
+        ? COPY.boxLigarStandbyBody
+        : "Ligue direto da ficha. A ligação é grátis; a assinatura cobre o resto da volta.",
       href: conexoesHref("voip"),
-      cta: "Conectar VoIP",
+      cta: CONNECTIONS_STANDBY ? COPY.boxLigarStandbyCta : "Conectar VoIP",
     },
     {
       id: "creditos",
@@ -139,7 +144,11 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
 
   return {
     slots,
-    nextGap: slots.find((slot) => !slot.done)?.id ?? null,
+    nextGap:
+      slots.find(
+        (slot) =>
+          !slot.done && !(CONNECTIONS_STANDBY && slot.id === "ligar"),
+      )?.id ?? null,
     pistaAberta,
   };
 }

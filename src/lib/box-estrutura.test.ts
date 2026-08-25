@@ -301,6 +301,21 @@ describe("buildBoxEstrutura", () => {
     expect(ready.slots.every((s) => s.done)).toBe(true);
   });
 
+  it("skips Ligar as nextGap while Conexões is in stand-by", () => {
+    const { nextGap, byId } = slotMap({
+      savedCount: 1,
+      hasUnsavedSearch: false,
+      profile: finishedHelmet(),
+      billing: { total: 900, plano: "piloto" },
+      connections: [],
+      hasCrmPipeline: true,
+    });
+    expect(byId.ligar.done).toBe(false);
+    expect(byId.ligar.cta).toBe(COPY.boxLigarStandbyCta);
+    expect(byId.ligar.title).toBe(COPY.boxLigarStandbyTitle);
+    expect(nextGap).toBeNull();
+  });
+
   it("deep-links oferta and meta to conta anchors", () => {
     const { byId } = slotMap({
       savedCount: 0,

@@ -32,6 +32,7 @@ function preset(perfil_score: NichePreset["perfil_score"]): NichePreset {
     name_stems: [],
     curado: true,
     ordem: 1,
+    aliases: [],
   };
 }
 

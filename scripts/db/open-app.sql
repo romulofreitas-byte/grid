@@ -173,3 +173,14 @@ where not exists (
   where profile_id = '00000000-0000-4000-8000-000000000001'
     and status = 'active'
 );
+
+create table if not exists user_catchup_state (
+  user_id     uuid not null references profiles(id) on delete cascade,
+  task_id     text not null,
+  status      text not null default 'idle',
+  last_ran_at timestamptz,
+  has_more    boolean not null default false,
+  last_result jsonb not null default '{}'::jsonb,
+  primary key (user_id, task_id),
+  constraint user_catchup_status_chk check (status in ('idle', 'running'))
+);

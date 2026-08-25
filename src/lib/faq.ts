@@ -78,7 +78,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. Em lista salva, cada CNPJ qualificado entra sozinho na pista do nicho no CRM. No grid, marque as que quiser — não precisa ser a lista inteira nem só os 10, 20 ou 50 primeiros. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. Em lista salva, cada CNPJ qualificado entra sozinho na pista do nicho no CRM. Quem já tinha sido qualificado antes da pista também entra ao abrir o app, sem novo crédito. No grid, marque as que quiser — não precisa ser a lista inteira nem só os 10, 20 ou 50 primeiros. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -86,7 +86,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra na volta?",
     answer:
-      "O CRM do GRID é a pista do nicho. Qualifique uma lista salva e os leads entram em Entrada de Lista. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
+      "O CRM do GRID é a pista do nicho. Qualifique uma lista salva e os leads entram em Entrada de Lista. Listas salvas que já tinham qualificação entram na pista quando você abre o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },
@@ -156,7 +156,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Onde ligo o VoIP?",
     answer:
-      "Em Conexões. Cole o token e o ramal da API4COM, Zenvia, Twilio ou Telnyx. O GRID disca no clique (Box, Grid e Ficha) e a tabulação volta para o lead. Sem conexão, o botão Ligar abre o telefone do aparelho.",
+      "VoIP nativo está em stand-by nesta primeira onda. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca no clique (Box, Grid e Ficha).",
     links: [{ href: "/conexoes", label: "Abrir conexões" }],
   },
   {

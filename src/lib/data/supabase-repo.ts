@@ -20,7 +20,7 @@ import {
   resolveCnaesFromKeywords,
   resolvePresetCnaes,
 } from "@/lib/niches";
-import { presetMatchesQuery } from "@/lib/segment-aliases";
+import { cnaeMatchesQuery, presetMatchesQuery, queryTokens } from "@/lib/segment-aliases";
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
@@ -30,6 +30,11 @@ import {
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
+import {
+  withCountSingleFlight,
+  withCountSlot,
+} from "@/lib/cache/count-slots";
+import type { SearchJob, SearchJobStatus } from "@/lib/search-jobs";
 import {
   CNAE_ANY_SQL,
   FLAT_COUNT_CAP,
@@ -63,6 +68,7 @@ import {
   isTratamento,
 } from "@/lib/pilot-profile";
 import { crmPgMethods } from "@/lib/data/crm-pg";
+import { catchupPgMethods } from "@/lib/data/catchup-pg";
 import type { GridRepo } from "@/lib/data/repo";
 import type {
   IntegrationConnectionRecord,
@@ -314,6 +320,32 @@ function mapSearch(r: Record<string, unknown>): Search {
     total_found: Number(r.total_found ?? 0),
     created_at: isoStr(r.created_at),
     saved: Boolean(r.saved),
+  };
+}
+
+function mapSearchJob(r: Record<string, unknown>): SearchJob {
+  const raw = (r.filtros ?? {}) as Partial<SearchFilters>;
+  return {
+    id: String(r.id),
+    user_id: String(r.user_id),
+    nome: String(r.nome),
+    filtros: {
+      ...DEFAULT_FILTERS,
+      ...raw,
+      cnaes: raw.cnaes ?? [],
+      segmentIds: raw.segmentIds ?? [],
+      cnpjs: raw.cnpjs ?? [],
+      ufs: raw.ufs ?? [],
+      municipioIds: raw.municipioIds ?? [],
+      portes: raw.portes ?? [],
+    },
+    status: String(r.status) as SearchJobStatus,
+    search_id: r.search_id ? String(r.search_id) : null,
+    error: r.error == null ? null : String(r.error),
+    attempts: Number(r.attempts ?? 0),
+    locked_at: r.locked_at ? isoStr(r.locked_at) : null,
+    created_at: isoStr(r.created_at),
+    finished_at: r.finished_at ? isoStr(r.finished_at) : null,
   };
 }
 
@@ -1015,32 +1047,57 @@ async function countCached(
     return cached;
   }
 
-  const started = Date.now();
-  let result: CountResult;
-  const useFlat = await hasEstablishmentsSearch();
+  return withCountSingleFlight(key, () => computeCount(filters, mode, allowed, key), () =>
+    getCountCache(key),
+  );
+}
 
-  if (mode === "total" && allowed && canFastCountPreview(filters, allowed)) {
-    const mv = await countViaCnaeUfMv(filters, allowed);
-    if (mv) {
-      logSearchDuration("count", started, { mode, mv: true, total: mv.total });
-      await setCountCache(key, mv);
-      return mv;
+async function computeCount(
+  filters: SearchFilters,
+  mode: "total" | "full",
+  allowed: Set<string> | null,
+  key: string,
+): Promise<CountResult> {
+  const cached = await getCountCache(key);
+  if (cached) {
+    logSearchDuration("count", Date.now(), { mode, cache: true });
+    return cached;
+  }
+
+  return withCountSlot(async () => {
+    const again = await getCountCache(key);
+    if (again) {
+      logSearchDuration("count", Date.now(), { mode, cache: true });
+      return again;
     }
-  }
 
-  if (useFlat) {
-    const includeStats = mode === "full";
-    const cap = mode === "full" ? COUNT_CAP : FLAT_COUNT_PREVIEW_CAP;
-    result = await countViaFlatTable(filters, allowed, { includeStats, cap });
-  } else if (mode === "total") {
-    result = await countTotalPreviewLegacy(filters, allowed);
-  } else {
-    result = await countFullLegacy(filters, allowed);
-  }
+    const started = Date.now();
+    let result: CountResult;
+    const useFlat = await hasEstablishmentsSearch();
 
-  logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
-  await setCountCache(key, result);
-  return result;
+    if (mode === "total" && allowed && canFastCountPreview(filters, allowed)) {
+      const mv = await countViaCnaeUfMv(filters, allowed);
+      if (mv) {
+        logSearchDuration("count", started, { mode, mv: true, total: mv.total });
+        await setCountCache(key, mv);
+        return mv;
+      }
+    }
+
+    if (useFlat) {
+      const includeStats = mode === "full";
+      const cap = mode === "full" ? COUNT_CAP : FLAT_COUNT_PREVIEW_CAP;
+      result = await countViaFlatTable(filters, allowed, { includeStats, cap });
+    } else if (mode === "total") {
+      result = await countTotalPreviewLegacy(filters, allowed);
+    } else {
+      result = await countFullLegacy(filters, allowed);
+    }
+
+    logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
+    await setCountCache(key, result);
+    return result;
+  });
 }
 
 async function countFullLegacy(
@@ -1312,9 +1369,8 @@ async function resolveAllowedCnaes(filters: SearchFilters): Promise<Set<string> 
     }
     scoped = codes.size ? codes : new Set(["__none__"]);
   } else if (filters.intentQuery && filters.intentQuery.trim().length >= 2) {
-    const q = normalizeText(filters.intentQuery);
     const matched: RefCnae[] = refCnaes.filter((c) =>
-      normalizeText(c.descricao).includes(q),
+      cnaeMatchesQuery(c.codigo, c.descricao, filters.intentQuery!),
     );
     for (const p of presets) {
       if (!p.parent_id) continue;
@@ -2179,7 +2235,10 @@ export const supabaseRepo: GridRepo = {
   async searchCnaes(q, limit = 30) {
     const queryText = q.trim();
     if (queryText.length < 1) return [];
-    const pattern = `%${queryText}%`;
+    const tokens = queryTokens(queryText);
+    const seed = tokens[0] ?? queryText;
+    const pattern = `%${seed}%`;
+    const fetchLimit = Math.max(limit * 4, 80);
     const mvSql = `select c.codigo, c.descricao, coalesce(x.n, 0)::int as n
          from ref_cnae c
          left join (
@@ -2222,13 +2281,16 @@ export const supabaseRepo: GridRepo = {
         const run = attempt.heavy ? querySearch : query;
         const { rows } = await run<{ codigo: string; descricao: string; n: number }>(
           attempt.sql,
-          [pattern, limit],
+          [pattern, fetchLimit],
         );
-        return rows.map((r) => ({
-          codigo: trimChar(r.codigo),
-          descricao: r.descricao,
-          count: Number(r.n),
-        }));
+        return rows
+          .map((r) => ({
+            codigo: trimChar(r.codigo),
+            descricao: r.descricao,
+            count: Number(r.n),
+          }))
+          .filter((r) => cnaeMatchesQuery(r.codigo, r.descricao, queryText))
+          .slice(0, limit);
       } catch (err) {
         lastErr = err;
         const canFallback =
@@ -2438,6 +2500,76 @@ export const supabaseRepo: GridRepo = {
       );
     }
     return search;
+  },
+
+  async enqueueSearchJob(userId, nome, filters) {
+    const { rows } = await query(
+      `insert into search_jobs (user_id, nome, filtros, status)
+       values ($1, $2, $3::jsonb, 'pending')
+       returning *`,
+      [userId, nome, JSON.stringify(filters)],
+    );
+    return mapSearchJob(rows[0]);
+  },
+
+  async findReusableSearchJob(userId, filters) {
+    const { rows } = await query(
+      `select * from search_jobs
+       where user_id = $1
+         and status in ('pending', 'running')
+         and filtros = $2::jsonb
+       order by created_at desc
+       limit 1`,
+      [userId, JSON.stringify(filters)],
+    );
+    return rows[0] ? mapSearchJob(rows[0]) : null;
+  },
+
+  async getSearchJob(id, userId) {
+    const { rows } = await query(
+      `select * from search_jobs where id = $1 and user_id = $2`,
+      [id, userId],
+    );
+    return rows[0] ? mapSearchJob(rows[0]) : null;
+  },
+
+  async countSearchJobsAhead(job) {
+    if (job.status !== "pending") return 0;
+    const { rows } = await query<{ n: number }>(
+      `select count(*)::int as n from search_jobs
+       where status = 'pending' and created_at < $1`,
+      [job.created_at],
+    );
+    return Number(rows[0]?.n ?? 0);
+  },
+
+  async claimSearchJob() {
+    const { rows } = await query(
+      `update search_jobs
+       set status = 'running', locked_at = now(), attempts = attempts + 1
+       where id = (
+         select id from search_jobs
+         where status = 'pending'
+            or (status = 'running' and locked_at < now() - interval '10 minutes')
+         order by created_at
+         limit 1
+         for update skip locked
+       )
+       returning *`,
+    );
+    return rows[0] ? mapSearchJob(rows[0]) : null;
+  },
+
+  async finishSearchJob(id, patch) {
+    await query(
+      `update search_jobs
+       set status = $2,
+           search_id = coalesce($3, search_id),
+           error = $4,
+           finished_at = now()
+       where id = $1`,
+      [id, patch.status, patch.search_id ?? null, patch.error ?? null],
+    );
   },
 
   async getSearch(searchId) {
@@ -3284,4 +3416,5 @@ export const supabaseRepo: GridRepo = {
   },
 
   ...crmPgMethods,
+  ...catchupPgMethods,
 };

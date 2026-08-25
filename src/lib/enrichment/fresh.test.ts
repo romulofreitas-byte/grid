@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEnrichmentComplete, isEnrichmentVisible } from "./fresh";
+import { isEnrichmentComplete, isEnrichmentEverComplete, isEnrichmentVisible } from "./fresh";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
 
 const emptyTech: TechSignals = {
@@ -58,5 +58,8 @@ describe("enrichment freshness", () => {
     expect(
       isEnrichmentVisible(row({ expires_at: "2020-01-01T00:00:00.000Z" })),
     ).toBe(false);
+    expect(
+      isEnrichmentEverComplete(row({ expires_at: "2020-01-01T00:00:00.000Z" })),
+    ).toBe(true);
   });
 });

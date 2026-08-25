@@ -13,11 +13,19 @@ export function isEnrichmentUnexpired(
   return new Date(row.expires_at).getTime() > Date.now();
 }
 
+/** Complete audit, ignoring TTL — used to backfill CRM for old qualifies. */
+export function isEnrichmentEverComplete(
+  row: LeadEnrichment | null | undefined,
+): boolean {
+  if (!row) return false;
+  return enrichmentStage(row) === "complete";
+}
+
 /** Grid scoring, hasAudit, skip re-qualify. Partials do not count. */
 export function isEnrichmentComplete(
   row: LeadEnrichment | null | undefined,
 ): boolean {
-  return isEnrichmentUnexpired(row) && enrichmentStage(row) === "complete";
+  return isEnrichmentUnexpired(row) && isEnrichmentEverComplete(row);
 }
 
 /** Ficha can show arriving slices. */

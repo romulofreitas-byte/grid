@@ -54,6 +54,8 @@ const DOR_CHIP: Record<string, string> = {
   "escolas-particulares": "Vaga ociosa",
   "turismo-e-hotelaria": "OTA come margem",
   hoteis: "OTA na baixa",
+  "esporte-e-fitness": "Matrícula parada",
+  "servicos-locais": "Rota ociosa",
   industria: "Três compradores",
   "construcao-civil": "Indicação de arquiteto",
   "insumos-para-construcao": "Obra parada",
@@ -107,6 +109,8 @@ const SEASON_CHIP: Record<string, string> = {
   "escolas-particulares": "Volta às aulas",
   "turismo-e-hotelaria": "Alta temporada",
   hoteis: "Alta temporada",
+  "esporte-e-fitness": "Janeiro",
+  "servicos-locais": "Fim de ano",
   industria: "Fim de ano",
   "construcao-civil": "Janeiro trava",
   "insumos-para-construcao": "Obra para",
@@ -440,6 +444,28 @@ const PACK_LIST: MarketPack[] = [
       gancho: "Alta enche. Sem canal próprio na baixa, o hotel fica refém de comissão.",
     },
     janelaHorario: "De manhã, depois do check-out",
+  }),
+  pack("esporte-e-fitness", "academia", {
+    dorPrincipal:
+      "Em {cidade}, a academia vive de quem já treina. Matrícula nova não entra no ritmo da mensalidade que vence.",
+    perguntaConsideracao:
+      "As matrículas novas estão vindo de fila própria, ou o mês ainda depende de quem já treina e de quem indica?",
+    sazonalidade: {
+      months: [1, 2],
+      gancho: "Janeiro e fevereiro a pessoa promete treinar. Quem espera indicação perde a janela.",
+    },
+    janelaHorario: "De manhã, antes do pico da malhação",
+  }),
+  pack("servicos-locais", "serviço local", {
+    dorPrincipal:
+      "Em {cidade}, o serviço local vive de quem já conhece. Pedido novo não entra no ritmo de quem já liga.",
+    perguntaConsideracao:
+      "Os pedidos novos estão vindo de fila própria, ou ainda dependem só de quem já liga e de quem indica?",
+    sazonalidade: {
+      months: [11, 12],
+      gancho: "Fim de ano concentra demanda. Sem fila, a rota ociosa aparece no começo do ano.",
+    },
+    janelaHorario: "De manhã, antes da primeira rota",
   }),
   pack("industria", "indústria", {
     dorPrincipal:

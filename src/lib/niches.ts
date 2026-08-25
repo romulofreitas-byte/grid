@@ -101,6 +101,8 @@ export const TAXONOMY: NicheSeedNode[] = [
       { slug: "bronzeamento", nome: "Bronzeamento", keywords: ["estetica e outros servicos de cuidados com a beleza"], exclusoes: [], name_stems: ["BRONZE", "TAN"], ordem: 10 },
       { slug: "estetica-intima", nome: "Estética íntima", keywords: ["estetica e outros servicos de cuidados com a beleza"], exclusoes: [], name_stems: ["INTIMA", "LASER"], ordem: 11 },
       { slug: "massagem-terapeutica", nome: "Massagem terapêutica", keywords: ["atividades de sauna e banhos", "estetica e outros servicos de cuidados com a beleza"], exclusoes: [], name_stems: ["MASSAG", "TERAP"], ordem: 12 },
+      { slug: "barbearias", nome: "Barbearias", keywords: ["cabeleireiros"], exclusoes: [], name_stems: ["BARBEARIA", "BARBEIRO"], ordem: 13 },
+      { slug: "estudio-tatuagem", nome: "Estúdio de tatuagem", keywords: ["tatuagem", "piercing"], exclusoes: [], name_stems: ["TATTOO", "TATUAG"], ordem: 14 },
     ],
   },
   {
@@ -108,6 +110,7 @@ export const TAXONOMY: NicheSeedNode[] = [
     keywords: ["atividade medica ambulatorial", "atividade odontologica", "atividades de fisioterapia"],
     exclusoes: [], name_stems: ["CLINICA", "SAUDE"], ordem: 2,
     segments: [
+      { slug: "clinicas-medicas", nome: "Clínicas médicas", keywords: ["atividade medica ambulatorial"], exclusoes: [], name_stems: ["CLINICA", "MEDICA"], ordem: 0 },
       { slug: "ortopedia", nome: "Ortopedia", keywords: ["atividade medica ambulatorial"], exclusoes: [], name_stems: ["ORTO", "OSSO"], ordem: 1 },
       { slug: "dermatologia", nome: "Dermatologia", keywords: ["atividade medica ambulatorial"], exclusoes: [], name_stems: ["DERMA", "PELE"], ordem: 2 },
       { slug: "odontologia", nome: "Odontologia", keywords: ["atividade odontologica"], exclusoes: [], name_stems: ["ODONTO", "DENTAL"], ordem: 3 },
@@ -162,6 +165,7 @@ export const TAXONOMY: NicheSeedNode[] = [
       { slug: "blindagem", nome: "Blindagem automotiva", keywords: ["fabricacao de equipamentos e acessorios para veiculos", "manutencao e reparacao mecanica de veiculos automotores"], exclusoes: [], name_stems: ["BLIND", "SECURITY"], ordem: 11 },
       { slug: "oficinas-motos", nome: "Oficinas de motos", keywords: ["manutencao e reparacao de motocicletas e motonetas", "comercio varejista de pecas e acessorios para motocicletas"], exclusoes: [], name_stems: ["MOTO", "BIKE"], ordem: 12 },
       { slug: "guincho", nome: "Guincho e reboque", keywords: ["servicos de reboque de veiculos"], exclusoes: [], name_stems: ["GUINCHO", "REBOQUE"], ordem: 13 },
+      { slug: "postos-combustivel", nome: "Postos de combustível", keywords: ["comercio varejista de combustiveis"], exclusoes: [], name_stems: ["POSTO", "GASOLINA"], ordem: 14 },
     ],
   },
   {
@@ -199,6 +203,8 @@ export const TAXONOMY: NicheSeedNode[] = [
       { slug: "casa-jardim", nome: "Floriculturas e jardinagem", keywords: ["comercio varejista de plantas e flores naturais"], exclusoes: [], name_stems: ["JARDIM", "GARDEN"], ordem: 12 },
       { slug: "colchoes", nome: "Colchões", keywords: ["comercio varejista de artigos de colchoaria"], exclusoes: [], name_stems: ["COLCHAO", "SLEEP"], ordem: 13 },
       { slug: "utensilios-domesticos", nome: "Utensílios domésticos", keywords: ["comercio varejista de artigos de cama, mesa e banho", "comercio varejista de artigos de armarinho"], exclusoes: [], name_stems: ["CASA", "HOME"], ordem: 14 },
+      { slug: "farmacias-drogarias", nome: "Farmácias e drogarias", keywords: ["comercio varejista de produtos farmaceuticos"], exclusoes: [], name_stems: ["FARMACIA", "DROGARIA"], ordem: 15 },
+      { slug: "supermercados", nome: "Supermercados", keywords: ["supermercados", "hipermercados", "minimercados"], exclusoes: [], name_stems: ["SUPER", "MERCADO"], ordem: 16 },
     ],
   },
   {
@@ -253,6 +259,22 @@ export const TAXONOMY: NicheSeedNode[] = [
       { slug: "turismo-aventura", nome: "Turismo de aventura", keywords: ["parques de diversao e temas", "servicos de reservas e outros servicos de turismo"], exclusoes: [], name_stems: ["AVENTURA", "RADICAL"], ordem: 8 },
       { slug: "guias-locais", nome: "Guias locais", keywords: ["atividades de guias de turismo", "servicos de reservas e outros servicos de turismo"], exclusoes: [], name_stems: ["GUIA", "LOCAL"], ordem: 9 },
       { slug: "eventos-turismo", nome: "Eventos e wedding destination", keywords: ["organizacao de eventos, exceto culturais e esportivos", "servicos de reservas e outros servicos de turismo"], exclusoes: [], name_stems: ["WEDDING", "EVENTO"], ordem: 10 },
+    ],
+  },
+  {
+    slug: "esporte-e-fitness", nome: "Esporte e fitness", grupo: "b2c_local", perfil_score: "b2c_local",
+    keywords: ["atividades de condicionamento fisico"],
+    exclusoes: [], name_stems: ["FIT", "GYM"], ordem: 10,
+    segments: [
+      { slug: "academias", nome: "Academias", keywords: ["atividades de condicionamento fisico"], exclusoes: [], name_stems: ["ACADEMIA", "GYM"], ordem: 1 },
+    ],
+  },
+  {
+    slug: "servicos-locais", nome: "Serviços locais", grupo: "b2c_local", perfil_score: "b2c_local",
+    keywords: ["lavanderias, tinturarias e toalheiros"],
+    exclusoes: [], name_stems: ["SERVICO", "LOCAL"], ordem: 11,
+    segments: [
+      { slug: "lavanderias", nome: "Lavanderias", keywords: ["lavanderias, tinturarias e toalheiros"], exclusoes: [], name_stems: ["LAVANDER", "LAVA"], ordem: 1 },
     ],
   },
   {

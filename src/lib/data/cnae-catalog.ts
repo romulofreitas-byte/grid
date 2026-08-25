@@ -1,6 +1,6 @@
 import type { RefCnae } from "@/lib/types";
 
-/** ~404 CNAE codes aligned with TAXONOMY segment keywords. */
+/** ~426 CNAE codes aligned with TAXONOMY segment keywords. */
 export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "9602502",
@@ -49,6 +49,30 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "9609208",
     "descricao": "Atividades de tratamento de beleza capilar"
+  },
+  {
+    "codigo": "9602501",
+    "descricao": "Cabeleireiros barbearia e barbeiro"
+  },
+  {
+    "codigo": "9602501",
+    "descricao": "Barbearia e salao masculino"
+  },
+  {
+    "codigo": "9602502",
+    "descricao": "Servicos de barbearia e corte masculino"
+  },
+  {
+    "codigo": "9609208",
+    "descricao": "Estudio de tatuagem e piercing"
+  },
+  {
+    "codigo": "9609208",
+    "descricao": "Atividades de tatuagem e body piercing"
+  },
+  {
+    "codigo": "9602502",
+    "descricao": "Tatuagem artistica e piercing"
   },
   {
     "codigo": "9609206",
@@ -195,6 +219,18 @@ export const REF_CNAE: RefCnae[] = [
     "descricao": "Atividade medica ambulatorial integrativa"
   },
   {
+    "codigo": "8630501",
+    "descricao": "Atividade medica ambulatorial clinica"
+  },
+  {
+    "codigo": "8630502",
+    "descricao": "Clinica medica geral e consultorio medico"
+  },
+  {
+    "codigo": "8630503",
+    "descricao": "Clinica medica ambulatorial com procedimentos"
+  },
+  {
     "codigo": "7500100",
     "descricao": "Clinica veterinaria e atendimento veterinario"
   },
@@ -325,6 +361,18 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "4520005",
     "descricao": "Centro de estetica automotiva"
+  },
+  {
+    "codigo": "4731800",
+    "descricao": "Comercio varejista de combustiveis para veiculos"
+  },
+  {
+    "codigo": "4731800",
+    "descricao": "Posto de combustivel e gasolina"
+  },
+  {
+    "codigo": "4732600",
+    "descricao": "Comercio varejista de lubrificantes"
   },
   {
     "codigo": "6821801",
@@ -473,6 +521,54 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "4772500",
     "descricao": "Loja de cosmeticos e perfumaria"
+  },
+  {
+    "codigo": "4771701",
+    "descricao": "Comercio varejista de produtos farmaceuticos"
+  },
+  {
+    "codigo": "4771702",
+    "descricao": "Comercio varejista de produtos farmaceuticos homeopaticos"
+  },
+  {
+    "codigo": "4771701",
+    "descricao": "Farmacia e drogaria varejista"
+  },
+  {
+    "codigo": "4711302",
+    "descricao": "Comercio varejista de mercadorias em geral supermercados"
+  },
+  {
+    "codigo": "4711301",
+    "descricao": "Hipermercados"
+  },
+  {
+    "codigo": "4712100",
+    "descricao": "Minimercados mercearias e armazens"
+  },
+  {
+    "codigo": "9313100",
+    "descricao": "Atividades de condicionamento fisico academia"
+  },
+  {
+    "codigo": "9313100",
+    "descricao": "Academia de ginastica e musculacao"
+  },
+  {
+    "codigo": "9313100",
+    "descricao": "Centro de condicionamento fisico e gym"
+  },
+  {
+    "codigo": "9601701",
+    "descricao": "Lavanderias, tinturarias e toalheiros"
+  },
+  {
+    "codigo": "9601701",
+    "descricao": "Lavanderia self service e tinturaria"
+  },
+  {
+    "codigo": "9601702",
+    "descricao": "Toalheiros hospedagem lavanderia"
   },
   {
     "codigo": "5611201",
@@ -1503,10 +1599,6 @@ export const REF_CNAE: RefCnae[] = [
     "descricao": "Cabeleireiros manicure pedicure e podologia"
   },
   {
-    "codigo": "8630501",
-    "descricao": "Atividade medica ambulatorial clinica"
-  },
-  {
     "codigo": "4520003",
     "descricao": "Serviços de borracharia para veiculos automotores"
   },
@@ -1525,10 +1617,6 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "6821802",
     "descricao": "Aluguel e gestao de imoveis"
-  },
-  {
-    "codigo": "4771701",
-    "descricao": "Comercio varejista de produtos farmaceuticos"
   },
   {
     "codigo": "5611202",

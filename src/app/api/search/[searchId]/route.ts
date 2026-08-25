@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSearchForUser } from "@/lib/auth/search-access";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { onSearchSaved } from "@/lib/catchup/saved-list";
 import { getRepo } from "@/lib/data";
 
 const patchSchema = z.object({
@@ -39,9 +40,15 @@ export async function PATCH(
   if (!parsed.success) {
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
   }
+  const becameSaved = parsed.data.saved === true && !owned.saved;
   const search = await getRepo().saveSearch(searchId, parsed.data);
   if (!search) {
     return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
+  }
+  if (becameSaved) {
+    void onSearchSaved(gated.userId, search).catch((err) => {
+      console.error("crm_save_bridge_error", err);
+    });
   }
   return NextResponse.json(search);
 }
