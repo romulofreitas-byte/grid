@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
@@ -33,8 +34,13 @@ export function usePaywall() {
 
 export function PaywallProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<PaywallOpen | null>(null);
+  const pathname = usePathname();
   const openPaywall = useCallback((input: PaywallOpen) => setState(input), []);
   const close = useCallback(() => setState(null), []);
+
+  useEffect(() => {
+    setState(null);
+  }, [pathname]);
 
   return (
     <PaywallContext.Provider value={{ openPaywall }}>
@@ -119,6 +125,7 @@ function PaywallDialog({
               <Link
                 ref={primaryRef}
                 href={copy.primary.href}
+                onClick={onClose}
                 className="recommend-pulse-once rounded-xl bg-podium-yellow px-6 py-3.5 text-sm font-extrabold text-podium-navy"
               >
                 {copy.primary.label}
@@ -126,6 +133,7 @@ function PaywallDialog({
               {"href" in copy.secondary ? (
                 <Link
                   href={copy.secondary.href}
+                  onClick={onClose}
                   className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-bold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
                 >
                   {copy.secondary.label}
