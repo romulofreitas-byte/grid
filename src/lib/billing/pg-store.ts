@@ -237,13 +237,14 @@ export const pgBillingStore: BillingStore = {
     const next = { ...mapSub(current[0]), ...patch };
     const { rows } = await query(
       `update billing_subscriptions set
-         plan=$2, status=$3, provider_sub_id=$4,
-         current_period_start=$5, current_period_end=$6, cancel_at_period_end=$7
+         plan=$2, status=$3, provider=$4, provider_sub_id=$5,
+         current_period_start=$6, current_period_end=$7, cancel_at_period_end=$8
        where id=$1 returning *`,
       [
         id,
         next.plan,
         next.status,
+        next.provider,
         next.providerSubId,
         next.currentPeriodStart,
         next.currentPeriodEnd,

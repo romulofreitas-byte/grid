@@ -9,18 +9,21 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const raw = await req.text();
+  let event;
   try {
-    const event = await asaasProvider.parseWebhook(req, raw);
+    event = await asaasProvider.parseWebhook(req, raw);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "webhook";
+    return NextResponse.json({ error: message }, { status: 401 });
+  }
+  try {
     if (event) {
-      try {
-        await handleNormalizedEvent(event, JSON.parse(raw || "{}"));
-      } catch (err) {
-        console.error("asaas webhook handler:", err);
-      }
+      await handleNormalizedEvent(event, JSON.parse(raw || "{}"));
     }
     return NextResponse.json({ received: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "webhook";
-    return NextResponse.json({ error: message }, { status: 401 });
+    console.error("asaas webhook handler:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

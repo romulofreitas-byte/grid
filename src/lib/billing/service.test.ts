@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { resetBillingMemory } from "@/lib/billing/memory-store";
 import {
-  applyPaymentPaid,
   createCheckout,
   debitCredits,
   debitEnrich,
   debitExport,
   getBalance,
+  getBillingMe,
   handleNormalizedEvent,
 } from "@/lib/billing/service";
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
@@ -34,6 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   resetBillingMemory();
 });
 
@@ -170,6 +171,11 @@ describe("billing service", () => {
     const bal = await getBalance(profileId);
     expect(bal.plano).toBe("membro_plataforma");
     expect(bal.total).toBe(900);
+    expect(bal.enrichAllowed).toBe(true);
+    expect(bal.trialDaysLeft).toBeGreaterThanOrEqual(29);
+    expect(bal.trialDaysLeft).toBeLessThanOrEqual(30);
+    const me = await getBillingMe(profileId);
+    expect(me.subscription?.status).toBe("trialing");
   });
 
   it("rejects platform coupon for non-subscribers", async () => {
@@ -183,6 +189,130 @@ describe("billing service", () => {
         coupon: "PILOTOPODIUM",
       }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("rejects a second platform coupon after the trial was used", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "PILOTOPODIUM",
+    });
+    await expect(
+      createCheckout({
+        profileId,
+        email: "piloto@mundopodium.com.br",
+        nome: "Rômulo",
+        sku: "membro_plataforma",
+        method: "pix",
+        coupon: "PILOTOPODIUM",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("locks qualify and redacts the grid after 31 days without payment", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "PILOTOPODIUM",
+    });
+    vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("free");
+    expect(bal.enrichAllowed).toBe(false);
+    expect(bal.trialExpired).toBe(true);
+    await expect(
+      debitEnrich(profileId, ["12345678000190"], null),
+    ).rejects.toThrow(/30 dias/);
+    vi.useRealTimers();
+  });
+
+  it("extends access 30 days when a pack is paid after the trial ends", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "PILOTOPODIUM",
+    });
+    vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "pack_100",
+      method: "card_br",
+    });
+    const bal = await getBalance(profileId);
+    expect(bal.enrichAllowed).toBe(true);
+    expect(bal.plano).toBe("membro_plataforma");
+    expect(bal.pack).toBe(100);
+    expect(bal.trialExpired).toBe(false);
+    const end = bal.periodEndsAt ? new Date(bal.periodEndsAt).getTime() : 0;
+    expect(end).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000);
+    vi.useRealTimers();
+  });
+
+  it("turns a paid piloto checkout into an active monthly plan after the trial", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "PILOTOPODIUM",
+    });
+    vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("piloto");
+    expect(bal.enrichAllowed).toBe(true);
+    expect(bal.trialExpired).toBe(false);
+    expect(bal.plan).toBe(900);
+    const me = await getBillingMe(profileId);
+    expect(me.subscription?.status).toBe("active");
+    vi.useRealTimers();
+  });
+
+  it("applies a paid event matched by order id when payment id differs", async () => {
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "pack_100",
+      method: "boleto",
+    });
+    expect(order.status).toBe("pending");
+    await handleNormalizedEvent(
+      {
+        provider: "mock",
+        providerEventId: "evt-ref-1",
+        type: "payment.paid",
+        providerPaymentId: "pay_new_cycle",
+        orderId: order.id,
+      },
+      {},
+    );
+    const bal = await getBalance(profileId);
+    expect(bal.pack).toBe(100);
   });
 
   it("is idempotent on payment events", async () => {

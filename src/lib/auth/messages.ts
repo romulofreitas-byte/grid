@@ -1,4 +1,5 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
+import type { AuthAction } from "@/lib/auth/actions";
 import { COPY } from "@/lib/copy";
 
 export function isDuplicateSignupUser(
@@ -14,6 +15,14 @@ export function loginConfirmNotice(email: string): string {
   return `Enviamos um link para ${trimmed}. Olhe a caixa de entrada e o spam. Se o endereço estiver errado, volte e crie a conta de novo. Se já tem conta, entre.`;
 }
 
+function isRateLimited(msg: string): boolean {
+  return (
+    msg.includes("rate limit") ||
+    msg.includes("too many") ||
+    msg.includes("over_request")
+  );
+}
+
 export function loginErrorMessage(raw: string | undefined): string {
   const msg = (raw ?? "").toLowerCase();
   if (msg.includes("email not confirmed") || msg.includes("not confirmed")) {
@@ -21,6 +30,9 @@ export function loginErrorMessage(raw: string | undefined): string {
   }
   if (msg.includes("invalid login") || msg.includes("invalid credentials")) {
     return "E-mail ou senha incorretos. Se você entrou pelo link do e-mail, use Esqueci a senha.";
+  }
+  if (isRateLimited(msg)) {
+    return "Muitas tentativas. Espere um pouco e tente de novo.";
   }
   return "Não foi possível entrar";
 }
@@ -37,7 +49,44 @@ export function signupErrorMessage(raw: string | undefined): string {
   if (msg.includes("password") && msg.includes("least")) {
     return "A senha precisa ter pelo menos 8 caracteres.";
   }
+  if (msg.includes("signup") && msg.includes("disabled")) {
+    return "Cadastro temporariamente indisponível. Tente de novo em instantes.";
+  }
+  if (isRateLimited(msg)) {
+    return "Muitas tentativas. Espere um pouco e tente de novo.";
+  }
   return "Não foi possível criar a conta";
+}
+
+export function oauthErrorMessage(raw: string | undefined): string {
+  const msg = (raw ?? "").toLowerCase();
+  if (isRateLimited(msg)) {
+    return "Muitas tentativas. Espere um pouco e tente de novo.";
+  }
+  if (msg.includes("provider") || msg.includes("oauth")) {
+    return "Não foi possível entrar com o Google. Tente e-mail e senha.";
+  }
+  return "Não foi possível entrar com o Google";
+}
+
+export function passwordUpdateErrorMessage(raw: string | undefined): string {
+  const msg = (raw ?? "").toLowerCase();
+  if (msg.includes("password") && msg.includes("least")) {
+    return "A senha precisa ter pelo menos 8 caracteres.";
+  }
+  if (msg.includes("same") || msg.includes("should be different")) {
+    return "Escolha uma senha diferente da atual.";
+  }
+  return "Não foi possível salvar a senha";
+}
+
+export function authCatchMessage(action: AuthAction | null): string {
+  if (action === "signup") return "Não foi possível criar a conta";
+  if (action === "recover") return "Não foi possível enviar o e-mail de recuperação";
+  if (action === "resend") return "Não foi possível reenviar";
+  if (action === "password") return "Não foi possível salvar a senha";
+  if (action === "google") return "Não foi possível entrar com o Google";
+  return "Não foi possível entrar";
 }
 
 export function callbackErrorQuery(

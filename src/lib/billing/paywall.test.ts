@@ -13,6 +13,15 @@ import {
 } from "./paywall";
 
 describe("parseBillingGate", () => {
+  it("reads trial_expired from code", () => {
+    expect(
+      parseBillingGate(
+        403,
+        planRequiredPayload("Os 30 dias acabaram.", "trial_expired"),
+      ),
+    ).toEqual({ kind: "trial", upgradeUrl: RECARGA_URL });
+  });
+
   it("reads plan_required from code", () => {
     expect(
       parseBillingGate(403, planRequiredPayload("Qualificação não está no Treino livre. Escolha um plano.")),
@@ -63,6 +72,13 @@ describe("parseBillingGate", () => {
 });
 
 describe("paywallCopy", () => {
+  it("points expired trial to recarga and planos", () => {
+    const copy = paywallCopy({ kind: "trial", feature: "qualify" });
+    expect(copy.title).toMatch(/trial/i);
+    expect(copy.primary).toEqual({ href: RECARGA_URL, label: "Recarregar" });
+    expect(copy.secondary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
+  });
+
   it("points plan qualify to /planos", () => {
     const copy = paywallCopy({ kind: "plan", feature: "qualify" });
     expect(copy.title).toMatch(/Plano Piloto/);
@@ -112,6 +128,9 @@ describe("blockQualifyIfFree", () => {
     expect(open).toHaveBeenCalledWith({ kind: "plan", feature: "qualify" });
     expect(blockQualifyIfFree(true, open)).toBe(false);
     expect(blockQualifyIfFree(undefined, open)).toBe(false);
+    const trialOpen = vi.fn();
+    expect(blockQualifyIfFree(false, trialOpen, { trialExpired: true })).toBe(true);
+    expect(trialOpen).toHaveBeenCalledWith({ kind: "trial", feature: "qualify" });
   });
 });
 

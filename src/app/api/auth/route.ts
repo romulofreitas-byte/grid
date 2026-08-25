@@ -2,8 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 import { parseAuthAction } from "@/lib/auth/actions";
 import { guardPublicApi } from "@/lib/auth/api-guard";
 import {
+  authCatchMessage,
   isDuplicateSignupUser,
   loginErrorMessage,
+  oauthErrorMessage,
+  passwordUpdateErrorMessage,
   signupErrorMessage,
 } from "@/lib/auth/messages";
 import { isValidEmail, validatePassword } from "@/lib/auth/password";
@@ -28,6 +31,7 @@ export async function POST(req: NextRequest) {
   const json = (body: unknown, status = 200) =>
     applyCookies(NextResponse.json(body, { status }));
 
+  let action: ReturnType<typeof parseAuthAction> = null;
   try {
     const body = (await req.json()) as {
       action?: string;
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
       provider?: string;
       next?: string;
     };
-    const action = parseAuthAction(body);
+    action = parseAuthAction(body);
     if (!action) {
       return json({ error: "Ação inválida" }, 400);
     }
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
         provider: "google",
         options: { redirectTo: callbackUrl(callbackNext) },
       });
-      if (error) return json({ error: error.message }, 400);
+      if (error) return json({ error: oauthErrorMessage(error.message) }, 400);
       return json({ url: data.url });
     }
 
@@ -75,7 +79,7 @@ export async function POST(req: NextRequest) {
       const { error } = await supabase.auth.updateUser({
         password: body.password,
       });
-      if (error) return json({ error: error.message }, 400);
+      if (error) return json({ error: passwordUpdateErrorMessage(error.message) }, 400);
       return json({ ok: true, next: dest });
     }
 
@@ -98,7 +102,10 @@ export async function POST(req: NextRequest) {
         email,
         options: { emailRedirectTo: callbackUrl(callbackNext) },
       });
-      if (error) console.error("auth resend:", error.message);
+      if (error) {
+        console.error("auth resend:", error.message);
+        return json({ error: authCatchMessage("resend") }, 400);
+      }
       return json({ ok: true, confirm: true });
     }
 
@@ -136,6 +143,6 @@ export async function POST(req: NextRequest) {
     }
     return json({ ok: true, next: dest });
   } catch {
-    return json({ error: "Não foi possível entrar" }, 500);
+    return json({ error: authCatchMessage(action) }, 500);
   }
 }

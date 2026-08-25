@@ -92,6 +92,7 @@ async function BoxPageInner() {
   const showPlatformCoupon = shouldShowPlatformCouponBanner(
     platformSubscriber,
     billing.plano,
+    { trialExpired: billing.trialExpired },
   );
   const stats = await repo.getPilotStats(session.id);
   const [recent, savedPreview, connectionRows, hasCrmPipeline] = await Promise.all([
@@ -121,6 +122,9 @@ async function BoxPageInner() {
     <AppShell title="Box">
       <div className="flex flex-col gap-8">
         {showPlatformCoupon ? <BoxPlatformCouponBanner /> : null}
+        {billing.trialExpired ? (
+          <BoxPlatformCouponBanner ended />
+        ) : null}
 
         <BoxCockpit
           name={name}

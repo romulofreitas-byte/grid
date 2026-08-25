@@ -37,7 +37,9 @@ export const COPY = {
   entrarLoginHook: "A lista de hoje espera. Entre e continue ligando.",
   entrarLoginCta: "Entrar no Box",
   boxPlatformCoupon:
-    "Você assina o Mundo Pódium. Ative o Piloto com o cupom no checkout.",
+    "Você assina o Mundo Pódium. Ative 30 dias de Piloto com o cupom no checkout.",
+  boxPlatformTrialEnded:
+    "Os 30 dias do Piloto acabaram. Recarregue ou assine o mesmo plano para continuar.",
   cnae: "Código da atividade da empresa na Receita.",
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outras portas",

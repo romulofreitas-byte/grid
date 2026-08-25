@@ -109,8 +109,9 @@ export default function PlanosPage() {
       <GlassCard className="mt-10 p-5">
         <p className="text-sm font-bold text-podium-white">Membro da Plataforma</p>
         <p className="mt-2 text-sm text-podium-gray">
-          Quem já assina o Mundo Pódium (R$ 89,90) entra no nível Piloto sem
-          pagar de novo no GRID. No checkout, use o cupom PILOTOPODIUM.
+          Quem já assina o Mundo Pódium entra no nível Piloto por 30 dias, sem
+          pagar de novo no GRID. No checkout, use o cupom PILOTOPODIUM. Depois,
+          recarregue ou assine o Piloto.
         </p>
         <Link
           href="/pagar?sku=membro_plataforma"

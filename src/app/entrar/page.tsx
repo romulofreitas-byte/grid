@@ -12,7 +12,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { BACK } from "@/lib/back";
 import { COPY } from "@/lib/copy";
-import { entrarNoticeForError, loginConfirmNotice } from "@/lib/auth/messages";
+import {
+  authCatchMessage,
+  entrarNoticeForError,
+  loginConfirmNotice,
+} from "@/lib/auth/messages";
 import { safeInternalPath } from "@/lib/auth/next-path";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
 import { cn } from "@/lib/utils";
@@ -24,24 +28,28 @@ const fieldClass =
 
 type Mode = "login" | "signup" | "recover" | "definir";
 
-async function readAuthJson<T extends { error?: string }>(res: Response): Promise<T> {
+async function readAuthJson<T extends { error?: string }>(
+  res: Response,
+  fallback: string,
+): Promise<T> {
   const text = await res.text();
   if (!text) return {} as T;
   try {
     return JSON.parse(text) as T;
   } catch {
-    throw new Error("Não foi possível entrar");
+    throw new Error(fallback);
   }
 }
 
-function authFailMessage(err: unknown): string {
+function authFailMessage(err: unknown, fallback: string): string {
   if (err instanceof DOMException && err.name === "TimeoutError") {
     return "Demorou demais. Tente de novo.";
   }
   if (err instanceof Error && err.name === "TimeoutError") {
     return "Demorou demais. Tente de novo.";
   }
-  return "Não foi possível entrar";
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
 }
 
 function modeFromParams(params: URLSearchParams): Mode {
@@ -148,7 +156,10 @@ function EntrarInner() {
     router.replace(query ? `/entrar?${query}` : "/entrar");
   }
 
-  async function postAuth(payload: Record<string, unknown>) {
+  async function postAuth(
+    payload: Record<string, unknown>,
+    fallback: string,
+  ) {
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,7 +174,7 @@ function EntrarInner() {
       url?: string;
       error?: string;
       next?: string;
-    }>(res);
+    }>(res, fallback);
     return { res, json };
   }
 
@@ -181,13 +192,17 @@ function EntrarInner() {
     setNotice(null);
     try {
       if (mode === "definir") {
-        const { res, json } = await postAuth({
-          action: "password",
-          password,
-          next,
-        });
+        const fallback = authCatchMessage("password");
+        const { res, json } = await postAuth(
+          {
+            action: "password",
+            password,
+            next,
+          },
+          fallback,
+        );
         if (!res.ok) {
-          setNotice(json.error ?? "Não foi possível salvar a senha");
+          setNotice(json.error ?? fallback);
           return;
         }
         if (json.mock) {
@@ -199,14 +214,18 @@ function EntrarInner() {
 
       const action =
         mode === "signup" ? "signup" : mode === "recover" ? "recover" : "login";
-      const { res, json } = await postAuth({
-        action,
-        email,
-        password: mode === "recover" ? undefined : password,
-        next,
-      });
+      const fallback = authCatchMessage(action);
+      const { res, json } = await postAuth(
+        {
+          action,
+          email,
+          password: mode === "recover" ? undefined : password,
+          next,
+        },
+        fallback,
+      );
       if (!res.ok) {
-        setNotice(json.error ?? "Não foi possível entrar");
+        setNotice(json.error ?? fallback);
         if (json.existing) {
           switchMode("login", { keepNotice: true });
         }
@@ -227,7 +246,10 @@ function EntrarInner() {
       }
       await lightsOutThenGo(json.next ?? next);
     } catch (err) {
-      setNotice(authFailMessage(err));
+      const fallback = authCatchMessage(
+        mode === "signup" ? "signup" : mode === "recover" ? "recover" : mode === "definir" ? "password" : "login",
+      );
+      setNotice(authFailMessage(err, fallback));
     } finally {
       setLoading(false);
     }
@@ -236,20 +258,24 @@ function EntrarInner() {
   async function resendConfirm() {
     if (loading || !email.trim()) return;
     setLoading(true);
+    const fallback = authCatchMessage("resend");
     try {
-      const { res, json } = await postAuth({
-        action: "resend",
-        email,
-        next,
-      });
+      const { res, json } = await postAuth(
+        {
+          action: "resend",
+          email,
+          next,
+        },
+        fallback,
+      );
       if (!res.ok) {
-        setNotice(json.error ?? "Não foi possível reenviar");
+        setNotice(json.error ?? fallback);
         return;
       }
       setAwaitingConfirm(true);
       setNotice(loginConfirmNotice(email));
     } catch (err) {
-      setNotice(authFailMessage(err));
+      setNotice(authFailMessage(err, fallback));
     } finally {
       setLoading(false);
     }

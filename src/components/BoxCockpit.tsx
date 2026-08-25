@@ -82,6 +82,8 @@ export function BoxCockpit({
     pack: number;
     plano: string;
     enrichAllowed: boolean;
+    trialDaysLeft?: number | null;
+    trialExpired?: boolean;
   };
   savedCount: number;
 }) {
@@ -181,7 +183,11 @@ export function BoxCockpit({
                     label="Acesso"
                     value={String(billing.total)}
                     href="/planos"
-                    hrefLabel="Planos"
+                    hrefLabel={
+                      billing.trialDaysLeft != null && billing.trialDaysLeft > 0
+                        ? `${billing.trialDaysLeft} dias de trial`
+                        : "Planos"
+                    }
                     warn={tankEmpty}
                   />
                   <ClusterStat

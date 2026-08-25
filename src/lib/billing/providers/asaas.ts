@@ -133,7 +133,7 @@ export const asaasProvider: PaymentProvider = {
     );
     const first = payments.data?.[0];
     if (!first) {
-      return { providerPaymentId: sub.id, providerSubId: sub.id };
+      return { providerSubId: sub.id };
     }
     const details = await attachChargeDetails(first, method);
     return { ...details, providerSubId: sub.id };
@@ -154,7 +154,12 @@ export const asaasProvider: PaymentProvider = {
     let body: {
       id?: string;
       event?: string;
-      payment?: { id?: string; subscription?: string; status?: string };
+      payment?: {
+        id?: string;
+        subscription?: string;
+        status?: string;
+        externalReference?: string;
+      };
       subscription?: { id?: string };
     };
     try {
@@ -166,6 +171,7 @@ export const asaasProvider: PaymentProvider = {
     const event = body.event ?? "";
     const paymentId = body.payment?.id;
     const subId = body.payment?.subscription ?? body.subscription?.id;
+    const orderId = body.payment?.externalReference;
 
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       return {
@@ -174,6 +180,7 @@ export const asaasProvider: PaymentProvider = {
         type: "payment.paid",
         providerPaymentId: paymentId,
         providerSubId: subId,
+        orderId,
       };
     }
     if (event === "PAYMENT_OVERDUE") {
@@ -183,6 +190,7 @@ export const asaasProvider: PaymentProvider = {
         type: "payment.overdue",
         providerPaymentId: paymentId,
         providerSubId: subId,
+        orderId,
       };
     }
     if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
@@ -192,6 +200,7 @@ export const asaasProvider: PaymentProvider = {
         type: "payment.failed",
         providerPaymentId: paymentId,
         providerSubId: subId,
+        orderId,
       };
     }
     if (event === "SUBSCRIPTION_DELETED") {

@@ -82,6 +82,9 @@ export type CreditBalance = {
   pack: number;
   plano: string;
   enrichAllowed: boolean;
+  trialDaysLeft: number | null;
+  trialExpired: boolean;
+  periodEndsAt: string | null;
 };
 
 export type BillingMe = {
@@ -104,6 +107,8 @@ export type NormalizedPaymentEvent = {
   providerPaymentId?: string;
   providerSubId?: string;
   providerTransferId?: string;
+  /** Checkout order id, e.g. Asaas `externalReference`. */
+  orderId?: string;
 };
 
 export class InsufficientCreditsError extends Error {
@@ -118,8 +123,8 @@ export class InsufficientCreditsError extends Error {
 }
 
 export class EnrichmentNotAllowedError extends Error {
-  constructor() {
-    super("Qualificação não está no Treino livre. Escolha um plano.");
+  constructor(message = "Qualificação não está no Treino livre. Escolha um plano.") {
+    super(message);
     this.name = "EnrichmentNotAllowedError";
   }
 }

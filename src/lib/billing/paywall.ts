@@ -1,8 +1,8 @@
 export const PLANOS_URL = "/planos";
 export const RECARGA_URL = "/planos#recarga";
 
-export type BillingGateCode = "plan_required" | "insufficient_credits";
-export type PaywallKind = "plan" | "credits";
+export type BillingGateCode = "plan_required" | "insufficient_credits" | "trial_expired";
+export type PaywallKind = "plan" | "credits" | "trial";
 export type PaywallFeature = "qualify" | "export" | "crm_push";
 
 export type BillingGate = {
@@ -29,11 +29,11 @@ export type PaywallCopy = {
     | { action: "close"; label: string };
 };
 
-export function planRequiredPayload(error: string) {
+export function planRequiredPayload(error: string, code: BillingGateCode = "plan_required") {
   return {
     error,
-    code: "plan_required" as const,
-    upgradeUrl: PLANOS_URL,
+    code,
+    upgradeUrl: code === "trial_expired" ? RECARGA_URL : PLANOS_URL,
   };
 }
 
@@ -69,6 +69,9 @@ export function parseBillingGate(
       ? json.upgradeUrl
       : PLANOS_URL;
 
+  if (code === "trial_expired") {
+    return { kind: "trial", upgradeUrl };
+  }
   if (code === "plan_required") {
     return { kind: "plan", upgradeUrl };
   }
@@ -76,6 +79,12 @@ export function parseBillingGate(
     return { kind: "credits", needed, available, upgradeUrl };
   }
 
+  if (
+    status === 403 &&
+    (error.includes("30 dias") || error.includes("trial"))
+  ) {
+    return { kind: "trial", upgradeUrl: upgradeUrl || RECARGA_URL };
+  }
   if (
     status === 403 &&
     (error.includes("Treino livre") || error.includes("Qualificação"))
@@ -127,13 +136,26 @@ export function throwIfBillingGate(
 export function blockQualifyIfFree(
   enrichAllowed: boolean | undefined,
   openPaywall: (input: PaywallOpen) => void,
+  options?: { trialExpired?: boolean },
 ): boolean {
   if (enrichAllowed !== false) return false;
-  openPaywall({ kind: "plan", feature: "qualify" });
+  openPaywall({
+    kind: options?.trialExpired ? "trial" : "plan",
+    feature: "qualify",
+  });
   return true;
 }
 
 export function paywallCopy(state: PaywallOpen): PaywallCopy {
+  if (state.kind === "trial") {
+    return {
+      eyebrow: "30 dias",
+      title: "O trial do Piloto acabou",
+      body: "Recarregue para mais 30 dias de acesso ou assine o Piloto.",
+      primary: { href: RECARGA_URL, label: "Recarregar" },
+      secondary: { href: PLANOS_URL, label: "Ver planos" },
+    };
+  }
   if (state.kind === "plan") {
     return {
       eyebrow: "Plano Piloto",

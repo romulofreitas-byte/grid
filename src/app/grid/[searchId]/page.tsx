@@ -429,7 +429,9 @@ export default function GridPage() {
   });
 
   function requestQualify(body: EnrichBody) {
-    if (blockQualifyIfFree(billingQuery.data?.balance.enrichAllowed, openPaywall)) {
+    if (blockQualifyIfFree(billingQuery.data?.balance.enrichAllowed, openPaywall, {
+      trialExpired: billingQuery.data?.balance.trialExpired,
+    })) {
       return;
     }
     enrichMutation.mutate(body);

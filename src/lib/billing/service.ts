@@ -2,6 +2,14 @@ import { getDataSource, hasLiveDatabase } from "@/lib/data";
 import { isRuntimeProduction } from "@/lib/env/deploy";
 import { isUndefinedTableError } from "@/lib/data/pg";
 import {
+  addUtcDays,
+  isTrialExpired,
+  PACK_ACCESS_EXTEND_DAYS,
+  PLATFORM_TRIAL_DAYS,
+  subscriptionGrantsAccess,
+  trialDaysRemaining,
+} from "@/lib/billing/access";
+import {
   ENRICH_CREDIT_COST,
   EXPORT_CREDIT_COST,
   getCatalogItem,
@@ -106,6 +114,19 @@ async function loadProvider(id: "asaas" | "stripe" | "mock") {
   return mockProvider;
 }
 
+function emptyFreeBalance(credits: number): CreditBalance {
+  return {
+    total: credits,
+    plan: credits,
+    pack: 0,
+    plano: "free",
+    enrichAllowed: false,
+    trialDaysLeft: null,
+    trialExpired: false,
+    periodEndsAt: null,
+  };
+}
+
 async function syncCache(store: BillingStore, profileId: string): Promise<CreditBalance> {
   const lots = (await store.listOpenLots(profileId)).filter((l) => lotOpen(l));
   let plan = 0;
@@ -115,12 +136,22 @@ async function syncCache(store: BillingStore, profileId: string): Promise<Credit
     else plan += lot.remaining;
   }
   const sub = await store.getActiveSubscription(profileId);
-  const plano = sub && sub.status !== "canceled" ? sub.plan : "free";
+  const grantsAccess = subscriptionGrantsAccess(sub);
+  const plano = grantsAccess && sub ? sub.plan : "free";
   const item = getCatalogItem(plano);
   const enrichAllowed = item?.kind === "plan" ? item.enrichAllowed : false;
   const total = plan + pack;
   await store.updateProfileCache(profileId, { plano, creditos: total });
-  return { total, plan, pack, plano, enrichAllowed };
+  return {
+    total,
+    plan,
+    pack,
+    plano,
+    enrichAllowed,
+    trialDaysLeft: trialDaysRemaining(sub),
+    trialExpired: isTrialExpired(sub) && !grantsAccess,
+    periodEndsAt: grantsAccess && sub ? sub.currentPeriodEnd : null,
+  };
 }
 
 async function grantLot(
@@ -164,7 +195,7 @@ export async function ensureStartingCredits(profileId: string): Promise<CreditBa
     const lots = await store.listOpenLots(profileId);
     const live = lots.filter((l) => lotOpen(l));
     const sub = await store.getActiveSubscription(profileId);
-    if (sub && (sub.status === "active" || sub.status === "trialing")) {
+    if (subscriptionGrantsAccess(sub)) {
       return syncCache(store, profileId);
     }
     if (live.some((l) => l.source === "plan_grant")) {
@@ -183,13 +214,7 @@ export async function ensureStartingCredits(profileId: string): Promise<CreditBa
   } catch (err) {
     if (isUndefinedTableError(err)) {
       const free = getCatalogItem("free") as PlanDefinition;
-      return {
-        total: free.credits,
-        plan: free.credits,
-        pack: 0,
-        plano: "free",
-        enrichAllowed: false,
-      };
+      return emptyFreeBalance(free.credits);
     }
     throw err;
   }
@@ -226,6 +251,13 @@ export async function createCheckout(input: {
     if (!subscribed) {
       throw new BillingError(
         "Cupom válido só para assinantes Mundo Pódium com o mesmo e-mail do cadastro",
+        403,
+      );
+    }
+    const prior = await store.listOrders(input.profileId);
+    if (prior.some((o) => o.kind === "platform" && o.status === "paid")) {
+      throw new BillingError(
+        "Os 30 dias do Piloto da Plataforma já foram usados. Recarregue ou assine o Piloto.",
         403,
       );
     }
@@ -310,7 +342,7 @@ export async function createCheckout(input: {
       : await provider.createCharge(order, customerId, method);
 
   const updated = await store.updateOrder(order.id, {
-    providerPaymentId: charge.providerPaymentId,
+    providerPaymentId: charge.providerPaymentId || null,
     providerSubId: charge.providerSubId ?? null,
     pixQr: charge.pixQr ?? null,
     pixCopy: charge.pixCopy ?? null,
@@ -370,6 +402,23 @@ export async function simulateMockPayment(orderId: string, profileId: string): P
   return paid;
 }
 
+async function extendAccessFromPack(
+  store: BillingStore,
+  profileId: string,
+): Promise<void> {
+  const existing = await store.getActiveSubscription(profileId);
+  if (!existing) return;
+  if (subscriptionGrantsAccess(existing)) return;
+  const start = new Date();
+  const end = addUtcDays(start, PACK_ACCESS_EXTEND_DAYS);
+  await store.updateSubscription(existing.id, {
+    status: "active",
+    currentPeriodStart: start.toISOString(),
+    currentPeriodEnd: end.toISOString(),
+    cancelAtPeriodEnd: false,
+  });
+}
+
 export async function applyPaymentPaid(orderId: string): Promise<void> {
   const store = await getBillingStore();
   const order = await store.getOrder(orderId);
@@ -390,14 +439,19 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
       orderId: order.id,
       reason: `pack_${item.sku}`,
     });
+    await extendAccessFromPack(store, order.profileId);
     await syncCache(store, order.profileId);
     await enqueueTreasurySweep(store, order);
     return;
   }
 
   const plan = item as PlanDefinition;
+  const isPlatform = plan.sku === "membro_plataforma";
   const start = nowIso();
-  const end = periodEnd();
+  const end = isPlatform
+    ? addUtcDays(new Date(), PLATFORM_TRIAL_DAYS).toISOString()
+    : periodEnd();
+  const status = isPlatform ? "trialing" : "active";
   const expired = await store.expirePlanLots(order.profileId, start);
   for (const lot of expired) {
     if (lot.remaining > 0) {
@@ -418,7 +472,7 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   if (existing) {
     await store.updateSubscription(existing.id, {
       plan: plan.sku,
-      status: "active",
+      status,
       provider: order.provider,
       providerSubId: order.providerSubId,
       currentPeriodStart: start,
@@ -430,7 +484,7 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
       id: crypto.randomUUID(),
       profileId: order.profileId,
       plan: plan.sku,
-      status: "active",
+      status,
       provider: order.provider,
       providerSubId: order.providerSubId,
       currentPeriodStart: start,
@@ -442,7 +496,7 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   await grantLot(store, {
     profileId: order.profileId,
     qty: plan.credits,
-    source: plan.sku === "membro_plataforma" ? "platform" : "plan_grant",
+    source: isPlatform ? "platform" : "plan_grant",
     expiresAt: end,
     orderId: order.id,
     reason: `plan_${plan.sku}`,
@@ -484,10 +538,12 @@ async function maybeRenewSubscription(
   const store = await getBillingStore();
   const sub = await store.getSubscriptionByProviderSub(provider, providerSubId);
   if (!sub) return;
+  if (sub.provider === "platform") return;
   const age = Date.now() - new Date(sub.currentPeriodStart).getTime();
   if (age < 20 * 24 * 60 * 60 * 1000) return;
   const item = getCatalogItem(sub.plan);
   if (!item || item.kind !== "plan") return;
+  if (item.sku === "membro_plataforma") return;
   const start = nowIso();
   const end = periodEnd();
   const expired = await store.expirePlanLots(sub.profileId, start);
@@ -522,6 +578,24 @@ async function maybeRenewSubscription(
   await syncCache(store, sub.profileId);
 }
 
+async function findOrderForEvent(
+  store: BillingStore,
+  event: NormalizedPaymentEvent,
+): Promise<BillingOrder | null> {
+  if (event.providerPaymentId) {
+    const byPay = await store.getOrderByProviderPayment(
+      event.provider,
+      event.providerPaymentId,
+    );
+    if (byPay) return byPay;
+  }
+  if (event.orderId) {
+    const byRef = await store.getOrder(event.orderId);
+    if (byRef && byRef.provider === event.provider) return byRef;
+  }
+  return null;
+}
+
 export async function handleNormalizedEvent(
   event: NormalizedPaymentEvent,
   payload: unknown,
@@ -535,41 +609,36 @@ export async function handleNormalizedEvent(
   if (!fresh) return;
 
   if (event.type === "payment.paid") {
-    if (event.providerPaymentId) {
-      const order = await store.getOrderByProviderPayment(
-        event.provider,
-        event.providerPaymentId,
-      );
-      if (order) {
-        if (event.providerSubId && order.providerSubId !== event.providerSubId) {
-          await store.updateOrder(order.id, { providerSubId: event.providerSubId });
-        }
-        await applyPaymentPaid(order.id);
-        if (event.providerSubId) {
-          const sub = await store.getActiveSubscription(order.profileId);
-          if (sub) {
-            await store.updateSubscription(sub.id, { providerSubId: event.providerSubId });
-          }
-        }
-        return;
+    const order = await findOrderForEvent(store, event);
+    if (order) {
+      if (event.providerPaymentId && order.providerPaymentId !== event.providerPaymentId) {
+        await store.updateOrder(order.id, {
+          providerPaymentId: event.providerPaymentId,
+        });
       }
+      if (event.providerSubId && order.providerSubId !== event.providerSubId) {
+        await store.updateOrder(order.id, { providerSubId: event.providerSubId });
+      }
+      await applyPaymentPaid(order.id);
+      if (event.providerSubId) {
+        const sub = await store.getActiveSubscription(order.profileId);
+        if (sub) {
+          await store.updateSubscription(sub.id, { providerSubId: event.providerSubId });
+        }
+      }
+      return;
     }
-    if (event.providerSubId) {
+    if (event.providerSubId && event.providerPaymentId) {
       await maybeRenewSubscription(event.provider, event.providerSubId);
     }
     return;
   }
   if (event.type === "payment.failed" || event.type === "payment.overdue") {
-    if (event.providerPaymentId) {
-      const order = await store.getOrderByProviderPayment(
-        event.provider,
-        event.providerPaymentId,
-      );
-      if (order && order.status === "pending") {
-        await store.updateOrder(order.id, {
-          status: event.type === "payment.overdue" ? "expired" : "failed",
-        });
-      }
+    const order = await findOrderForEvent(store, event);
+    if (order && order.status === "pending") {
+      await store.updateOrder(order.id, {
+        status: event.type === "payment.overdue" ? "expired" : "failed",
+      });
     }
     if (event.providerSubId) {
       const sub = await store.getSubscriptionByProviderSub(
@@ -660,7 +729,13 @@ export async function debitEnrich(
   options?: { forceCharge?: boolean },
 ): Promise<CreditBalance> {
   const balance = await getBalance(profileId);
-  if (!balance.enrichAllowed) throw new EnrichmentNotAllowedError();
+  if (!balance.enrichAllowed) {
+    throw new EnrichmentNotAllowedError(
+      balance.trialExpired
+        ? "Os 30 dias do Piloto da Plataforma acabaram. Recarregue ou assine o Piloto."
+        : undefined,
+    );
+  }
   const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")))];
   const store = await getBillingStore();
   const toCharge: string[] = [];

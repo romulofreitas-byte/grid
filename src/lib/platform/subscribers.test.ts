@@ -22,6 +22,9 @@ describe("shouldShowPlatformCouponBanner", () => {
     expect(shouldShowPlatformCouponBanner(true, "free")).toBe(true);
     expect(shouldShowPlatformCouponBanner(true, "piloto")).toBe(true);
     expect(shouldShowPlatformCouponBanner(true, "membro_plataforma")).toBe(false);
+    expect(
+      shouldShowPlatformCouponBanner(true, "free", { trialExpired: true }),
+    ).toBe(false);
   });
 
   it("hides for non-subscribers", () => {

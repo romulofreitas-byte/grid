@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { COPY } from "@/lib/copy";
 
-export function BoxPlatformCouponBanner() {
+export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) {
   const reduce = useReducedMotion();
 
   return (
@@ -31,14 +31,31 @@ export function BoxPlatformCouponBanner() {
         Mundo Pódium
       </p>
       <p className="mt-2 text-lg font-extrabold leading-snug text-podium-white">
-        {COPY.boxPlatformCoupon}
+        {ended ? COPY.boxPlatformTrialEnded : COPY.boxPlatformCoupon}
       </p>
-      <Link
-        href="/pagar?sku=membro_plataforma"
-        className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
-      >
-        Ativar Piloto
-      </Link>
+      {ended ? (
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/planos#recarga"
+            className="inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
+          >
+            Recarregar
+          </Link>
+          <Link
+            href="/planos"
+            className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+          >
+            Assinar o Piloto
+          </Link>
+        </div>
+      ) : (
+        <Link
+          href="/pagar?sku=membro_plataforma"
+          className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
+        >
+          Ativar Piloto
+        </Link>
+      )}
     </motion.div>
   );
 }

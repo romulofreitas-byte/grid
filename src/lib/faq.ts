@@ -140,7 +140,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      "Quem já assina a plataforma entra no Piloto sem pagar de novo. Use o mesmo e-mail do cadastro. No Box, ative com o cupom PILOTOPODIUM.",
+      "Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom PILOTOPODIUM. Depois, recarregue ou assine o Piloto.",
     links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {

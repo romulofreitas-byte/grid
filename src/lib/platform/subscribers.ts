@@ -28,6 +28,9 @@ export async function isPlatformSubscriber(
 export function shouldShowPlatformCouponBanner(
   isSubscriber: boolean,
   plano: string,
+  options?: { trialExpired?: boolean },
 ): boolean {
-  return isSubscriber && plano !== "membro_plataforma";
+  if (!isSubscriber) return false;
+  if (options?.trialExpired) return false;
+  return plano !== "membro_plataforma";
 }

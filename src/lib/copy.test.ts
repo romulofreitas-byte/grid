@@ -8,6 +8,7 @@ describe("COPY login", () => {
       COPY.loginConfirm,
       COPY.loginRecover,
       COPY.boxPlatformCoupon,
+      COPY.boxPlatformTrialEnded,
       COPY.entrarSignupLane,
       COPY.entrarLoginLane,
       COPY.entrarTrialBadge,

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  authCatchMessage,
   callbackErrorQuery,
   entrarNoticeForError,
   isDuplicateSignupUser,
   loginConfirmNotice,
   loginErrorMessage,
+  oauthErrorMessage,
+  passwordUpdateErrorMessage,
   postVerifyPath,
   signupErrorMessage,
 } from "./messages";
@@ -18,6 +21,10 @@ describe("loginErrorMessage", () => {
     expect(loginErrorMessage("Invalid login credentials")).toMatch(
       /Esqueci a senha/,
     );
+  });
+
+  it("maps rate limits", () => {
+    expect(loginErrorMessage("over_request_rate_limit")).toMatch(/Muitas tentativas/);
   });
 });
 
@@ -42,6 +49,35 @@ describe("signupErrorMessage", () => {
   it("sends existing users to login or recovery", () => {
     expect(signupErrorMessage("User already registered")).toMatch(
       /já tem conta/,
+    );
+  });
+
+  it("does not use login wording on a generic failure", () => {
+    expect(signupErrorMessage("unexpected")).toBe("Não foi possível criar a conta");
+    expect(signupErrorMessage("unexpected")).not.toMatch(/entrar/);
+  });
+});
+
+describe("authCatchMessage", () => {
+  it("keeps signup failures off the login phrase", () => {
+    expect(authCatchMessage("signup")).toBe("Não foi possível criar a conta");
+    expect(authCatchMessage("login")).toBe("Não foi possível entrar");
+    expect(authCatchMessage("recover")).toMatch(/recuperação/);
+    expect(authCatchMessage("password")).toMatch(/senha/);
+  });
+});
+
+describe("oauthErrorMessage", () => {
+  it("stays in Portuguese", () => {
+    expect(oauthErrorMessage("Unable to exchange oauth code")).toMatch(/Google/);
+    expect(oauthErrorMessage("Unable to exchange oauth code")).not.toMatch(/Unable/);
+  });
+});
+
+describe("passwordUpdateErrorMessage", () => {
+  it("stays in Portuguese", () => {
+    expect(passwordUpdateErrorMessage("New password should be different")).toMatch(
+      /diferente/,
     );
   });
 });

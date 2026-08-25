@@ -40,7 +40,11 @@ const schema = z
 
 function enrichBillingError(err: unknown) {
   if (err instanceof EnrichmentNotAllowedError) {
-    return NextResponse.json(planRequiredPayload(err.message), { status: 403 });
+    const trial = err.message.includes("30 dias");
+    return NextResponse.json(
+      planRequiredPayload(err.message, trial ? "trial_expired" : "plan_required"),
+      { status: 403 },
+    );
   }
   if (err instanceof InsufficientCreditsError) {
     return NextResponse.json(

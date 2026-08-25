@@ -5,7 +5,6 @@ import { parseDocumento } from "@/lib/billing/document";
 import { BillingError } from "@/lib/billing/types";
 import { createCheckout } from "@/lib/billing/service";
 import { getRepo } from "@/lib/data";
-import { requireSession } from "@/lib/auth/session";
 
 const schema = z.object({
   sku: z.string(),
@@ -22,6 +21,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
   }
   const session = gated;
+  if (!session.email) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
   const repo = getRepo();
   const profile = await repo.getProfile(session.userId);
   const doc = parseDocumento(parsed.data.documento ?? profile.documento ?? undefined);
@@ -31,11 +33,10 @@ export async function POST(req: Request) {
       documento_tipo: doc.tipo,
     });
   }
-  const auth = await requireSession();
   try {
     const order = await createCheckout({
       profileId: session.userId,
-      email: auth?.email ?? "piloto@mundopodium.com.br",
+      email: session.email,
       nome: profile.nome,
       sku: parsed.data.sku,
       method: parsed.data.method,

@@ -253,6 +253,18 @@ export default function ContaPage() {
                 {billing?.balance.plan ?? 0} do plano · {billing?.balance.pack ?? 0} de
                 recarga
               </p>
+              {billing?.balance.trialExpired ? (
+                <p className="mt-2 text-xs text-podium-yellow">
+                  Os 30 dias acabaram. Recarregue ou assine o Piloto.
+                </p>
+              ) : billing?.subscription?.status === "trialing" &&
+                billing.balance.trialDaysLeft != null ? (
+                <p className="mt-2 text-xs text-podium-yellow">
+                  Restam {billing.balance.trialDaysLeft}{" "}
+                  {billing.balance.trialDaysLeft === 1 ? "dia" : "dias"} do trial
+                  Mundo Pódium.
+                </p>
+              ) : null}
               {billing?.subscription?.cancelAtPeriodEnd ? (
                 <p className="mt-2 text-xs text-podium-yellow">
                   Cancela no fim do ciclo.

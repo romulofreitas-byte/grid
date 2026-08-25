@@ -53,6 +53,10 @@ export function LandingListPreview({ className }: { className?: string }) {
   const reduce = useReducedMotion();
   const [active, setActive] = useState(1);
   const current = LEADS.find((l) => l.pos === active) ?? LEADS[0];
+  const fade = {
+    duration: reduce ? 0 : 0.2,
+    ease: [0.16, 1, 0.3, 1] as const,
+  };
 
   return (
     <div
@@ -139,38 +143,60 @@ export function LandingListPreview({ className }: { className?: string }) {
         })}
       </ul>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={current.pos}
-          initial={reduce ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduce ? undefined : { opacity: 0, y: -4 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-4 border-t border-white/10 pt-4"
-        >
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                Telefone
-              </p>
-              <p className="mt-1 font-semibold text-podium-white">
+      <div className="mt-4 border-t border-white/10 pt-4">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
+              Telefone
+            </p>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={current.telefone}
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduce ? undefined : { opacity: 0 }}
+                transition={fade}
+                className="mt-1 font-semibold text-podium-white"
+              >
                 {current.telefone}
-              </p>
-              {current.flag ? (
-                <p className="mt-0.5 text-xs text-podium-alert">{current.flag}</p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                Sócio que decide
-              </p>
-              <p className="mt-1 font-semibold text-podium-white">
-                {current.socio}
-              </p>
+              </motion.p>
+            </AnimatePresence>
+            <div className="relative mt-0.5 min-h-4">
+              <AnimatePresence initial={false}>
+                {current.flag ? (
+                  <motion.p
+                    key={current.flag}
+                    initial={reduce ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={reduce ? undefined : { opacity: 0 }}
+                    transition={fade}
+                    className="absolute inset-x-0 top-0 text-xs text-podium-alert"
+                  >
+                    {current.flag}
+                  </motion.p>
+                ) : null}
+              </AnimatePresence>
             </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
+              Sócio que decide
+            </p>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={current.socio}
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduce ? undefined : { opacity: 0 }}
+                transition={fade}
+                className="mt-1 font-semibold text-podium-white"
+              >
+                {current.socio}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

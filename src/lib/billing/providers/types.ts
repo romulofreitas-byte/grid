@@ -2,7 +2,7 @@ import type { PaymentMethod } from "@/lib/billing/catalog";
 import type { BillingOrder, NormalizedPaymentEvent } from "@/lib/billing/types";
 
 export type ChargeResult = {
-  providerPaymentId: string;
+  providerPaymentId?: string;
   providerSubId?: string;
   checkoutUrl?: string;
   pixQr?: string;
