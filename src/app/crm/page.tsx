@@ -5,7 +5,8 @@ import { requireSession } from "@/lib/auth/session";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import { getRepo } from "@/lib/data";
-import { redirect } from "next/navigation";
+import { isPoolExhaustedError } from "@/lib/data/pg";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 export default async function CrmPage({
   searchParams,
@@ -15,13 +16,17 @@ export default async function CrmPage({
   try {
     return await CrmPageInner(await searchParams);
   } catch (err) {
+    unstable_rethrow(err);
     console.error("crm_page_error", err);
-    const message = err instanceof Error ? err.message : "erro desconhecido";
     return (
       <AppShell title={COPY.crmNav}>
         <GlassCard className="p-8">
           <p className="text-lg font-bold">Não deu para abrir a pista.</p>
-          <p className="mt-3 text-sm text-podium-gray">{message}</p>
+          <p className="mt-3 text-sm text-podium-gray">
+            {isPoolExhaustedError(err)
+              ? "A pista está cheia agora. Tenta de novo em instantes."
+              : "Tente de novo em instantes."}
+          </p>
         </GlassCard>
       </AppShell>
     );

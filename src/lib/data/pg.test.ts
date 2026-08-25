@@ -8,6 +8,8 @@ import {
   isUnpopulatedRelationError,
   pgErrorCode,
   resolvePoolMax,
+  sharesPgPools,
+  withPgRetry,
 } from "./pg";
 
 function pgErr(code: string): Error & { code: string } {
@@ -93,5 +95,44 @@ describe("resolvePoolMax", () => {
         databaseUrl: "postgresql://grid:grid@127.0.0.1:5432/grid",
       }),
     ).toBe(5);
+  });
+
+  it("shares one pool on Vercel so isolates do not double session clients", () => {
+    expect(sharesPgPools({ vercel: true })).toBe(true);
+    expect(sharesPgPools({ vercel: false })).toBe(false);
+  });
+});
+
+describe("withPgRetry", () => {
+  it("retries EMAXCONNSESSION then succeeds", async () => {
+    let n = 0;
+    const value = await withPgRetry(
+      async () => {
+        n += 1;
+        if (n < 3) {
+          throw new Error(
+            "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
+          );
+        }
+        return "ok";
+      },
+      { delayMs: () => 0 },
+    );
+    expect(value).toBe("ok");
+    expect(n).toBe(3);
+  });
+
+  it("does not retry unrelated errors", async () => {
+    let n = 0;
+    await expect(
+      withPgRetry(
+        async () => {
+          n += 1;
+          throw new Error("syntax error");
+        },
+        { delayMs: () => 0 },
+      ),
+    ).rejects.toThrow("syntax error");
+    expect(n).toBe(1);
   });
 });

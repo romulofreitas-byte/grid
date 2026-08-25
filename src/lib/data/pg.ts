@@ -78,6 +78,30 @@ export function isPoolExhaustedError(err: unknown): boolean {
   return /EMAXCONNSESSION|max clients reached/i.test(message);
 }
 
+/** Vercel isolates already multiply connections; one pool per isolate. */
+export function sharesPgPools(runtime: Pick<PgPoolRuntime, "vercel">): boolean {
+  return Boolean(runtime.vercel);
+}
+
+export async function withPgRetry<T>(
+  fn: () => Promise<T>,
+  opts?: { attempts?: number; delayMs?: (attempt: number) => number },
+): Promise<T> {
+  const attempts = opts?.attempts ?? 4;
+  const delayMs = opts?.delayMs ?? ((attempt) => 80 * 2 ** attempt);
+  let last: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      if (!isPoolExhaustedError(err) || attempt === attempts - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delayMs(attempt)));
+    }
+  }
+  throw last;
+}
+
 function currentPoolRuntime(): PgPoolRuntime {
   const raw = Number(process.env.PG_POOL_MAX);
   return {
@@ -110,13 +134,16 @@ function poolOpts(statementTimeoutMs: number, kind: PgPoolKind) {
 /** Short queries: profile, billing, ficha. */
 export function getPool(): Pool {
   if (!globalForPg.__gridPool) {
-    globalForPg.__gridPool = new Pool(poolOpts(15_000, "short"));
+    const runtime = currentPoolRuntime();
+    const timeout = sharesPgPools(runtime) ? 60_000 : 15_000;
+    globalForPg.__gridPool = new Pool(poolOpts(timeout, "short"));
   }
   return globalForPg.__gridPool;
 }
 
 /** Count / runSearch / autocomplete — longer timeout, fewer connections. */
 export function getSearchPool(): Pool {
+  if (sharesPgPools(currentPoolRuntime())) return getPool();
   if (!globalForPg.__gridSearchPool) {
     globalForPg.__gridSearchPool = new Pool(poolOpts(60_000, "search"));
   }
@@ -127,14 +154,14 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<QueryResult<T>> {
-  return getPool().query<T>(text, params);
+  return withPgRetry(() => getPool().query<T>(text, params));
 }
 
 export async function querySearch<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<QueryResult<T>> {
-  return getSearchPool().query<T>(text, params);
+  return withPgRetry(() => getSearchPool().query<T>(text, params));
 }
 
 export async function endPool(): Promise<void> {
@@ -178,20 +205,22 @@ export type SqlQuery = <T extends QueryResultRow = QueryResultRow>(
 ) => Promise<QueryResult<T>>;
 
 export async function withTransaction<T>(fn: (q: SqlQuery) => Promise<T>): Promise<T> {
-  const client = await getPool().connect();
-  try {
-    await client.query("BEGIN");
-    const result = await fn((text, params) => client.query(text, params));
-    await client.query("COMMIT");
-    return result;
-  } catch (err) {
+  return withPgRetry(async () => {
+    const client = await getPool().connect();
     try {
-      await client.query("ROLLBACK");
-    } catch {
-      /* ignore */
+      await client.query("BEGIN");
+      const result = await fn((text, params) => client.query(text, params));
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    } finally {
+      client.release();
     }
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }
