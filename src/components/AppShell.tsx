@@ -48,7 +48,7 @@ export function AppShell({
     <div
       className={cn(
         "relative text-podium-white",
-        lockHeight ? "flex h-dvh flex-col overflow-hidden" : "min-h-screen",
+        lockHeight ? "flex h-dvh min-w-0 flex-col overflow-hidden" : "min-h-screen",
       )}
     >
       <AngularBackground />
@@ -110,7 +110,7 @@ export function AppShell({
           "mx-auto flex flex-col pb-24 md:pb-10",
           wide ? "max-w-none px-3 pt-4" : "max-w-7xl px-4 pt-6",
           fill && !lockHeight && "min-h-[calc(100dvh-3.5rem)]",
-          lockHeight && "min-h-0 flex-1 overflow-hidden",
+          lockHeight && "min-h-0 min-w-0 w-full flex-1 overflow-hidden",
         )}
       >
         {back ? (
@@ -122,7 +122,7 @@ export function AppShell({
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col",
-              lockHeight && "overflow-hidden",
+              lockHeight && "min-w-0 overflow-hidden",
             )}
           >
             {children}

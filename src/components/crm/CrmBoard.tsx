@@ -261,7 +261,7 @@ export function CrmBoard({
   const activeDeal = activeId ? dealsById.get(activeId) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-podium-yellow">
@@ -295,7 +295,7 @@ export function CrmBoard({
       {error ? (
         <p className="mb-3 shrink-0 text-sm text-red-400">{error}</p>
       ) : null}
-      <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
         <CrmPipelineRail
           pipelines={pipelines}
           activeId={board?.pipeline.id ?? null}
