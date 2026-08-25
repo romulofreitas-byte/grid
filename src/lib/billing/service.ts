@@ -569,7 +569,7 @@ async function maybeRenewSubscription(
   await grantLot(store, {
     profileId: sub.profileId,
     qty: item.credits,
-    source: item.sku === "membro_plataforma" ? "platform" : "plan_grant",
+    source: "plan_grant",
     expiresAt: end,
     orderId: null,
     reason: `plan_renew_${item.sku}`,
