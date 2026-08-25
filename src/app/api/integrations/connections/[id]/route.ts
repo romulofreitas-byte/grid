@@ -5,6 +5,7 @@ import { getRepo } from "@/lib/data";
 import { decryptJson, encryptJson, newHmacSecret } from "@/lib/integrations/crypto";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { isAllowedWebhookUrl } from "@/lib/integrations/webhook-url";
+import { isNativeVoipProvider } from "@/lib/integrations/voip-setup";
 
 const patchSchema = z.object({
   display_name: z.string().max(80).optional(),
@@ -12,6 +13,9 @@ const patchSchema = z.object({
   caller_id: z.string().max(32).nullable().optional(),
   rotate_secret: z.boolean().optional(),
   status: z.enum(["active", "revoked"]).optional(),
+  credentials: z.record(z.string(), z.string()).optional(),
+  from_number: z.string().max(20).nullable().optional(),
+  app_id: z.string().max(80).nullable().optional(),
 });
 
 export async function PATCH(
@@ -38,15 +42,27 @@ export async function PATCH(
   }
 
   const creds = decryptJson(current.credentials_ciphertext, current.credentials_nonce);
-  const nextUrl = parsed.data.webhook_url ?? creds.webhook_url;
-  const nextSecret = parsed.data.rotate_secret ? newHmacSecret() : creds.hmac_secret;
-  const sealed = encryptJson({ hmac_secret: nextSecret, webhook_url: nextUrl });
+  const native = isNativeVoipProvider(current.provider);
+  const nextCreds = native
+    ? { ...creds, ...(parsed.data.credentials ?? {}) }
+    : {
+        hmac_secret: parsed.data.rotate_secret ? newHmacSecret() : creds.hmac_secret,
+        webhook_url: parsed.data.webhook_url ?? creds.webhook_url,
+      };
+  const sealed = encryptJson(nextCreds);
   const updated = await repo.updateIntegrationConnection(id, gated.userId, {
     display_name: parsed.data.display_name ?? current.display_name,
     caller_id:
       parsed.data.caller_id === undefined ? current.caller_id : parsed.data.caller_id,
     status: parsed.data.status ?? current.status,
-    config: { ...current.config, webhook_url: nextUrl },
+    config: {
+      ...current.config,
+      ...(parsed.data.webhook_url ? { webhook_url: parsed.data.webhook_url } : {}),
+      ...(parsed.data.from_number !== undefined
+        ? { from_number: parsed.data.from_number }
+        : {}),
+      ...(parsed.data.app_id !== undefined ? { app_id: parsed.data.app_id } : {}),
+    },
     credentials_ciphertext: sealed.ciphertext,
     credentials_nonce: sealed.nonce,
   });
@@ -55,7 +71,8 @@ export async function PATCH(
   }
   return NextResponse.json({
     connection: toPublicConnection(updated),
-    webhook_secret: parsed.data.rotate_secret ? nextSecret : undefined,
+    webhook_secret:
+      !native && parsed.data.rotate_secret ? nextCreds.hmac_secret : undefined,
   });
 }
 

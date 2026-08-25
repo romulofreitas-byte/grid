@@ -47,11 +47,15 @@ export {
   resolveCatalogItem,
   catalogItemsByKind,
   catalogKindLabel,
+  catalogAvailability,
+  isLiveVoipId,
+  LIVE_VOIP_IDS,
   type IntegrationCatalogItem,
 } from "./catalog";
 export { pickCallConnection, callViaLabel, testCallDestination } from "./call-target";
 export { toPublicConnection, appOrigin } from "./records";
 export { createWebhookAdapter } from "./webhook-adapter";
+export { adapterFor } from "./adapter-registry";
 export { drainIntegrationJobs } from "./process-job";
 export { encryptJson, decryptJson, newHmacSecret } from "./crypto";
 export { isAllowedWebhookUrl } from "./webhook-url";

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
+import { canOriginate } from "@/lib/integrations/adapter-registry";
 import { testCallDestination } from "@/lib/integrations/call-target";
 import { drainIntegrationJobs } from "@/lib/integrations/process-job";
 
@@ -32,9 +33,9 @@ export async function POST(req: Request) {
   if (!connection || connection.user_id !== gated.userId || connection.status !== "active") {
     return NextResponse.json({ error: "Conexão não encontrada" }, { status: 404 });
   }
-  if (connection.provider !== "webhook") {
+  if (!canOriginate(connection.provider)) {
     return NextResponse.json(
-      { error: "Nesta versão só o webhook genérico dispara ligação." },
+      { error: "Esta conexão não dispara ligação." },
       { status: 400 },
     );
   }

@@ -50,7 +50,7 @@ describe("pickCallConnection", () => {
     ).toBeNull();
   });
 
-  it("skips inactive, error, and non-webhook providers", () => {
+  it("skips inactive and error, and prefers native VoIP over a webhook bridge", () => {
     expect(
       pickCallConnection([
         conn({ id: "dead", kind: "voip", status: "revoked" }),
@@ -58,12 +58,12 @@ describe("pickCallConnection", () => {
         conn({
           id: "native",
           kind: "voip",
-          provider: "twilio",
-          display_name: "Twilio nativo",
+          provider: "api4com",
+          display_name: "API4COM",
         }),
         conn({ id: "ok", kind: "webhook", display_name: "Make" }),
       ])?.id,
-    ).toBe("ok");
+    ).toBe("native");
   });
 
   it("returns null when nothing is callable", () => {

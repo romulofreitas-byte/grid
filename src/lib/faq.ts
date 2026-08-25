@@ -143,9 +143,9 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: "conexoes",
     category: "Export e conexões",
-    question: "Onde ligo discador, VOIP e CRM?",
+    question: "Onde ligo o VoIP?",
     answer:
-      "Em Conexões. Com discador ou VoIP, o GRID disca no clique (Box, Grid e Ficha) e a tabulação volta para o lead. Sem conexão, o botão Ligar abre o telefone do aparelho.",
+      "Em Conexões. Cole o token e o ramal da API4COM, Zenvia, Twilio ou Telnyx. O GRID disca no clique (Box, Grid e Ficha) e a tabulação volta para o lead. Sem conexão, o botão Ligar abre o telefone do aparelho.",
     links: [{ href: "/conexoes", label: "Abrir conexões" }],
   },
   {

@@ -1,3 +1,4 @@
+import { isLiveVoipId } from "./catalog";
 import type {
   IntegrationKind,
   IntegrationProvider,
@@ -71,6 +72,7 @@ export type IntegrationConnectionPublic = {
   inbound_url: string;
   catalog_id: string | null;
   has_credentials: boolean;
+  webhook_registered: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -89,7 +91,18 @@ export function appOrigin(): string {
   return raw.replace(/\/$/, "");
 }
 
-export function inboundWebhookPath(connectionId: string): string {
+export function inboundWebhookPath(
+  connectionId: string,
+  catalogId?: string | null,
+  provider?: IntegrationProvider,
+): string {
+  const voipId =
+    catalogId && isLiveVoipId(catalogId)
+      ? catalogId
+      : provider && isLiveVoipId(provider)
+        ? provider
+        : null;
+  if (voipId) return `/api/webhooks/voip/${voipId}/${connectionId}`;
   return `/api/webhooks/inbound/${connectionId}`;
 }
 
@@ -101,6 +114,10 @@ export function toPublicConnection(
     typeof row.config.webhook_url === "string" ? row.config.webhook_url : null;
   const catalogId =
     typeof row.config.catalog_id === "string" ? row.config.catalog_id : null;
+  const webhookRegistered =
+    typeof row.config.webhook_registered === "boolean"
+      ? row.config.webhook_registered
+      : null;
   return {
     id: row.id,
     provider: row.provider,
@@ -109,9 +126,10 @@ export function toPublicConnection(
     status: row.status,
     caller_id: row.caller_id,
     webhook_url: webhookUrl,
-    inbound_url: `${origin}${inboundWebhookPath(row.id)}`,
+    inbound_url: `${origin}${inboundWebhookPath(row.id, catalogId, row.provider)}`,
     catalog_id: catalogId,
     has_credentials: Boolean(row.credentials_ciphertext && row.credentials_nonce),
+    webhook_registered: webhookRegistered,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

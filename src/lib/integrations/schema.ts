@@ -120,6 +120,15 @@ export const integrationProviderSchema = z.enum([
   "twilio",
   "zenvia",
   "asterisk",
+  "api4com",
+  "telnyx",
+]);
+
+export const liveVoipProviderSchema = z.enum([
+  "api4com",
+  "zenvia",
+  "twilio",
+  "telnyx",
 ]);
 
 export const integrationVerbSchema = z.enum([
@@ -172,5 +181,6 @@ export type OutboundEnvelope = z.infer<typeof outboundEnvelopeSchema>;
 export type InboundOutcome = z.infer<typeof inboundOutcomeSchema>;
 export type IntegrationKind = z.infer<typeof integrationKindSchema>;
 export type IntegrationProvider = z.infer<typeof integrationProviderSchema>;
+export type LiveVoipProvider = z.infer<typeof liveVoipProviderSchema>;
 export type IntegrationVerb = z.infer<typeof integrationVerbSchema>;
 export type OutboundPhoneSource = z.infer<typeof outboundPhoneSourceSchema>;

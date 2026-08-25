@@ -240,6 +240,22 @@ export const INTEGRATION_CATALOG: IntegrationCatalogItem[] = [
   },
 ];
 
+export const LIVE_VOIP_IDS = ["api4com", "zenvia", "twilio", "telnyx"] as const;
+
+export type CatalogAvailability = "live" | "soon";
+
+export function isLiveVoipId(
+  id: string | null | undefined,
+): id is (typeof LIVE_VOIP_IDS)[number] {
+  return Boolean(id && (LIVE_VOIP_IDS as readonly string[]).includes(id));
+}
+
+export function catalogAvailability(
+  item: Pick<IntegrationCatalogItem, "id" | "kind">,
+): CatalogAvailability {
+  return item.kind === "voip" && isLiveVoipId(item.id) ? "live" : "soon";
+}
+
 const byId = new Map(INTEGRATION_CATALOG.map((item) => [item.id, item]));
 
 export const CATALOG_IDS = INTEGRATION_CATALOG.map((item) => item.id);

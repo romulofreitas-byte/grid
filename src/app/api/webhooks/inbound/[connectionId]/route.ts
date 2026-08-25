@@ -7,6 +7,7 @@ import {
   GRID_TIMESTAMP_HEADER,
   verifyGridWebhook,
 } from "@/lib/integrations/hmac";
+import { ingestCallOutcome } from "@/lib/integrations/ingest-outcome";
 import { parseInboundOutcome } from "@/lib/integrations/outcomes";
 
 export async function POST(
@@ -30,6 +31,9 @@ export async function POST(
       connection.credentials_ciphertext,
       connection.credentials_nonce,
     ).hmac_secret;
+    if (!secret) {
+      return NextResponse.json({ error: "Conexão inválida" }, { status: 401 });
+    }
   } catch {
     return NextResponse.json({ error: "Conexão inválida" }, { status: 401 });
   }
@@ -58,39 +62,15 @@ export async function POST(
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
   }
 
-  const notes = parsed.body.notes;
-  const lead = await repo.findSavedLeadForOutcome(connection.user_id, {
+  const result = await ingestCallOutcome({
+    connection,
+    eventType: parsed.body.event,
     cnpj: parsed.body.cnpj,
     e164: parsed.body.e164,
-  });
-
-  if (lead && parsed.status) {
-    await repo.updateLead(lead.id, {
-      status: parsed.status,
-      notas: notes,
-    });
-  }
-
-  await repo.insertIntegrationEvent({
-    user_id: connection.user_id,
-    connection_id: connection.id,
-    job_id: null,
-    direction: "inbound",
-    event_type: parsed.body.event,
-    cnpj: parsed.body.cnpj ?? lead?.cnpj ?? null,
-    e164: parsed.body.e164 ?? null,
-    external_id: parsed.body.external_id ?? null,
     disposition: parsed.body.disposition,
-    lead_status: parsed.status,
-    payload_summary: {
-      duration_sec: parsed.body.duration_sec ?? null,
-      matched: Boolean(lead),
-    },
+    notes: parsed.body.notes,
+    durationSec: parsed.body.duration_sec,
+    externalId: parsed.body.external_id,
   });
-
-  return NextResponse.json({
-    ok: true,
-    status: parsed.status,
-    matched: Boolean(lead),
-  });
+  return NextResponse.json(result);
 }

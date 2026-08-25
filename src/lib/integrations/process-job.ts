@@ -2,19 +2,14 @@ import { getRepo } from "@/lib/data";
 import { toE164 } from "@/lib/format";
 import { normalizePhoneBR } from "@/lib/phone";
 import type { ConnectionCtx } from "./adapter";
-import { createWebhookAdapter } from "./webhook-adapter";
+import { adapterFor } from "./adapter-registry";
 import { decryptJson } from "./crypto";
 import { toLeadOutbound } from "./lead-outbound";
-import { appOrigin } from "./records";
+import { appOrigin, inboundWebhookPath } from "./records";
 import type { IntegrationJobRecord } from "./records";
 import type { IntegrationProvider } from "./schema";
 
 /** Originate and inbound outcomes never debit. push_list is billed in the API via debitExport. */
-
-function adapterFor(provider: IntegrationProvider) {
-  if (provider === "webhook") return createWebhookAdapter();
-  throw new Error(`adapter not implemented: ${provider}`);
-}
 
 function ctxFrom(
   job: IntegrationJobRecord,
@@ -29,6 +24,10 @@ function ctxFrom(
     credentials_nonce: string;
   },
 ): ConnectionCtx {
+  const catalogId =
+    typeof connection.config.catalog_id === "string"
+      ? connection.config.catalog_id
+      : null;
   return {
     connectionId: connection.id,
     userId: connection.user_id,
@@ -37,6 +36,7 @@ function ctxFrom(
     config: {
       ...connection.config,
       search_id: job.search_id,
+      inbound_url: `${appOrigin()}${inboundWebhookPath(connection.id, catalogId, connection.provider)}`,
     },
     callerId: connection.caller_id,
     decryptCredentials: async () =>

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CATALOG_IDS,
   INTEGRATION_CATALOG,
+  catalogAvailability,
   firstCatalogIdForKind,
   getCatalogItem,
+  isLiveVoipId,
   parseConexoesKind,
   resolveCatalogItem,
 } from "./catalog";
@@ -29,5 +31,13 @@ describe("integration catalog", () => {
     expect(parseConexoesKind("nope")).toBeNull();
     expect(firstCatalogIdForKind("crm")).toBe("agendor");
     expect(firstCatalogIdForKind("voip")).toBe("api4com");
+  });
+
+  it("marks API4COM, Zenvia, Twilio and Telnyx as live VoIP", () => {
+    expect(isLiveVoipId("api4com")).toBe(true);
+    expect(isLiveVoipId("asterisk")).toBe(false);
+    expect(catalogAvailability(getCatalogItem("api4com")!)).toBe("live");
+    expect(catalogAvailability(getCatalogItem("asterisk")!)).toBe("soon");
+    expect(catalogAvailability(getCatalogItem("pipedrive")!)).toBe("soon");
   });
 });

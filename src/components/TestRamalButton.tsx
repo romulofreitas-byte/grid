@@ -41,7 +41,7 @@ export function TestRamalButton({
         variant="secondary"
         disabled={!dest.ok || test.isPending}
         onClick={() => test.mutate()}
-        title={dest.ok ? "Ligar para o meu ramal" : dest.error}
+        title={dest.ok ? "Testar ligação" : dest.error}
         className="gap-1.5"
       >
         <Phone className="h-3.5 w-3.5" />
@@ -49,7 +49,7 @@ export function TestRamalButton({
           ? "Ligando…"
           : done
             ? "Ramal chamado"
-            : "Ligar para o meu ramal"}
+            : "Testar ligação"}
       </Button>
       {!dest.ok ? (
         <p className="text-[11px] text-podium-muted">{dest.error}</p>

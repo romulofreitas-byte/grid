@@ -1,5 +1,6 @@
 import type { IntegrationConnectionPublic } from "./records";
-import type { IntegrationKind } from "./schema";
+import type { IntegrationKind, IntegrationProvider } from "./schema";
+import { isNativeVoipProvider } from "./voip-setup";
 
 const CALL_KIND_PRIORITY: IntegrationKind[] = ["voip", "dialer", "webhook"];
 
@@ -8,16 +9,22 @@ export type CallConnectionPick = Pick<
   "id" | "kind" | "status" | "provider" | "display_name" | "catalog_id" | "caller_id"
 >;
 
+function canPlaceCall(provider: IntegrationProvider): boolean {
+  return provider === "webhook" || isNativeVoipProvider(provider);
+}
+
 /** Active discador/VoIP/webhook for click-to-call. Never CRM. */
 export function pickCallConnection(
   connections: readonly CallConnectionPick[],
 ): CallConnectionPick | null {
   const active = connections.filter(
-    (c) => c.status === "active" && c.provider === "webhook",
+    (c) => c.status === "active" && canPlaceCall(c.provider),
   );
   for (const kind of CALL_KIND_PRIORITY) {
-    const hit = active.find((c) => c.kind === kind);
-    if (hit) return hit;
+    const ofKind = active.filter((c) => c.kind === kind);
+    const native = ofKind.find((c) => isNativeVoipProvider(c.provider));
+    if (native) return native;
+    if (ofKind[0]) return ofKind[0];
   }
   return null;
 }

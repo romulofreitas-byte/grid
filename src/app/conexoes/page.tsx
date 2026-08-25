@@ -14,24 +14,22 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BACK } from "@/lib/back";
 import {
-  CATALOG_SECTIONS,
+  catalogAvailability,
   catalogItemsByKind,
-  catalogKindLabel,
-  firstCatalogIdForKind,
   getCatalogItem,
-  parseConexoesKind,
-  resolveCatalogItem,
+  isLiveVoipId,
   type IntegrationCatalogItem,
 } from "@/lib/integrations/catalog";
 import type {
   IntegrationConnectionPublic,
   IntegrationConnectionStatus,
+  IntegrationJobRecord,
 } from "@/lib/integrations/records";
+import { voipSetup, type VoipField } from "@/lib/integrations/voip-setup";
 import { cn } from "@/lib/utils";
 
 type CreateResponse = {
   connection: IntegrationConnectionPublic;
-  webhook_secret: string;
 };
 
 const STATUS_BADGE: Record<
@@ -44,12 +42,8 @@ const STATUS_BADGE: Record<
   revoked: { label: "Revogada", variant: "neutral" },
 };
 
-const KIND_JOB: Record<string, string> = {
-  crm: "Recebe a lista do Grid (evento list.exported).",
-  dialer: "Dispara ligação no clique (evento call.originated).",
-  voip: "Dispara ligação no clique (evento call.originated).",
-  webhook: "Ponte genérica — lista e/ou ligação, conforme o fluxo no Make/Zapier/n8n.",
-};
+const INPUT =
+  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 function Field({
   label,
@@ -66,164 +60,80 @@ function Field({
   );
 }
 
-const INPUT =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
-
-function SetupChecklist({
-  connections,
-}: {
-  connections: IntegrationConnectionPublic[];
-}) {
-  const active = connections.filter((c) => c.status === "active");
-  const hasCrm = active.some((c) => c.kind === "crm");
-  const hasCall = active.some((c) => c.kind === "dialer" || c.kind === "voip");
-  const hasBridge = active.some(
-    (c) => c.kind === "webhook" || c.catalog_id === "make" || c.catalog_id === "zapier" || c.catalog_id === "n8n",
-  );
-
-  const items = [
-    {
-      ok: hasCrm,
-      title: "CRM ou destino de lista",
-      hint: "Para o botão Enviar do Grid",
-    },
-    {
-      ok: hasCall,
-      title: "Discador ou VoIP",
-      hint: "Para Ligar na ficha / grid",
-    },
-    {
-      ok: hasBridge || (hasCrm && hasCall),
-      title: "Ponte (Make / Zapier / n8n) — opcional",
-      hint: "Útil se o CRM/discador não expõe webhook direto",
-    },
-  ];
-
+function CopyLine({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <GlassCard className="mt-6 border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
-        Checklist comercial
+    <div className="flex items-start gap-2">
+      <p className="min-w-0 flex-1 break-all text-[11px] text-podium-muted">
+        <span className="font-semibold text-podium-gray">{label}: </span>
+        {value}
       </p>
-      <ul className="mt-3 space-y-2">
-        {items.map((item) => (
-          <li
-            key={item.title}
-            className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5"
-          >
-            <span
-              className={cn(
-                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                item.ok
-                  ? "border-podium-success/40 bg-podium-success/15 text-podium-success"
-                  : "border-white/15 text-transparent",
-              )}
-              aria-hidden
-            >
-              <Check className="h-3 w-3" strokeWidth={3} />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-podium-white">
-                {item.title}
-              </span>
-              <span className="text-xs text-podium-muted">{item.hint}</span>
-            </span>
-            <Badge
-              variant={item.ok ? "success" : "neutral"}
-              className="ml-auto shrink-0"
-            >
-              {item.ok ? "ok" : "falta"}
-            </Badge>
-          </li>
-        ))}
-      </ul>
-    </GlassCard>
-  );
-}
-
-function PayloadGuide() {
-  return (
-    <GlassCard className="border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
-        O que o GRID envia
-      </p>
-      <p className="mt-2 text-sm text-podium-gray">
-        Toda conexão hoje é{" "}
-        <span className="font-semibold text-podium-white">
-          webhook HTTPS + HMAC
-        </span>{" "}
-        — não há OAuth nativo com HubSpot, 3C etc. O logo só identifica o
-        destino; o transporte é o mesmo.
-      </p>
-      <div className="mt-4 space-y-3 text-xs leading-relaxed text-podium-muted">
-        <div className="rounded-xl border border-white/10 px-3 py-2.5">
-          <p className="font-semibold text-podium-white">list.exported</p>
-          <p className="mt-1">
-            Grid → Enviar. Corpo JSON com leads; assinatura HMAC no header. Consome o
-            mesmo crédito do Excel (uma vez por CNPJ).
-          </p>
-        </div>
-        <div className="rounded-xl border border-white/10 px-3 py-2.5">
-          <p className="font-semibold text-podium-white">call.originated</p>
-          <p className="mt-1">
-            Clique em Ligar. Payload com CNPJ e número E.164. Grátis. Discador/VoIP
-            precisam de ramal (caller id) para teste.
-          </p>
-        </div>
-        <div className="rounded-xl border border-white/10 px-3 py-2.5">
-          <p className="font-semibold text-podium-white">Tabulação de volta</p>
-          <p className="mt-1">
-            POST no inbound URL com o mesmo segredo HMAC para atualizar status do
-            lead.
-          </p>
-        </div>
-      </div>
-    </GlassCard>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="shrink-0 gap-1"
+        onClick={() => {
+          void navigator.clipboard.writeText(value);
+          setCopied(true);
+        }}
+      >
+        <Copy className="h-3.5 w-3.5" />
+        {copied ? "Copiado" : "Copiar"}
+      </Button>
+    </div>
   );
 }
 
 function ConnectionCard({
   connection,
+  lastError,
   onRemove,
   removing,
 }: {
   connection: IntegrationConnectionPublic;
+  lastError?: string | null;
   onRemove: () => void;
   removing: boolean;
 }) {
-  const item = resolveCatalogItem(
-    connection.catalog_id,
-    connection.display_name,
-  );
+  const item = getCatalogItem(connection.catalog_id ?? "") ??
+    getCatalogItem(connection.provider);
   const status = STATUS_BADGE[connection.status];
+  const native = isLiveVoipId(connection.catalog_id ?? connection.provider);
 
   return (
     <GlassCard className="border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-2">
           <p className="flex flex-wrap items-center gap-2 font-semibold text-podium-white">
             {item ? <IntegrationLogo item={item} size="sm" active /> : null}
             {connection.display_name ?? connection.provider}
             <Badge variant={status.variant}>{status.label}</Badge>
           </p>
-          <p className="mt-1 text-xs text-podium-muted">
-            {catalogKindLabel(connection.kind)} · webhook HTTPS · provider{" "}
-            {connection.provider}
+          <p className="text-xs text-podium-muted">
+            {native ? "VoIP nativo · token + ramal" : "Ponte webhook (legado)"}
+            {connection.caller_id ? ` · ramal ${connection.caller_id}` : ""}
           </p>
-          <p className="mt-2 text-xs text-podium-gray">
-            {KIND_JOB[connection.kind] ?? KIND_JOB.webhook}
-          </p>
-          {connection.webhook_url ? (
-            <p className="mt-2 break-all text-[11px] text-podium-muted">
+          {native ? (
+            <CopyLine value={connection.inbound_url} label="Inbound" />
+          ) : connection.webhook_url ? (
+            <p className="break-all text-[11px] text-podium-muted">
               Destino: {connection.webhook_url}
             </p>
           ) : null}
-          <p className="mt-1 break-all text-[11px] text-podium-muted">
-            Inbound: {connection.inbound_url}
-          </p>
+          {connection.webhook_registered ? (
+            <p className="text-[11px] text-podium-success">
+              Webhook registrado no painel da API4COM.
+            </p>
+          ) : native && connection.catalog_id === "api4com" ? (
+            <p className="text-[11px] text-podium-muted">
+              Cole a URL inbound em Integrações → Webhook se o registro automático não rodou.
+            </p>
+          ) : null}
+          {lastError ? (
+            <p className="text-xs text-podium-alert">{lastError}</p>
+          ) : null}
           {connection.kind !== "crm" ? (
-            <div className="mt-3">
-              <TestRamalButton connection={connection} />
-            </div>
+            <TestRamalButton connection={connection} />
           ) : null}
         </div>
         <Button
@@ -241,24 +151,29 @@ function ConnectionCard({
   );
 }
 
+function emptyFields(): Record<string, string> {
+  return {
+    token: "",
+    account_sid: "",
+    auth_token: "",
+    caller_id: "",
+    from_number: "",
+    app_id: "",
+  };
+}
+
 function ConexoesInner() {
   const qc = useQueryClient();
   const formRef = useRef<HTMLDivElement>(null);
-  const kindFromUrl = parseConexoesKind(useSearchParams().get("kind"));
-  const [selectedId, setSelectedId] = useState(
-    kindFromUrl ? firstCatalogIdForKind(kindFromUrl) : "webhook",
-  );
-  const [url, setUrl] = useState("");
-  const [name, setName] = useState("Webhook");
-  const [callerId, setCallerId] = useState("");
-  const [secretOnce, setSecretOnce] = useState<string | null>(null);
-  const [created, setCreated] = useState<IntegrationConnectionPublic | null>(
-    null,
-  );
+  const kindFromUrl = useSearchParams().get("kind");
+  const [selectedId, setSelectedId] = useState("api4com");
+  const [fields, setFields] = useState(emptyFields);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<IntegrationConnectionPublic | null>(null);
 
-  const selected = getCatalogItem(selectedId) ?? getCatalogItem("webhook")!;
-  const customName = selected.id === "webhook";
+  const selected = getCatalogItem(selectedId) ?? getCatalogItem("api4com")!;
+  const setup = voipSetup(selected.id);
+  const live = catalogAvailability(selected) === "live";
 
   const list = useQuery({
     queryKey: ["integration-connections"],
@@ -271,17 +186,35 @@ function ConexoesInner() {
     },
   });
 
+  const jobs = useQuery({
+    queryKey: ["integration-jobs"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/jobs");
+      if (!res.ok) throw new Error("Não foi possível carregar");
+      return (await res.json()) as { jobs: IntegrationJobRecord[] };
+    },
+  });
+
   const create = useMutation({
     mutationFn: async () => {
+      if (!setup) throw new Error("Escolha um VoIP disponível");
+      const credentials: Record<string, string> = {};
+      for (const field of setup.fields) {
+        if (field.id === "caller_id" || field.id === "from_number" || field.id === "app_id") {
+          continue;
+        }
+        const value = fields[field.id]?.trim() ?? "";
+        if (value) credentials[field.id] = value;
+      }
       const res = await fetch("/api/integrations/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           catalog_id: selected.id,
-          kind: selected.kind,
-          display_name: customName ? name : selected.name,
-          webhook_url: url,
-          caller_id: callerId || undefined,
+          caller_id: fields.caller_id,
+          from_number: fields.from_number || undefined,
+          app_id: fields.app_id || undefined,
+          credentials,
         }),
       });
       const body = (await res.json()) as CreateResponse & { error?: string };
@@ -289,9 +222,8 @@ function ConexoesInner() {
       return body;
     },
     onSuccess: (data) => {
-      setSecretOnce(data.webhook_secret);
       setCreated(data.connection);
-      setUrl("");
+      setFields(emptyFields());
       setError(null);
       void qc.invalidateQueries({ queryKey: ["integration-connections"] });
     },
@@ -320,42 +252,72 @@ function ConexoesInner() {
     [connections],
   );
 
+  const lastErrorByConnection = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const job of jobs.data?.jobs ?? []) {
+      if (job.status !== "failed" || !job.last_error) continue;
+      if (!map.has(job.connection_id)) map.set(job.connection_id, job.last_error);
+    }
+    return map;
+  }, [jobs.data?.jobs]);
+
   function pickTool(item: IntegrationCatalogItem) {
+    if (catalogAvailability(item) !== "live") return;
     setSelectedId(item.id);
-    setName(item.id === "webhook" ? "Webhook" : item.name);
+    setFields(emptyFields());
     setError(null);
+    setCreated(null);
     requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }
 
   useEffect(() => {
-    if (!kindFromUrl) return;
+    if (kindFromUrl !== "voip" && kindFromUrl !== "crm" && kindFromUrl !== "dialer") {
+      return;
+    }
     requestAnimationFrame(() => {
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   }, [kindFromUrl]);
 
+  const voipItems = catalogItemsByKind("voip");
+  const canSubmit =
+    live &&
+    Boolean(setup) &&
+    Boolean(fields.caller_id.trim()) &&
+    (setup?.fields ?? []).every((field) => {
+      if (field.id === "caller_id") return true;
+      if (field.id === "from_number" || field.id === "app_id") {
+        return Boolean(fields[field.id]?.trim());
+      }
+      return Boolean(fields[field.id]?.trim());
+    });
+
   return (
     <AppShell title="Conexões" back={BACK.box}>
-      <SectionTitle>Conexões</SectionTitle>
+      <SectionTitle>Conexões VoIP</SectionTitle>
       <p className="mt-2 max-w-2xl text-sm text-podium-muted">
-        Cole a URL HTTPS do destino. O GRID assina com HMAC e envia JSON — o
-        catálogo de logos é só rótulo comercial, não integração OAuth.
+        Cole o token e o ramal. O GRID liga no clique — sem URL, sem HMAC, sem
+        Make. CRM e discador entram na próxima onda.
       </p>
+      {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
+        <p className="mt-3 max-w-2xl text-sm text-podium-yellow">
+          {kindFromUrl === "crm" ? "CRM" : "Discador"} ainda não conecta nativo.
+          Por agora, ligue um VoIP para discar da ficha.
+        </p>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-8">
-          <SetupChecklist connections={connections} />
-
           <section>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
-                  Conectadas de verdade
+                  Conectadas
                 </h3>
                 <p className="mt-1 text-sm text-podium-gray">
-                  Só aparece aqui o que você já cadastrou com URL.
+                  Só aparece aqui o que já passou no teste de token.
                 </p>
               </div>
               <Badge variant="neutral">
@@ -367,14 +329,14 @@ function ConexoesInner() {
                 <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
               ) : sortedConnections.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-sm text-podium-muted">
-                  Nenhuma conexão ainda. Escolha um destino no catálogo e cole a
-                  URL.
+                  Nenhuma conexão ainda. Escolha o VoIP e cole o token.
                 </p>
               ) : (
                 sortedConnections.map((c) => (
                   <ConnectionCard
                     key={c.id}
                     connection={c}
+                    lastError={lastErrorByConnection.get(c.id)}
                     removing={remove.isPending}
                     onRemove={() => remove.mutate(c.id)}
                   />
@@ -385,56 +347,55 @@ function ConexoesInner() {
 
           <section>
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
-              Catálogo (rótulo)
+              VoIP
             </h3>
             <p className="mt-1 text-sm text-podium-gray">
-              Escolha o nome que aparece na conexão. O envio continua sendo
-              webhook.
+              API4COM, Zenvia, Twilio e Telnyx conectam agora. Asterisk, 3CX e
+              Issabel ficam para o connector on-prem.
             </p>
-            <div className="mt-4 space-y-6">
-              {CATALOG_SECTIONS.map((section) => (
-                <div key={section.kind}>
-                  <p className="mb-2 text-xs font-semibold text-podium-white">
-                    {section.label}
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                    {catalogItemsByKind(section.kind).map((item) => {
-                      const on = selectedId === item.id;
-                      const already = connections.some(
-                        (c) =>
-                          c.catalog_id === item.id && c.status === "active",
-                      );
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          aria-pressed={on}
-                          onClick={() => pickTool(item)}
-                          className={cn(
-                            "group relative flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-center transition",
-                            on
-                              ? "border-white/25 bg-white/[0.07]"
-                              : "border-white/10 bg-white/[0.03] hover:border-white/20",
-                          )}
-                        >
-                          {already ? (
-                            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-podium-success" />
-                          ) : null}
-                          <IntegrationLogo item={item} active={on} />
-                          <span
-                            className={cn(
-                              "text-[11px] font-semibold leading-tight",
-                              on ? "text-podium-white" : "text-podium-gray",
-                            )}
-                          >
-                            {item.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
+              {voipItems.map((item) => {
+                const on = selectedId === item.id;
+                const available = catalogAvailability(item) === "live";
+                const already = connections.some(
+                  (c) => c.catalog_id === item.id && c.status === "active",
+                );
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={on}
+                    disabled={!available}
+                    onClick={() => pickTool(item)}
+                    className={cn(
+                      "group relative flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-center transition",
+                      !available
+                        ? "cursor-not-allowed border-white/5 bg-white/[0.015] opacity-55"
+                        : on
+                          ? "border-white/25 bg-white/[0.07]"
+                          : "border-white/10 bg-white/[0.03] hover:border-white/20",
+                    )}
+                  >
+                    {already ? (
+                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-podium-success" />
+                    ) : null}
+                    <IntegrationLogo item={item} active={on && available} />
+                    <span
+                      className={cn(
+                        "text-[11px] font-semibold leading-tight",
+                        on && available ? "text-podium-white" : "text-podium-gray",
+                      )}
+                    >
+                      {item.name}
+                    </span>
+                    {!available ? (
+                      <span className="text-[9px] uppercase tracking-wide text-podium-muted">
+                        Em breve
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -449,80 +410,74 @@ function ConexoesInner() {
                   Conectar {selected.name}
                 </p>
                 <p className="text-[11px] text-podium-muted">
-                  {catalogKindLabel(selected.kind)} · webhook HTTPS + HMAC
+                  {live ? "Token + ramal · teste na hora" : "Em breve"}
                 </p>
               </div>
             </div>
-            <p className="text-xs text-podium-gray">
-              {KIND_JOB[selected.kind] ?? KIND_JOB.webhook}
-            </p>
-            {customName ? (
-              <Field label="Nome">
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={INPUT}
-                />
-              </Field>
-            ) : null}
-            <Field label="URL de destino (HTTPS)">
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://hooks.exemplo.com/grid"
-                className={INPUT}
-              />
-            </Field>
-            <Field label="Ramal / número de origem (opcional — discador/VoIP)">
-              <input
-                value={callerId}
-                onChange={(e) => setCallerId(e.target.value)}
-                placeholder="1001"
-                className={INPUT}
-              />
-            </Field>
-            {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
-            <Button
-              variant="primary"
-              disabled={!url.trim() || create.isPending}
-              onClick={() => create.mutate()}
-            >
-              {create.isPending
-                ? "Conectando…"
-                : `Conectar ${selected.id === "webhook" ? "webhook" : selected.name}`}
-            </Button>
-            <Hint>
-              O segredo HMAC aparece uma vez. Use o mesmo para assinar a
-              tabulação de volta.
-            </Hint>
+            {live && setup ? (
+              <>
+                {setup.fields.map((field: VoipField) => (
+                  <Field key={field.id} label={field.label}>
+                    <input
+                      value={fields[field.id] ?? ""}
+                      onChange={(e) =>
+                        setFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                      }
+                      placeholder={field.placeholder}
+                      type={field.secret ? "password" : "text"}
+                      autoComplete="off"
+                      className={INPUT}
+                    />
+                    {field.hint ? <Hint className="mt-1.5">{field.hint}</Hint> : null}
+                  </Field>
+                ))}
+                {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
+                <Button
+                  variant="primary"
+                  disabled={!canSubmit || create.isPending}
+                  onClick={() => create.mutate()}
+                >
+                  {create.isPending ? "Validando token…" : `Conectar ${selected.name}`}
+                </Button>
+                <Hint>{setup.inboundHint}</Hint>
+              </>
+            ) : (
+              <p className="text-sm text-podium-muted">
+                Este PBX precisa de um connector na rede local. Ainda não está na
+                primeira onda.
+              </p>
+            )}
           </GlassCard>
 
-          {secretOnce ? (
+          {created ? (
             <GlassCard className="max-w-xl space-y-3 border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
-              <p className="text-sm font-semibold text-podium-yellow">
-                Guarde o segredo agora
+              <p className="flex items-center gap-2 text-sm font-semibold text-podium-yellow">
+                <Check className="h-4 w-4" />
+                Token aceito. Teste a ligação.
               </p>
-              <code className="block break-all rounded-xl bg-black/40 p-3 text-xs">
-                {secretOnce}
-              </code>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => void navigator.clipboard.writeText(secretOnce)}
-                className="gap-1.5"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copiar
-              </Button>
-              {created && created.kind !== "crm" ? (
-                <TestRamalButton connection={created} />
+              <CopyLine value={created.inbound_url} label="URL inbound" />
+              {created.webhook_registered ? (
+                <p className="text-xs text-podium-success">
+                  Webhook já apontado na API4COM.
+                </p>
               ) : null}
+              <TestRamalButton connection={created} />
             </GlassCard>
           ) : null}
         </div>
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <PayloadGuide />
+          <GlassCard className="border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+              Como funciona
+            </p>
+            <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-relaxed text-podium-gray">
+              <li>Cole o token do painel do VoIP e o ramal (ou seu número).</li>
+              <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
+              <li>Testar ligação toca o Webphone / seu celular.</li>
+              <li>Na ficha, Ligar dispara a chamada. O hangup volta para o lead.</li>
+            </ol>
+          </GlassCard>
         </aside>
       </div>
     </AppShell>

@@ -220,6 +220,15 @@ describe("buildBoxEstrutura", () => {
     expect(voip.byId.ligar.done).toBe(true);
     expect(voip.byId.crm.done).toBe(false);
 
+    const native = slotMap({
+      savedCount: 1,
+      hasUnsavedSearch: false,
+      profile: helmet(),
+      billing: { total: 25, plano: "free" },
+      connections: [conn({ id: "a", kind: "voip", provider: "api4com" })],
+    });
+    expect(native.byId.ligar.done).toBe(true);
+
     const dialer = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,

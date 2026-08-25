@@ -49,5 +49,10 @@ export type IntegrationAdapter = {
   auth: "oauth" | "api_key" | "connector";
   pushList?(leads: LeadOutbound[], ctx: ConnectionCtx): Promise<PushResult>;
   originate?(call: OriginateInput, ctx: ConnectionCtx): Promise<CallResult>;
-  parseInbound?(raw: Request): Promise<OutcomeEvent>;
+  parseInbound?(
+    req: Request,
+    rawBody: string,
+  ): Promise<OutcomeEvent | null>;
+  /** Side effects on inbound (e.g. Telnyx bridge agent → lead). */
+  ackInbound?(rawBody: string, ctx: ConnectionCtx): Promise<void>;
 };
