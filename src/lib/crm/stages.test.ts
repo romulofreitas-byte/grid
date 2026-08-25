@@ -50,4 +50,20 @@ describe("planDeleteStage", () => {
       }),
     ).toEqual({ ok: true, moveToStageId: null });
   });
+
+  it("blocks deleting a first-mile or Descartado faixa", () => {
+    expect(
+      planDeleteStage({
+        stages: [
+          { id: "a", canonical_key: "entrada" },
+          { id: "b", canonical_key: "ajustando_proposta" },
+        ],
+        stageId: "a",
+        dealCount: 0,
+      }),
+    ).toEqual({
+      ok: false,
+      error: "Esta faixa faz parte da ficha. Dá para renomear, não apagar.",
+    });
+  });
 });

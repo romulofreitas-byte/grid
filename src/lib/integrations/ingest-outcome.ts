@@ -1,5 +1,6 @@
 import type { LeadStatus } from "@/lib/types";
 import { getRepo } from "@/lib/data";
+import { advanceCrmOnDisposition } from "@/lib/crm/lead-sync";
 import type { IntegrationConnectionRecord } from "./records";
 import { dispositionToLeadStatus } from "./outcomes";
 
@@ -30,6 +31,16 @@ export async function ingestCallOutcome(input: {
       status,
       ...(input.notes ? { notas: input.notes } : {}),
     });
+    try {
+      await advanceCrmOnDisposition(repo, {
+        userId: input.connection.user_id,
+        cnpj: lead.cnpj,
+        status,
+        notes: input.notes,
+      });
+    } catch {
+      // Disposition still landed on saved_leads.
+    }
   }
 
   await repo.insertIntegrationEvent({

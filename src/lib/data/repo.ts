@@ -229,6 +229,13 @@ export type GridRepo = {
     pipelineId: string,
     cnpj: string,
   ): Promise<CrmDealCard | null>;
+  findCrmDealByCnpjForUser(
+    userId: string,
+    cnpj: string,
+    preferredPipelineId?: string | null,
+  ): Promise<CrmDealCard | null>;
+  hasCrmPipeline(userId: string): Promise<boolean>;
+  listCrmDealCnpjs(userId: string, cnpjs: string[]): Promise<string[]>;
   updateCrmDeal(
     userId: string,
     dealId: string,

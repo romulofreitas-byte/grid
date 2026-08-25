@@ -58,3 +58,17 @@ export function gridHref(searchId: string, from: GridFrom) {
 export function leadHref(cnpj: string, searchId: string, from: GridFrom) {
   return `/lead/${cnpj}?searchId=${searchId}&from=${from}`;
 }
+
+export function leadHrefForCnpj(cnpj: string, searchId?: string | null) {
+  const id = cnpj.replace(/\D/g, "").padStart(14, "0");
+  if (searchId) return `/lead/${id}?searchId=${encodeURIComponent(searchId)}&from=listas`;
+  return `/lead/${id}`;
+}
+
+export function crmHref(opts?: { pipeline?: string; deal?: string }) {
+  const params = new URLSearchParams();
+  if (opts?.pipeline) params.set("pipeline", opts.pipeline);
+  if (opts?.deal) params.set("deal", opts.deal);
+  const query = params.toString();
+  return query ? `/crm?${query}` : "/crm";
+}

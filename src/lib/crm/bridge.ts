@@ -32,6 +32,30 @@ export function digitsCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "").padStart(14, "0");
 }
 
+export function pistaNomeForSearch(
+  search: { nome: string; filtros: { intentQuery?: string | null } },
+  pipelineNomes: string[],
+  segmentNome?: string | null,
+): string | null {
+  if (pipelineNomes.length === 0) return null;
+  const resolved = resolveCrmPipelineNome({
+    segmentNome,
+    intentQuery: search.filtros.intentQuery,
+    searchNome: search.nome,
+  });
+  const hit = pipelineNomes.find(
+    (nome) => nome.trim().toLowerCase() === resolved.toLowerCase(),
+  );
+  if (hit) return hit;
+  const haystack = search.nome.toLowerCase();
+  return (
+    pipelineNomes.find((nome) => {
+      const needle = nome.trim().toLowerCase();
+      return needle.length >= 3 && haystack.includes(needle);
+    }) ?? null
+  );
+}
+
 export type CrmBridgeRepo = Pick<
   GridRepo,
   | "listCrmPipelines"

@@ -1,3 +1,5 @@
+import type { CrmStageKey, FichaMoveKey } from "@/lib/crm/cadence";
+
 export const CRM_ACTIVITY_KINDS = [
   "ligar",
   "whatsapp",
@@ -31,6 +33,8 @@ export type CrmStage = {
   pipeline_id: string;
   nome: string;
   position: number;
+  /** Stable role; null on custom faixas added by the piloto. */
+  canonical_key: CrmStageKey | null;
   created_at: string;
 };
 
@@ -99,4 +103,21 @@ export type CrmDealPatch = {
 export type CrmNextAction = {
   kind: CrmActivityKind;
   dueAt: string;
+};
+
+export type LeadCrmFirstMileStage = {
+  key: FichaMoveKey;
+  id: string;
+  nome: string;
+};
+
+export type LeadCrmState = {
+  dealId: string;
+  pipelineId: string;
+  pipelineNome: string;
+  stageKey: CrmStageKey | null;
+  stageNome: string;
+  notes: string;
+  firstMile: LeadCrmFirstMileStage[];
+  pastFirstMile: boolean;
 };

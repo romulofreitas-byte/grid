@@ -1,4 +1,8 @@
-import { cloneDefaultCadence, DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
+import {
+  cloneDefaultCadenceEntries,
+  isCrmStageKey,
+  pickEntradaStage,
+} from "@/lib/crm/cadence";
 import { planDeleteStage } from "@/lib/crm/stages";
 import type {
   CrmActivity,
@@ -36,11 +40,13 @@ function mapPipeline(row: QueryResultRow): CrmPipeline {
 }
 
 function mapStage(row: QueryResultRow): CrmStage {
+  const key = row.canonical_key == null ? null : String(row.canonical_key);
   return {
     id: String(row.id),
     pipeline_id: String(row.pipeline_id),
     nome: String(row.nome),
     position: Number(row.position),
+    canonical_key: isCrmStageKey(key) ? key : null,
     created_at: asIso(row.created_at),
   };
 }
@@ -150,11 +156,13 @@ async function insertCadence(
   q: SqlQuery,
   pipelineId: string,
 ): Promise<void> {
-  const cadence = cloneDefaultCadence();
+  const cadence = cloneDefaultCadenceEntries();
   for (let position = 0; position < cadence.length; position += 1) {
+    const entry = cadence[position]!;
     await q(
-      `insert into crm_stages (pipeline_id, nome, position) values ($1, $2, $3)`,
-      [pipelineId, cadence[position], position],
+      `insert into crm_stages (pipeline_id, nome, position, canonical_key)
+       values ($1, $2, $3, $4)`,
+      [pipelineId, entry.nome, position, entry.key],
     );
   }
 }
@@ -239,13 +247,7 @@ async function insertOpen(
 
 export const crmPgMethods = {
   async listCrmPipelines(userId: string): Promise<CrmPipelineSummary[]> {
-    let pipelines = await listPipelineRows(userId);
-    if (pipelines.length === 0) {
-      await withTransaction((q) =>
-        createPipelineRow(q, userId, DEFAULT_PIPELINE_NAME),
-      );
-      pipelines = await listPipelineRows(userId);
-    }
+    const pipelines = await listPipelineRows(userId);
     const counts = await query(
       `select pipeline_id, count(*)::int as n
        from crm_deals
@@ -324,8 +326,8 @@ export const crmPgMethods = {
         [pipelineId],
       );
       const inserted = await q(
-        `insert into crm_stages (pipeline_id, nome, position)
-         values ($1, $2, $3)
+        `insert into crm_stages (pipeline_id, nome, position, canonical_key)
+         values ($1, $2, $3, null)
          returning *`,
         [pipelineId, nome, Number(count.rows[0]?.n ?? 0)],
       );
@@ -461,14 +463,9 @@ export const crmPgMethods = {
           return loadCard(q, String(existing.rows[0].id));
         }
       }
-      const first = await q(
-        `select id from crm_stages
-          where pipeline_id = $1
-          order by position
-          limit 1`,
-        [input.pipelineId],
-      );
-      const stageId = first.rows[0]?.id as string | undefined;
+      const stages = await listStages(q, input.pipelineId);
+      const entrada = pickEntradaStage(stages);
+      const stageId = entrada?.id;
       if (!stageId) return null;
       const count = await q(
         `select count(*)::int as n from crm_deals where stage_id = $1`,
@@ -512,6 +509,57 @@ export const crmPgMethods = {
     );
     if (!rows[0]) return null;
     return loadCard(query, String(rows[0].id));
+  },
+
+  async findCrmDealByCnpjForUser(
+    userId: string,
+    cnpj: string,
+    preferredPipelineId?: string | null,
+  ): Promise<CrmDealCard | null> {
+    const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+    const { rows } = await query(
+      `select d.id
+         from crm_deals d
+         join crm_pipelines p on p.id = d.pipeline_id
+        where p.user_id = $1 and d.cnpj = $2
+        order by
+          case when d.pipeline_id = $3 then 0 else 1 end,
+          d.updated_at desc
+        limit 1`,
+      [userId, digits, preferredPipelineId ?? null],
+    );
+    if (!rows[0]) return null;
+    return loadCard(query, String(rows[0].id));
+  },
+
+  async hasCrmPipeline(userId: string): Promise<boolean> {
+    const { rows } = await query(
+      `select 1 from crm_pipelines where user_id = $1 limit 1`,
+      [userId],
+    );
+    return Boolean(rows[0]);
+  },
+
+  async listCrmDealCnpjs(
+    userId: string,
+    cnpjs: string[],
+  ): Promise<string[]> {
+    const digits = [
+      ...new Set(
+        cnpjs
+          .map((value) => value.replace(/\D/g, "").padStart(14, "0"))
+          .filter((value) => value.length === 14),
+      ),
+    ];
+    if (digits.length === 0) return [];
+    const { rows } = await query(
+      `select distinct d.cnpj
+         from crm_deals d
+         join crm_pipelines p on p.id = d.pipeline_id
+        where p.user_id = $1 and d.cnpj = any($2::text[])`,
+      [userId, digits],
+    );
+    return rows.map((row) => String(row.cnpj));
   },
 
   async updateCrmDeal(

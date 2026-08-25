@@ -1,9 +1,11 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { COPY } from "@/lib/copy";
+import { leadHrefForCnpj } from "@/lib/back";
 import {
   CRM_ACTIVITY_KIND_LABELS,
   defaultNextDueLocal,
@@ -199,6 +201,14 @@ export function CrmDealDrawer({
             <h2 className="mt-1 text-lg font-extrabold leading-tight">
               {deal.company_name}
             </h2>
+            {deal.cnpj ? (
+              <Link
+                href={leadHrefForCnpj(deal.cnpj, deal.meta.searchId)}
+                className="mt-2 inline-block text-xs font-semibold text-podium-yellow hover:underline"
+              >
+                {COPY.crmOpenFicha}
+              </Link>
+            ) : null}
           </div>
           <button
             type="button"

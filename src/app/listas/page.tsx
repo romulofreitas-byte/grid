@@ -34,10 +34,14 @@ async function ListasPageInner() {
   const searches = await repo.listRecentSearches(profile.id, {
     limit: LISTAS_LIMIT,
   });
+  const pipelines = await repo.listCrmPipelines(session.id);
 
   return (
     <AppShell title="Listas" back={BACK.box}>
-      <ListsBoard initial={searches} />
+      <ListsBoard
+        initial={searches}
+        pipelineNomes={pipelines.map((pipeline) => pipeline.nome)}
+      />
     </AppShell>
   );
 }

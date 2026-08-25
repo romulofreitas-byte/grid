@@ -74,9 +74,11 @@ function findContainer(id: string, columns: Columns): string | undefined {
 export function CrmBoard({
   initialPipelines,
   initialBoard,
+  initialDealId,
 }: {
   initialPipelines: CrmPipelineSummary[];
   initialBoard: Board | null;
+  initialDealId?: string;
 }) {
   const [pipelines, setPipelines] = useState(initialPipelines);
   const [board, setBoard] = useState(initialBoard);
@@ -88,7 +90,9 @@ export function CrmBoard({
   );
   const syncLocked = useRef(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [openDealId, setOpenDealId] = useState<string | null>(null);
+  const [openDealId, setOpenDealId] = useState<string | null>(
+    initialDealId ?? null,
+  );
   const [cadenceOpen, setCadenceOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);

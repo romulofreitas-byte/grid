@@ -1,4 +1,5 @@
 import { getRepo } from "@/lib/data";
+import { advanceCrmOnCall } from "@/lib/crm/lead-sync";
 import { toE164 } from "@/lib/format";
 import { normalizePhoneBR } from "@/lib/phone";
 import type { ConnectionCtx } from "./adapter";
@@ -177,6 +178,15 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
     });
     if (dossier.savedLeadId) {
       await repo.updateLead(dossier.savedLeadId, { status: "ligando" });
+    }
+    try {
+      await advanceCrmOnCall(repo, {
+        userId: job.user_id,
+        cnpj,
+        search: job.search_id ? ((await repo.getSearch(job.search_id)) ?? null) : null,
+      });
+    } catch {
+      // Originate still succeeded.
     }
     await repo.updateIntegrationJob(job.id, {
       status: "done",

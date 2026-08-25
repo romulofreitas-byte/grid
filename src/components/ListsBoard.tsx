@@ -9,6 +9,7 @@ import { Hint } from "@/components/Hint";
 import { ListSearchMenu } from "@/components/ListSearchMenu";
 import { SearchListCard } from "@/components/SearchListCard";
 import { SectionTitle } from "@/components/SectionTitle";
+import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
 import { gridHref, largadaNovaHref } from "@/lib/back";
 import {
@@ -18,7 +19,13 @@ import {
 } from "@/lib/searches";
 import type { Search } from "@/lib/types";
 
-export function ListsBoard({ initial }: { initial: Search[] }) {
+export function ListsBoard({
+  initial,
+  pipelineNomes = [],
+}: {
+  initial: Search[];
+  pipelineNomes?: string[];
+}) {
   const reduce = useReducedMotion();
   const [searches, setSearches] = useState(initial);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -96,6 +103,7 @@ export function ListsBoard({ initial }: { initial: Search[] }) {
             <SearchListCard
               search={search}
               from="listas"
+              pistaNome={pistaNomeForSearch(search, pipelineNomes)}
               error={errors[search.id]}
               actions={
                 <>

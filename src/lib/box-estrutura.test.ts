@@ -246,9 +246,20 @@ describe("buildBoxEstrutura", () => {
       connections: [conn({ id: "c", kind: "crm" })],
     });
     expect(crmOnly.byId.ligar.done).toBe(false);
-    expect(crmOnly.byId.crm.done).toBe(true);
+    expect(crmOnly.byId.crm.done).toBe(false);
     expect(crmOnly.byId.ligar.href).toBe(conexoesHref("voip"));
-    expect(crmOnly.byId.crm.href).toBe(conexoesHref("crm"));
+    expect(crmOnly.byId.crm.href).toBe("/crm");
+
+    const nativeCrm = slotMap({
+      savedCount: 1,
+      hasUnsavedSearch: false,
+      profile: helmet(),
+      billing: { total: 25, plano: "free" },
+      connections: [],
+      hasCrmPipeline: true,
+    });
+    expect(nativeCrm.byId.crm.done).toBe(true);
+    expect(nativeCrm.byId.crm.cta).toBe(COPY.crmBoxCta);
   });
 
   it("treats credits as a gap on free or zero balance", () => {
@@ -272,8 +283,8 @@ describe("buildBoxEstrutura", () => {
         billing: { total: 0, plano: "piloto" },
         connections: [
           conn({ id: "v", kind: "voip" }),
-          conn({ id: "c", kind: "crm" }),
         ],
+        hasCrmPipeline: true,
       }).nextGap,
     ).toBe("creditos");
     const ready = slotMap({
@@ -283,8 +294,8 @@ describe("buildBoxEstrutura", () => {
       billing: { total: 900, plano: "piloto" },
       connections: [
         conn({ id: "v", kind: "voip" }),
-        conn({ id: "c", kind: "crm" }),
       ],
+      hasCrmPipeline: true,
     });
     expect(ready.nextGap).toBeNull();
     expect(ready.slots.every((s) => s.done)).toBe(true);

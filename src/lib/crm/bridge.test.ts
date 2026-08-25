@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   digitsCnpj,
   normalizePipelineNome,
+  pistaNomeForSearch,
   resolveCrmPipelineNome,
 } from "./bridge";
 import { DEFAULT_PIPELINE_NAME } from "./cadence";
@@ -42,6 +43,26 @@ describe("resolveCrmPipelineNome", () => {
         searchNome: "Lista · ",
       }),
     ).toBe(DEFAULT_PIPELINE_NAME);
+  });
+});
+
+describe("pistaNomeForSearch", () => {
+  it("matches a resolved nicho against existing pipelines", () => {
+    const search = {
+      nome: "Lista · Clínicas estética",
+      filtros: { intentQuery: null as string | null },
+    };
+    expect(pistaNomeForSearch(search, ["Clínicas estética", "Contábil"])).toBe(
+      "Clínicas estética",
+    );
+  });
+
+  it("returns null when the pista was never created", () => {
+    const search = {
+      nome: "Lista · Padaria",
+      filtros: { intentQuery: "padaria" },
+    };
+    expect(pistaNomeForSearch(search, ["Contábil"])).toBeNull();
   });
 });
 

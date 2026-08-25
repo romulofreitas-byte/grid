@@ -1,5 +1,5 @@
 import { LOCAL_USER_ID } from "@/lib/data/pg";
-import { cloneDefaultCadence } from "@/lib/crm/cadence";
+import { cloneDefaultCadenceEntries } from "@/lib/crm/cadence";
 import type { CrmActivityKind } from "@/lib/crm/types";
 import type { MockStore } from "@/lib/data/mock-store";
 
@@ -25,7 +25,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
   const created = new Date(now).toISOString();
   const alimentosId = "a1000000-0000-4000-8000-000000000001";
   const contabilId = "a1000000-0000-4000-8000-000000000002";
-  const cadence = cloneDefaultCadence();
+  const cadence = cloneDefaultCadenceEntries();
 
   store.crm_pipelines.push(
     {
@@ -45,13 +45,14 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
   );
 
   const stageIdsFor = (pipelineId: string, prefix: string) =>
-    cadence.map((nome, position) => {
+    cadence.map((entry, position) => {
       const id = `${prefix}-0000-4000-8000-${String(position).padStart(12, "0")}`;
       store.crm_stages.push({
         id,
         pipeline_id: pipelineId,
-        nome,
+        nome: entry.nome,
         position,
+        canonical_key: entry.key,
         created_at: created,
       });
       return id;

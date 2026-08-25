@@ -37,9 +37,22 @@ export async function GET(
     const limit = Number(searchParams.get("limit") ?? "50");
     const result = await getRepo().listGridRows(searchId, cursor, limit);
     const balance = await getBalance(gated.userId);
+    let rows = redactGridRows(result.rows, balance.enrichAllowed);
+    if (search.saved && rows.length > 0) {
+      const inCrm = new Set(
+        await getRepo().listCrmDealCnpjs(
+          gated.userId,
+          rows.map((row) => row.cnpj),
+        ),
+      );
+      rows = rows.map((row) => ({
+        ...row,
+        inCrm: inCrm.has(row.cnpj.replace(/\D/g, "").padStart(14, "0")),
+      }));
+    }
     return NextResponse.json({
       ...result,
-      rows: redactGridRows(result.rows, balance.enrichAllowed),
+      rows,
     });
   } catch (err) {
     return NextResponse.json(

@@ -31,6 +31,7 @@ import type {
   LeadStatus,
   PilotStats,
 } from "@/lib/types";
+import type { FichaMoveKey } from "@/lib/crm/cadence";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
@@ -260,7 +261,11 @@ export default function LeadPage() {
   ]);
 
   const saveMutation = useMutation({
-    mutationFn: async (patch: { status?: LeadStatus; notas?: string }) => {
+    mutationFn: async (patch: {
+      status?: LeadStatus;
+      notas?: string;
+      crmStageKey?: FichaMoveKey;
+    }) => {
       await fetch(`/api/lead/${params.cnpj}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -281,6 +286,7 @@ export default function LeadPage() {
         body: JSON.stringify({
           cnpj: params.cnpj,
           savedLeadId: d?.savedLeadId ?? null,
+          searchId,
         }),
       });
       const body = (await res.json()) as { error?: string };
@@ -434,7 +440,11 @@ export default function LeadPage() {
 
   function markLigando() {
     setCalling(true);
-    if (d?.status === "novo") saveMutation.mutate({ status: "ligando" });
+    const atEntrada =
+      d?.crm?.stageKey === "entrada" || (!d?.crm && d?.status === "novo");
+    if (atEntrada || d?.status === "novo") {
+      saveMutation.mutate({ status: "ligando" });
+    }
   }
 
   const cityLine = [d.municipioNome, est.uf].filter(Boolean).join(" · ");
@@ -678,10 +688,11 @@ export default function LeadPage() {
 
         <LeadStatusStrip
           key={params.cnpj}
-          status={d.status}
+          crm={d.crm ?? null}
+          searchSaved={Boolean(d.searchSaved)}
           notas={d.notas}
           recordPending={recordCall.isPending}
-          onStatus={(status) => saveMutation.mutate({ status })}
+          onStage={(crmStageKey) => saveMutation.mutate({ crmStageKey })}
           onRecordCall={() => recordCall.mutate()}
           onNotasBlur={(notas) => saveMutation.mutate({ notas })}
           callAction={

@@ -1,4 +1,5 @@
 import type { ContactSeal, GridRow, LeadDossier, Profile } from "@/lib/types";
+import type { LeadCrmState } from "@/lib/crm/types";
 
 export type LeadPreview = {
   cnpj: string;
@@ -69,5 +70,7 @@ export async function fetchLeadDossier(cnpj: string, searchId?: string) {
   return (await res.json()) as LeadDossier & {
     profile: Profile;
     enrichAllowed?: boolean;
+    searchSaved?: boolean;
+    crm?: LeadCrmState | null;
   };
 }

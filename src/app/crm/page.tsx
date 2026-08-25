@@ -3,12 +3,17 @@ import { CrmBoard } from "@/components/crm/CrmBoard";
 import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
 import { COPY } from "@/lib/copy";
+import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import { getRepo } from "@/lib/data";
 import { redirect } from "next/navigation";
 
-export default async function CrmPage() {
+export default async function CrmPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pipeline?: string; deal?: string }>;
+}) {
   try {
-    return await CrmPageInner();
+    return await CrmPageInner(await searchParams);
   } catch (err) {
     console.error("crm_page_error", err);
     const message = err instanceof Error ? err.message : "erro desconhecido";
@@ -23,19 +28,30 @@ export default async function CrmPage() {
   }
 }
 
-async function CrmPageInner() {
+async function CrmPageInner(sp: { pipeline?: string; deal?: string }) {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   const repo = getRepo();
-  const pipelines = await repo.listCrmPipelines(session.id);
-  const first = pipelines[0];
+  let pipelines = await repo.listCrmPipelines(session.id);
+  if (pipelines.length === 0) {
+    await repo.createCrmPipeline(session.id, DEFAULT_PIPELINE_NAME);
+    pipelines = await repo.listCrmPipelines(session.id);
+  }
+  const requested = sp.pipeline
+    ? pipelines.find((pipeline) => pipeline.id === sp.pipeline)
+    : null;
+  const first = requested ?? pipelines[0];
   const board = first
     ? await repo.getCrmBoard(session.id, first.id)
     : null;
 
   return (
     <AppShell title={COPY.crmNav} fill wide>
-      <CrmBoard initialPipelines={pipelines} initialBoard={board} />
+      <CrmBoard
+        initialPipelines={pipelines}
+        initialBoard={board}
+        initialDealId={sp.deal}
+      />
     </AppShell>
   );
 }

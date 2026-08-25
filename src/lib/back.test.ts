@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   BACK,
   conexoesHref,
+  crmHref,
   gridBack,
   largadaEditHref,
   largadaNovaHref,
   leadBack,
+  leadHrefForCnpj,
 } from "./back";
 
 describe("largada hrefs", () => {
@@ -42,5 +44,21 @@ describe("conexoesHref", () => {
     expect(conexoesHref()).toBe("/conexoes");
     expect(conexoesHref("crm")).toBe("/conexoes?kind=crm");
     expect(conexoesHref("voip")).toBe("/conexoes?kind=voip");
+  });
+});
+
+describe("crm and ficha hrefs", () => {
+  it("opens a deal on the native board", () => {
+    expect(crmHref()).toBe("/crm");
+    expect(crmHref({ pipeline: "p1", deal: "d1" })).toBe(
+      "/crm?pipeline=p1&deal=d1",
+    );
+  });
+
+  it("opens the ficha from a CRM deal", () => {
+    expect(leadHrefForCnpj("12.345.678/0001-90")).toBe("/lead/12345678000190");
+    expect(leadHrefForCnpj("12345678000190", "search-1")).toBe(
+      "/lead/12345678000190?searchId=search-1&from=listas",
+    );
   });
 });

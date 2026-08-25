@@ -1,12 +1,30 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { getSearchForUser } from "@/lib/auth/search-access";
 import { getBillingStore, getBalance } from "@/lib/billing/service";
 import { redactDossier } from "@/lib/billing/redact";
+import { FICHA_MOVE_KEYS } from "@/lib/crm/cadence";
+import {
+  advanceCrmOnCall,
+  loadLeadCrm,
+  moveLeadCrmFromFicha,
+  syncCrmDealNotes,
+} from "@/lib/crm/lead-sync";
 import { getRepo } from "@/lib/data";
+import type { LeadStatus } from "@/lib/types";
 
 function normalizeCnpj(raw: string): string {
   return raw.replace(/\D/g, "").padStart(14, "0");
 }
+
+const patchSchema = z.object({
+  savedLeadId: z.string().uuid().optional(),
+  searchId: z.string().uuid().optional(),
+  status: z.enum(["novo", "ligando", "reuniao", "descartado"]).optional(),
+  notas: z.string().max(4000).optional(),
+  crmStageKey: z.enum(FICHA_MOVE_KEYS).optional(),
+});
 
 export async function GET(
   req: Request,
@@ -19,12 +37,13 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const searchId = searchParams.get("searchId") ?? undefined;
   const repo = getRepo();
-  const [owned, dossier, profile, balance, enriched] = await Promise.all([
-    searchId
-      ? import("@/lib/auth/search-access").then(({ getSearchForUser }) =>
-          getSearchForUser(gated.userId, searchId),
-        )
-      : Promise.resolve(true as const),
+  const search = searchId
+    ? await getSearchForUser(gated.userId, searchId)
+    : null;
+  if (searchId && !search) {
+    return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
+  }
+  const [dossier, profile, balance, enriched] = await Promise.all([
     repo.getDossier(cnpj, searchId),
     repo.getProfile(gated.userId),
     getBalance(gated.userId),
@@ -32,9 +51,6 @@ export async function GET(
       store.isCnpjBilled(gated.userId, cnpj, "enrich"),
     ),
   ]);
-  if (searchId && !owned) {
-    return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
-  }
   if (!dossier) {
     return NextResponse.json({ error: "NÃO ENCONTRADO" }, { status: 404 });
   }
@@ -42,10 +58,18 @@ export async function GET(
     showEnrichment: enriched,
     showContacts: balance.enrichAllowed,
   });
+  const crm = await loadLeadCrm(repo, {
+    userId: gated.userId,
+    cnpj,
+    search,
+  });
   return NextResponse.json({
     ...safe,
+    notas: crm?.notes || safe.notas,
     profile,
     enrichAllowed: balance.enrichAllowed,
+    searchSaved: search?.saved ?? false,
+    crm,
   });
 }
 
@@ -55,11 +79,55 @@ export async function PATCH(
 ) {
   const gated = await guardApi(req, "write");
   if (isGuardReject(gated)) return gated;
-  await ctx.params;
-  const body = await req.json();
-  if (body.savedLeadId) {
-    await getRepo().updateLead(body.savedLeadId, {
-      status: body.status,
+  const { cnpj: rawCnpj } = await ctx.params;
+  const cnpj = normalizeCnpj(rawCnpj);
+  const parsed = patchSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+  }
+  const body = parsed.data;
+  const repo = getRepo();
+  const search = body.searchId
+    ? await getSearchForUser(gated.userId, body.searchId)
+    : null;
+
+  let status: LeadStatus | undefined = body.status;
+  if (body.crmStageKey) {
+    const moved = await moveLeadCrmFromFicha(repo, {
+      userId: gated.userId,
+      cnpj,
+      search,
+      targetKey: body.crmStageKey,
+    });
+    if (moved.status) status = moved.status;
+  } else if (body.status === "ligando") {
+    await advanceCrmOnCall(repo, {
+      userId: gated.userId,
+      cnpj,
+      search,
+    });
+  } else if (body.status === "reuniao" || body.status === "descartado") {
+    const moved = await moveLeadCrmFromFicha(repo, {
+      userId: gated.userId,
+      cnpj,
+      search,
+      targetKey: body.status === "reuniao" ? "reuniao_agendada" : "descartado",
+    });
+    if (moved.status) status = moved.status;
+  }
+
+  if (body.notas != null) {
+    await syncCrmDealNotes(repo, {
+      userId: gated.userId,
+      cnpj,
+      search,
+      notes: body.notas,
+    });
+  }
+
+  if (body.savedLeadId && (status !== undefined || body.notas !== undefined)) {
+    await repo.updateLead(body.savedLeadId, {
+      status,
       notas: body.notas,
     });
   }

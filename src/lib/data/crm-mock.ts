@@ -1,4 +1,4 @@
-import { cloneDefaultCadence, DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
+import { cloneDefaultCadenceEntries, pickEntradaStage } from "@/lib/crm/cadence";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
 import type {
   CrmActivity,
@@ -141,22 +141,17 @@ function createPipelineWithCadence(
     created_at: created,
   };
   store.crm_pipelines.push(pipeline);
-  cloneDefaultCadence().forEach((stageName, position) => {
+  cloneDefaultCadenceEntries().forEach((entry, position) => {
     store.crm_stages.push({
       id: id(),
       pipeline_id: pipeline.id,
-      nome: stageName,
+      nome: entry.nome,
       position,
+      canonical_key: entry.key,
       created_at: created,
     });
   });
   return pipeline;
-}
-
-function ensurePipelines(store: MockStore, userId: string): CrmPipeline[] {
-  const existing = pipelinesOf(store, userId);
-  if (existing.length > 0) return existing;
-  return [createPipelineWithCadence(store, userId, DEFAULT_PIPELINE_NAME)];
 }
 
 function summarize(
@@ -187,7 +182,7 @@ function assembleBoard(
 export const crmMockMethods = {
   async listCrmPipelines(userId: string): Promise<CrmPipelineSummary[]> {
     const store = getMockStore();
-    return ensurePipelines(store, userId).map((row) => summarize(store, row));
+    return pipelinesOf(store, userId).map((row) => summarize(store, row));
   },
 
   async getCrmBoard(
@@ -262,6 +257,7 @@ export const crmMockMethods = {
       pipeline_id: pipelineId,
       nome,
       position: stages.length,
+      canonical_key: null,
       created_at: nowIso(),
     };
     store.crm_stages.push(row);
@@ -353,7 +349,7 @@ export const crmMockMethods = {
       );
       if (existing) return toCard(store, existing);
     }
-    const first = stagesOf(store, pipeline.id)[0];
+    const first = pickEntradaStage(stagesOf(store, pipeline.id));
     if (!first) return null;
     const position = store.crm_deals.filter(
       (row) => row.stage_id === first.id,
@@ -390,6 +386,46 @@ export const crmMockMethods = {
       (row) => row.pipeline_id === pipelineId && row.cnpj === digits,
     );
     return deal ? toCard(store, deal) : null;
+  },
+
+  async findCrmDealByCnpjForUser(
+    userId: string,
+    cnpj: string,
+    preferredPipelineId?: string | null,
+  ): Promise<CrmDealCard | null> {
+    const store = getMockStore();
+    const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+    const matches = store.crm_deals.filter((row) => {
+      if (row.cnpj !== digits) return false;
+      return Boolean(ownPipeline(store, userId, row.pipeline_id));
+    });
+    if (matches.length === 0) return null;
+    matches.sort((a, b) => {
+      if (preferredPipelineId) {
+        if (a.pipeline_id === preferredPipelineId) return -1;
+        if (b.pipeline_id === preferredPipelineId) return 1;
+      }
+      return b.updated_at.localeCompare(a.updated_at);
+    });
+    return toCard(store, matches[0]!);
+  },
+
+  async hasCrmPipeline(userId: string): Promise<boolean> {
+    return pipelinesOf(getMockStore(), userId).length > 0;
+  },
+
+  async listCrmDealCnpjs(userId: string, cnpjs: string[]): Promise<string[]> {
+    const store = getMockStore();
+    const wanted = new Set(
+      cnpjs.map((value) => value.replace(/\D/g, "").padStart(14, "0")),
+    );
+    const found = new Set<string>();
+    for (const deal of store.crm_deals) {
+      if (!deal.cnpj || !wanted.has(deal.cnpj)) continue;
+      if (!ownPipeline(store, userId, deal.pipeline_id)) continue;
+      found.add(deal.cnpj);
+    }
+    return [...found];
   },
 
   async updateCrmDeal(

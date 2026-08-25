@@ -432,6 +432,7 @@ export type GridRow = {
   sharedVerdict?: SharedPhoneVerdict;
   enrichmentStatus: EnrichmentJobStatus | null;
   hasAudit: boolean;
+  inCrm?: boolean;
 };
 
 export type CompanySearchHit = {

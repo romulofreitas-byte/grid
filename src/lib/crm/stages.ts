@@ -1,16 +1,25 @@
+import { isLockedStageKey } from "@/lib/crm/cadence";
+
 export type DeleteStagePlan =
   | { ok: true; moveToStageId: string | null }
   | { ok: false; error: string };
 
 export function planDeleteStage(input: {
-  stages: Array<{ id: string }>;
+  stages: Array<{ id: string; canonical_key?: string | null }>;
   stageId: string;
   dealCount: number;
   moveToStageId?: string | null;
 }): DeleteStagePlan {
   const { stages, stageId, dealCount, moveToStageId } = input;
-  if (!stages.some((stage) => stage.id === stageId)) {
+  const target = stages.find((stage) => stage.id === stageId);
+  if (!target) {
     return { ok: false, error: "Faixa não encontrada." };
+  }
+  if (isLockedStageKey(target.canonical_key)) {
+    return {
+      ok: false,
+      error: "Esta faixa faz parte da ficha. Dá para renomear, não apagar.",
+    };
   }
   if (stages.length <= 1) {
     return { ok: false, error: "A pista precisa de pelo menos uma faixa." };

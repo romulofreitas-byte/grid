@@ -54,14 +54,11 @@ export type BoxEstruturaInput = {
     plano: string;
   };
   connections: readonly CallConnectionPick[];
+  hasCrmPipeline?: boolean;
 };
 
 function filled(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
-}
-
-function hasActiveCrm(connections: readonly CallConnectionPick[]): boolean {
-  return connections.some((c) => c.kind === "crm" && c.status === "active");
 }
 
 export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
@@ -71,7 +68,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const ofertaReady = filled(input.profile.promessa);
   const metaReady = onboardingDone;
   const ligarReady = pickCallConnection(input.connections) != null;
-  const crmReady = hasActiveCrm(input.connections);
+  const crmReady = Boolean(input.hasCrmPipeline);
   const creditosReady = input.billing.plano !== "free" && input.billing.total > 0;
 
   const slots: BoxSlot[] = [
@@ -115,10 +112,10 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       id: "crm",
       label: "CRM",
       done: crmReady,
-      title: "Conecte o CRM",
-      body: "Mande a lista ao CRM direto. Cada CNPJ usa o mesmo crédito do Excel.",
-      href: conexoesHref("crm"),
-      cta: "Conectar CRM",
+      title: COPY.crmBoxTitle,
+      body: COPY.crmBoxBody,
+      href: "/crm",
+      cta: COPY.crmBoxCta,
     },
     {
       id: "ligar",

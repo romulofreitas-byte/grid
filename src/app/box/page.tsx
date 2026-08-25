@@ -94,10 +94,11 @@ async function BoxPageInner() {
     billing.plano,
   );
   const stats = await repo.getPilotStats(session.id);
-  const [recent, savedPreview, connectionRows] = await Promise.all([
+  const [recent, savedPreview, connectionRows, hasCrmPipeline] = await Promise.all([
     repo.listRecentSearches(profile.id, { limit: BOX_PREVIEW_LIMIT }),
     repo.listSearches(profile.id, { limit: BOX_PREVIEW_LIMIT + 1 }),
     repo.listIntegrationConnections(session.id),
+    repo.hasCrmPipeline(session.id),
   ]);
   const hasMoreSaved = savedPreview.length > BOX_PREVIEW_LIMIT;
   const savedCount = hasMoreSaved
@@ -111,6 +112,7 @@ async function BoxPageInner() {
     profile,
     billing,
     connections,
+    hasCrmPipeline,
   });
   const next = estrutura.pistaAberta ? stats.proximaFicha : null;
   const name = displayName(profile);

@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
-import { gridBack, largadaEditHref, leadHref, parseGridFrom } from "@/lib/back";
+import { gridBack, largadaEditHref, leadHref, parseGridFrom, crmHref } from "@/lib/back";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
 import {
   blockQualifyIfFree,
@@ -143,12 +143,22 @@ function GridRowActions({
   return (
     <div className="flex flex-wrap items-center gap-1">
       {qualified ? (
-        <Badge
-          variant="success"
-          className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
-        >
-          Qualificado
-        </Badge>
+        <>
+          <Badge
+            variant="success"
+            className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
+          >
+            Qualificado
+          </Badge>
+          {row.inCrm ? (
+            <Badge
+              variant="accent"
+              className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
+            >
+              {COPY.crmOnGrid}
+            </Badge>
+          ) : null}
+        </>
       ) : (
         <SelectToggle
           pressed={selected}
@@ -261,6 +271,7 @@ export default function GridPage() {
 
   const [creditHint, setCreditHint] = useState<string | null>(null);
   const [crmHint, setCrmHint] = useState<string | null>(null);
+  const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
 
   const pushMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -327,6 +338,7 @@ export default function GridPage() {
           created: number;
           skipped: number;
           pipelineNome: string | null;
+          pipelineId: string | null;
         } | null;
       };
       throwIfBillingGate(res.status, json, openPaywall, "qualify");
@@ -342,8 +354,13 @@ export default function GridPage() {
             ? `1 lead no CRM · ${bridge.pipelineNome}`
             : `${bridge.created} leads no CRM · ${bridge.pipelineNome}`,
         );
+        setCrmPipelineId(bridge.pipelineId);
+      } else if (!search?.saved) {
+        setCrmHint(COPY.crmSaveListToEnter);
+        setCrmPipelineId(null);
       } else {
         setCrmHint(null);
+        setCrmPipelineId(null);
       }
       setSelected(new Set());
       setConfirmAll(false);
@@ -690,7 +707,20 @@ export default function GridPage() {
         <p className="mb-4 text-sm text-podium-yellow">{creditHint}</p>
       ) : null}
       {crmHint ? (
-        <p className="mb-4 text-sm text-podium-muted">{crmHint}</p>
+        <p className="mb-4 text-sm text-podium-muted">
+          {crmHint}
+          {crmPipelineId ? (
+            <>
+              {" · "}
+              <Link
+                href={crmHref({ pipeline: crmPipelineId })}
+                className="font-semibold text-podium-yellow hover:underline"
+              >
+                {COPY.crmOpenPista}
+              </Link>
+            </>
+          ) : null}
+        </p>
       ) : null}
 
       <SaveListDialog

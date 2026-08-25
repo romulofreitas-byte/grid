@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { activitySignal } from "@/lib/crm/activity";
+import { advanceCrmOnCall, moveLeadCrmFromFicha } from "@/lib/crm/lead-sync";
 import { mockRepo } from "@/lib/data/mock-repo";
 import { getMockStore } from "@/lib/data/mock-store";
 
@@ -20,26 +21,41 @@ describe("crm mock board", () => {
     store.crm_pipelines = store.crm_pipelines.filter((row) => row.user_id !== USER);
   });
 
-  it("seeds a default cadence for a new piloto", async () => {
-    const pipelines = await mockRepo.listCrmPipelines(USER);
-    expect(pipelines).toHaveLength(1);
-    const board = await mockRepo.getCrmBoard(USER, pipelines[0]!.id);
+  it("creates the default cadence with canonical keys when asked", async () => {
+    expect(await mockRepo.listCrmPipelines(USER)).toEqual([]);
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     expect(board?.stages.map((stage) => stage.nome)[0]).toBe("Entrada de Lista");
-    expect(board?.stages).toHaveLength(10);
+    expect(board?.stages).toHaveLength(11);
+    expect(board?.stages[0]?.canonical_key).toBe("entrada");
+    expect(board?.stages.at(-1)?.canonical_key).toBe("descartado");
   });
 
-  it("moves negócios to another faixa before deleting it", async () => {
-    const pipelines = await mockRepo.listCrmPipelines(USER);
-    const pipelineId = pipelines[0]!.id;
+  it("refuses to delete a first-mile faixa", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const entrada = board!.stages.find((stage) => stage.canonical_key === "entrada")!;
+    const other = board!.stages.find(
+      (stage) => stage.canonical_key === "ajustando_proposta",
+    )!;
+    expect(await mockRepo.deleteCrmStage(USER, entrada.id, other.id)).toBe(false);
+  });
+
+  it("moves negócios to another faixa before deleting a custom faixa", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const pipelineId = pipeline.id;
     const created = await mockRepo.createCrmDeal(USER, {
       pipelineId,
       company_name: "Oficina Teste",
     });
     expect(created).toBeTruthy();
     const board = await mockRepo.getCrmBoard(USER, pipelineId);
-    const from = board!.stages[0]!;
-    const to = board!.stages[1]!;
-    expect(board!.deals.some((deal) => deal.stage_id === from.id)).toBe(true);
+    const from = board!.stages.find(
+      (stage) => stage.canonical_key === "ajustando_proposta",
+    )!;
+    const to = board!.stages.find((stage) => stage.canonical_key === "entrada")!;
+    const moved = await mockRepo.moveCrmDeal(USER, created!.id, from.id, 0);
+    expect(moved?.stage_id).toBe(from.id);
 
     const ok = await mockRepo.deleteCrmStage(USER, from.id, to.id);
     expect(ok).toBe(true);
@@ -52,9 +68,9 @@ describe("crm mock board", () => {
   });
 
   it("keeps one or more phones on the negócio", async () => {
-    const pipelines = await mockRepo.listCrmPipelines(USER);
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const created = await mockRepo.createCrmDeal(USER, {
-      pipelineId: pipelines[0]!.id,
+      pipelineId: pipeline.id,
       company_name: "Padaria Fone",
       phones: ["(34) 3333-1010"],
     });
@@ -66,8 +82,8 @@ describe("crm mock board", () => {
   });
 
   it("dedupes deals by CNPJ inside the same pipeline", async () => {
-    const pipelines = await mockRepo.listCrmPipelines(USER);
-    const pipelineId = pipelines[0]!.id;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const pipelineId = pipeline.id;
     const first = await mockRepo.createCrmDeal(USER, {
       pipelineId,
       company_name: "Empresa A",
@@ -87,6 +103,64 @@ describe("crm mock board", () => {
     );
     expect(found?.id).toBe(first!.id);
   });
+
+  it("finds a deal by CNPJ across pipelines and advances from Entrada", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Empresa A",
+      cnpj: "12345678000190",
+    });
+    const found = await mockRepo.findCrmDealByCnpjForUser(
+      USER,
+      "12345678000190",
+      pipeline.id,
+    );
+    expect(found?.id).toBe(created!.id);
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const tentando = board!.stages.find(
+      (stage) => stage.canonical_key === "tentando_contato",
+    )!;
+    const moved = await mockRepo.moveCrmDeal(USER, created!.id, tentando.id, 0);
+    expect(moved?.stage_id).toBe(tentando.id);
+    expect(await mockRepo.hasCrmPipeline(USER)).toBe(true);
+    expect(await mockRepo.listCrmDealCnpjs(USER, ["12345678000190"])).toEqual([
+      "12345678000190",
+    ]);
+  });
+
+  it("advances Entrada to Tentando on call and refuses to leave R1 from the ficha", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Empresa Call",
+      cnpj: "11111111000191",
+    });
+    const afterCall = await advanceCrmOnCall(mockRepo, {
+      userId: USER,
+      cnpj: "11111111000191",
+    });
+    expect(afterCall?.stageKey).toBe("tentando_contato");
+    const again = await advanceCrmOnCall(mockRepo, {
+      userId: USER,
+      cnpj: "11111111000191",
+    });
+    expect(again?.stageKey).toBe("tentando_contato");
+
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const r1 = board!.stages.find(
+      (stage) => stage.canonical_key === "reuniao_realizada",
+    )!;
+    await mockRepo.moveCrmDeal(USER, created!.id, r1.id, 0);
+    const refused = await moveLeadCrmFromFicha(mockRepo, {
+      userId: USER,
+      cnpj: "11111111000191",
+      search: null,
+      targetKey: "entrada",
+    });
+    expect(refused.crm?.stageKey).toBe("reuniao_realizada");
+    expect(refused.crm?.pastFirstMile).toBe(true);
+  });
 });
 
 describe("seeded telemetry mix", () => {
@@ -97,8 +171,9 @@ describe("seeded telemetry mix", () => {
     );
     expect(pipeline).toBeTruthy();
     const board = await mockRepo.getCrmBoard(pipeline!.user_id, pipeline!.id);
+    const seedNow = new Date("2026-08-19T18:00:00.000Z");
     const signals = new Set(
-      board!.deals.map((deal) => activitySignal(deal.next_activity)),
+      board!.deals.map((deal) => activitySignal(deal.next_activity, seedNow)),
     );
     expect(signals.has("none")).toBe(true);
     expect(signals.has("today")).toBe(true);

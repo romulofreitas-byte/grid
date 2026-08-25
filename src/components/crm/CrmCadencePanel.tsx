@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { COPY } from "@/lib/copy";
+import { isLockedStageKey } from "@/lib/crm/cadence";
 import { CRM_FIELD, CRM_LABEL, sectorLabel } from "@/lib/crm/client";
 import type { CrmDealCard, CrmStage } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
@@ -106,7 +107,9 @@ export function CrmCadencePanel({
                   <span>
                     {count} {count === 1 ? "negócio" : "negócios"}
                   </span>
-                  {stages.length > 1 ? (
+                  {isLockedStageKey(stage.canonical_key) ? (
+                    <span>{COPY.crmFirstMileLocked}</span>
+                  ) : stages.length > 1 ? (
                     <button
                       type="button"
                       onClick={() => {

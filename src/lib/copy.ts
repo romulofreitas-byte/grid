@@ -152,7 +152,7 @@ export const COPY = {
   crmAddSecretary: "Adicionar secretária",
   crmCadenceTitle: "Cadência",
   crmCadenceHint:
-    "Renomeie, reordene ou tire faixas. Negócios de uma faixa apagada vão para outra — não somem.",
+    "Renomeie ou reordene. As faixas da ficha e Descartado ficam — dá para mudar o nome, não apagar.",
   crmAddStage: "Nova faixa",
   crmDeleteStage: "Excluir faixa",
   crmMoveDealsTo: "Mover negócios para",
@@ -163,6 +163,19 @@ export const COPY = {
   crmDeletePipelineWarn:
     "Isso apaga a pista e todos os negócios deste nicho.",
   crmDeletePipelineConfirm: "Apagar pista",
+  crmOpenPista: "Abrir pista",
+  crmOnGrid: "No CRM",
+  crmOpenDeal: "Abrir no CRM",
+  crmOpenFicha: "Abrir ficha",
+  crmQualifyToEnter: "Qualifique para entrar na pista.",
+  crmSaveListToEnter: "Salve a lista para os qualificados entrarem na pista.",
+  crmPastFirstMile: "A partir daqui a pista continua no CRM.",
+  crmFirstMileLocked: "Faixa da ficha — dá para renomear, não apagar.",
+  crmBoxTitle: "Abra a pista",
+  crmBoxBody:
+    "Leads qualificados entram sozinhos na pista do nicho. A ficha movimenta até a reunião; o restante fica no CRM.",
+  crmBoxCta: "Abrir CRM",
+  crmPistaPrefix: "Pista",
 } as const;
 
 export const PORTE_LABELS: Record<string, string> = {
