@@ -9,7 +9,7 @@ import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";
-import { isPoolExhaustedError } from "@/lib/data/pg";
+import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 export default async function CrmPage({
@@ -27,9 +27,7 @@ export default async function CrmPage({
         <GlassCard className="p-8">
           <p className="text-lg font-bold">Não deu para abrir a pista.</p>
           <p className="mt-3 text-sm text-podium-gray">
-            {isPoolExhaustedError(err)
-              ? "A pista está cheia agora. Tenta de novo em instantes."
-              : "Tente de novo em instantes."}
+            {userFacingDbBusyMessage(err)}
           </p>
         </GlassCard>
       </AppShell>

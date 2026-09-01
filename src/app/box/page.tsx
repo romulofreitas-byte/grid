@@ -9,7 +9,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
 import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { getRepo } from "@/lib/data";
-import { isPoolExhaustedError } from "@/lib/data/pg";
+import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
 import {
@@ -76,9 +76,7 @@ export default async function BoxPage() {
         <GlassCard className="p-8">
           <p className="text-lg font-bold">Não deu para carregar o Box.</p>
           <p className="mt-3 text-sm text-podium-gray">
-            {isPoolExhaustedError(err)
-              ? "A pista está cheia agora. Tenta de novo em instantes."
-              : "Tente de novo em instantes."}
+            {userFacingDbBusyMessage(err)}
           </p>
         </GlassCard>
       </AppShell>

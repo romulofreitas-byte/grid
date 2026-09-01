@@ -58,6 +58,38 @@ export function isSessionPoolerUrl(url: string): boolean {
   }
 }
 
+export function isPoolerUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname.includes("pooler");
+  } catch {
+    return /pooler/i.test(url);
+  }
+}
+
+/**
+ * Session-mode Supavisor caps at ~15 clients (EMAXCONNSESSION).
+ * Transaction mode (6543) multiplexes the app, worker, and local dev.
+ * SET LOCAL inside BEGIN/COMMIT still works. PG_SESSION_POOLER=1 keeps 5432.
+ */
+export function preferTransactionPoolerUrl(
+  url: string,
+  opts?: { keepSession?: boolean },
+): string {
+  if (opts?.keepSession || !isSessionPoolerUrl(url)) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.port = "6543";
+    parsed.searchParams.set("pgbouncer", "true");
+    return parsed.toString();
+  } catch {
+    const withPort = url.replace(/:5432(?=\/|\?|$)/, ":6543");
+    if (/[?&]pgbouncer=/i.test(withPort)) return withPort;
+    return withPort.includes("?")
+      ? `${withPort}&pgbouncer=true`
+      : `${withPort}?pgbouncer=true`;
+  }
+}
+
 /**
  * Session-mode Supavisor rejects extra clients with EMAXCONNSESSION (pool_size 15).
  * Vercel isolates each multiply max, so serverless stays at 1 per pool.
@@ -68,8 +100,9 @@ export function resolvePoolMax(kind: PgPoolKind, runtime: PgPoolRuntime): number
     return Math.min(8, Math.floor(override));
   }
   if (runtime.vercel) return 1;
+  if (isSessionPoolerUrl(runtime.databaseUrl)) return 1;
   if (runtime.railway) return kind === "search" ? 1 : 2;
-  if (isSessionPoolerUrl(runtime.databaseUrl)) return kind === "search" ? 1 : 2;
+  if (isPoolerUrl(runtime.databaseUrl)) return kind === "search" ? 1 : 2;
   return kind === "search" ? 5 : 8;
 }
 
@@ -78,17 +111,25 @@ export function isPoolExhaustedError(err: unknown): boolean {
   return /EMAXCONNSESSION|max clients reached/i.test(message);
 }
 
-/** Vercel isolates already multiply connections; one pool per isolate. */
-export function sharesPgPools(runtime: Pick<PgPoolRuntime, "vercel">): boolean {
-  return Boolean(runtime.vercel);
+export function userFacingDbBusyMessage(err: unknown): string {
+  return isPoolExhaustedError(err)
+    ? "A pista está cheia agora. Tenta de novo em instantes."
+    : "Tente de novo em instantes.";
+}
+
+/** Vercel isolates multiply connections; session pooler must not open two pools. */
+export function sharesPgPools(
+  runtime: Pick<PgPoolRuntime, "vercel" | "databaseUrl">,
+): boolean {
+  return Boolean(runtime.vercel) || isSessionPoolerUrl(runtime.databaseUrl ?? "");
 }
 
 export async function withPgRetry<T>(
   fn: () => Promise<T>,
   opts?: { attempts?: number; delayMs?: (attempt: number) => number },
 ): Promise<T> {
-  const attempts = opts?.attempts ?? 4;
-  const delayMs = opts?.delayMs ?? ((attempt) => 80 * 2 ** attempt);
+  const attempts = opts?.attempts ?? 6;
+  const delayMs = opts?.delayMs ?? ((attempt) => 200 * 2 ** attempt);
   let last: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
@@ -120,14 +161,21 @@ function poolOpts(statementTimeoutMs: number, kind: PgPoolKind) {
   const local = isLocalDatabaseHost(url);
   const runtime = currentPoolRuntime();
   const serverless = Boolean(runtime.vercel);
+  const keepSession = process.env.PG_SESSION_POOLER === "1";
+  const resolved = local ? url : preferTransactionPoolerUrl(url, { keepSession });
+  const pooler = isPoolerUrl(resolved) || isSessionPoolerUrl(url);
+  const usingTxPooler = resolved !== url || /:6543\b/.test(resolved);
   return {
-    connectionString: local ? url : connectionStringForPool(url),
+    connectionString: local ? url : connectionStringForPool(resolved),
     max: resolvePoolMax(kind, runtime),
     connectionTimeoutMillis: 8_000,
-    idleTimeoutMillis: serverless ? 4_000 : 20_000,
-    allowExitOnIdle: serverless,
+    idleTimeoutMillis: serverless || pooler ? 4_000 : 20_000,
+    allowExitOnIdle: serverless || pooler,
     ssl: local ? undefined : { rejectUnauthorized: false },
-    options: `-c statement_timeout=${statementTimeoutMs}`,
+    // Startup -c options are stripped/rejected by transaction-mode poolers.
+    options: usingTxPooler
+      ? undefined
+      : `-c statement_timeout=${statementTimeoutMs}`,
   };
 }
 

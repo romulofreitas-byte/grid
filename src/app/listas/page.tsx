@@ -3,6 +3,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { ListsBoard } from "@/components/ListsBoard";
 import { BACK } from "@/lib/back";
 import { getRepo } from "@/lib/data";
+import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
 import { redirect, unstable_rethrow } from "next/navigation";
 
@@ -14,12 +15,13 @@ export default async function ListasPage() {
   } catch (err) {
     unstable_rethrow(err);
     console.error("listas_page_error", err);
-    const message = err instanceof Error ? err.message : "erro desconhecido";
     return (
       <AppShell title="Listas">
         <GlassCard className="p-8">
           <p className="text-lg font-bold">Não deu para carregar as listas.</p>
-          <p className="mt-3 text-sm text-podium-gray">{message}</p>
+          <p className="mt-3 text-sm text-podium-gray">
+            {userFacingDbBusyMessage(err)}
+          </p>
         </GlassCard>
       </AppShell>
     );
@@ -34,13 +36,19 @@ async function ListasPageInner() {
   const searches = await repo.listRecentSearches(profile.id, {
     limit: LISTAS_LIMIT,
   });
-  const pipelines = await repo.listCrmPipelines(session.id);
+  let pipelineNomes: string[] = [];
+  try {
+    const pipelines = await repo.listCrmPipelines(session.id);
+    pipelineNomes = pipelines.map((pipeline) => pipeline.nome);
+  } catch (err) {
+    console.error("listas_pipelines_error", err);
+  }
 
   return (
     <AppShell title="Listas" back={BACK.box}>
       <ListsBoard
         initial={searches}
-        pipelineNomes={pipelines.map((pipeline) => pipeline.nome)}
+        pipelineNomes={pipelineNomes}
       />
     </AppShell>
   );

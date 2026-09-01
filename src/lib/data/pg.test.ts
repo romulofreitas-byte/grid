@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   isMissingOrUnpopulatedRelationError,
   isPoolExhaustedError,
+  isPoolerUrl,
   isSessionPoolerUrl,
   isStatementTimeoutError,
   isUndefinedTableError,
   isUnpopulatedRelationError,
   pgErrorCode,
+  preferTransactionPoolerUrl,
   resolvePoolMax,
   sharesPgPools,
+  userFacingDbBusyMessage,
   withPgRetry,
 } from "./pg";
 
@@ -76,12 +79,27 @@ describe("resolvePoolMax", () => {
     ).toBe(1);
   });
 
-  it("caps session pooler so app + worker fit in 15 clients", () => {
+  it("rewrites session pooler URLs to transaction mode", () => {
+    const session =
+      "postgresql://postgres.abc:x@aws-0-sa-east-1.pooler.supabase.com:5432/postgres";
+    const rewritten = preferTransactionPoolerUrl(session);
+    expect(rewritten).toContain(":6543/");
+    expect(rewritten).toContain("pgbouncer=true");
+    expect(preferTransactionPoolerUrl(session, { keepSession: true })).toBe(
+      session,
+    );
+    expect(isPoolerUrl(session)).toBe(true);
+    expect(
+      isPoolerUrl("postgresql://postgres.abc:x@db.abc.supabase.co:5432/postgres"),
+    ).toBe(false);
+  });
+
+  it("caps session pooler to one client so Vercel + worker + local fit", () => {
     const url =
       "postgresql://postgres.abc:x@aws-0-sa-east-1.pooler.supabase.com:5432/postgres";
-    expect(resolvePoolMax("short", { databaseUrl: url })).toBe(2);
+    expect(resolvePoolMax("short", { databaseUrl: url })).toBe(1);
     expect(resolvePoolMax("search", { databaseUrl: url })).toBe(1);
-    expect(resolvePoolMax("short", { databaseUrl: url, railway: true })).toBe(2);
+    expect(resolvePoolMax("short", { databaseUrl: url, railway: true })).toBe(1);
   });
 
   it("keeps larger local pools on direct Postgres", () => {
@@ -97,9 +115,27 @@ describe("resolvePoolMax", () => {
     ).toBe(5);
   });
 
-  it("shares one pool on Vercel so isolates do not double session clients", () => {
+  it("shares one pool on Vercel or session pooler", () => {
     expect(sharesPgPools({ vercel: true })).toBe(true);
     expect(sharesPgPools({ vercel: false })).toBe(false);
+    expect(
+      sharesPgPools({
+        vercel: false,
+        databaseUrl:
+          "postgresql://postgres.abc:x@aws-0-sa-east-1.pooler.supabase.com:5432/postgres",
+      }),
+    ).toBe(true);
+  });
+
+  it("hides pooler internals from the piloto", () => {
+    expect(
+      userFacingDbBusyMessage(
+        new Error(
+          "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
+        ),
+      ),
+    ).toMatch(/pista está cheia/i);
+    expect(userFacingDbBusyMessage(new Error("boom"))).toMatch(/instantes/i);
   });
 });
 
