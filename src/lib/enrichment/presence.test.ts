@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { presenceBrandTokens } from "./confirm-domain";
 import {
+  gmbSearchQuery,
+  hitsFromSerperJson,
+  mapsAddressMatchesReceita,
+  mapsPhoneMatchesReceita,
   pickBestDomainHit,
+  pickBestMapsPlace,
   pickSocialHit,
   presenceQuery,
   scoreDomainHit,
   socialHitMatchesBrand,
+  socialHitMatchesLoose,
   titleMatchesCompany,
 } from "./presence";
 
@@ -174,6 +180,20 @@ describe("presenceQuery", () => {
       ),
     ).toBe('site:instagram.com "Colégio Genesis" Belo Horizonte MG');
   });
+
+  it("drops the site: operator on a web Instagram query", () => {
+    expect(
+      presenceQuery(
+        "instagram",
+        "Marmoraria Carvalho",
+        "MARMORARIA CARVALHO LTDA",
+        "Itauna",
+        "MG",
+        null,
+        "web",
+      ),
+    ).toBe('"Marmoraria Carvalho" Instagram Itauna MG');
+  });
 });
 
 describe("pickBestDomainHit", () => {
@@ -224,5 +244,142 @@ describe("pickBestDomainHit", () => {
         "Belo Horizonte",
       ),
     ).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("Maps × Receita matching", () => {
+  const silva = {
+    nomeFantasia: "DISTRIBUIDORA SILVA",
+    razaoSocial: "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
+    municipio: "Contagem",
+    uf: "MG",
+    logradouro: "Rua das Palmeiras",
+    numero: "100",
+    phones: [{ ddd: "31", telefone: "33331111" }],
+  };
+
+  it("matches Maps phone to Receita DDD + number", () => {
+    expect(
+      mapsPhoneMatchesReceita("(31) 3333-1111", silva.phones),
+    ).toBe(true);
+    expect(
+      mapsPhoneMatchesReceita("(11) 4002-8922", silva.phones),
+    ).toBe(false);
+  });
+
+  it("requires street name and number, not just the city", () => {
+    expect(
+      mapsAddressMatchesReceita(
+        "Rua das Palmeiras, 100 - Centro, Contagem - MG",
+        silva,
+      ),
+    ).toBe(true);
+    expect(
+      mapsAddressMatchesReceita("Centro, Contagem - MG, 32000-000", silva),
+    ).toBe(false);
+  });
+
+  it("ranks the place that matches Receita phone over the first result", () => {
+    const best = pickBestMapsPlace(
+      [
+        {
+          title: "Padaria do Centro",
+          website: "https://padaria.com.br",
+          address: "Av. João César, 1 - Contagem - MG",
+        },
+        {
+          title: "Auto Peças Silva",
+          phoneNumber: "(31) 3333-1111",
+          website: "https://silva-pecas.com.br",
+          address: "Rua das Palmeiras, 100 - Contagem - MG",
+        },
+      ],
+      silva,
+    );
+    expect(best?.place.website).toBe("https://silva-pecas.com.br");
+    expect(best?.match_by).toEqual(expect.arrayContaining(["phone", "address"]));
+  });
+
+  it("builds a GMB query with street", () => {
+    expect(gmbSearchQuery(silva)).toBe(
+      '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
+    );
+  });
+});
+
+describe("hitsFromSerperJson", () => {
+  it("pulls Instagram out of Knowledge Graph attributes and sitelinks", () => {
+    const hits = hitsFromSerperJson({
+      knowledgeGraph: {
+        title: "Colégio Genesis",
+        website: "https://colegiogenesis.com.br",
+        attributes: {
+          Instagram: "https://www.instagram.com/colegiogenesis/",
+        },
+      },
+      organic: [
+        {
+          link: "https://colegiogenesis.com.br/",
+          title: "Colégio Genesis BH",
+          snippet: "Siga no instagram.com/colegiogenesis",
+          sitelinks: [
+            {
+              title: "Facebook",
+              link: "https://www.facebook.com/colegiogenesis",
+            },
+          ],
+        },
+      ],
+    });
+    expect(hits.some((h) => h.via === "kg" && h.link.includes("instagram"))).toBe(
+      true,
+    );
+    expect(hits.some((h) => h.link.includes("facebook.com/colegiogenesis"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("socialHitMatchesLoose", () => {
+  it("accepts a weak-brand Instagram when title has ≥2 distinctive tokens", () => {
+    const hit = {
+      link: "https://instagram.com/distribuidorasilvacontagem",
+      title: "Distribuidora Silva Contagem",
+    };
+    expect(
+      socialHitMatchesBrand(
+        hit,
+        "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
+        "DISTRIBUIDORA SILVA",
+        "Contagem",
+      ),
+    ).toBe(false);
+    expect(
+      socialHitMatchesLoose(
+        hit,
+        "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
+        "DISTRIBUIDORA SILVA",
+        "Contagem",
+      ),
+    ).toBe(true);
+  });
+
+  it("still rejects @sagem for Distribuidora Silva", () => {
+    expect(
+      pickSocialHit(
+        [
+          {
+            link: "https://www.instagram.com/sagem/",
+            title: "Sage Michaels (@sagem)",
+          },
+        ],
+        "instagram.com",
+        "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
+        "DISTRIBUIDORA SILVA",
+        "Contagem",
+        [],
+        true,
+      ),
+    ).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { formatPhone } from "@/lib/format";
 import { parseInstagramHandle } from "@/lib/instagram";
 import type { LeadEnrichment } from "@/lib/types";
+import { gmbListingCorroborated } from "@/lib/types";
 
 export type AuditGroup = "presenca" | "ferramentas";
 
@@ -301,16 +302,35 @@ function socialHint(
   return blocked;
 }
 
-function socialLiveHint(fonte: string | undefined, confirmed = true): string {
+function isSerperSocialFonte(fonte: string | undefined): boolean {
+  return fonte === "serper" || fonte === "serper_kg";
+}
+
+function socialLiveHint(
+  fonte: string | undefined,
+  confirmed = true,
+  corroborated = false,
+): string {
   if (fonte === "human") return "Inserido por você — não veio da Receita.";
   if (fonte === "site") return "Link encontrado no site confirmado.";
-  if (fonte === "serper" && !confirmed) {
+  if (isSerperSocialFonte(fonte) && corroborated) {
+    return "Correlacionado na busca e no Maps.";
+  }
+  if (isSerperSocialFonte(fonte) && !confirmed) {
     return "Candidato na busca — confirme o site para validar.";
   }
-  if (fonte === "serper") {
+  if (isSerperSocialFonte(fonte)) {
     return "Perfil correlacionado à marca na busca (título/handle).";
   }
   return "Perfil encontrado no site confirmado ou na busca com a marca.";
+}
+
+function serperCandidate(
+  fonte: string | undefined,
+  confirmed: boolean,
+  corroborated: boolean,
+): boolean {
+  return isSerperSocialFonte(fonte) && !confirmed && !corroborated;
 }
 
 function socialBlockedHint(asset: string): string {
@@ -468,6 +488,7 @@ export function emptyAuditSignals(): AuditSignal[] {
 
 export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
   const confirmed = e.domain_status === "confirmado";
+  const corroborated = gmbListingCorroborated(e.gmb);
   const year = new Date().getFullYear();
   const copyright = e.freshness.copyrightYear;
   const hasMeasurement = e.tech.metaPixel || e.tech.gtm;
@@ -543,10 +564,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       group: "presenca",
       ...MARK.instagram,
       found: Boolean(e.socials.instagram),
-      unverified:
-        Boolean(e.socials.instagram)
-          ? e.fonte.instagram?.fonte === "serper" && !confirmed
-          : !presenceSearched(e, "instagram") && !confirmed,
+      unverified: Boolean(e.socials.instagram)
+        ? serperCandidate(e.fonte.instagram?.fonte, confirmed, corroborated)
+        : !presenceSearched(e, "instagram") && !confirmed,
       href: absUrl(e.socials.instagram, "instagram.com"),
       openLabel: e.socials.instagram ? "Abrir Instagram" : null,
       value: instagramValue(e.socials.instagram),
@@ -554,7 +574,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.instagram),
         presenceSearched(e, "instagram"),
         confirmed,
-        socialLiveHint(e.fonte.instagram?.fonte, confirmed),
+        socialLiveHint(e.fonte.instagram?.fonte, confirmed, corroborated),
         "Não achei link de Instagram no site confirmado.",
         "Não achei Instagram no site nem na busca com a marca.",
         socialBlockedHint("Instagram"),
@@ -569,7 +589,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.facebook,
       found: Boolean(e.socials.facebook),
       unverified: Boolean(e.socials.facebook)
-        ? e.fonte.facebook?.fonte === "serper" && !confirmed
+        ? serperCandidate(e.fonte.facebook?.fonte, confirmed, corroborated)
         : !presenceSearched(e, "facebook"),
       href: absUrl(e.socials.facebook, "facebook.com"),
       openLabel: e.socials.facebook ? "Abrir Facebook" : null,
@@ -578,7 +598,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.facebook),
         presenceSearched(e, "facebook"),
         confirmed,
-        socialLiveHint(e.fonte.facebook?.fonte, confirmed),
+        socialLiveHint(e.fonte.facebook?.fonte, confirmed, corroborated),
         "Não achei link de Facebook no site confirmado.",
         "Não achei Facebook no site nem na busca com a marca.",
         socialBlockedHint("Facebook"),
@@ -590,7 +610,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.linkedin,
       found: Boolean(e.socials.linkedin),
       unverified: Boolean(e.socials.linkedin)
-        ? e.fonte.linkedin?.fonte === "serper" && !confirmed
+        ? serperCandidate(e.fonte.linkedin?.fonte, confirmed, corroborated)
         : !presenceSearched(e, "linkedin"),
       href: absUrl(e.socials.linkedin, "linkedin.com"),
       openLabel: e.socials.linkedin ? "Abrir LinkedIn" : null,
@@ -599,7 +619,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.linkedin),
         presenceSearched(e, "linkedin"),
         confirmed,
-        socialLiveHint(e.fonte.linkedin?.fonte, confirmed),
+        socialLiveHint(e.fonte.linkedin?.fonte, confirmed, corroborated),
         "Não achei link de LinkedIn no site confirmado.",
         "Não achei LinkedIn no site nem na busca com a marca.",
         socialBlockedHint("LinkedIn"),
@@ -611,7 +631,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.youtube,
       found: Boolean(e.socials.youtube),
       unverified: Boolean(e.socials.youtube)
-        ? e.fonte.youtube?.fonte === "serper" && !confirmed
+        ? serperCandidate(e.fonte.youtube?.fonte, confirmed, corroborated)
         : !presenceSearched(e, "youtube"),
       href: absUrl(e.socials.youtube, "youtube.com"),
       openLabel: e.socials.youtube ? "Abrir YouTube" : null,
@@ -620,7 +640,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         Boolean(e.socials.youtube),
         presenceSearched(e, "youtube"),
         confirmed,
-        socialLiveHint(e.fonte.youtube?.fonte, confirmed),
+        socialLiveHint(e.fonte.youtube?.fonte, confirmed, corroborated),
         "Não achei link de YouTube no site confirmado.",
         "Não achei YouTube no site nem na busca com a marca.",
         socialBlockedHint("YouTube"),
@@ -638,7 +658,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       hint: e.gmb?.matched
         ? e.fonte.gmb?.fonte === "human"
           ? "Ficha inserida por você — não veio da Receita."
-          : "Ficha do Google Meu Negócio encontrada na busca."
+          : corroborated
+            ? "Cruzado com a Receita (endereço/telefone)."
+            : "Ficha do Google Meu Negócio encontrada na busca."
         : e.gmb
           ? e.fonte.gmb?.fonte === "human"
             ? "Você removeu a ficha desta qualificação."

@@ -189,6 +189,43 @@ describe("buildAuditSignals", () => {
     expect(candidate.hint).toMatch(/candidato/i);
   });
 
+  it("promotes Serper Instagram to live when Maps matches Receita address or phone", () => {
+    const live = byId(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        socials: { instagram: "https://instagram.com/distribuidorasilva" },
+        gmb: {
+          name: "Distribuidora Silva",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["phone"],
+        },
+        fonte: {
+          instagram: { fonte: "serper", coletado_em: "2026-08-19T12:00:00.000Z" },
+          gmb: { fonte: "serper", coletado_em: "2026-08-19T12:00:00.000Z" },
+        },
+      }),
+      "instagram",
+    );
+    expect(isAuditLive(live)).toBe(true);
+    expect(live.unverified).toBe(false);
+    expect(live.hint).toMatch(/maps/i);
+
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Distribuidora Silva",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["address", "phone"],
+        },
+      }),
+      "gmb",
+    );
+    expect(gmb.hint).toMatch(/receita/i);
+  });
+
   it("treats a human-corrected Instagram as found, not a candidate", () => {
     const live = byId(
       enrichment({

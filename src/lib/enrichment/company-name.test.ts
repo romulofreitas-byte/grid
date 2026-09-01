@@ -3,6 +3,7 @@ import {
   displayCompanyName,
   domainSearchQueries,
   searchableCompanyName,
+  companyMapsQuery,
 } from "./company-name";
 
 describe("displayCompanyName", () => {
@@ -53,5 +54,20 @@ describe("domainSearchQueries", () => {
         uf: "MG",
       }),
     ).toEqual(['"Clinica Sol" Belo Horizonte MG']);
+  });
+});
+
+describe("companyMapsQuery", () => {
+  it("includes street and number so the Maps button lands closer", () => {
+    expect(
+      companyMapsQuery({
+        nomeFantasia: "Marmoraria Carvalho",
+        razaoSocial: "MARMORARIA CARVALHO LTDA",
+        municipio: "Itauna",
+        uf: "MG",
+        logradouro: "Rua das Palmeiras",
+        numero: "120",
+      }),
+    ).toBe("Marmoraria Carvalho Rua das Palmeiras 120 Itauna MG");
   });
 });

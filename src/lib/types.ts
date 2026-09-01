@@ -37,11 +37,25 @@ export type EnrichmentStage =
   | "site"
   | "complete";
 
+export type GmbMatchBy = "title" | "address" | "phone";
+
 export type GmbListing = {
   name: string;
   url: string;
   matched: boolean;
+  /** How the listing was tied to the Receita record. Never stores Maps text. */
+  match_by?: GmbMatchBy[];
 };
+
+/** Address or phone on the Maps listing lines up with the Receita record. */
+export function gmbListingCorroborated(
+  listing: GmbListing | null | undefined,
+): boolean {
+  return Boolean(
+    listing?.matched &&
+      listing.match_by?.some((m) => m === "address" || m === "phone"),
+  );
+}
 
 export type EnrichmentJobPayload = {
   force?: boolean;

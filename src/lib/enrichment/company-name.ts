@@ -20,6 +20,28 @@ export function searchableCompanyName(
   return stripped || razaoSocial.trim();
 }
 
+/** Human Maps search query (no quotes) — street helps land on the right listing. */
+export function companyMapsQuery(input: {
+  nomeFantasia: string | null | undefined;
+  razaoSocial: string;
+  municipio: string;
+  uf: string;
+  logradouro?: string | null;
+  numero?: string | null;
+}): string {
+  const name = displayCompanyName(input.nomeFantasia, input.razaoSocial);
+  return [
+    name,
+    input.logradouro,
+    input.numero,
+    input.municipio,
+    input.uf,
+  ]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function domainSearchQueries(input: {
   nomeFantasia: string | null | undefined;
   razaoSocial: string;

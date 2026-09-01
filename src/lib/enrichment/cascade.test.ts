@@ -274,6 +274,146 @@ describe("enrichCompany crawl", () => {
     delete process.env.SERPER_API_KEY;
   });
 
+  it("searches Instagram for a weak brand when Maps phone matches Receita", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Padaria do Centro",
+                  website: "https://padaria-centro.com.br",
+                },
+                {
+                  title: "Loja do Bairro",
+                  phoneNumber: "(31) 3333-1111",
+                  website: "https://silva-maps.test",
+                  address: "Rua das Palmeiras, 100 - Contagem - MG",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://www.instagram.com/distribuidorasilvacontagem/",
+                  title: "Distribuidora Silva Contagem",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("silva-maps.test")) {
+          return htmlResponse("<html><body>Peças automotivas</body></html>");
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "DISTRIBUIDORA SILVA";
+    input.company.razao_social =
+      "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA";
+    input.municipioNome = "Contagem";
+    input.establishment.uf = "MG";
+    input.establishment.logradouro = "Rua das Palmeiras";
+    input.establishment.numero = "100";
+    input.establishment.ddd1 = "31";
+    input.establishment.telefone1 = "33331111";
+
+    const { row } = await enrichCompany(input);
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.gmb?.match_by).toEqual(expect.arrayContaining(["phone"]));
+    expect(row.socials.instagram).toContain("distribuidorasilvacontagem");
+    expect(row.fonte.instagram?.fonte).toBe("serper");
+    expect(row.fonte.instagram?.fonte).not.toBe("skipped_weak_brand");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("issues a web Instagram query when GMB is corroborated and site: misses", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const searchBodies: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Loja do Bairro",
+                  phoneNumber: "(31) 3333-1111",
+                  cid: "123",
+                  address: "Rua das Palmeiras, 100 - Contagem - MG",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          const body = String(init?.body ?? "");
+          searchBodies.push(body);
+          if (
+            body.includes("Instagram") &&
+            !body.includes("site:instagram.com")
+          ) {
+            return new Response(
+              JSON.stringify({
+                organic: [
+                  {
+                    link: "https://www.instagram.com/distribuidorasilvacontagem/",
+                    title: "Distribuidora Silva Contagem",
+                  },
+                ],
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } },
+            );
+          }
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "DISTRIBUIDORA SILVA";
+    input.company.razao_social =
+      "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA";
+    input.municipioNome = "Contagem";
+    input.establishment.logradouro = "Rua das Palmeiras";
+    input.establishment.numero = "100";
+    input.establishment.ddd1 = "31";
+    input.establishment.telefone1 = "33331111";
+
+    const { row } = await enrichCompany(input);
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.socials.instagram).toContain("distribuidorasilvacontagem");
+    expect(
+      searchBodies.some(
+        (body) =>
+          body.includes("Instagram") && !body.includes("site:instagram.com"),
+      ),
+    ).toBe(true);
+    delete process.env.SERPER_API_KEY;
+  });
+
   it("accepts Serper Instagram without site when brand token is strong", async () => {
     process.env.SERPER_API_KEY = "test";
     vi.stubGlobal(

@@ -17,6 +17,10 @@ import {
   searchGmb,
   searchSocialProfile,
   serperOrganic,
+  socialFonteFromHit,
+  socialsFromHits,
+  type GmbSearchInput,
+  type OrganicHit,
 } from "@/lib/enrichment/presence";
 import { pathAllowedByRobots } from "@/lib/enrichment/robots";
 import { detectCopyrightYear, detectTech, midiaPagaLabel } from "@/lib/enrichment/tech";
@@ -43,6 +47,7 @@ import type {
   SitePerson,
   TechSignals,
 } from "@/lib/types";
+import { gmbListingCorroborated } from "@/lib/types";
 
 export const GRID_USER_AGENT =
   "GridBot/1.0 (+https://grid.mundopodium.com.br/bot)";
@@ -215,6 +220,59 @@ export async function serperSearch(
   return null;
 }
 
+function receitaGmbInput(
+  est: Establishment,
+  company: Company,
+  municipioNome: string,
+): GmbSearchInput {
+  return {
+    nomeFantasia: est.nome_fantasia,
+    razaoSocial: company.razao_social,
+    municipio: municipioNome,
+    uf: est.uf,
+    logradouro: est.logradouro,
+    numero: est.numero,
+    phones: [
+      { ddd: est.ddd1, telefone: est.telefone1 },
+      { ddd: est.ddd2, telefone: est.telefone2 },
+    ],
+  };
+}
+
+function absorbSearchSocials(
+  hits: OrganicHit[],
+  brand: {
+    razaoSocial: string;
+    nomeFantasia: string | null;
+    municipio: string;
+  },
+  blockedLabels: string[],
+  allowWeakBrand: boolean,
+  bag: LeadEnrichment["socials"],
+  fonte: LeadEnrichment["fonte"],
+  collectedAt: string,
+): LeadEnrichment["socials"] {
+  const found = socialsFromHits(
+    hits,
+    brand.razaoSocial,
+    brand.nomeFantasia,
+    brand.municipio,
+    blockedLabels,
+    allowWeakBrand,
+  );
+  const next = { ...bag };
+  for (const platform of ["instagram", "facebook", "linkedin", "youtube"] as const) {
+    const url = found[platform];
+    if (!url || next[platform]) continue;
+    next[platform] = url;
+    fonte[platform] = {
+      fonte: socialFonteFromHit(hits, url),
+      coletado_em: collectedAt,
+    };
+  }
+  return next;
+}
+
 export type CascadeCompany = {
   establishment: Establishment;
   company: Company;
@@ -372,6 +430,9 @@ export async function enrichCompany(
     accountantHint: hasAccountantDomainHint(est.email),
   });
   if (providerHost) discarded.add(providerHost);
+  const blockedSocialLabels = providerHost
+    ? [providerHost.split(".")[0] ?? providerHost]
+    : [];
   const forceHost = options.forceConfirmDomain
     ? normalizeHost(options.forceConfirmDomain)
     : null;
@@ -498,6 +559,7 @@ export async function enrichCompany(
     nomeFantasia: est.nome_fantasia,
     municipio: input.municipioNome,
   };
+  const gmbInput = receitaGmbInput(est, input.company, input.municipioNome);
   const presencePlace = {
     nomeFantasia: est.nome_fantasia,
     razaoSocial: input.company.razao_social,
@@ -509,11 +571,13 @@ export async function enrichCompany(
     const serperStarted = Date.now();
     const exclude = [...discarded];
 
-    // GMB website is a high-confidence domain seed when the Maps title matches.
-    const gmbSeed = await searchGmb(presencePlace);
-    if (gmbSeed?.matched) {
+    // GMB website is a high-confidence domain seed when the listing matches Receita.
+    const gmbSeed = await searchGmb(gmbInput);
+    if (gmbSeed) {
       gmb = gmbSeed;
       fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+    }
+    if (gmbSeed?.matched) {
       const fromMaps = domainFromGmb(gmbSeed);
       if (
         fromMaps &&
@@ -533,16 +597,38 @@ export async function enrichCompany(
         municipio: input.municipioNome,
         uf: est.uf,
       });
+      const harvestWeak = gmbListingCorroborated(gmb);
       for (const q of queries) {
-        const found = await serperSearch(q, exclude, brand);
-        if (found) {
-          const host = normalizeHost(new URL(found).host);
-          if (discarded.has(host)) continue;
+        const hits = await serperOrganic(q);
+        socialsFromSearch = absorbSearchSocials(
+          hits,
+          brand,
+          blockedSocialLabels,
+          harvestWeak ||
+            presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
+              .length > 0,
+          socialsFromSearch,
+          fonte,
+          collected_at,
+        );
+        const best = pickBestDomainHit(
+          hits,
+          brand.razaoSocial,
+          brand.nomeFantasia,
+          brand.municipio,
+          exclude,
+        );
+        if (!best) continue;
+        try {
+          const host = normalizeHost(new URL(best.link).host);
+          if (discarded.has(host) || isDirectoryUrl(best.link)) continue;
           domain = host;
           fonte.domain = { fonte: "serper", coletado_em: collected_at };
           domain_status = "nao_confirmado";
           await emit(assemble("domain", { people: null }));
           break;
+        } catch {
+          continue;
         }
       }
     }
@@ -723,19 +809,27 @@ export async function enrichCompany(
     presencePlace.nomeFantasia,
     presencePlace.municipio,
   );
-  // Sem site: ainda busca social se a marca tiver token forte (Genesis).
-  // Marca fraca (Distribuidora Silva) só aceita social via site confirmado.
-  const canSearchSocialWithoutSite = strongBrandTokens.length > 0;
-  const blockedSocialLabels = providerHost
-    ? [providerHost.split(".")[0] ?? providerHost]
-    : [];
+
+  if (!gmb) {
+    const listing = await searchGmb(gmbInput);
+    gmb =
+      listing && listing.matched
+        ? listing
+        : { name: "", url: "", matched: false };
+    fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+  }
+
+  const gmbCorroborated = gmbListingCorroborated(gmb);
+  // Sem site: busca social com token forte, ou com Maps cruzado à Receita (marca fraca).
+  const canSearchSocialWithoutSite =
+    strongBrandTokens.length > 0 || gmbCorroborated;
 
   for (const step of socialSteps) {
     fonte.presence_scan = { fonte: step, coletado_em: collected_at };
     await emit(assemble("presence", snapExtras()));
     if (step === "gmb") {
-      if (!gmb?.matched) {
-        const listing = await searchGmb(presencePlace);
+      if (gmb == null) {
+        const listing = await searchGmb(gmbInput);
         gmb =
           listing && listing.matched
             ? listing
@@ -747,12 +841,23 @@ export async function enrichCompany(
     } else if (!siteConfirmed && !canSearchSocialWithoutSite) {
       fonte[step] = { fonte: "skipped_weak_brand", coletado_em: collected_at };
     } else if (!socialsFromSearch[step]) {
-      const found = await searchSocialProfile({
+      let found = await searchSocialProfile({
         platform: step,
         ...presencePlace,
         brandOverride,
         blockedLabels: blockedSocialLabels,
+        allowWeakBrand: gmbCorroborated,
       });
+      if (!found && step === "instagram" && gmbCorroborated) {
+        found = await searchSocialProfile({
+          platform: "instagram",
+          ...presencePlace,
+          brandOverride,
+          blockedLabels: blockedSocialLabels,
+          allowWeakBrand: true,
+          webQuery: true,
+        });
+      }
       if (found) socialsFromSearch = { ...socialsFromSearch, [step]: found };
       fonte[step] = {
         fonte: found ? "serper" : "serper_miss",
