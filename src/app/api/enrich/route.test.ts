@@ -10,8 +10,10 @@ const upsertEnrichment = vi.hoisted(() => vi.fn());
 const enqueueEnrichment = vi.hoisted(() => vi.fn());
 const setDomainCache = vi.hoisted(() => vi.fn());
 const getSearch = vi.hoisted(() => vi.fn());
+const classifyEnrichmentCnpjs = vi.hoisted(() => vi.fn());
 const drainJobsIfMock = vi.hoisted(() => vi.fn());
 const resolveJobScoreProfile = vi.hoisted(() => vi.fn());
+const bridgeQualifiedLeadsToCrm = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/api-guard", () => ({
   guardApi: (...args: unknown[]) => guardApi(...args),
@@ -34,7 +36,7 @@ vi.mock("@/lib/data", () => ({
     setDomainCache,
     getPreset: vi.fn(),
     listUnauditedCnpjs: vi.fn(),
-    classifyEnrichmentCnpjs: vi.fn(),
+    classifyEnrichmentCnpjs,
   }),
 }));
 
@@ -44,7 +46,7 @@ vi.mock("@/lib/enrichment/process-job", () => ({
 }));
 
 vi.mock("@/lib/crm/bridge", () => ({
-  bridgeQualifiedLeadsToCrm: vi.fn(),
+  bridgeQualifiedLeadsToCrm,
 }));
 
 import { POST } from "./route";
@@ -105,8 +107,10 @@ describe("POST /api/enrich action=correct", () => {
     enqueueEnrichment.mockReset();
     setDomainCache.mockReset();
     getSearch.mockReset();
+    classifyEnrichmentCnpjs.mockReset();
     drainJobsIfMock.mockReset();
     resolveJobScoreProfile.mockReset();
+    bridgeQualifiedLeadsToCrm.mockReset();
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     isCnpjBilled.mockResolvedValue(true);
     getSearch.mockResolvedValue(undefined);
@@ -195,5 +199,61 @@ describe("POST /api/enrich action=correct", () => {
       }),
     );
     expect(upsertEnrichment).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/enrich qualify bridge", () => {
+  beforeEach(() => {
+    guardApi.mockReset();
+    getSearch.mockReset();
+    classifyEnrichmentCnpjs.mockReset();
+    enqueueEnrichment.mockReset();
+    drainJobsIfMock.mockReset();
+    bridgeQualifiedLeadsToCrm.mockReset();
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    classifyEnrichmentCnpjs.mockResolvedValue({
+      chargeable: [],
+      skippedOptOut: 0,
+    });
+    enqueueEnrichment.mockResolvedValue({ queued: 1, skippedOptOut: 0 });
+  });
+
+  it("awaits the CRM bridge and returns the real pipelineId", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: true,
+      nome: "Padaria do Zé",
+      filtros: { cnpjs: ["00000000000000"], segmentIds: [] },
+    });
+    bridgeQualifiedLeadsToCrm.mockResolvedValue({
+      created: 1,
+      skipped: 0,
+      pipelineId: "pipe-1",
+      pipelineNome: "Meu nicho",
+    });
+    const res = await POST(
+      correctRequest({
+        searchId: "s1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      queued: 1,
+      crmBridge: {
+        created: 1,
+        pipelineId: "pipe-1",
+        pipelineNome: "Meu nicho",
+      },
+      crmPending: true,
+    });
+    expect(bridgeQualifiedLeadsToCrm).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: "u1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
   });
 });

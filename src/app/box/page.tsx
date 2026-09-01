@@ -9,6 +9,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
 import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { getRepo } from "@/lib/data";
+import { isPoolExhaustedError } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
 import {
@@ -75,7 +76,9 @@ export default async function BoxPage() {
         <GlassCard className="p-8">
           <p className="text-lg font-bold">Não deu para carregar o Box.</p>
           <p className="mt-3 text-sm text-podium-gray">
-            Tente de novo em instantes.
+            {isPoolExhaustedError(err)
+              ? "A pista está cheia agora. Tenta de novo em instantes."
+              : "Tente de novo em instantes."}
           </p>
         </GlassCard>
       </AppShell>
@@ -96,7 +99,7 @@ async function BoxPageInner() {
     billing.plano,
     { trialExpired: billing.trialExpired },
   );
-  const stats = await repo.getPilotStats(session.id);
+  const stats = await repo.getPilotStats(session.id, { includeNext: false });
   const cookieStore = await cookies();
   const workingSearchId =
     cookieStore.get(WORKING_SEARCH_COOKIE)?.value ?? null;
@@ -104,7 +107,10 @@ async function BoxPageInner() {
     repo.listRecentSearches(profile.id, { limit: BOX_PREVIEW_LIMIT }),
     repo.listSearches(profile.id, { limit: BOX_PREVIEW_LIMIT + 1 }),
     repo.listIntegrationConnections(session.id),
-    repo.hasCrmPipeline(session.id),
+    repo.hasCrmPipeline(session.id).catch((err) => {
+      console.error("box_has_crm_pipeline_error", err);
+      return false;
+    }),
   ]);
   const hasMoreSaved = savedPreview.length > BOX_PREVIEW_LIMIT;
   const allSaved = hasMoreSaved
@@ -121,9 +127,14 @@ async function BoxPageInner() {
     connections,
     hasCrmPipeline,
   });
-  const next = estrutura.pistaAberta
-    ? await repo.findNextCallLead(session.id, workingSearchId)
-    : null;
+  let next = null;
+  if (estrutura.pistaAberta) {
+    try {
+      next = await repo.findNextCallLead(session.id, workingSearchId);
+    } catch (err) {
+      console.error("box_next_call_error", err);
+    }
+  }
   const name = displayName(profile);
   const savedLists = allSaved.map((s) => ({ id: s.id, nome: s.nome }));
 

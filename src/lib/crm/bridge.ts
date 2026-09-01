@@ -13,9 +13,12 @@ export function resolveCrmPipelineNome(input: {
   segmentNome: string | null | undefined;
   intentQuery: string | null | undefined;
   searchNome: string;
+  cnpjOnly?: boolean;
 }): string {
   const segment = input.segmentNome?.trim();
   if (segment) return normalizePipelineNome(segment);
+
+  if (input.cnpjOnly) return DEFAULT_PIPELINE_NAME;
 
   const intent = input.intentQuery?.trim();
   if (intent && intent.length >= 2) return normalizePipelineNome(intent);
@@ -28,12 +31,42 @@ export function resolveCrmPipelineNome(input: {
   return DEFAULT_PIPELINE_NAME;
 }
 
+export function isCnpjOnlySearch(filtros: {
+  cnpjs?: string[];
+  segmentIds?: string[];
+  presetId?: string | null;
+}): boolean {
+  return (
+    (filtros.cnpjs?.length ?? 0) > 0 &&
+    !(filtros.segmentIds?.[0] || filtros.presetId)
+  );
+}
+
+export function pickDefaultCrmPipeline<T extends { deal_count: number }>(
+  pipelines: T[],
+): T | undefined {
+  if (!pipelines.length) return undefined;
+  const withDeals = pipelines.filter((pipeline) => pipeline.deal_count > 0);
+  if (!withDeals.length) return pipelines[0];
+  return withDeals.reduce((best, pipeline) =>
+    pipeline.deal_count > best.deal_count ? pipeline : best,
+  );
+}
+
 export function digitsCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "").padStart(14, "0");
 }
 
 export function pistaNomeForSearch(
-  search: { nome: string; filtros: { intentQuery?: string | null } },
+  search: {
+    nome: string;
+    filtros: {
+      intentQuery?: string | null;
+      cnpjs?: string[];
+      segmentIds?: string[];
+      presetId?: string | null;
+    };
+  },
   pipelineNomes: string[],
   segmentNome?: string | null,
 ): string | null {
@@ -42,6 +75,7 @@ export function pistaNomeForSearch(
     segmentNome,
     intentQuery: search.filtros.intentQuery,
     searchNome: search.nome,
+    cnpjOnly: isCnpjOnlySearch(search.filtros) && !segmentNome,
   });
   const hit = pipelineNomes.find(
     (nome) => nome.trim().toLowerCase() === resolved.toLowerCase(),
@@ -116,6 +150,7 @@ export async function bridgeQualifiedLeadsToCrm(
     segmentNome: preset?.nome,
     intentQuery: input.search.filtros.intentQuery,
     searchNome: input.search.nome,
+    cnpjOnly: isCnpjOnlySearch(input.search.filtros),
   });
 
   const pipelines = await repo.listCrmPipelines(input.userId);

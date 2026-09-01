@@ -24,11 +24,14 @@ import { cnaeMatchesQuery, presetMatchesQuery, queryTokens } from "@/lib/segment
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
+  COMPANY_NAME_SEARCH_TIMEOUT_MS,
   COMPANY_PREFIX_ENOUGH,
   COMPANY_SEARCH_LIMIT,
+  companyIlikeTokens,
   companyNameTokens,
   escapeIlike,
   isCompanyCnpjQuery,
+  mergeCompanyNameWaves,
   sqlFoldAccent,
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
@@ -56,6 +59,7 @@ import {
   pgErrorCode,
   query,
   querySearch,
+  querySearchWithTimeout,
 } from "@/lib/data/pg";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import {
@@ -2008,37 +2012,48 @@ async function attachDecisorsToCompanyHits(
   hits: CompanySearchHit[],
 ): Promise<CompanySearchHit[]> {
   if (!hits.length) return hits;
-  const basicos = [...new Set(hits.map((h) => h.cnpj.slice(0, 8)))];
-  const quals = await loadQuals();
-  const { rows } = await query(
-    `select * from partners where cnpj_basico = any($1::char(8)[])`,
-    [basicos],
-  );
-  const byBasico = new Map<string, Partner[]>();
-  for (const row of rows) {
-    const p = mapPartner(row);
-    const list = byBasico.get(p.cnpj_basico) ?? [];
-    list.push(p);
-    byBasico.set(p.cnpj_basico, list);
+  try {
+    const basicos = [...new Set(hits.map((h) => h.cnpj.slice(0, 8)))];
+    const quals = await loadQuals();
+    const { rows } = await query(
+      `select * from partners where cnpj_basico = any($1::char(8)[])`,
+      [basicos],
+    );
+    const byBasico = new Map<string, Partner[]>();
+    for (const row of rows) {
+      const p = mapPartner(row);
+      const list = byBasico.get(p.cnpj_basico) ?? [];
+      list.push(p);
+      byBasico.set(p.cnpj_basico, list);
+    }
+    return hits.map((h) => {
+      const partners = byBasico.get(h.cnpj.slice(0, 8)) ?? [];
+      const decisor = pickDecisor(partners, quals);
+      return { ...h, decisorNome: decisor?.nome ?? null };
+    });
+  } catch (err) {
+    console.warn("company_search_decisor_error", err);
+    return hits;
   }
-  return hits.map((h) => {
-    const partners = byBasico.get(h.cnpj.slice(0, 8)) ?? [];
-    const decisor = pickDecisor(partners, quals);
-    return { ...h, decisorNome: decisor?.nome ?? null };
-  });
 }
 
 function companySearchExtraSql(
   params: unknown[],
   ufs: string[],
   soMatriz: boolean,
+  alias: "e" | "es" = "e",
 ): string {
   const extra: string[] = [];
   if (ufs.length) {
-    params.push(ufs);
-    extra.push(`e.uf = any($${params.length}::text[])`);
+    if (alias === "es") {
+      params.push(ufChar2Params(ufs));
+      extra.push(`${alias}.uf = any($${params.length}::char(2)[])`);
+    } else {
+      params.push(ufs);
+      extra.push(`${alias}.uf = any($${params.length}::text[])`);
+    }
   }
-  if (soMatriz) extra.push("e.is_matriz = true");
+  if (soMatriz) extra.push(`${alias}.is_matriz = true`);
   return extra.length ? ` and ${extra.join(" and ")}` : "";
 }
 
@@ -2050,6 +2065,14 @@ const COMPANY_HIT_SELECT = `select e.cnpj, c.razao_social, e.nome_fantasia,
        join companies c on c.cnpj_basico = e.cnpj_basico
        left join ref_municipio r on r.id = e.municipio_id
        left join ref_cnae rc on rc.codigo = e.cnae_principal`;
+
+const COMPANY_HIT_SELECT_FLAT = `select es.cnpj, es.razao_social, es.nome_fantasia,
+              r.nome as municipio, es.uf, es.cnae_principal,
+              rc.descricao as cnae_descricao, es.ddd1, es.telefone1
+       from hits h
+       join establishments_search es on es.cnpj = h.cnpj
+       left join ref_municipio r on r.id = es.municipio_id
+       left join ref_cnae rc on rc.codigo = es.cnae_principal`;
 
 async function searchCompaniesByCnpj(
   queryText: string,
@@ -2079,7 +2102,77 @@ async function searchCompaniesByCnpj(
   return rows.map(mapCompanySearchHit);
 }
 
-async function searchCompaniesNameWave(
+async function runCompanyNameWave(
+  wave: () => Promise<CompanySearchHit[]>,
+  op: string,
+): Promise<{ hits: CompanySearchHit[]; timedOut: boolean }> {
+  try {
+    return { hits: await wave(), timedOut: false };
+  } catch (err) {
+    if (isStatementTimeoutError(err)) {
+      console.warn(
+        JSON.stringify({ event: "search_slow", op, timeout: true }),
+      );
+      return { hits: [], timedOut: true };
+    }
+    throw err;
+  }
+}
+
+async function searchCompaniesNameWaveFlat(
+  mode: "prefix" | "tokens",
+  queryText: string,
+  ufs: string[],
+  soMatriz: boolean,
+  limit: number,
+): Promise<CompanySearchHit[]> {
+  const tokens = companyIlikeTokens(queryText);
+  if (!tokens.length) return [];
+  const phrase = tokens.join(" ");
+  const razao = "es.razao_social";
+  const fantasia = "coalesce(es.nome_fantasia, '')";
+  const params: unknown[] = [phrase];
+  const tokenSql: string[] = [];
+  for (const token of tokens) {
+    params.push(`%${escapeIlike(token)}%`);
+    const p = `$${params.length}`;
+    tokenSql.push(
+      `(${razao} ilike ${p} escape '\\' or ${fantasia} ilike ${p} escape '\\')`,
+    );
+  }
+  const tokenWhere = tokenSql.join(" and ");
+  let prefixSql = "";
+  if (mode === "prefix") {
+    params.push(`${escapeIlike(phrase)}%`);
+    const p = `$${params.length}`;
+    prefixSql = `and (${razao} ilike ${p} escape '\\' or ${fantasia} ilike ${p} escape '\\')`;
+  }
+  const extra = companySearchExtraSql(params, ufs, soMatriz, "es");
+  params.push(limit);
+  const limitRef = `$${params.length}`;
+  const { rows } = await querySearchWithTimeout<CompanyHitRow>(
+    `with hits as (
+       select es.cnpj
+       from establishments_search es
+       where ${tokenWhere}
+       ${prefixSql}
+       ${extra}
+       limit ${limitRef}
+     )
+     ${COMPANY_HIT_SELECT_FLAT}
+     order by
+       (${razao} ilike $1 || '%' escape '\\'
+         or ${fantasia} ilike $1 || '%' escape '\\') desc,
+       es.is_matriz desc,
+       greatest(similarity(${razao}, $1), similarity(${fantasia}, $1)) desc
+     limit ${limitRef}`,
+    params,
+    COMPANY_NAME_SEARCH_TIMEOUT_MS,
+  );
+  return rows.map(mapCompanySearchHit);
+}
+
+async function searchCompaniesNameWaveLegacy(
   mode: "prefix" | "tokens",
   queryText: string,
   ufs: string[],
@@ -2118,7 +2211,7 @@ async function searchCompaniesNameWave(
   const extra = companySearchExtraSql(params, ufs, soMatriz);
   params.push(limit);
   const limitRef = `$${params.length}`;
-  const { rows } = await querySearch<CompanyHitRow>(
+  const { rows } = await querySearchWithTimeout<CompanyHitRow>(
     `with hits as (
        (
          select e.cnpj
@@ -2150,6 +2243,7 @@ async function searchCompaniesNameWave(
        ) desc
      limit ${limitRef}`,
     params,
+    COMPANY_NAME_SEARCH_TIMEOUT_MS,
   );
   return rows.map(mapCompanySearchHit);
 }
@@ -2160,31 +2254,38 @@ async function searchCompaniesByName(
   soMatriz: boolean,
   limit: number,
 ): Promise<CompanySearchHit[]> {
-  const prefixHits = await searchCompaniesNameWave(
-    "prefix",
-    queryText,
-    ufs,
-    soMatriz,
-    limit,
-  );
-  if (prefixHits.length >= COMPANY_PREFIX_ENOUGH) return prefixHits;
+  const sources: Array<"flat" | "legacy"> = [];
+  if (await hasEstablishmentsSearch()) sources.push("flat");
+  sources.push("legacy");
 
-  const containHits = await searchCompaniesNameWave(
-    "tokens",
-    queryText,
-    ufs,
-    soMatriz,
-    limit,
-  );
-  const seen = new Set(prefixHits.map((h) => h.cnpj));
-  const merged = [...prefixHits];
-  for (const hit of containHits) {
-    if (seen.has(hit.cnpj)) continue;
-    seen.add(hit.cnpj);
-    merged.push(hit);
-    if (merged.length >= limit) break;
+  for (let i = 0; i < sources.length; i++) {
+    const source = sources[i]!;
+    const wave =
+      source === "flat"
+        ? searchCompaniesNameWaveFlat
+        : searchCompaniesNameWaveLegacy;
+    try {
+      const prefix = await runCompanyNameWave(
+        () => wave("prefix", queryText, ufs, soMatriz, limit),
+        `searchCompanies.prefix.${source}`,
+      );
+      if (prefix.timedOut) return [];
+      if (prefix.hits.length >= COMPANY_PREFIX_ENOUGH) return prefix.hits;
+
+      const contain = await runCompanyNameWave(
+        () => wave("tokens", queryText, ufs, soMatriz, limit),
+        `searchCompanies.tokens.${source}`,
+      );
+      if (contain.timedOut) return prefix.hits;
+      return mergeCompanyNameWaves(prefix.hits, contain.hits, limit);
+    } catch (err) {
+      const canFallback =
+        i < sources.length - 1 && isMissingOrUnpopulatedRelationError(err);
+      if (canFallback) continue;
+      throw err;
+    }
   }
-  return merged;
+  return [];
 }
 
 export const supabaseRepo: GridRepo = {
@@ -2359,10 +2460,18 @@ export const supabaseRepo: GridRepo = {
     const soMatriz = Boolean(opts?.soMatriz);
     const started = Date.now();
     let hits: CompanySearchHit[];
-    if (isCompanyCnpjQuery(queryText)) {
-      hits = await searchCompaniesByCnpj(queryText, ufs, soMatriz, limit);
-    } else {
-      hits = await searchCompaniesByName(queryText, ufs, soMatriz, limit);
+    try {
+      if (isCompanyCnpjQuery(queryText)) {
+        hits = await searchCompaniesByCnpj(queryText, ufs, soMatriz, limit);
+      } else {
+        hits = await searchCompaniesByName(queryText, ufs, soMatriz, limit);
+      }
+    } catch (err) {
+      if (isStatementTimeoutError(err)) {
+        logSearchDuration("searchCompanies", started, { n: 0, timeout: true });
+        return [];
+      }
+      throw err;
     }
     const withDecisor = await attachDecisorsToCompanyHits(hits);
     logSearchDuration("searchCompanies", started, { n: withDecisor.length });
@@ -3013,8 +3122,9 @@ export const supabaseRepo: GridRepo = {
     };
   },
 
-  async getPilotStats(userId) {
+  async getPilotStats(userId, opts) {
     const profile = await this.getProfile(userId);
+    const includeNext = opts?.includeNext !== false;
     try {
       const { rows } = await query(
         `select created_at from call_events where user_id = $1`,
@@ -3022,11 +3132,19 @@ export const supabaseRepo: GridRepo = {
       );
       const stamps = rows.map((r) => isoStr(r.created_at));
       const today = saoPauloDay(new Date());
+      let proximaFicha = null;
+      if (includeNext) {
+        try {
+          proximaFicha = await this.findNextCallLead(userId);
+        } catch (err) {
+          console.error("pilot_stats_next_lead_error", err);
+        }
+      }
       return {
         hoje: stamps.filter((iso) => saoPauloDay(iso) === today).length,
         meta: profile.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
         sequencia: callStreak(stamps),
-        proximaFicha: await this.findNextCallLead(userId),
+        proximaFicha,
       };
     } catch (err) {
       if (isUndefinedTableError(err)) {

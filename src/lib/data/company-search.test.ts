@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   canSearchCompanies,
+  COMPANY_PREFIX_ENOUGH,
+  companyIlikeTokens,
   companyNameTokens,
   companySearchDigits,
   escapeIlike,
   isCompanyCnpjQuery,
   isFullCnpjQuery,
+  mergeCompanyNameWaves,
   sqlFoldAccent,
 } from "./company-search";
 
@@ -37,6 +40,28 @@ describe("company search helpers", () => {
       "grande",
     ]);
     expect(companyNameTokens("A B CD")).toEqual(["cd"]);
+  });
+
+  it("keeps accents on ILIKE tokens and skips the contain wave after a prefix hit", () => {
+    expect(companyIlikeTokens("Clínica Estética")).toEqual([
+      "Clínica",
+      "Estética",
+    ]);
+    expect(COMPANY_PREFIX_ENOUGH).toBe(1);
+    expect(
+      mergeCompanyNameWaves(
+        [{ cnpj: "1" }],
+        [{ cnpj: "2" }],
+        20,
+      ),
+    ).toEqual([{ cnpj: "1" }]);
+    expect(
+      mergeCompanyNameWaves(
+        [],
+        [{ cnpj: "2" }, { cnpj: "3" }],
+        20,
+      ),
+    ).toEqual([{ cnpj: "2" }, { cnpj: "3" }]);
   });
 
   it("detects a full 14-digit CNPJ", () => {

@@ -6,7 +6,7 @@ import { COMPANY_SEARCH_LIMIT } from "@/lib/data/company-search";
 import { getRepo } from "@/lib/data";
 import { dbUnavailableResponse } from "@/lib/data/db-api";
 
-export const maxDuration = 60;
+export const maxDuration = 15;
 
 export async function GET(req: Request) {
   const gated = await guardApi(req, "search");
@@ -21,8 +21,10 @@ export async function GET(req: Request) {
   const soMatriz = soMatrizRaw === "1" || soMatrizRaw === "true";
   const repo = getRepo();
   try {
-    const hits = await repo.searchCompanies(q, { ufs, soMatriz, limit: COMPANY_SEARCH_LIMIT });
-    const balance = await getBalance(gated.userId);
+    const [hits, balance] = await Promise.all([
+      repo.searchCompanies(q, { ufs, soMatriz, limit: COMPANY_SEARCH_LIMIT }),
+      getBalance(gated.userId),
+    ]);
     return NextResponse.json(redactCompanySearchHits(hits, balance.enrichAllowed));
   } catch (err) {
     return dbUnavailableResponse(err, "empresas_search");

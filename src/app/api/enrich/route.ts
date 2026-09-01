@@ -260,19 +260,32 @@ export async function POST(req: Request) {
   let crmBridge: Awaited<ReturnType<typeof bridgeQualifiedLeadsToCrm>> | null =
     null;
   if (search?.saved) {
-    void bridgeQualifiedLeadsToCrm(repo, {
-      userId,
-      search,
-      cnpjs,
-    }).catch((err) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      crmBridge = await Promise.race([
+        bridgeQualifiedLeadsToCrm(repo, {
+          userId,
+          search,
+          cnpjs,
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("crm_qualify_bridge_timeout")),
+            5_000,
+          );
+        }),
+      ]);
+    } catch (err) {
       console.error("crm_qualify_bridge_error", err);
-    });
-    crmBridge = {
-      created: 0,
-      skipped: 0,
-      pipelineId: null,
-      pipelineNome: null,
-    };
+      crmBridge = {
+        created: 0,
+        skipped: 0,
+        pipelineId: null,
+        pipelineNome: null,
+      };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   return NextResponse.json({ ...result, crmBridge, crmPending: Boolean(search?.saved) });

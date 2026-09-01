@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   digitsCnpj,
   normalizePipelineNome,
+  pickDefaultCrmPipeline,
   pistaNomeForSearch,
   resolveCrmPipelineNome,
 } from "./bridge";
@@ -44,6 +45,17 @@ describe("resolveCrmPipelineNome", () => {
       }),
     ).toBe(DEFAULT_PIPELINE_NAME);
   });
+
+  it("ignores CNAE/company names on a CNPJ-only avulsa list", () => {
+    expect(
+      resolveCrmPipelineNome({
+        segmentNome: null,
+        intentQuery: "Comércio varejista de mercadorias em geral",
+        searchNome: "Padaria do Zé",
+        cnpjOnly: true,
+      }),
+    ).toBe(DEFAULT_PIPELINE_NAME);
+  });
 });
 
 describe("pistaNomeForSearch", () => {
@@ -57,12 +69,39 @@ describe("pistaNomeForSearch", () => {
     );
   });
 
-  it("returns null when the pista was never created", () => {
+  it("maps a CNPJ-only list to Meu nicho", () => {
     const search = {
-      nome: "Lista · Padaria",
-      filtros: { intentQuery: "padaria" },
+      nome: "Padaria do Zé",
+      filtros: {
+        intentQuery: "Padaria e confeitaria",
+        cnpjs: ["12345678000190"],
+        segmentIds: [] as string[],
+      },
     };
-    expect(pistaNomeForSearch(search, ["Contábil"])).toBeNull();
+    expect(pistaNomeForSearch(search, [DEFAULT_PIPELINE_NAME, "Contábil"])).toBe(
+      DEFAULT_PIPELINE_NAME,
+    );
+  });
+});
+
+describe("pickDefaultCrmPipeline", () => {
+  it("prefers the pista with more deals over an empty first pista", () => {
+    expect(
+      pickDefaultCrmPipeline([
+        { id: "empty", deal_count: 0 },
+        { id: "busy", deal_count: 3 },
+        { id: "other", deal_count: 1 },
+      ])?.id,
+    ).toBe("busy");
+  });
+
+  it("falls back to the first pista when all are empty", () => {
+    expect(
+      pickDefaultCrmPipeline([
+        { id: "first", deal_count: 0 },
+        { id: "second", deal_count: 0 },
+      ])?.id,
+    ).toBe("first");
   });
 });
 

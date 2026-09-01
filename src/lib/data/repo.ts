@@ -134,7 +134,10 @@ export type GridRepo = {
       source: CallEventSource;
     },
   ): Promise<boolean>;
-  getPilotStats(userId: string): Promise<PilotStats>;
+  getPilotStats(
+    userId: string,
+    opts?: { includeNext?: boolean },
+  ): Promise<PilotStats>;
   findNextCallLead(
     userId: string,
     searchId?: string | null,

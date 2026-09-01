@@ -9,7 +9,7 @@ import {
   leadStatusFromStageKey,
   type FichaMoveKey,
 } from "@/lib/crm/cadence";
-import { digitsCnpj, resolveCrmPipelineNome } from "@/lib/crm/bridge";
+import { digitsCnpj, isCnpjOnlySearch, resolveCrmPipelineNome } from "@/lib/crm/bridge";
 import type { LeadCrmFirstMileStage, LeadCrmState } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 import type { LeadStatus, Search } from "@/lib/types";
@@ -73,6 +73,7 @@ export async function preferredCrmPipelineId(
     segmentNome: preset?.nome,
     intentQuery: search.filtros.intentQuery,
     searchNome: search.nome,
+    cnpjOnly: isCnpjOnlySearch(search.filtros),
   });
   const pipelines = await repo.listCrmPipelines(userId);
   return (

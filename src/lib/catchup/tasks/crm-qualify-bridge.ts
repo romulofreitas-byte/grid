@@ -36,7 +36,13 @@ export async function runCrmQualifyBridge(
       cnpjs: opts.cnpjs,
       source: "catchup_bridge",
     });
-    return { created: out.created, skipped: out.skipped, hasMore: false };
+    return {
+      created: out.created,
+      skipped: out.skipped,
+      hasMore: false,
+      pipelineId: out.pipelineId,
+      pipelineNome: out.pipelineNome,
+    };
   }
 
   const limit = CATCHUP_BATCH_SIZE + 1;
@@ -55,6 +61,8 @@ export async function runCrmQualifyBridge(
 
   let created = 0;
   let skipped = 0;
+  let pipelineId: string | null = null;
+  let pipelineNome: string | null = null;
   for (const [searchId, cnpjs] of bySearch) {
     const search = await repo.getSearch(searchId);
     if (!search || !search.saved) {
@@ -69,8 +77,12 @@ export async function runCrmQualifyBridge(
     });
     created += out.created;
     skipped += out.skipped;
+    if (out.pipelineId && !pipelineId) {
+      pipelineId = out.pipelineId;
+      pipelineNome = out.pipelineNome;
+    }
   }
-  return { created, skipped, hasMore };
+  return { created, skipped, hasMore, pipelineId, pipelineNome };
 }
 
 export const crmQualifyBridgeTask: CatchUpTask = {

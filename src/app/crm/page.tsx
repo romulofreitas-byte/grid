@@ -7,6 +7,7 @@ import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
+import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";
 import { isPoolExhaustedError } from "@/lib/data/pg";
 import { redirect, unstable_rethrow } from "next/navigation";
@@ -84,7 +85,7 @@ async function CrmPageInner(sp: { pipeline?: string; deal?: string }) {
   const requested = sp.pipeline
     ? pipelines.find((pipeline) => pipeline.id === sp.pipeline)
     : null;
-  const first = requested ?? pipelines[0];
+  const first = requested ?? pickDefaultCrmPipeline(pipelines) ?? null;
   const board = first
     ? await repo.getCrmBoard(session.id, first.id)
     : null;

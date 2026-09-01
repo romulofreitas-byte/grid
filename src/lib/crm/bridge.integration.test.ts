@@ -190,4 +190,67 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(out.created).toBe(50);
     expect(repo.getDossier).not.toHaveBeenCalled();
   });
+
+  it("lands a CNPJ-only avulsa list on Meu nicho instead of the CNAE name", async () => {
+    const pipeline: CrmPipelineSummary = {
+      id: "pipe-default",
+      user_id: "user-1",
+      nome: "Meu nicho",
+      position: 0,
+      created_at: new Date().toISOString(),
+      deal_count: 0,
+    };
+    const createCrmPipeline = vi.fn().mockResolvedValue(pipeline as CrmPipeline);
+    const createCrmDeal = vi.fn().mockResolvedValue({
+      id: "deal-avulsa",
+      pipeline_id: pipeline.id,
+      stage_id: "stage-1",
+      company_name: "Padaria do Zé",
+      contact_name: "",
+      secretaries: [],
+      phones: [],
+      notes: "",
+      cnpj: "12345678000190",
+      meta: { source: "qualify_bridge" },
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      next_activity: null,
+    } satisfies CrmDealCard);
+    const repo: CrmBridgeRepo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
+      createCrmPipeline,
+      findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
+      createCrmDeal,
+      getDossier: vi.fn().mockResolvedValue(null),
+      listCompanyBriefs: vi.fn().mockResolvedValue([
+        {
+          cnpj: "12345678000190",
+          razaoSocial: "PADARIA DO ZE LTDA",
+          nomeFantasia: "Padaria do Zé",
+          ddd1: "31",
+          telefone1: "33334444",
+          decisorNome: null,
+        },
+      ]),
+      getPreset: vi.fn().mockResolvedValue(null),
+    };
+
+    const out = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search({
+        nome: "Padaria do Zé",
+        filtros: {
+          ...DEFAULT_FILTERS,
+          cnpjs: ["12345678000190"],
+          segmentIds: [],
+          intentQuery: "Padaria e confeitaria",
+        },
+      }),
+      cnpjs: ["12345678000190"],
+    });
+    expect(out.created).toBe(1);
+    expect(out.pipelineNome).toBe("Meu nicho");
+    expect(createCrmPipeline).toHaveBeenCalledWith("user-1", "Meu nicho");
+  });
 });

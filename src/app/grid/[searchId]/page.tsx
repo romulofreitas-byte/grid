@@ -450,12 +450,16 @@ export default function GridPage() {
     onSuccess: (json, body) => {
       setCreditHint(null);
       const bridge = json.crmBridge;
-      if (bridge?.created && bridge.pipelineNome) {
-        setCrmHint(
-          bridge.created === 1
-            ? `1 lead no CRM · ${bridge.pipelineNome}`
-            : `${bridge.created} leads no CRM · ${bridge.pipelineNome}`,
-        );
+      if (bridge?.pipelineId) {
+        if (bridge.created) {
+          setCrmHint(
+            bridge.created === 1
+              ? `1 lead no CRM · ${bridge.pipelineNome ?? COPY.crmNav}`
+              : `${bridge.created} leads no CRM · ${bridge.pipelineNome ?? COPY.crmNav}`,
+          );
+        } else {
+          setCrmHint(COPY.crmOnGrid);
+        }
         setCrmPipelineId(bridge.pipelineId);
       } else if (!search?.saved) {
         setCrmHint(COPY.crmSaveListToEnter);
@@ -473,17 +477,28 @@ export default function GridPage() {
           }),
         })
           .then((res) => (res.ok ? res.json() : null))
-          .then((data: { created?: number } | null) => {
-            if (data?.created) {
-              setCrmHint(
-                data.created === 1
-                  ? COPY.crmCatchUpToastOne
-                  : COPY.crmCatchUpToastMany.replace("{n}", String(data.created)),
-              );
-            }
-            void qc.invalidateQueries({ queryKey: ["grid", searchId] });
-            void qc.invalidateQueries({ queryKey: ["lead"] });
-          })
+          .then(
+            (
+              data: {
+                created?: number;
+                pipelineId?: string | null;
+              } | null,
+            ) => {
+              if (data?.pipelineId) setCrmPipelineId(data.pipelineId);
+              if (data?.created) {
+                setCrmHint(
+                  data.created === 1
+                    ? COPY.crmCatchUpToastOne
+                    : COPY.crmCatchUpToastMany.replace(
+                        "{n}",
+                        String(data.created),
+                      ),
+                );
+              }
+              void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+              void qc.invalidateQueries({ queryKey: ["lead"] });
+            },
+          )
           .catch(() => undefined);
       }
       setSelected(new Set());

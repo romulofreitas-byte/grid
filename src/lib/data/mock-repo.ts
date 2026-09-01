@@ -1218,7 +1218,7 @@ export const mockRepo: GridRepo = {
     return null;
   },
 
-  async getPilotStats(userId) {
+  async getPilotStats(userId, opts) {
     const profile = await this.getProfile(userId);
     const events = getMockStore().call_events.filter((e) => e.user_id === userId);
     const stamps = events.map((e) => e.created_at);
@@ -1227,7 +1227,8 @@ export const mockRepo: GridRepo = {
       hoje: stamps.filter((iso) => saoPauloDay(iso) === today).length,
       meta: profile.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
       sequencia: callStreak(stamps),
-      proximaFicha: await this.findNextCallLead(userId),
+      proximaFicha:
+        opts?.includeNext === false ? null : await this.findNextCallLead(userId),
     };
   },
 

@@ -164,6 +164,37 @@ export async function querySearch<T extends QueryResultRow = QueryResultRow>(
   return withPgRetry(() => getSearchPool().query<T>(text, params));
 }
 
+/**
+ * Run a search query inside a transaction so SET LOCAL statement_timeout
+ * can cap one autocomplete without changing the pool's 60s default.
+ */
+export async function querySearchWithTimeout<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[],
+  timeoutMs = 4_000,
+): Promise<QueryResult<T>> {
+  const ms = Math.max(500, Math.min(15_000, Math.floor(timeoutMs)));
+  return withPgRetry(async () => {
+    const client = await getSearchPool().connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`SET LOCAL statement_timeout = ${ms}`);
+      const result = await client.query<T>(text, params);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        /* ignore */
+      }
+      throw err;
+    } finally {
+      client.release();
+    }
+  });
+}
+
 export async function endPool(): Promise<void> {
   if (globalForPg.__gridPool) {
     await globalForPg.__gridPool.end();

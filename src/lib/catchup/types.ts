@@ -6,6 +6,8 @@ export type CatchUpRunResult = {
   created: number;
   skipped: number;
   hasMore: boolean;
+  pipelineId?: string | null;
+  pipelineNome?: string | null;
 };
 
 export type CatchUpCandidate = {
