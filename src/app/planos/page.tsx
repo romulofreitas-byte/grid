@@ -5,6 +5,7 @@ import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { formatBrl, PACKS, PLANS } from "@/lib/billing/catalog";
+import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 import { cn } from "@/lib/utils";
 
 function checkoutHref(sku: string): string {
@@ -110,7 +111,7 @@ export default function PlanosPage() {
         <p className="text-sm font-bold text-podium-white">Membro da Plataforma</p>
         <p className="mt-2 text-sm text-podium-gray">
           Quem já assina o Mundo Pódium entra no nível Piloto por 30 dias, sem
-          pagar de novo no GRID. No checkout, use o cupom PILOTOPODIUM. Depois,
+          pagar de novo no GRID. No checkout, use o cupom {DEFAULT_PLATFORM_COUPON}. Depois,
           recarregue ou assine o Piloto.
         </p>
         <Link

@@ -17,6 +17,7 @@ import {
   getCatalogItem,
   type PaymentMethod,
 } from "@/lib/billing/catalog";
+import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 import type { BillingOrder } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,9 @@ function PagarInner() {
   const item = getCatalogItem(sku);
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [documento, setDocumento] = useState("");
-  const [coupon, setCoupon] = useState("");
+  const [coupon, setCoupon] = useState(
+    sku === "membro_plataforma" ? DEFAULT_PLATFORM_COUPON : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [order, setOrder] = useState<BillingOrder | null>(null);
@@ -281,7 +284,11 @@ function PagarInner() {
                     Cupom da Plataforma
                     <input
                       value={coupon}
-                      onChange={(e) => setCoupon(e.target.value)}
+                      onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+                      placeholder={DEFAULT_PLATFORM_COUPON}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
                       className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40"
                     />
                   </label>

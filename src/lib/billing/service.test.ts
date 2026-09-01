@@ -203,6 +203,32 @@ describe("billing service", () => {
     expect(me.subscription?.status).toBe("trialing");
   });
 
+  it("accepts PILOTOPODIUM when env still has the old PODIUM code", async () => {
+    process.env.BILLING_PLATFORM_COUPON = "PODIUM";
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "pilotopodium",
+    });
+    expect(order.status).toBe("paid");
+  });
+
+  it("activates the platform plan when the coupon env is unset", async () => {
+    delete process.env.BILLING_PLATFORM_COUPON;
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "membro_plataforma",
+      method: "pix",
+      coupon: "PILOTOPODIUM",
+    });
+    expect(order.status).toBe("paid");
+  });
+
   it("rejects platform coupon for non-subscribers", async () => {
     await expect(
       createCheckout({

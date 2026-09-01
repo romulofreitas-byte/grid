@@ -21,6 +21,7 @@ import {
   type PlanDefinition,
 } from "@/lib/billing/catalog";
 import { parseDocumento } from "@/lib/billing/document";
+import { isValidPlatformCoupon } from "@/lib/billing/platform-coupon";
 import { isPlatformSubscriber } from "@/lib/platform/subscribers";
 import { memoryBillingStore } from "@/lib/billing/memory-store";
 import { mockProvider } from "@/lib/billing/providers/mock";
@@ -261,8 +262,7 @@ export async function createCheckout(input: {
   await ensureStartingCredits(input.profileId);
 
   if (item.kind === "plan" && item.sku === "membro_plataforma") {
-    const coupon = process.env.BILLING_PLATFORM_COUPON?.trim();
-    if (!coupon || input.coupon?.trim() !== coupon) {
+    if (!isValidPlatformCoupon(input.coupon)) {
       throw new BillingError("Cupom da Plataforma inválido", 403);
     }
     const subscribed = await isPlatformSubscriber(input.email);
