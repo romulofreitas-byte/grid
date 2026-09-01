@@ -2737,7 +2737,7 @@ export const supabaseRepo: GridRepo = {
       telefone: hit.telefone,
       seal: "NAO_CONFIRMADO",
       sharedCount: 0,
-      decisorNome: hit.decisorNome,
+      decisorNome: hit.decisorNome ?? null,
       porte: null,
       email: null,
     };
