@@ -8,11 +8,29 @@ import {
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
 import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";
-import { drainJobsIfMock } from "@/lib/enrichment/process-job";
-import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import {
+  applyPresenceCorrection,
+  hasPresenceFields,
+  PresenceCorrectionError,
+} from "@/lib/enrichment/correct-presence";
+import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import {
+  drainJobsIfMock,
+  resolveJobScoreProfile,
+} from "@/lib/enrichment/process-job";
 import { z } from "zod";
 
 export const maxDuration = 60;
+
+const correctionsSchema = z.object({
+  domain: z.string().nullable().optional(),
+  instagram: z.string().nullable().optional(),
+  facebook: z.string().nullable().optional(),
+  linkedin: z.string().nullable().optional(),
+  youtube: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
+  gmb: z.string().nullable().optional(),
+});
 
 const schema = z
   .object({
@@ -20,9 +38,10 @@ const schema = z
     cnpjs: z.array(z.string()).optional(),
     scope: z.enum(["first_unaudited", "all_unaudited"]).optional(),
     limit: z.union([z.literal(10), z.literal(20), z.literal(50)]).optional(),
-    action: z.enum(["confirm", "reject"]).optional(),
+    action: z.enum(["confirm", "reject", "correct"]).optional(),
     domain: z.string().optional(),
     refresh: z.boolean().optional(),
+    corrections: correctionsSchema.optional(),
   })
   .refine(
     (d) => (d.cnpjs && d.cnpjs.length > 0) || d.scope || d.action || d.refresh,
@@ -31,9 +50,21 @@ const schema = z
   .refine((d) => !d.scope || Boolean(d.searchId), {
     message: "scope exige searchId",
   })
-  .refine((d) => !d.action || (d.cnpjs && d.cnpjs.length === 1 && d.domain), {
-    message: "confirm/reject exige um cnpj e domain",
-  })
+  .refine(
+    (d) => {
+      if (!d.action) return true;
+      if (d.action === "correct") {
+        return Boolean(
+          d.cnpjs &&
+            d.cnpjs.length === 1 &&
+            d.corrections &&
+            hasPresenceFields(d.corrections),
+        );
+      }
+      return Boolean(d.cnpjs && d.cnpjs.length === 1 && d.domain);
+    },
+    { message: "confirm/reject exige um cnpj e domain; correct exige corrections" },
+  )
   .refine((d) => !d.refresh || (d.cnpjs && d.cnpjs.length === 1), {
     message: "refresh exige exatamente um cnpj",
   });
@@ -73,7 +104,11 @@ export async function POST(req: Request) {
     }
   }
 
-  if (parsed.data.action && parsed.data.domain && parsed.data.cnpjs?.[0]) {
+  if (
+    (parsed.data.action === "confirm" || parsed.data.action === "reject") &&
+    parsed.data.domain &&
+    parsed.data.cnpjs?.[0]
+  ) {
     const cnpj = parsed.data.cnpjs[0].replace(/\D/g, "").padStart(14, "0");
     const store = await getBillingStore();
     const billed = await store.isCnpjBilled(userId, cnpj, "enrich");
@@ -96,6 +131,73 @@ export async function POST(req: Request) {
     });
     drainJobsIfMock();
     return NextResponse.json(result);
+  }
+
+  if (
+    parsed.data.action === "correct" &&
+    parsed.data.corrections &&
+    parsed.data.cnpjs?.[0]
+  ) {
+    const cnpj = parsed.data.cnpjs[0].replace(/\D/g, "").padStart(14, "0");
+    const store = await getBillingStore();
+    const billed = await store.isCnpjBilled(userId, cnpj, "enrich");
+    if (!billed) {
+      return NextResponse.json(
+        { error: "Qualifique a empresa antes de corrigir os ativos." },
+        { status: 400 },
+      );
+    }
+    const [enrichment, active] = await Promise.all([
+      repo.getEnrichment(cnpj),
+      repo.getLatestEnrichmentJob(cnpj),
+    ]);
+    if (active && (active.status === "pending" || active.status === "running")) {
+      return NextResponse.json(
+        { error: "Já existe uma qualificação em andamento para esta empresa." },
+        { status: 409 },
+      );
+    }
+    if (!enrichment || !isEnrichmentEverComplete(enrichment)) {
+      return NextResponse.json(
+        { error: "Qualifique a empresa antes de corrigir os ativos." },
+        { status: 400 },
+      );
+    }
+    let decided;
+    try {
+      const scoreProfile = await resolveJobScoreProfile(repo, searchId);
+      decided = applyPresenceCorrection(enrichment, parsed.data.corrections, {
+        scoreProfile,
+      });
+    } catch (err) {
+      if (err instanceof PresenceCorrectionError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+    if (decided.kind === "recrawl") {
+      const result = await repo.enqueueEnrichment({
+        cnpjs: [cnpj],
+        userId,
+        searchId,
+        force: true,
+        payload: {
+          force: true,
+          action: "confirm",
+          domain: decided.domain,
+        },
+      });
+      drainJobsIfMock();
+      return NextResponse.json({ ...result, recrawl: true });
+    }
+    await repo.upsertEnrichment(decided.row);
+    if (parsed.data.corrections.domain === null) {
+      await repo.setDomainCache(cnpj.slice(0, 8), null, "nao_encontrado");
+    }
+    return NextResponse.json({
+      recrawl: false,
+      enrichment: decided.row,
+    });
   }
 
   if (parsed.data.refresh && parsed.data.cnpjs?.[0]) {

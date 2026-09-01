@@ -94,6 +94,12 @@ export const COPY = {
   atualizarQualificacaoHint:
     "Mantém a qualificação atual e roda de novo a auditoria (site, redes e Maps). Consome 2 créditos — só quando você pedir.",
   atualizandoQualificacao: "Atualizando…",
+  corrigirQualificacao: "Corrigir",
+  inserirQualificacao: "Inserir",
+  limparQualificacao: "Limpar",
+  salvarQualificacao: "Salvar",
+  cancelarQualificacao: "Cancelar",
+  corrigirQualificacaoHint: "Correção sua — não veio da Receita.",
   qualificarFichaLead: "Cruzar site, redes e Maps com a Receita.",
   qualificarFichaLeadHint:
     "Sem crawl, dor digital e selos Confirmado/Atualizado ficam vazios — isso não significa que a empresa “não tem dor”.",

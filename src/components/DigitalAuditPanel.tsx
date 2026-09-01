@@ -19,6 +19,7 @@ import {
 } from "@/lib/audit/signals";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
+import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
 import type { LeadDossier, LeadEnrichment } from "@/lib/types";
@@ -166,6 +167,61 @@ function OpenLinks({
   );
 }
 
+const EDITABLE_PRESENCE = new Set([
+  "site",
+  "instagram",
+  "facebook",
+  "linkedin",
+  "youtube",
+  "gmb",
+  "whatsapp",
+]);
+
+type EditablePresenceId =
+  | "site"
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "youtube"
+  | "gmb"
+  | "whatsapp";
+
+const PRESENCE_PLACEHOLDER: Record<EditablePresenceId, string> = {
+  site: "domínio ou URL do site",
+  instagram: "URL ou @usuario",
+  facebook: "URL do Facebook",
+  linkedin: "URL do LinkedIn",
+  youtube: "URL do YouTube",
+  gmb: "URL do Google Meu Negócio",
+  whatsapp: "telefone ou wa.me",
+};
+
+function isEditablePresence(id: string): id is EditablePresenceId {
+  return EDITABLE_PRESENCE.has(id);
+}
+
+function presenceSeed(
+  id: EditablePresenceId,
+  enrichment: LeadEnrichment | null,
+): string {
+  if (!enrichment) return "";
+  if (id === "site") return enrichment.domain ?? "";
+  if (id === "instagram") return enrichment.socials.instagram ?? "";
+  if (id === "facebook") return enrichment.socials.facebook ?? "";
+  if (id === "linkedin") return enrichment.socials.linkedin ?? "";
+  if (id === "youtube") return enrichment.socials.youtube ?? "";
+  if (id === "gmb") return enrichment.gmb?.matched ? enrichment.gmb.url : "";
+  return enrichment.whatsapp ?? "";
+}
+
+function toPresenceCorrection(
+  id: EditablePresenceId,
+  value: string | null,
+): PresenceCorrection {
+  if (id === "site") return { domain: value };
+  return { [id]: value };
+}
+
 function SelectedSignalCard({
   signal,
   scanning,
@@ -175,6 +231,11 @@ function SelectedSignalCard({
   confirmPending,
   onConfirmSite,
   onRejectSite,
+  canCorrect,
+  correctPending,
+  correctError,
+  editSeed,
+  onCorrect,
 }: {
   signal: AuditSignal;
   scanning: boolean;
@@ -184,8 +245,30 @@ function SelectedSignalCard({
   confirmPending?: boolean;
   onConfirmSite?: () => void;
   onRejectSite?: () => void;
+  canCorrect?: boolean;
+  correctPending?: boolean;
+  correctError?: string | null;
+  editSeed?: string;
+  onCorrect?: (corrections: PresenceCorrection) => void;
 }) {
   const status = statusLabel(signal, scanning);
+  const field =
+    canCorrect && onCorrect && isEditablePresence(signal.id) ? signal.id : null;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(editSeed ?? "");
+  const pendingRef = useRef(false);
+
+  useEffect(() => {
+    setEditing(false);
+    setDraft(editSeed ?? "");
+  }, [signal.id, editSeed]);
+
+  useEffect(() => {
+    if (pendingRef.current && !correctPending && !correctError) {
+      setEditing(false);
+    }
+    pendingRef.current = Boolean(correctPending);
+  }, [correctPending, correctError]);
   return (
     <div
       ref={cardRef}
@@ -258,6 +341,76 @@ function SelectedSignalCard({
                 Não é
               </button>
             </p>
+          ) : null}
+          {field ? (
+            editing ? (
+              <form
+                className="mt-3 space-y-2"
+                onSubmit={(ev) => {
+                  ev.preventDefault();
+                  const value = draft.trim();
+                  if (!value) return;
+                  onCorrect?.(toPresenceCorrection(field, value));
+                }}
+              >
+                <input
+                  value={draft}
+                  onChange={(ev) => setDraft(ev.target.value)}
+                  placeholder={PRESENCE_PLACEHOLDER[field]}
+                  disabled={correctPending}
+                  className="h-9 w-full rounded-lg border border-white/15 bg-white/[0.04] px-3 text-sm text-podium-white placeholder:text-podium-muted focus:border-podium-yellow/50 focus:outline-none focus:ring-2 focus:ring-podium-yellow/30 disabled:opacity-50"
+                />
+                <p className="text-[11px] leading-snug text-podium-muted">
+                  {COPY.corrigirQualificacaoHint}
+                </p>
+                {correctError ? (
+                  <p className="text-xs text-amber-400">{correctError}</p>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={correctPending || !draft.trim()}
+                    className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+                  >
+                    {correctPending ? "Salvando…" : COPY.salvarQualificacao}
+                  </button>
+                  {isAuditLive(signal) || signal.found ? (
+                    <button
+                      type="button"
+                      disabled={correctPending}
+                      onClick={() =>
+                        onCorrect?.(toPresenceCorrection(field, null))
+                      }
+                      className="text-xs font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
+                    >
+                      {COPY.limparQualificacao}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={correctPending}
+                    onClick={() => {
+                      setEditing(false);
+                      setDraft(editSeed ?? "");
+                    }}
+                    className="text-xs font-semibold text-podium-muted hover:text-podium-gray disabled:opacity-40"
+                  >
+                    {COPY.cancelarQualificacao}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className="mt-2 text-[11px] leading-snug text-podium-muted">
+                <button
+                  type="button"
+                  disabled={correctPending}
+                  onClick={() => setEditing(true)}
+                  className="font-bold text-podium-yellow hover:underline disabled:opacity-40"
+                >
+                  {signal.found ? COPY.corrigirQualificacao : COPY.inserirQualificacao}
+                </button>
+              </p>
+            )
           ) : null}
         </div>
       </div>
@@ -395,6 +548,9 @@ export function DigitalAuditPanel({
   confirmPending = false,
   onConfirmSite,
   onRejectSite,
+  correctPending = false,
+  correctError = null,
+  onCorrectPresence,
   className,
 }: {
   enrichment: LeadEnrichment | null;
@@ -411,6 +567,9 @@ export function DigitalAuditPanel({
   confirmPending?: boolean;
   onConfirmSite?: (domain: string) => void;
   onRejectSite?: (domain: string) => void;
+  correctPending?: boolean;
+  correctError?: string | null;
+  onCorrectPresence?: (corrections: PresenceCorrection) => void;
   className?: string;
 }) {
   const reduce = useReducedMotion();
@@ -491,6 +650,11 @@ export function DigitalAuditPanel({
     !firstRunStreaming &&
     !refreshing &&
     enrichment?.domain_status === "nao_confirmado";
+  const canCorrect =
+    Boolean(onCorrectPresence) &&
+    complete &&
+    !firstRunStreaming &&
+    !refreshing;
 
   return (
     <GlassCard className={cn("p-5 hover:translate-y-0", className)}>
@@ -575,6 +739,15 @@ export function DigitalAuditPanel({
                     ? () => onRejectSite(enrichment.domain!)
                     : undefined
                 }
+                canCorrect={canCorrect}
+                correctPending={correctPending}
+                correctError={correctError}
+                editSeed={
+                  isEditablePresence(selected.id)
+                    ? presenceSeed(selected.id, enrichment)
+                    : ""
+                }
+                onCorrect={onCorrectPresence}
               />
             </motion.div>
           </AnimatePresence>

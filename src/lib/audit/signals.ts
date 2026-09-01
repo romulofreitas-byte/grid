@@ -302,6 +302,7 @@ function socialHint(
 }
 
 function socialLiveHint(fonte: string | undefined, confirmed = true): string {
+  if (fonte === "human") return "Inserido por você — não veio da Receita.";
   if (fonte === "site") return "Link encontrado no site confirmado.";
   if (fonte === "serper" && !confirmed) {
     return "Candidato na busca — confirme o site para validar.";
@@ -491,7 +492,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
           : siteSoftFail
             ? "Achei este domínio, mas a página não abriu agora. Confirme se é o site da empresa."
             : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
-        : "Sem site encontrado — dá para abrir a ligação por isso.";
+        : e.fonte.domain?.fonte === "human"
+          ? "Você removeu o site desta qualificação."
+          : "Sem site encontrado — dá para abrir a ligação por isso.";
 
   const atualizacao =
     !confirmed
@@ -633,9 +636,13 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       openLabel: e.gmb?.matched ? "Abrir ficha" : null,
       value: e.gmb?.matched ? e.gmb.name : e.gmb ? "NÃO ENCONTRADO" : "—",
       hint: e.gmb?.matched
-        ? "Ficha do Google Meu Negócio encontrada na busca."
+        ? e.fonte.gmb?.fonte === "human"
+          ? "Ficha inserida por você — não veio da Receita."
+          : "Ficha do Google Meu Negócio encontrada na busca."
         : e.gmb
-          ? "Busca no Google Meu Negócio não achou a ficha."
+          ? e.fonte.gmb?.fonte === "human"
+            ? "Você removeu a ficha desta qualificação."
+            : "Busca no Google Meu Negócio não achou a ficha."
           : "Qualifique para buscar o Google Meu Negócio.",
     }),
     signal({
@@ -648,7 +655,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       openLabel: e.whatsapp ? "Abrir WhatsApp" : null,
       value: whatsappValue(e.whatsapp),
       hint: e.whatsapp
-        ? "Canal de WhatsApp no site."
+        ? e.fonte.whatsapp?.fonte === "human"
+          ? "Número inserido por você — não veio da Receita."
+          : "Canal de WhatsApp no site."
         : confirmed
           ? "não achei um canal de WhatsApp no site de vocês."
           : "Só conferimos WhatsApp do site quando o domínio está confirmado.",

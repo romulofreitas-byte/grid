@@ -36,6 +36,7 @@ import type { FichaMoveKey } from "@/lib/crm/cadence";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
+import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import {
   fetchLeadDossier,
@@ -127,6 +128,7 @@ export default function LeadPage() {
   const [qualifyQueued, setQualifyQueued] = useState(false);
   const [refreshQueued, setRefreshQueued] = useState(false);
   const [qualifyError, setQualifyError] = useState<string | null>(null);
+  const [correctError, setCorrectError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [savingPista, setSavingPista] = useState(false);
   const heldCompleteRef = useRef<LeadEnrichment | null>(null);
@@ -136,6 +138,7 @@ export default function LeadPage() {
     setQualifyQueued(false);
     setRefreshQueued(false);
     setQualifyError(null);
+    setCorrectError(null);
     setCalling(false);
     heldCompleteRef.current = null;
   }, [params.cnpj]);
@@ -432,6 +435,49 @@ export default function LeadPage() {
     onError: (err: Error) => {
       setQualifyQueued(false);
       setQualifyError(err.message);
+    },
+  });
+  const correctPresenceMutation = useMutation({
+    mutationFn: async (corrections: PresenceCorrection) => {
+      const res = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(searchId ? { searchId } : {}),
+          cnpjs: [params.cnpj],
+          action: "correct",
+          corrections,
+        }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        recrawl?: boolean;
+      };
+      if (!res.ok) {
+        throw new Error(json.error ?? "Não foi possível corrigir a qualificação");
+      }
+      return json;
+    },
+    onMutate: (corrections) => {
+      setCorrectError(null);
+      if (corrections.domain != null && corrections.domain.trim()) {
+        setQualifyQueued(true);
+      }
+    },
+    onSuccess: (json) => {
+      void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
+      void qc.invalidateQueries({
+        queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
+      });
+      if (searchId) {
+        void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
+        void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      }
+      if (json.recrawl) setQualifyQueued(true);
+    },
+    onError: (err: Error) => {
+      setQualifyQueued(false);
+      setCorrectError(err.message);
     },
   });
 
@@ -748,6 +794,11 @@ export default function LeadPage() {
             }
             onRejectSite={(domain) =>
               confirmSiteMutation.mutate({ action: "reject", domain })
+            }
+            correctPending={correctPresenceMutation.isPending}
+            correctError={correctError}
+            onCorrectPresence={(corrections) =>
+              correctPresenceMutation.mutate(corrections)
             }
           />
         </div>

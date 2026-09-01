@@ -189,6 +189,23 @@ describe("buildAuditSignals", () => {
     expect(candidate.hint).toMatch(/candidato/i);
   });
 
+  it("treats a human-corrected Instagram as found, not a candidate", () => {
+    const live = byId(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        socials: { instagram: "https://instagram.com/acme.br" },
+        fonte: {
+          instagram: { fonte: "human", coletado_em: "2026-09-01T12:00:00.000Z" },
+        },
+      }),
+      "instagram",
+    );
+    expect(isAuditLive(live)).toBe(true);
+    expect(live.unverified).toBe(false);
+    expect(live.hint).toMatch(/inserido por você/i);
+  });
+
   it("formats WhatsApp and treats a missing channel as a gap on a confirmed site", () => {
     const found = byId(
       enrichment({
