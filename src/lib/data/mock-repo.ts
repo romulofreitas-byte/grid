@@ -1086,6 +1086,7 @@ export const mockRepo: GridRepo = {
         .find((j) => j.cnpj === lead.cnpj && j.search_id === searchId);
       const enrichment = store.lead_enrichment.find((e) => e.cnpj === lead.cnpj);
       const hasAudit = userOwnsAudit(store, search.user_id, lead.cnpj, searchId);
+      const completeAudit = hasAudit && isEnrichmentFresh(enrichment);
       const phone = overlayGridPhone(
         {
           telefone: primary ? `${primary.ddd}${primary.telefone}` : null,
@@ -1093,7 +1094,7 @@ export const mockRepo: GridRepo = {
           sharedCount: primary?.sharedCount ?? 0,
           sharedVerdict: primary?.sharedVerdict,
         },
-        hasAudit ? enrichment : null,
+        completeAudit ? enrichment : null,
       );
 
       return {
@@ -1113,7 +1114,7 @@ export const mockRepo: GridRepo = {
         email: est.email?.trim() || null,
         gridScore: lead.grid_score ?? 0,
         gridPosition: lead.grid_position ?? 0,
-        enrichmentStatus: job?.status ?? (hasAudit ? "done" : null),
+        enrichmentStatus: job?.status ?? (completeAudit ? "done" : null),
         hasAudit,
       };
     });

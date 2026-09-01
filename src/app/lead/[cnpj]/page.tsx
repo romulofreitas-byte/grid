@@ -35,7 +35,7 @@ import type {
 import type { FichaMoveKey } from "@/lib/crm/cadence";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
-import { displayCompanyName, companyMapsQuery } from "@/lib/enrichment/company-name";
+import { displayCompanyName, leadMapsHref } from "@/lib/enrichment/company-name";
 import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import {
@@ -512,15 +512,17 @@ export default function LeadPage() {
     connectionsQuery.data?.connections ?? [],
   );
   const companyTitle = displayCompanyName(est.nome_fantasia, company.razao_social);
-  const mapsQuery = companyMapsQuery({
-    nomeFantasia: est.nome_fantasia,
-    razaoSocial: company.razao_social,
-    municipio: d.municipioNome,
-    uf: est.uf,
-    logradouro: est.logradouro,
-    numero: est.numero,
-  });
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+  const mapsUrl = leadMapsHref(
+    {
+      nomeFantasia: est.nome_fantasia,
+      razaoSocial: company.razao_social,
+      municipio: d.municipioNome,
+      uf: est.uf,
+      logradouro: est.logradouro,
+      numero: est.numero,
+    },
+    displayEnrichment?.gmb,
+  );
   const primaryE164 = primary
     ? toE164(primary.ddd, primary.telefone)
     : null;

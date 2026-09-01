@@ -4,7 +4,7 @@ import {
   presenceBrandTokens,
 } from "@/lib/enrichment/confirm-domain";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
-import { searchableCompanyName } from "@/lib/enrichment/company-name";
+import { mapsCidUrl, searchableCompanyName } from "@/lib/enrichment/company-name";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { phonesMatch } from "@/lib/phone";
 import type { GmbListing, GmbMatchBy } from "@/lib/types";
@@ -74,9 +74,7 @@ function withHttp(raw: string): string {
 function mapsPlaceUrl(place: MapsPlace): string {
   if (place.website) return place.website;
   if (place.link) return place.link;
-  if (place.cid) {
-    return `https://www.google.com/maps?cid=${encodeURIComponent(place.cid)}`;
-  }
+  if (place.cid) return mapsCidUrl(place.cid);
   return "";
 }
 
@@ -152,7 +150,8 @@ export function scoreMapsPlace(
     match_by.push("phone");
     score += 4;
   }
-  return { score, match_by, matched: match_by.length > 0 };
+  const identity = match_by.includes("title") || match_by.includes("phone");
+  return { score, match_by, matched: identity };
 }
 
 export function pickBestMapsPlace(
@@ -634,6 +633,7 @@ export async function searchGmb(input: GmbSearchInput): Promise<GmbListing | nul
     url: mapsPlaceUrl(best.place),
     matched: true,
     match_by: best.match_by,
+    cid: best.place.cid ?? null,
   };
 }
 

@@ -4,6 +4,7 @@ import {
   domainSearchQueries,
   searchableCompanyName,
   companyMapsQuery,
+  leadMapsHref,
 } from "./company-name";
 
 describe("displayCompanyName", () => {
@@ -58,7 +59,7 @@ describe("domainSearchQueries", () => {
 });
 
 describe("companyMapsQuery", () => {
-  it("includes street and number so the Maps button lands closer", () => {
+  it("quotes the name so Maps does not snap to a nearby POI", () => {
     expect(
       companyMapsQuery({
         nomeFantasia: "Marmoraria Carvalho",
@@ -68,6 +69,29 @@ describe("companyMapsQuery", () => {
         logradouro: "Rua das Palmeiras",
         numero: "120",
       }),
-    ).toBe("Marmoraria Carvalho Rua das Palmeiras 120 Itauna MG");
+    ).toBe('"Marmoraria Carvalho" Rua das Palmeiras 120 Itauna MG');
+  });
+});
+
+describe("leadMapsHref", () => {
+  const query = {
+    nomeFantasia: "GRUPO ATOS",
+    razaoSocial: "GRUPO ATOS LTDA",
+    municipio: "Belo Horizonte",
+    uf: "MG",
+    logradouro: "Rua da Bahia",
+    numero: "2741",
+  };
+
+  it("deep-links to the matched listing cid", () => {
+    expect(
+      leadMapsHref(query, { matched: true, cid: "12345", url: "https://grupoatos.com" }),
+    ).toBe("https://www.google.com/maps?cid=12345");
+  });
+
+  it("falls back to a quoted search when Maps did not match", () => {
+    const href = leadMapsHref(query, { matched: false });
+    expect(href).toContain("google.com/maps/search");
+    expect(decodeURIComponent(href)).toContain('"GRUPO ATOS"');
   });
 });

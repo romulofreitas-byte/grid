@@ -117,6 +117,21 @@ export function resolveMarketPackForPonte(input: {
   cnaeDescricao: string;
   municipioNome: string;
 }): MarketPack {
+  const fromCnae = matchSlugFromCnae(input.cnaeDescricao);
+  if (fromCnae) {
+    const listIds = new Set(
+      [input.presetSlug, input.parentSlug].filter(
+        (slug): slug is string => Boolean(slug),
+      ),
+    );
+    const sameNiche =
+      listIds.has(fromCnae.slug) || listIds.has(fromCnae.parentSlug);
+    if (!sameNiche) {
+      const pack =
+        getMarketPack(fromCnae.slug) ?? getMarketPack(fromCnae.parentSlug);
+      if (pack) return interpolatePack(pack, input.municipioNome);
+    }
+  }
   return interpolatePack(pickMarketPack(input), input.municipioNome);
 }
 

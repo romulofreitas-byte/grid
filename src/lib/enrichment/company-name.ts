@@ -20,7 +20,7 @@ export function searchableCompanyName(
   return stripped || razaoSocial.trim();
 }
 
-/** Human Maps search query (no quotes) — street helps land on the right listing. */
+/** Human Maps search query — quoted name so Google does not snap to a nearby POI. */
 export function companyMapsQuery(input: {
   nomeFantasia: string | null | undefined;
   razaoSocial: string;
@@ -29,9 +29,9 @@ export function companyMapsQuery(input: {
   logradouro?: string | null;
   numero?: string | null;
 }): string {
-  const name = displayCompanyName(input.nomeFantasia, input.razaoSocial);
+  const name = displayCompanyName(input.nomeFantasia, input.razaoSocial).trim();
   return [
-    name,
+    name ? `"${name}"` : "",
     input.logradouro,
     input.numero,
     input.municipio,
@@ -40,6 +40,38 @@ export function companyMapsQuery(input: {
     .map((part) => part?.trim())
     .filter(Boolean)
     .join(" ");
+}
+
+export function companyMapsSearchUrl(input: Parameters<typeof companyMapsQuery>[0]): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(companyMapsQuery(input))}`;
+}
+
+export function mapsCidUrl(cid: string): string {
+  return `https://www.google.com/maps?cid=${encodeURIComponent(cid)}`;
+}
+
+export function mapsListingHref(
+  listing: { matched?: boolean; cid?: string | null; url?: string } | null | undefined,
+): string | null {
+  if (!listing?.matched) return null;
+  if (listing.cid) return mapsCidUrl(listing.cid);
+  return listing.url?.trim() || null;
+}
+
+/** Prefer a matched listing cid; otherwise a quoted search, not a naked neighborhood query. */
+export function leadMapsHref(
+  input: Parameters<typeof companyMapsQuery>[0],
+  listing?: { matched?: boolean; cid?: string | null; url?: string } | null,
+): string {
+  const fromListing = mapsListingHref(listing);
+  if (fromListing && listing?.cid) return fromListing;
+  if (
+    fromListing &&
+    /google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(fromListing)
+  ) {
+    return fromListing;
+  }
+  return companyMapsSearchUrl(input);
 }
 
 export function domainSearchQueries(input: {

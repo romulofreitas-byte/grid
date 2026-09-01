@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { gmbListingCorroborated } from "@/lib/types";
 import { presenceBrandTokens } from "./confirm-domain";
 import {
   gmbSearchQuery,
@@ -304,6 +305,59 @@ describe("Maps × Receita matching", () => {
     expect(gmbSearchQuery(silva)).toBe(
       '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
     );
+  });
+
+  it("rejects a neighbor listing that only shares the street address", () => {
+    const atos = {
+      nomeFantasia: "GRUPO ATOS",
+      razaoSocial: "GRUPO ATOS LTDA",
+      municipio: "Belo Horizonte",
+      uf: "MG",
+      logradouro: "Rua da Bahia",
+      numero: "2741",
+      phones: [{ ddd: "31", telefone: "92182314" }],
+    };
+    expect(
+      pickBestMapsPlace(
+        [
+          {
+            title: "Floricultura Via das Flores",
+            address: "Rua da Bahia, 2741 - Lourdes, Belo Horizonte - MG",
+            website: "https://viadasflores.com.br",
+          },
+        ],
+        atos,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("gmbListingCorroborated", () => {
+  it("accepts phone, or address together with title — never address-only", () => {
+    expect(
+      gmbListingCorroborated({
+        name: "X",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        match_by: ["address"],
+      }),
+    ).toBe(false);
+    expect(
+      gmbListingCorroborated({
+        name: "X",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        match_by: ["phone"],
+      }),
+    ).toBe(true);
+    expect(
+      gmbListingCorroborated({
+        name: "X",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        match_by: ["title", "address"],
+      }),
+    ).toBe(true);
   });
 });
 

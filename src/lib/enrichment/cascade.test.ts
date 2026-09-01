@@ -135,6 +135,23 @@ describe("domainFromEmail", () => {
       }),
     ).toBe("colegiogenesis.com.br");
   });
+
+  it("seeds Érica Rúbia and Grupo Atos from the Receita e-mail host", () => {
+    expect(
+      domainFromEmail("contato@ericarubia.com.br", {
+        razaoSocial: "ERICA RUBIA SAUDE ESTETICA LTDA",
+        nomeFantasia: "ERICA RUBIA CLINICA DE ESTETICA",
+        municipio: "Belo Horizonte",
+      }),
+    ).toBe("ericarubia.com.br");
+    expect(
+      domainFromEmail("marcosbreno@grupoatos.com", {
+        razaoSocial: "GRUPO ATOS LTDA",
+        nomeFantasia: "GRUPO ATOS",
+        municipio: "Belo Horizonte",
+      }),
+    ).toBe("grupoatos.com");
+  });
 });
 
 describe("enrichCompany crawl", () => {
@@ -527,9 +544,57 @@ describe("enrichCompany crawl", () => {
     delete process.env.SERPER_API_KEY;
   });
 
-  it("uses matched GMB website as domain seed before organic search", async () => {
+  it("uses matched GMB website as domain seed when organic search misses", async () => {
     process.env.SERPER_API_KEY = "test";
-    let organicCalls = 0;
+    const order: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          order.push("maps");
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Solaris Belo Horizonte",
+                  website: "https://www.solaris-gmb.com.br",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          order.push("search");
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("solaris-gmb.com.br")) {
+          return htmlResponse(`<html><body>Solaris CNPJ ${CNPJ}</body></html>`);
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    const { row } = await enrichCompany(input);
+    expect(order[0]).toBe("search");
+    expect(order).toContain("maps");
+    expect(order.indexOf("maps")).toBeGreaterThan(order.indexOf("search"));
+    expect(row.domain).toBe("solaris-gmb.com.br");
+    expect(row.fonte.domain?.fonte).toBe("gmb");
+    expect(row.domain_status).toBe("confirmado");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("prefers an organic brand hit over a GMB website", async () => {
+    process.env.SERPER_API_KEY = "test";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -548,16 +613,23 @@ describe("enrichCompany crawl", () => {
           );
         }
         if (href.includes("google.serper.dev/search")) {
-          organicCalls += 1;
-          return new Response(JSON.stringify({ organic: [] }), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://solaris-web.com.br",
+                  title: "Solaris Belo Horizonte",
+                  snippet: "Clínica Solaris",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
         }
         if (href.endsWith("/robots.txt")) {
           return new Response("User-agent: *\nAllow: /\n", { status: 200 });
         }
-        if (href.includes("solaris-gmb.com.br")) {
+        if (href.includes("solaris-web.com.br")) {
           return htmlResponse(`<html><body>Solaris CNPJ ${CNPJ}</body></html>`);
         }
         return htmlResponse("not found", 404);
@@ -566,11 +638,70 @@ describe("enrichCompany crawl", () => {
     const input = companyInput("unused.test");
     input.establishment.email = null;
     const { row } = await enrichCompany(input);
-    expect(row.domain).toBe("solaris-gmb.com.br");
-    expect(row.fonte.domain?.fonte).toBe("gmb");
-    expect(row.domain_status).toBe("confirmado");
-    // Organic may still run for social presence gaps, but domain came from GMB.
-    expect(organicCalls).toBeGreaterThanOrEqual(0);
+    expect(row.domain).toBe("solaris-web.com.br");
+    expect(row.fonte.domain?.fonte).toBe("serper");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("seeds the site from a correlated e-mail and does not take a neighbor GMB listing", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const requested: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        requested.push(href);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Floricultura Via das Flores",
+                  address: "Rua da Bahia, 2741 - Belo Horizonte - MG",
+                  website: "https://viadasflores.com.br",
+                  cid: "999",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("grupoatos.com")) {
+          return htmlResponse(
+            "<html><body>Grupo Atos CNPJ 12072240000180</body></html>",
+          );
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("grupoatos.com");
+    input.establishment.email = "marcosbreno@grupoatos.com";
+    input.establishment.nome_fantasia = "GRUPO ATOS";
+    input.company.razao_social = "GRUPO ATOS LTDA";
+    input.establishment.logradouro = "Rua da Bahia";
+    input.establishment.numero = "2741";
+    input.establishment.cnpj = "12072240000180";
+    const { row } = await enrichCompany(input);
+    expect(row.domain).toBe("grupoatos.com");
+    expect(row.fonte.domain?.fonte).toBe("email_receita");
+    expect(row.gmb?.matched).toBe(false);
+    const firstMaps = requested.findIndex((u) =>
+      u.includes("google.serper.dev/maps"),
+    );
+    const firstSite = requested.findIndex((u) => u.includes("grupoatos.com"));
+    expect(firstSite).toBeGreaterThanOrEqual(0);
+    if (firstMaps >= 0) {
+      expect(firstMaps).toBeGreaterThan(firstSite);
+    }
     delete process.env.SERPER_API_KEY;
   });
 

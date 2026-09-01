@@ -1,5 +1,6 @@
 import { formatPhone } from "@/lib/format";
 import { parseInstagramHandle } from "@/lib/instagram";
+import { mapsListingHref } from "@/lib/enrichment/company-name";
 import type { LeadEnrichment } from "@/lib/types";
 import { gmbListingCorroborated } from "@/lib/types";
 
@@ -652,7 +653,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.gmb,
       found: Boolean(e.gmb?.matched),
       unverified: e.gmb == null,
-      href: e.gmb?.matched ? e.gmb.url : null,
+      href: mapsListingHref(e.gmb),
       openLabel: e.gmb?.matched ? "Abrir ficha" : null,
       value: e.gmb?.matched ? e.gmb.name : e.gmb ? "NÃO ENCONTRADO" : "—",
       hint: e.gmb?.matched

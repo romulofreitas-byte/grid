@@ -1712,7 +1712,8 @@ async function overlayGridRows(
       seal: phone.seal,
       sharedCount: phone.sharedCount,
       sharedVerdict: phone.sharedVerdict,
-      enrichmentStatus: job?.status ?? (hasAudit ? "done" : row.enrichmentStatus),
+      enrichmentStatus:
+        job?.status ?? (enrichment ? "done" : row.enrichmentStatus),
       hasAudit,
     };
   });

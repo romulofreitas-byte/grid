@@ -34,6 +34,10 @@ import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
 import {
+  isGridRowQualified,
+  isGridRowQualifying,
+} from "@/lib/grid-qualify";
+import {
   fetchLeadDossier,
   gridRowToPreview,
   leadPreviewKey,
@@ -82,12 +86,8 @@ function jobChip(status: GridRow["enrichmentStatus"]) {
   return null;
 }
 
-function isQualifyingStatus(status: GridRow["enrichmentStatus"]) {
-  return status === "pending" || status === "running";
-}
-
 function isRowQualifying(row: GridRow, pendingCnpjs: Set<string>) {
-  return pendingCnpjs.has(row.cnpj) || isQualifyingStatus(row.enrichmentStatus);
+  return isGridRowQualifying(row, pendingCnpjs);
 }
 
 function resolveQualifyTargets(body: EnrichBody, rows: GridRow[]): string[] {
@@ -97,7 +97,7 @@ function resolveQualifyTargets(body: EnrichBody, rows: GridRow[]): string[] {
       !r.hasAudit &&
       r.enrichmentStatus !== "done" &&
       r.enrichmentStatus !== "skipped" &&
-      !isQualifyingStatus(r.enrichmentStatus),
+      !isRowQualifying(r, new Set()),
   );
   if (body.scope === "first_unaudited") {
     return unaudited.slice(0, body.limit ?? 10).map((r) => r.cnpj);
@@ -119,19 +119,24 @@ function rowCompanyMeta(row: GridRow): string {
   return parts.join(" · ");
 }
 
-function rowSourceLabel(row: GridRow): string {
+function rowSourceLabel(row: GridRow, qualifying: boolean): string {
+  if (qualifying) {
+    return jobChip(row.enrichmentStatus) ?? "cruzando";
+  }
   return jobChip(row.enrichmentStatus) ?? (row.hasAudit ? "Qualificado" : "Receita");
 }
 
 function RowSourceStatus({
   row,
+  qualifying,
   className,
 }: {
   row: GridRow;
+  qualifying: boolean;
   className?: string;
 }) {
-  const label = rowSourceLabel(row);
-  const qualified = label === "Qualificado" || label === "qualificado";
+  const label = rowSourceLabel(row, qualifying);
+  const qualified = isGridRowQualified(row, qualifying);
   if (qualified) return null;
   return (
     <p
@@ -201,10 +206,7 @@ function GridRowActions({
 }) {
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
-  const qualified =
-    row.hasAudit ||
-    row.enrichmentStatus === "done" ||
-    row.enrichmentStatus === "skipped";
+  const qualified = isGridRowQualified(row, qualifying);
   return (
     <div className="flex items-center gap-1 whitespace-nowrap">
       {qualified ? (
@@ -1018,6 +1020,8 @@ export default function GridPage() {
             {rows.map((row) => {
               const ddd = row.telefone?.slice(0, 2) ?? null;
               const tel = row.telefone?.slice(2) ?? null;
+              const qualifying = isRowQualifying(row, pendingCnpjs);
+              const qualified = isGridRowQualified(row, qualifying);
               return (
                 <tr
                   key={row.cnpj}
@@ -1034,7 +1038,7 @@ export default function GridPage() {
                       searchId={searchId}
                       callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
-                      qualifying={isRowQualifying(row, pendingCnpjs)}
+                      qualifying={qualifying}
                       canRemove={Boolean(search?.saved)}
                       onToggle={() => toggleRow(row)}
                       onRemove={() => void removeFromList(row.cnpj)}
@@ -1044,9 +1048,13 @@ export default function GridPage() {
                     <PositionBadge
                       position={row.gridPosition}
                       score={row.gridScore}
-                      hasAudit={row.hasAudit}
+                      hasAudit={qualified}
                     />
-                    <RowSourceStatus row={row} className="mt-1" />
+                    <RowSourceStatus
+                      row={row}
+                      qualifying={qualifying}
+                      className="mt-1"
+                    />
                   </td>
                   <td className="min-w-0 px-3 py-3 align-middle">
                     <GridCompanyLink
@@ -1104,6 +1112,8 @@ export default function GridPage() {
         {rows.map((row) => {
           const ddd = row.telefone?.slice(0, 2) ?? null;
           const tel = row.telefone?.slice(2) ?? null;
+          const qualifying = isRowQualifying(row, pendingCnpjs);
+          const qualified = isGridRowQualified(row, qualifying);
           return (
             <GlassCard
               key={row.cnpj}
@@ -1127,10 +1137,10 @@ export default function GridPage() {
                   <PositionBadge
                     position={row.gridPosition}
                     score={row.gridScore}
-                    hasAudit={row.hasAudit}
+                    hasAudit={qualified}
                   />
                 </div>
-                <RowSourceStatus row={row} />
+                <RowSourceStatus row={row} qualifying={qualifying} />
                 <p
                   className="mt-1 truncate text-xs text-podium-muted"
                   title={row.cnaeDescricao}
@@ -1165,7 +1175,7 @@ export default function GridPage() {
                     searchId={searchId}
                     callConnection={callConnection}
                     selected={selected.has(row.cnpj)}
-                    qualifying={isRowQualifying(row, pendingCnpjs)}
+                    qualifying={qualifying}
                     canRemove={Boolean(search?.saved)}
                     onToggle={() => toggleRow(row)}
                     onRemove={() => void removeFromList(row.cnpj)}

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mockRepo } from "./mock-repo";
 import { getMockStore } from "./mock-store";
+import { isGridRowQualified, isGridRowQualifying } from "@/lib/grid-qualify";
 
 const USER = "qualify-account-user";
 
@@ -47,6 +48,35 @@ describe("qualification belongs to the paying account", () => {
     const { rows, unaudited } = await mockRepo.listGridRows(search!.id);
     expect(rows[0]?.hasAudit).toBe(false);
     expect(unaudited).toBe(1);
+  });
+
+  it("does not show Qualificado while this account is billed and the job is still running", async () => {
+    const store = getMockStore();
+    const est = store.establishments[0]!;
+    const search = await mockRepo.createSavedCnpjSearch(USER, est.cnpj);
+    store.billed_cnpjs.push({
+      profile_id: USER,
+      cnpj: est.cnpj,
+      kind: "enrich",
+    });
+    store.enrichment_jobs.push({
+      id: 9001,
+      cnpj: est.cnpj,
+      requested_by: USER,
+      search_id: search!.id,
+      status: "running",
+      attempts: 1,
+      last_error: null,
+      locked_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      finished_at: null,
+    });
+    const { rows } = await mockRepo.listGridRows(search!.id);
+    expect(rows[0]?.hasAudit).toBe(true);
+    expect(rows[0]?.enrichmentStatus).toBe("running");
+    const qualifying = isGridRowQualifying(rows[0]!, new Set());
+    expect(qualifying).toBe(true);
+    expect(isGridRowQualified(rows[0]!, qualifying)).toBe(false);
   });
 });
 

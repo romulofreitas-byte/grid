@@ -571,64 +571,60 @@ export async function enrichCompany(
     const serperStarted = Date.now();
     const exclude = [...discarded];
 
-    // GMB website is a high-confidence domain seed when the listing matches Receita.
-    const gmbSeed = await searchGmb(gmbInput);
-    if (gmbSeed) {
-      gmb = gmbSeed;
-      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-    }
-    if (gmbSeed?.matched) {
-      const fromMaps = domainFromGmb(gmbSeed);
-      if (
-        fromMaps &&
-        !discarded.has(normalizeHost(fromMaps))
-      ) {
-        domain = fromMaps;
-        fonte.domain = { fonte: "gmb", coletado_em: collected_at };
+    const queries = domainSearchQueries({
+      nomeFantasia: est.nome_fantasia,
+      razaoSocial: input.company.razao_social,
+      municipio: input.municipioNome,
+      uf: est.uf,
+    });
+    const strongBrand =
+      presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
+        .length > 0;
+    for (const q of queries) {
+      const hits = await serperOrganic(q);
+      socialsFromSearch = absorbSearchSocials(
+        hits,
+        brand,
+        blockedSocialLabels,
+        strongBrand,
+        socialsFromSearch,
+        fonte,
+        collected_at,
+      );
+      const best = pickBestDomainHit(
+        hits,
+        brand.razaoSocial,
+        brand.nomeFantasia,
+        brand.municipio,
+        exclude,
+      );
+      if (!best) continue;
+      try {
+        const host = normalizeHost(new URL(best.link).host);
+        if (discarded.has(host) || isDirectoryUrl(best.link)) continue;
+        domain = host;
+        fonte.domain = { fonte: "serper", coletado_em: collected_at };
         domain_status = "nao_confirmado";
         await emit(assemble("domain", { people: null }));
+        break;
+      } catch {
+        continue;
       }
     }
 
     if (!domain) {
-      const queries = domainSearchQueries({
-        nomeFantasia: est.nome_fantasia,
-        razaoSocial: input.company.razao_social,
-        municipio: input.municipioNome,
-        uf: est.uf,
-      });
-      const harvestWeak = gmbListingCorroborated(gmb);
-      for (const q of queries) {
-        const hits = await serperOrganic(q);
-        socialsFromSearch = absorbSearchSocials(
-          hits,
-          brand,
-          blockedSocialLabels,
-          harvestWeak ||
-            presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
-              .length > 0,
-          socialsFromSearch,
-          fonte,
-          collected_at,
-        );
-        const best = pickBestDomainHit(
-          hits,
-          brand.razaoSocial,
-          brand.nomeFantasia,
-          brand.municipio,
-          exclude,
-        );
-        if (!best) continue;
-        try {
-          const host = normalizeHost(new URL(best.link).host);
-          if (discarded.has(host) || isDirectoryUrl(best.link)) continue;
-          domain = host;
-          fonte.domain = { fonte: "serper", coletado_em: collected_at };
+      const gmbSeed = await searchGmb(gmbInput);
+      if (gmbSeed) {
+        gmb = gmbSeed;
+        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+      }
+      if (gmbSeed?.matched) {
+        const fromMaps = domainFromGmb(gmbSeed);
+        if (fromMaps && !discarded.has(normalizeHost(fromMaps))) {
+          domain = fromMaps;
+          fonte.domain = { fonte: "gmb", coletado_em: collected_at };
           domain_status = "nao_confirmado";
           await emit(assemble("domain", { people: null }));
-          break;
-        } catch {
-          continue;
         }
       }
     }

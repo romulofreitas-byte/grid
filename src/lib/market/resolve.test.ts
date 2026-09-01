@@ -5,6 +5,7 @@ import {
   matchSlugFromCnae,
   pickMarketPack,
   resolveMarketBrief,
+  resolveMarketPackForPonte,
   seasonalHookActive,
 } from "./resolve";
 
@@ -48,6 +49,30 @@ describe("pack coverage", () => {
   it("has a pack for every parent niche in the taxonomy", () => {
     const missing = TAXONOMY.filter((n) => !getMarketPack(n.slug)).map((n) => n.slug);
     expect(missing).toEqual([]);
+  });
+});
+
+describe("resolveMarketPackForPonte", () => {
+  it("keeps the list pack when the CNAE is the same niche", () => {
+    const pack = resolveMarketPackForPonte({
+      presetSlug: "clinicas-estetica",
+      parentSlug: "estetica-e-beleza",
+      cnaeDescricao: "Atividades de estética e outros serviços de cuidados com a beleza",
+      municipioNome: "Belo Horizonte",
+    });
+    expect(pack.slug).toBe("clinicas-estetica");
+    expect(pack.pontePorSinal["sem-mensuracao"]).toMatch(/clínica de estética/i);
+  });
+
+  it("uses the CNAE pack when the lead is not the list niche", () => {
+    const pack = resolveMarketPackForPonte({
+      presetSlug: "clinicas-estetica",
+      parentSlug: "estetica-e-beleza",
+      cnaeDescricao: "Consultoria em gestão empresarial",
+      municipioNome: "Belo Horizonte",
+    });
+    expect(pack.slug).not.toBe("clinicas-estetica");
+    expect(pack.pontePorSinal["sem-mensuracao"]).not.toMatch(/clínica de estética/i);
   });
 });
 

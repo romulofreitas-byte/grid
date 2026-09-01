@@ -45,16 +45,18 @@ export type GmbListing = {
   matched: boolean;
   /** How the listing was tied to the Receita record. Never stores Maps text. */
   match_by?: GmbMatchBy[];
+  /** Google cid — deep-link to the listing, not a nearby search. */
+  cid?: string | null;
 };
 
-/** Address or phone on the Maps listing lines up with the Receita record. */
+/** Phone, or address together with a brand title — never address-only. */
 export function gmbListingCorroborated(
   listing: GmbListing | null | undefined,
 ): boolean {
-  return Boolean(
-    listing?.matched &&
-      listing.match_by?.some((m) => m === "address" || m === "phone"),
-  );
+  if (!listing?.matched) return false;
+  const by = listing.match_by ?? [];
+  if (by.includes("phone")) return true;
+  return by.includes("address") && by.includes("title");
 }
 
 export type EnrichmentJobPayload = {
