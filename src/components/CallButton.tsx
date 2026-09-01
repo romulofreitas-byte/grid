@@ -21,6 +21,7 @@ export function CallButton({
   variant = "grid",
   label,
   onCalled,
+  className,
 }: {
   telHref: string | null;
   connection: CallConnectionPick | null;
@@ -30,6 +31,7 @@ export function CallButton({
   variant?: "grid" | "ficha" | "cockpit";
   label?: string;
   onCalled?: () => void;
+  className?: string;
 }) {
   const qc = useQueryClient();
   const callMutation = useMutation({
@@ -69,9 +71,9 @@ export function CallButton({
       ? buttonClassName({
           variant: "primary",
           size: "lg",
-          className: "w-full gap-2 sm:w-auto",
+          className: cn("w-full gap-2 sm:w-auto", className),
         })
-      : buttonClassName({ variant: "secondary", size: "sm" });
+      : buttonClassName({ variant: "secondary", size: "sm", className });
 
   if (connection) {
     const title = callMutation.error

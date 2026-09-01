@@ -14,6 +14,7 @@ export function SelectToggle({
   pressedLabel,
   ariaLabel,
   variant = "button",
+  className,
 }: {
   pressed: boolean;
   disabled?: boolean;
@@ -22,6 +23,7 @@ export function SelectToggle({
   pressedLabel: string;
   ariaLabel?: string;
   variant?: "button" | "text";
+  className?: string;
 }) {
   if (disabled) return null;
 
@@ -41,6 +43,7 @@ export function SelectToggle({
             variant: pressed ? "primary" : "secondary",
             size: "sm",
           }),
+        className,
       )}
     >
       {variant === "button" && pressed ? (

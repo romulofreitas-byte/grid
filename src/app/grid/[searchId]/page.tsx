@@ -206,24 +206,24 @@ function GridRowActions({
     row.enrichmentStatus === "done" ||
     row.enrichmentStatus === "skipped";
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex items-center gap-1 whitespace-nowrap">
       {qualified ? (
-        <>
+        <div className="flex items-center gap-1">
           <Badge
             variant="success"
-            className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
+            className="h-6 shrink-0 px-1.5 text-[10px] uppercase"
           >
             Qualificado
           </Badge>
           {row.inCrm ? (
             <Badge
               variant="accent"
-              className="h-8 shrink-0 items-center px-3 text-xs font-semibold uppercase"
+              className="h-6 shrink-0 px-1.5 text-[10px] uppercase"
             >
               {COPY.crmOnGrid}
             </Badge>
           ) : null}
-        </>
+        </div>
       ) : qualifying ? (
         <QualifyPendingButton ariaLabel={`Qualificando ${name}`} />
       ) : (
@@ -232,6 +232,7 @@ function GridRowActions({
           onToggle={onToggle}
           idleLabel="Selecionar"
           pressedLabel="Selecionada"
+          className="px-2"
           ariaLabel={
             selected ? `Selecionada ${name}` : `Selecionar ${name}`
           }
@@ -244,6 +245,7 @@ function GridRowActions({
         searchId={searchId}
         to={row.telefone ? `+55${row.telefone}` : undefined}
         variant="grid"
+        className="px-2"
       />
       {canRemove ? (
         <button
@@ -251,7 +253,7 @@ function GridRowActions({
           title={COPY.tirarDaLista}
           aria-label={`${COPY.tirarDaLista} ${name}`}
           onClick={onRemove}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-podium-muted hover:bg-white/5 hover:text-podium-yellow"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-podium-muted hover:bg-white/5 hover:text-podium-yellow"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -970,11 +972,11 @@ export default function GridPage() {
       <GlassCard className="hidden hover:translate-y-0 lg:block">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[14rem]" />
+            <col className="w-[18rem]" />
             <col className="w-[4.5rem]" />
             <col />
             <col className="w-[11.5rem]" />
-            <col className="w-[16rem]" />
+            <col className="w-[12rem]" />
           </colgroup>
           <thead className="sticky top-14 z-20 border-b border-white/10 bg-podium-panel/95 text-xs uppercase tracking-wide text-podium-muted backdrop-blur-xl">
             <tr>
@@ -1011,7 +1013,7 @@ export default function GridPage() {
                     selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
                   )}
                 >
-                  <td className="px-2 py-3 align-middle">
+                  <td className="whitespace-nowrap px-2 py-3 align-middle">
                     <GridRowActions
                       row={row}
                       searchId={searchId}
