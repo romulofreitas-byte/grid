@@ -209,7 +209,7 @@ export function applyPresenceCorrection(
     return { kind: "recrawl", domain: host };
   }
 
-  let next: LeadEnrichment = { ...row, socials: { ...row.socials } };
+  const next: LeadEnrichment = { ...row, socials: { ...row.socials } };
 
   if (correction.instagram !== undefined) {
     if (correction.instagram == null || correction.instagram.trim() === "") {
