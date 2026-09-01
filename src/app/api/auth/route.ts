@@ -90,6 +90,18 @@ export async function POST(req: NextRequest) {
         password: body.password,
       });
       if (error) return json({ error: passwordUpdateErrorMessage(error.message) }, 400);
+      try {
+        const revoked = await supabase.auth.signOut({ scope: "others" });
+        if (revoked.error) throw revoked.error;
+      } catch (err) {
+        console.error("auth password revoke others:", err);
+        try {
+          await supabase.auth.signOut({ scope: "global" });
+        } catch (globalErr) {
+          console.error("auth password revoke global:", globalErr);
+        }
+        return json({ ok: true, next: "/entrar" });
+      }
       return json({ ok: true, next: dest });
     }
 

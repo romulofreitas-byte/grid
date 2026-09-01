@@ -1,4 +1,5 @@
 import { largadaNovaHref } from "@/lib/back";
+import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 
 export const FAQ_CATEGORIES = [
   "Começar",
@@ -78,7 +79,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. Em lista salva, cada CNPJ qualificado entra sozinho na pista do nicho no CRM. Quem já tinha sido qualificado antes da pista também entra ao abrir o app, sem novo crédito. No grid, marque as que quiser — não precisa ser a lista inteira nem só os 10, 20 ou 50 primeiros. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. A auditoria é da sua conta: outra conta não herda o cruzamento. Em lista salva, cada CNPJ que você qualificar entra sozinho na pista do nicho no CRM — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar na pista. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -86,7 +87,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra na volta?",
     answer:
-      "O CRM do GRID é a pista do nicho. A pista entra a partir do Plano Piloto. Qualifique uma lista salva e os leads entram em Entrada de Lista. Listas salvas que já tinham qualificação entram na pista quando você abre o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
+      "O CRM do GRID é a pista do nicho. A pista entra a partir do Plano Piloto. Só lista salva manda qualificado à pista — inclusive a busca avulsa, que vira lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem pista, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },
@@ -140,7 +141,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      "Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom PILOTOPODIUM. Depois, recarregue ou assine o Piloto.",
+      `Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom ${DEFAULT_PLATFORM_COUPON}. Depois, recarregue ou assine o Piloto.`,
     links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {

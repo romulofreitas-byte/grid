@@ -18,7 +18,9 @@ import {
 import { needsHelmetSetup, displayName } from "@/lib/pilot-profile";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { COPY } from "@/lib/copy";
+import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
+import { WORKING_SEARCH_COOKIE } from "@/lib/working-search";
 import type { Search } from "@/lib/types";
 
 const BOX_PREVIEW_LIMIT = 5;
@@ -95,6 +97,9 @@ async function BoxPageInner() {
     { trialExpired: billing.trialExpired },
   );
   const stats = await repo.getPilotStats(session.id);
+  const cookieStore = await cookies();
+  const workingSearchId =
+    cookieStore.get(WORKING_SEARCH_COOKIE)?.value ?? null;
   const [recent, savedPreview, connectionRows, hasCrmPipeline] = await Promise.all([
     repo.listRecentSearches(profile.id, { limit: BOX_PREVIEW_LIMIT }),
     repo.listSearches(profile.id, { limit: BOX_PREVIEW_LIMIT + 1 }),
@@ -102,9 +107,10 @@ async function BoxPageInner() {
     repo.hasCrmPipeline(session.id),
   ]);
   const hasMoreSaved = savedPreview.length > BOX_PREVIEW_LIMIT;
-  const savedCount = hasMoreSaved
-    ? (await repo.listSearches(profile.id)).length
-    : savedPreview.filter((s) => s.saved).length;
+  const allSaved = hasMoreSaved
+    ? await repo.listSearches(profile.id)
+    : savedPreview.filter((s) => s.saved);
+  const savedCount = allSaved.length;
   const connections = connectionRows.map((row) => toPublicConnection(row));
   const unsavedSearch = recent.find((s) => !s.saved) ?? null;
   const estrutura = buildBoxEstrutura({
@@ -115,8 +121,11 @@ async function BoxPageInner() {
     connections,
     hasCrmPipeline,
   });
-  const next = estrutura.pistaAberta ? stats.proximaFicha : null;
+  const next = estrutura.pistaAberta
+    ? await repo.findNextCallLead(session.id, workingSearchId)
+    : null;
   const name = displayName(profile);
+  const savedLists = allSaved.map((s) => ({ id: s.id, nome: s.nome }));
 
   return (
     <AppShell title="Box">
@@ -140,6 +149,8 @@ async function BoxPageInner() {
           connections={connections}
           billing={billing}
           savedCount={savedCount}
+          savedLists={savedLists}
+          workingSearchId={workingSearchId}
         />
 
         <section>

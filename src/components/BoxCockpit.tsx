@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BoxDayCta } from "@/components/BoxDayCta";
 import { BoxEstrutura } from "@/components/BoxEstrutura";
 import { GlassCard } from "@/components/GlassCard";
@@ -9,7 +10,8 @@ import { VoltaRing } from "@/components/VoltaRing";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { COPY } from "@/lib/copy";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
-import type { NextCallLead, Profile } from "@/lib/types";
+import type { NextCallLead, Profile, Search } from "@/lib/types";
+import { writeWorkingSearchCookie } from "@/lib/working-search";
 import { cn } from "@/lib/utils";
 
 function ClusterStat({
@@ -64,6 +66,8 @@ export function BoxCockpit({
   connections,
   billing,
   savedCount,
+  savedLists,
+  workingSearchId,
 }: {
   name: string;
   profile: Pick<Profile, "foto_url" | "como_chama" | "nome">;
@@ -86,8 +90,13 @@ export function BoxCockpit({
     trialExpired?: boolean;
   };
   savedCount: number;
+  savedLists: Pick<Search, "id" | "nome">[];
+  workingSearchId: string | null;
 }) {
+  const router = useRouter();
   const tankEmpty = billing.total === 0 || !billing.enrichAllowed;
+  const workingMismatch =
+    Boolean(workingSearchId) && next != null && next.searchId !== workingSearchId;
   const missionTitle = !pistaAberta
     ? COPY.boxPistaFechada
     : next
@@ -138,6 +147,32 @@ export function BoxCockpit({
                   <p className="mt-3 max-w-lg text-sm text-podium-gray md:text-base">
                     {missionBody}
                   </p>
+                  {pistaAberta && savedLists.length > 0 ? (
+                    <label className="mt-4 block max-w-sm">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+                        {COPY.listaDaVolta}
+                      </span>
+                      <select
+                        value={workingSearchId && savedLists.some((s) => s.id === workingSearchId) ? workingSearchId : (next?.searchId ?? savedLists[0]?.id ?? "")}
+                        onChange={(e) => {
+                          writeWorkingSearchCookie(e.target.value || null);
+                          router.refresh();
+                        }}
+                        className="mt-1 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm text-podium-white outline-none focus:border-podium-yellow/40"
+                      >
+                        {savedLists.map((list) => (
+                          <option key={list.id} value={list.id}>
+                            {list.nome}
+                          </option>
+                        ))}
+                      </select>
+                      {workingMismatch ? (
+                        <span className="mt-1 block text-[11px] text-podium-yellow">
+                          {COPY.listaDaVoltaFallback}
+                        </span>
+                      ) : null}
+                    </label>
+                  ) : null}
                   <div className="mt-6">
                     <BoxDayCta
                       next={next}

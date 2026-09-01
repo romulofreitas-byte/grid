@@ -78,8 +78,18 @@ describe("buildAuditSignals", () => {
       "site",
     );
     expect(isAuditLive(stillLiveOn404)).toBe(true);
-    expect(stillLiveOn404.hint).toMatch(/fora do ar/i);
-    expect(stillLiveOn404.note).toMatch(/Site fora do ar/);
+    expect(stillLiveOn404.hint).toMatch(/não abriu agora/i);
+    expect(stillLiveOn404.note).toMatch(/Não abriu agora/);
+
+    const downOn500 = byId(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 503,
+      }),
+      "site",
+    );
+    expect(downOn500.note).toMatch(/fora do ar/i);
 
     const gap = byId(enrichment(), "site");
     expect(isAuditGap(gap)).toBe(true);

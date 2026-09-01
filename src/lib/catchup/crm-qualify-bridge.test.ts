@@ -88,7 +88,11 @@ describe("crm qualify catch-up", () => {
     const cnpj = est!.cnpj;
     store.searches.push(searchRow("saved-catchup", true));
     store.saved_leads.push(leadRow("lead-catchup", "saved-catchup", cnpj));
-    store.lead_enrichment.push(auditFor(cnpj));
+    store.billed_cnpjs.push({
+      profile_id: USER,
+      cnpj,
+      kind: "enrich",
+    });
 
     const first = await runUserCatchUp(USER, mockRepo);
     expect(first.created).toBe(1);
@@ -137,11 +141,18 @@ describe("crm qualify catch-up", () => {
     store.lead_enrichment.push(
       auditFor(expiredEst.cnpj, "2020-01-01T00:00:00.000Z"),
     );
-    store.billed_cnpjs.push({
-      profile_id: USER,
-      cnpj: billedEst.cnpj,
-      kind: "enrich",
-    });
+    store.billed_cnpjs.push(
+      {
+        profile_id: USER,
+        cnpj: expiredEst.cnpj,
+        kind: "enrich",
+      },
+      {
+        profile_id: USER,
+        cnpj: billedEst.cnpj,
+        kind: "enrich",
+      },
+    );
 
     const out = await runCrmQualifyBridge(mockRepo, USER);
     expect(out.created).toBe(2);
@@ -152,7 +163,11 @@ describe("crm qualify catch-up", () => {
     const est = store.establishments[2]!;
     store.searches.push(searchRow("save-later", false));
     store.saved_leads.push(leadRow("lead-save-later", "save-later", est.cnpj));
-    store.lead_enrichment.push(auditFor(est.cnpj));
+    store.billed_cnpjs.push({
+      profile_id: USER,
+      cnpj: est.cnpj,
+      kind: "enrich",
+    });
 
     expect(await runCrmQualifyBridge(mockRepo, USER)).toMatchObject({
       created: 0,

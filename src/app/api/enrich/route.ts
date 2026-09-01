@@ -137,7 +137,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ queued: 0, skippedOptOut: 0 });
   }
 
-  const chargeable = (await repo.classifyEnrichmentCnpjs(cnpjs)).chargeable;
+  const chargeable = (await repo.classifyEnrichmentCnpjs(cnpjs, userId))
+    .chargeable;
   try {
     if (chargeable.length) {
       await debitEnrich(userId, chargeable, searchId);
@@ -157,19 +158,22 @@ export async function POST(req: Request) {
   let crmBridge: Awaited<ReturnType<typeof bridgeQualifiedLeadsToCrm>> | null =
     null;
   if (search?.saved) {
-    try {
-      crmBridge = await bridgeQualifiedLeadsToCrm(repo, {
-        userId,
-        search,
-        cnpjs,
-      });
-    } catch (err) {
+    void bridgeQualifiedLeadsToCrm(repo, {
+      userId,
+      search,
+      cnpjs,
+    }).catch((err) => {
       console.error("crm_qualify_bridge_error", err);
-      crmBridge = null;
-    }
+    });
+    crmBridge = {
+      created: 0,
+      skipped: 0,
+      pipelineId: null,
+      pipelineNome: null,
+    };
   }
 
-  return NextResponse.json({ ...result, crmBridge });
+  return NextResponse.json({ ...result, crmBridge, crmPending: Boolean(search?.saved) });
 }
 
 export async function GET(req: Request) {

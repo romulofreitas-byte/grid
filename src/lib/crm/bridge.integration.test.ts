@@ -30,6 +30,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       findCrmDealByCnpj: vi.fn(),
       createCrmDeal: vi.fn(),
       getDossier: vi.fn(),
+      listCompanyBriefs: vi.fn(),
       getPreset: vi.fn(),
     } satisfies CrmBridgeRepo;
 
@@ -91,6 +92,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
         decisor: { nome: "Ana" },
         contacts: [{ ddd: "31", telefone: "999990000" }],
       } as unknown as LeadDossier),
+      listCompanyBriefs: vi.fn().mockResolvedValue([]),
       getPreset: vi.fn().mockResolvedValue({
         id: "seg-1",
         nome: "Clínicas estética",
@@ -125,5 +127,67 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(second.created).toBe(0);
     expect(second.skipped).toBe(1);
     expect(createCrmDeal).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates deals from company briefs when dossier is missing", async () => {
+    const pipeline: CrmPipelineSummary = {
+      id: "pipe-1",
+      user_id: "user-1",
+      nome: "Clínicas estética",
+      position: 0,
+      created_at: new Date().toISOString(),
+      deal_count: 0,
+    };
+    const createCrmDeal = vi.fn().mockImplementation(
+      async (_userId: string, input: { cnpj: string }) =>
+        ({
+          id: `deal-${input.cnpj}`,
+          pipeline_id: pipeline.id,
+          stage_id: "stage-1",
+          company_name: "X",
+          contact_name: "",
+          secretaries: [],
+          phones: [],
+          notes: "",
+          cnpj: input.cnpj,
+          meta: { source: "qualify_bridge" },
+          position: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          next_activity: null,
+        }) satisfies CrmDealCard,
+    );
+    const cnpjs = Array.from({ length: 50 }, (_, i) =>
+      String(i + 1).padStart(14, "0"),
+    );
+    const repo: CrmBridgeRepo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
+      createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
+      createCrmDeal,
+      getDossier: vi.fn().mockResolvedValue(null),
+      listCompanyBriefs: vi.fn().mockResolvedValue(
+        cnpjs.map((cnpj) => ({
+          cnpj,
+          razaoSocial: `EMPRESA ${cnpj}`,
+          nomeFantasia: null,
+          ddd1: "31",
+          telefone1: "33334444",
+          decisorNome: null,
+        })),
+      ),
+      getPreset: vi.fn().mockResolvedValue({
+        id: "seg-1",
+        nome: "Clínicas estética",
+      }),
+    };
+
+    const out = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search(),
+      cnpjs,
+    });
+    expect(out.created).toBe(50);
+    expect(repo.getDossier).not.toHaveBeenCalled();
   });
 });

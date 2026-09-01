@@ -43,5 +43,8 @@ describe("COPY crm", () => {
     expect(COPY.crmCadenceHint).toMatch(/faixa/i);
     expect(COPY.crmLogCallHint).toMatch(/encerra a volta/i);
     expect(COPY.crmScheduleHint).toMatch(/não registra/i);
+    expect(COPY.crmSaveListToEnter).toMatch(/lista salva/i);
+    expect(COPY.salvarNaPista).toBe("Salvar na pista");
+    expect(COPY.listaDaVolta).toMatch(/lista/i);
   });
 });

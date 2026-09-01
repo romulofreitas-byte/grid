@@ -28,7 +28,7 @@ describe("largada hrefs", () => {
   it("sends a ficha opened from Empresas back to Empresas", () => {
     expect(leadBack(null, "empresas")).toEqual(BACK.empresas);
     expect(leadBack("abc", "empresas")).toEqual({
-      href: "/grid/abc?from=box",
+      href: "/grid/abc?from=empresas",
       label: "Voltar ao Grid",
     });
   });

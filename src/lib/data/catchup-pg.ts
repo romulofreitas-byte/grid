@@ -47,11 +47,6 @@ export const catchupPgMethods = {
                    and rtrim(j.cnpj) = rtrim(sl.cnpj)
                    and j.status in ${QUALIFIED_JOB_STATUSES}
               )
-              or exists (
-                select 1 from lead_enrichment le
-                 where rtrim(le.cnpj) = rtrim(sl.cnpj)
-                   and (le.stage is null or le.stage = 'complete')
-              )
             )
             and not exists (
               select 1 from crm_deals d

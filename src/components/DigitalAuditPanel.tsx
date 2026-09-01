@@ -480,9 +480,11 @@ export function DigitalAuditPanel({
   const showTools = auditActive;
   const siteDown =
     enrichment != null &&
-    enrichment.domain != null &&
-    enrichment.http_status != null &&
-    enrichment.http_status >= 400;
+    Boolean(enrichment.domain) &&
+    enrichment.domain_status !== "nao_encontrado" &&
+    (enrichment.http_status != null
+      ? enrichment.http_status >= 500
+      : enrichment.stage == null || enrichment.stage === "complete");
   const canConfirmSite =
     Boolean(onConfirmSite && onRejectSite && enrichment?.domain) &&
     complete &&

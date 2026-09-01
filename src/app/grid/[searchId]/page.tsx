@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookmarkPlus, Check, Send, SlidersHorizontal } from "lucide-react";
+import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
@@ -13,6 +13,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { PositionBadge } from "@/components/PositionBadge";
 import { SaveListDialog } from "@/components/SaveListDialog";
+import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
 import { QualifyPendingButton, SelectToggle } from "@/components/SelectToggle";
 import { Badge } from "@/components/ui/Badge";
@@ -185,14 +186,18 @@ function GridRowActions({
   callConnection,
   selected,
   qualifying,
+  canRemove,
   onToggle,
+  onRemove,
 }: {
   row: GridRow;
   searchId: string;
   callConnection: ReturnType<typeof pickCallConnection>;
   selected: boolean;
   qualifying: boolean;
+  canRemove: boolean;
   onToggle: () => void;
+  onRemove: () => void;
 }) {
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
@@ -240,6 +245,17 @@ function GridRowActions({
         to={row.telefone ? `+55${row.telefone}` : undefined}
         variant="grid"
       />
+      {canRemove ? (
+        <button
+          type="button"
+          title={COPY.tirarDaLista}
+          aria-label={`${COPY.tirarDaLista} ${name}`}
+          onClick={onRemove}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-podium-muted hover:bg-white/5 hover:text-podium-yellow"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -261,6 +277,7 @@ export default function GridPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
+  const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
   const rowsRef = useRef<GridRow[]>([]);
 
   const searchQuery = useQuery({
@@ -297,6 +314,23 @@ export default function GridPage() {
       }
     },
   });
+
+  async function removeFromList(cnpj: string) {
+    if (removingCnpj) return;
+    if (!window.confirm(COPY.tirarDaListaConfirm)) return;
+    setRemovingCnpj(cnpj);
+    try {
+      const res = await fetch(
+        `/api/search/${searchId}/leads/${cnpj}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error("Não foi possível tirar da lista");
+      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      void qc.invalidateQueries({ queryKey: ["search", searchId] });
+    } finally {
+      setRemovingCnpj(null);
+    }
+  }
 
   const connectionsQuery = useQuery({
     queryKey: ["integration-connections"],
@@ -411,7 +445,7 @@ export default function GridPage() {
       }
       return { targets };
     },
-    onSuccess: (json) => {
+    onSuccess: (json, body) => {
       setCreditHint(null);
       const bridge = json.crmBridge;
       if (bridge?.created && bridge.pipelineNome) {
@@ -425,8 +459,30 @@ export default function GridPage() {
         setCrmHint(COPY.crmSaveListToEnter);
         setCrmPipelineId(null);
       } else {
-        setCrmHint(null);
+        setCrmHint(COPY.crmEnteringPista);
         setCrmPipelineId(null);
+        const targets = resolveQualifyTargets(body, rowsRef.current);
+        void fetch("/api/session/catch-up", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            searchId,
+            ...(targets.length ? { cnpjs: targets } : {}),
+          }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data: { created?: number } | null) => {
+            if (data?.created) {
+              setCrmHint(
+                data.created === 1
+                  ? COPY.crmCatchUpToastOne
+                  : COPY.crmCatchUpToastMany.replace("{n}", String(data.created)),
+              );
+            }
+            void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+            void qc.invalidateQueries({ queryKey: ["lead"] });
+          })
+          .catch(() => undefined);
       }
       setSelected(new Set());
       setConfirmAll(false);
@@ -669,6 +725,10 @@ export default function GridPage() {
             </Link>
           </div>
         </div>
+
+        {!searchQuery.isLoading && search && !search.saved ? (
+          <SaveToCrmTelemetry onSave={() => setSaveOpen(true)} />
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-baseline gap-1.5 rounded-xl bg-white/5 px-3 py-1.5">
@@ -958,7 +1018,9 @@ export default function GridPage() {
                       callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
                       qualifying={isRowQualifying(row, pendingCnpjs)}
+                      canRemove={Boolean(search?.saved)}
                       onToggle={() => toggleRow(row)}
+                      onRemove={() => void removeFromList(row.cnpj)}
                     />
                   </td>
                   <td className="px-2 py-3 align-middle">
@@ -1087,7 +1149,9 @@ export default function GridPage() {
                     callConnection={callConnection}
                     selected={selected.has(row.cnpj)}
                     qualifying={isRowQualifying(row, pendingCnpjs)}
+                    canRemove={Boolean(search?.saved)}
                     onToggle={() => toggleRow(row)}
+                    onRemove={() => void removeFromList(row.cnpj)}
                   />
                 </div>
               </div>

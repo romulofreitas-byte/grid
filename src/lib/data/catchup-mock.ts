@@ -11,7 +11,6 @@ import type {
 } from "@/lib/catchup/types";
 import { digitsCnpj } from "@/lib/crm/bridge";
 import { getMockStore, type MockStore } from "@/lib/data/mock-store";
-import { isEnrichmentEverComplete } from "@/lib/enrichment/fresh";
 
 const QUALIFIED_JOB = new Set(["pending", "running", "done", "skipped"]);
 
@@ -46,10 +45,7 @@ function isQualified(store: MockStore, userId: string, searchId: string, cnpj: s
   ) {
     return true;
   }
-  const enrichment = store.lead_enrichment.find(
-    (row) => digitsCnpj(row.cnpj) === digits,
-  );
-  return isEnrichmentEverComplete(enrichment);
+  return false;
 }
 
 function inCrm(store: MockStore, userId: string, cnpj: string): boolean {

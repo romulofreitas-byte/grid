@@ -27,11 +27,16 @@ import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
   COMPANY_SEARCH_LIMIT,
+  companyNameTokens,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
 import { municipioListLimit } from "@/lib/municipios";
 import { crmMockMethods } from "@/lib/data/crm-mock";
 import { catchupMockMethods } from "@/lib/data/catchup-mock";
+import { listMemoryBilledCnpjs } from "@/lib/billing/memory-store";
+import { digitsCnpj } from "@/lib/crm/bridge";
+import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
+import { displayCompanyName } from "@/lib/enrichment/company-name";
 import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
@@ -52,6 +57,7 @@ import type {
   SearchFilters,
   SharedPhoneVerdict,
 } from "@/lib/types";
+import { DEFAULT_FILTERS } from "@/lib/types";
 
 const COUNT_CAP = 10000;
 const RESULT_CAP = 1000;
@@ -196,6 +202,36 @@ function phoneVerdictOf(
 
 function isEnrichmentFresh(row: LeadEnrichment | undefined): boolean {
   return isEnrichmentComplete(row);
+}
+
+function userOwnsAudit(
+  store: MockStore,
+  userId: string,
+  cnpj: string,
+  searchId?: string,
+): boolean {
+  const digits = digitsCnpj(cnpj);
+  if (
+    store.billed_cnpjs.some(
+      (row) =>
+        row.profile_id === userId &&
+        row.kind === "enrich" &&
+        digitsCnpj(row.cnpj) === digits,
+    )
+  ) {
+    return true;
+  }
+  if (listMemoryBilledCnpjs(userId, "enrich").some((c) => digitsCnpj(c) === digits)) {
+    return true;
+  }
+  const job = [...store.enrichment_jobs]
+    .reverse()
+    .find(
+      (j) =>
+        digitsCnpj(j.cnpj) === digits &&
+        (j.requested_by === userId || (searchId != null && j.search_id === searchId)),
+    );
+  return job?.status === "done" || job?.status === "skipped";
 }
 
 function phoneUsageCount(store: MockStore, ddd: string | null, tel: string | null): number {
@@ -641,7 +677,11 @@ export const mockRepo: GridRepo = {
         cnpjQuery &&
         (est.cnpj.includes(digits) || est.cnpj_basico.includes(digits));
       const prefix = razao.startsWith(nq) || fantasia.startsWith(nq);
-      const byName = !cnpjQuery && (prefix || razao.includes(nq) || fantasia.includes(nq));
+      const tokens = companyNameTokens(q);
+      const byName =
+        !cnpjQuery &&
+        tokens.length > 0 &&
+        tokens.every((t) => razao.includes(t) || fantasia.includes(t));
       if (!byCnpj && !byName) continue;
       const mun = idx.munById.get(est.municipio_id);
       const cnae = idx.cnaeByCodigo.get(est.cnae_principal);
@@ -923,6 +963,94 @@ export const mockRepo: GridRepo = {
     return true;
   },
 
+  async deleteSavedLead(searchId: string, cnpj: string) {
+    const store = getMockStore();
+    const search = store.searches.find((s) => s.id === searchId);
+    if (!search) return false;
+    const digits = digitsCnpj(cnpj);
+    const before = store.saved_leads.length;
+    store.saved_leads = store.saved_leads.filter(
+      (l) => !(l.search_id === searchId && digitsCnpj(l.cnpj) === digits),
+    );
+    if (store.saved_leads.length === before) return false;
+    const remaining = store.saved_leads
+      .filter((l) => l.search_id === searchId)
+      .sort((a, b) => a.grid_position - b.grid_position);
+    remaining.forEach((lead, i) => {
+      lead.grid_position = i + 1;
+    });
+    search.total_found = remaining.length;
+    return true;
+  },
+
+  async createSavedCnpjSearch(userId: string, cnpj: string, nome?: string) {
+    const padded = digitsCnpj(cnpj);
+    const hits = await this.searchCompanies(padded, { limit: 1 });
+    const hit = hits[0];
+    if (!hit) return null;
+    const store = getMockStore();
+    const preset = matchPresetForCnae(
+      hit.cnaeCodigo,
+      store.niche_presets,
+      store.niche_preset_cnaes,
+      store.ref_cnae,
+    );
+    const filters: SearchFilters = {
+      ...DEFAULT_FILTERS,
+      cnpjs: [padded],
+      ufs: hit.uf ? [hit.uf] : [],
+      segmentIds: preset ? [preset.id] : [],
+      intentQuery: preset ? null : hit.cnaeDescricao || null,
+    };
+    const search: Search = {
+      id: randomId(),
+      user_id: userId,
+      nome: nome?.trim() || displayCompanyName(hit.nomeFantasia, hit.razaoSocial),
+      filtros: filters,
+      total_found: 1,
+      created_at: new Date().toISOString(),
+      saved: true,
+    };
+    store.searches.unshift(search);
+    store.saved_leads.push({
+      id: randomId(),
+      search_id: search.id,
+      user_id: userId,
+      cnpj: padded,
+      grid_score: 0,
+      grid_position: 1,
+      enrichment: null,
+      status: "novo",
+      notas: null,
+      created_at: search.created_at,
+    });
+    return search;
+  },
+
+  async listCompanyBriefs(cnpjs: string[]) {
+    const store = getMockStore();
+    const idx = getIndexes(store);
+    const out = [];
+    for (const raw of cnpjs) {
+      const cnpj = digitsCnpj(raw);
+      const est = idx.estByCnpj.get(cnpj);
+      if (!est) continue;
+      const company = idx.companyByBasico.get(est.cnpj_basico);
+      if (!company) continue;
+      const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
+      const decisor = pickDecisor(partners, store.ref_qualificacao);
+      out.push({
+        cnpj: est.cnpj,
+        razaoSocial: company.razao_social,
+        nomeFantasia: est.nome_fantasia,
+        ddd1: est.ddd1,
+        telefone1: est.telefone1,
+        decisorNome: decisor?.nome ?? null,
+      });
+    }
+    return out;
+  },
+
   async listGridRows(searchId: string, cursor = 0, limit = 50) {
     const store = getMockStore();
     const search = store.searches.find((s) => s.id === searchId);
@@ -934,7 +1062,7 @@ export const mockRepo: GridRepo = {
 
     const idx = getIndexes(store);
     const unaudited = leads.filter(
-      (l) => !isEnrichmentFresh(store.lead_enrichment.find((e) => e.cnpj === l.cnpj)),
+      (l) => !userOwnsAudit(store, search.user_id, l.cnpj, searchId),
     ).length;
     const page = leads.slice(cursor, cursor + limit);
     const rows: GridRow[] = page.map((lead) => {
@@ -957,7 +1085,7 @@ export const mockRepo: GridRepo = {
         .reverse()
         .find((j) => j.cnpj === lead.cnpj && j.search_id === searchId);
       const enrichment = store.lead_enrichment.find((e) => e.cnpj === lead.cnpj);
-      const hasAudit = isEnrichmentFresh(enrichment);
+      const hasAudit = userOwnsAudit(store, search.user_id, lead.cnpj, searchId);
       const phone = overlayGridPhone(
         {
           telefone: primary ? `${primary.ddd}${primary.telefone}` : null,
@@ -996,13 +1124,12 @@ export const mockRepo: GridRepo = {
 
   async listUnauditedCnpjs(searchId: string) {
     const store = getMockStore();
+    const search = store.searches.find((s) => s.id === searchId);
+    if (!search) return [];
     return store.saved_leads
       .filter((l) => l.search_id === searchId)
       .sort((a, b) => a.grid_position - b.grid_position)
-      .filter(
-        (l) =>
-          !isEnrichmentFresh(store.lead_enrichment.find((e) => e.cnpj === l.cnpj)),
-      )
+      .filter((l) => !userOwnsAudit(store, search.user_id, l.cnpj, searchId))
       .map((l) => l.cnpj);
   },
 
@@ -1060,12 +1187,19 @@ export const mockRepo: GridRepo = {
     return true;
   },
 
-  async findNextCallLead(userId): Promise<NextCallLead | null> {
+  async findNextCallLead(userId, searchId?: string | null): Promise<NextCallLead | null> {
     const store = getMockStore();
     const searches = store.searches
       .filter((s) => s.user_id === userId && s.saved)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    for (const search of searches) {
+    const ordered =
+      searchId && searches.some((s) => s.id === searchId)
+        ? [
+            ...searches.filter((s) => s.id === searchId),
+            ...searches.filter((s) => s.id !== searchId),
+          ]
+        : searches;
+    for (const search of ordered) {
       const lead = store.saved_leads
         .filter((l) => l.search_id === search.id && l.status === "novo")
         .sort((a, b) => a.grid_position - b.grid_position)[0];
@@ -1147,7 +1281,10 @@ export const mockRepo: GridRepo = {
   },
 
   async enqueueEnrichment(input) {
-    const classified = await this.classifyEnrichmentCnpjs(input.cnpjs);
+    const classified = await this.classifyEnrichmentCnpjs(
+      input.cnpjs,
+      input.userId,
+    );
     const store = getMockStore();
     let queued = 0;
     const unique = [...new Set(input.cnpjs)];
@@ -1233,13 +1370,36 @@ export const mockRepo: GridRepo = {
     );
   },
 
-  async classifyEnrichmentCnpjs(cnpjs: string[]) {
+  async classifyEnrichmentCnpjs(cnpjs: string[], userId?: string) {
     const unique = [...new Set(cnpjs)];
     let skippedOptOut = 0;
     const chargeable: string[] = [];
     for (const cnpj of unique) {
       if (await this.isOptedOut(cnpj)) {
         skippedOptOut += 1;
+        continue;
+      }
+      if (userId) {
+        const store = getMockStore();
+        const billedOnly =
+          store.billed_cnpjs.some(
+            (row) =>
+              row.profile_id === userId &&
+              row.kind === "enrich" &&
+              digitsCnpj(row.cnpj) === digitsCnpj(cnpj),
+          ) ||
+          listMemoryBilledCnpjs(userId, "enrich").some(
+            (c) => digitsCnpj(c) === digitsCnpj(cnpj),
+          );
+        if (billedOnly) continue;
+        const activeMine = store.enrichment_jobs.some(
+          (j) =>
+            digitsCnpj(j.cnpj) === digitsCnpj(cnpj) &&
+            j.requested_by === userId &&
+            (j.status === "pending" || j.status === "running"),
+        );
+        if (activeMine) continue;
+        chargeable.push(cnpj);
         continue;
       }
       if (await this.findFreshEnrichment(cnpj)) continue;

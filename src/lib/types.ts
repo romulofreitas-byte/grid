@@ -448,6 +448,15 @@ export type CompanySearchHit = {
   decisorNome?: string | null;
 };
 
+export type CompanyBrief = {
+  cnpj: string;
+  razaoSocial: string;
+  nomeFantasia: string | null;
+  ddd1: string | null;
+  telefone1: string | null;
+  decisorNome: string | null;
+};
+
 export type GridRowSnapshot = {
   razaoSocial: string;
   nomeFantasia: string | null;

@@ -64,6 +64,7 @@ export type CrmBridgeRepo = Pick<
   | "createCrmDeal"
   | "getDossier"
   | "getPreset"
+  | "listCompanyBriefs"
 >;
 
 export type BridgeQualifyResult = {
@@ -132,6 +133,11 @@ export async function bridgeQualifiedLeadsToCrm(
   let created = 0;
   let skipped = 0;
 
+  const briefs = await repo.listCompanyBriefs(input.cnpjs);
+  const briefByCnpj = new Map(
+    briefs.map((row) => [digitsCnpj(row.cnpj), row] as const),
+  );
+
   for (const raw of input.cnpjs) {
     const cnpj = digitsCnpj(raw);
     const already = await repo.findCrmDealByCnpj(
@@ -144,24 +150,36 @@ export async function bridgeQualifiedLeadsToCrm(
       continue;
     }
 
-    const dossier = await repo.getDossier(cnpj, input.search.id);
-    if (!dossier) {
-      skipped += 1;
-      continue;
-    }
+    const brief = briefByCnpj.get(cnpj);
+    let company_name = brief
+      ? displayCompanyName(brief.nomeFantasia, brief.razaoSocial)
+      : "";
+    let contact_name = brief?.decisorNome ?? "";
+    let phones = brief
+      ? [formatPhone(brief.ddd1, brief.telefone1)].filter(
+          (p): p is string => Boolean(p),
+        )
+      : [];
 
-    const company_name = displayCompanyName(
-      dossier.establishment.nome_fantasia,
-      dossier.company.razao_social,
-    );
-    const contact_name = dossier.decisor?.nome ?? "";
-    const phones = dossier.contacts
-      .map((c) => formatPhone(c.ddd, c.telefone))
-      .filter((p): p is string => Boolean(p));
+    if (!brief) {
+      const dossier = await repo.getDossier(cnpj, input.search.id);
+      if (!dossier) {
+        skipped += 1;
+        continue;
+      }
+      company_name = displayCompanyName(
+        dossier.establishment.nome_fantasia,
+        dossier.company.razao_social,
+      );
+      contact_name = dossier.decisor?.nome ?? "";
+      phones = dossier.contacts
+        .map((c) => formatPhone(c.ddd, c.telefone))
+        .filter((p): p is string => Boolean(p));
+    }
 
     const deal: CrmDealCard | null = await repo.createCrmDeal(input.userId, {
       pipelineId: pipeline.id,
-      company_name: company_name || dossier.company.razao_social,
+      company_name: company_name || cnpj,
       contact_name,
       phones,
       cnpj,

@@ -14,6 +14,7 @@ export type QualifyBridgeRepo = Pick<
   | "createCrmDeal"
   | "getDossier"
   | "getPreset"
+  | "listCompanyBriefs"
 >;
 
 export async function runCrmQualifyBridge(

@@ -15,10 +15,15 @@ export function conexoesHref(kind?: ConexoesKind) {
   return kind ? `/conexoes?kind=${kind}` : "/conexoes";
 }
 
-export type GridFrom = "box" | "largada" | "listas";
+export type GridFrom = "box" | "largada" | "listas" | "empresas";
 
 export function parseGridFrom(value: string | null): GridFrom {
-  if (value === "largada" || value === "listas" || value === "box") {
+  if (
+    value === "largada" ||
+    value === "listas" ||
+    value === "box" ||
+    value === "empresas"
+  ) {
     return value;
   }
   return "box";

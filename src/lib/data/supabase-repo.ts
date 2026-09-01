@@ -26,8 +26,10 @@ import {
   canSearchCompanies,
   COMPANY_PREFIX_ENOUGH,
   COMPANY_SEARCH_LIMIT,
+  companyNameTokens,
   escapeIlike,
   isCompanyCnpjQuery,
+  sqlFoldAccent,
 } from "@/lib/data/company-search";
 import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
 import {
@@ -77,6 +79,7 @@ import type {
 import type { IntegrationKind, IntegrationProvider } from "@/lib/integrations/schema";
 import type {
   Company,
+  CompanyBrief,
   CompanySearchHit,
   ContactInfo,
   CountMode,
@@ -104,6 +107,8 @@ import type {
   SharedPhoneVerdict,
 } from "@/lib/types";
 import { DEFAULT_FILTERS } from "@/lib/types";
+import { displayCompanyName } from "@/lib/enrichment/company-name";
+import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
 
 const COUNT_CAP = FLAT_COUNT_CAP;
 const RESULT_CAP = 1000;
@@ -1625,19 +1630,25 @@ async function fetchByCnpjs(
   };
 }
 
-async function countUnaudited(searchId: string, fallback: number): Promise<number> {
+async function countUnaudited(searchId: string, userId: string, fallback: number): Promise<number> {
   try {
     const { rows } = await query<{ n: number }>(
       `select count(*)::int as n
        from saved_leads sl
        where sl.search_id = $1
          and not exists (
-           select 1 from lead_enrichment le
-           where le.cnpj = sl.cnpj
-             and le.expires_at > now()
-             and (le.stage is null or le.stage = 'complete')
+           select 1 from billed_cnpjs b
+            where b.profile_id = $2
+              and b.kind = 'enrich'
+              and rtrim(b.cnpj) = rtrim(sl.cnpj)
+         )
+         and not exists (
+           select 1 from enrichment_jobs j
+            where j.search_id = sl.search_id
+              and rtrim(j.cnpj) = rtrim(sl.cnpj)
+              and j.status in ('done', 'skipped')
          )`,
-      [searchId],
+      [searchId, userId],
     );
     return Number(rows[0]?.n ?? fallback);
   } catch {
@@ -1647,11 +1658,12 @@ async function countUnaudited(searchId: string, fallback: number): Promise<numbe
 
 async function overlayGridRows(
   searchId: string,
+  userId: string,
   rows: GridRow[],
 ): Promise<GridRow[]> {
   if (!rows.length) return rows;
   const paddedCnpjs = cnpjChar14Params(rows.map((r) => r.cnpj));
-  const [jobRes, auditRes] = await Promise.all([
+  const [jobRes, auditRes, billedRes] = await Promise.all([
     query(
       `select distinct on (cnpj) *
        from enrichment_jobs
@@ -1665,15 +1677,22 @@ async function overlayGridRows(
          and (stage is null or stage = 'complete')`,
       [paddedCnpjs],
     ),
+    query<{ cnpj: string }>(
+      `select cnpj from billed_cnpjs
+        where profile_id = $1 and kind = 'enrich' and cnpj = any($2::char(14)[])`,
+      [userId, paddedCnpjs],
+    ).catch(() => ({ rows: [] as Array<{ cnpj: string }> })),
   ]);
   const jobs = new Map(jobRes.rows.map((j) => [trimChar(j.cnpj), mapJob(j)]));
   const enrichmentByCnpj = new Map(
     auditRes.rows.map((r) => [trimChar(r.cnpj), mapEnrichment(r)] as const),
   );
+  const billed = new Set(billedRes.rows.map((r) => trimChar(r.cnpj)));
   return rows.map((row) => {
     const job = jobs.get(row.cnpj);
-    const enrichment = enrichmentByCnpj.get(row.cnpj);
-    const hasAudit = Boolean(enrichment);
+    const ownedJob = job?.status === "done" || job?.status === "skipped";
+    const hasAudit = billed.has(row.cnpj) || ownedJob;
+    const enrichment = hasAudit ? enrichmentByCnpj.get(row.cnpj) : undefined;
     const phone = overlayGridPhone(
       {
         telefone: row.telefone,
@@ -1690,7 +1709,7 @@ async function overlayGridRows(
       sharedCount: phone.sharedCount,
       sharedVerdict: phone.sharedVerdict,
       enrichmentStatus: job?.status ?? (hasAudit ? "done" : row.enrichmentStatus),
-      hasAudit: hasAudit || row.hasAudit,
+      hasAudit,
     };
   });
 }
@@ -1723,7 +1742,7 @@ async function rowsFromReceita(
     const primary = contacts[0];
     const partners = packed.partners.get(est.cnpj_basico) ?? [];
     const decisor = pickDecisor(partners, packed.quals);
-    const hasAudit = isEnrichmentFresh(packed.enrichment.get(est.cnpj));
+    const hasAudit = false;
     const phone = overlayGridPhone(
       {
         telefone: primary ? `${primary.ddd}${primary.telefone}` : null,
@@ -1731,7 +1750,7 @@ async function rowsFromReceita(
         sharedCount: primary?.sharedCount ?? 0,
         sharedVerdict: primary?.sharedVerdict,
       },
-      hasAudit ? packed.enrichment.get(est.cnpj) : null,
+      null,
     );
     const row: GridRow = {
       cnpj: est.cnpj,
@@ -2061,14 +2080,41 @@ async function searchCompaniesByCnpj(
 }
 
 async function searchCompaniesNameWave(
-  pattern: string,
+  mode: "prefix" | "tokens",
   queryText: string,
   ufs: string[],
   soMatriz: boolean,
   limit: number,
 ): Promise<CompanySearchHit[]> {
-  const prefix = `${escapeIlike(queryText)}%`;
-  const params: unknown[] = [pattern, prefix, queryText];
+  const tokens = companyNameTokens(queryText);
+  if (!tokens.length) return [];
+  const foldedRazao = sqlFoldAccent("c.razao_social");
+  const foldedFantasiaEst = sqlFoldAccent("coalesce(e.nome_fantasia, '')");
+  const foldedQuery = tokens.join(" ");
+  const params: unknown[] = [foldedQuery];
+  const tokenSql: string[] = [];
+  for (const token of tokens) {
+    params.push(`%${escapeIlike(token)}%`);
+    const p = `$${params.length}`;
+    tokenSql.push(p);
+  }
+  const companyTokenWhere = tokenSql
+    .map(
+      (p) =>
+        `(${foldedRazao} like ${p} escape '\\' or ${foldedFantasiaEst} like ${p} escape '\\')`,
+    )
+    .join(" and ");
+  const fantasiaTokenWhere = tokenSql
+    .map((p) => `${foldedFantasiaEst} like ${p} escape '\\'`)
+    .join(" and ");
+  let prefixCompany = "";
+  let prefixFantasia = "";
+  if (mode === "prefix") {
+    params.push(`${escapeIlike(foldedQuery)}%`);
+    const p = `$${params.length}`;
+    prefixCompany = `and (${foldedRazao} like ${p} escape '\\' or ${foldedFantasiaEst} like ${p} escape '\\')`;
+    prefixFantasia = `and ${foldedFantasiaEst} like ${p} escape '\\'`;
+  }
   const extra = companySearchExtraSql(params, ufs, soMatriz);
   params.push(limit);
   const limitRef = `$${params.length}`;
@@ -2078,7 +2124,8 @@ async function searchCompaniesNameWave(
          select e.cnpj
          from companies c
          join establishments e on e.cnpj_basico = c.cnpj_basico
-         where c.razao_social ilike $1 escape '\\'
+         where ${companyTokenWhere}
+         ${prefixCompany}
          ${extra}
          limit ${limitRef}
        )
@@ -2086,19 +2133,20 @@ async function searchCompaniesNameWave(
        (
          select e.cnpj
          from establishments e
-         where e.nome_fantasia ilike $1 escape '\\'
+         where ${fantasiaTokenWhere}
+         ${prefixFantasia}
          ${extra}
          limit ${limitRef}
        )
      )
      ${COMPANY_HIT_SELECT}
      order by
-       (c.razao_social ilike $2 escape '\\'
-         or coalesce(e.nome_fantasia, '') ilike $2 escape '\\') desc,
+       (${foldedRazao} like $1 || '%' escape '\\'
+         or ${foldedFantasiaEst} like $1 || '%' escape '\\') desc,
        e.is_matriz desc,
        greatest(
-         similarity(lower(c.razao_social), lower($3)),
-         similarity(lower(coalesce(e.nome_fantasia, '')), lower($3))
+         similarity(${foldedRazao}, $1),
+         similarity(${foldedFantasiaEst}, $1)
        ) desc
      limit ${limitRef}`,
     params,
@@ -2112,9 +2160,8 @@ async function searchCompaniesByName(
   soMatriz: boolean,
   limit: number,
 ): Promise<CompanySearchHit[]> {
-  const escaped = escapeIlike(queryText);
   const prefixHits = await searchCompaniesNameWave(
-    `${escaped}%`,
+    "prefix",
     queryText,
     ufs,
     soMatriz,
@@ -2123,7 +2170,7 @@ async function searchCompaniesByName(
   if (prefixHits.length >= COMPANY_PREFIX_ENOUGH) return prefixHits;
 
   const containHits = await searchCompaniesNameWave(
-    `%${escaped}%`,
+    "tokens",
     queryText,
     ufs,
     soMatriz,
@@ -2632,6 +2679,132 @@ export const supabaseRepo: GridRepo = {
     return (rowCount ?? 0) > 0;
   },
 
+  async deleteSavedLead(searchId, cnpj) {
+    const padded = digitsCnpj(cnpj);
+    const { rowCount } = await query(
+      "delete from saved_leads where search_id = $1 and cnpj = $2::char(14)",
+      [searchId, padded],
+    );
+    if (!(rowCount ?? 0)) return false;
+    await query(
+      `with ranked as (
+         select id, row_number() over (order by grid_position, created_at) as pos
+         from saved_leads where search_id = $1
+       )
+       update saved_leads sl set grid_position = ranked.pos
+         from ranked where sl.id = ranked.id`,
+      [searchId],
+    );
+    await query(
+      `update searches set total_found = (
+         select count(*)::int from saved_leads where search_id = $1
+       ) where id = $1`,
+      [searchId],
+    );
+    return true;
+  },
+
+  async createSavedCnpjSearch(userId, cnpj, nome) {
+    const padded = digitsCnpj(cnpj);
+    const hits = await this.searchCompanies(padded, { limit: 1 });
+    const hit = hits[0];
+    if (!hit) return null;
+    const [presets, curated, refCnaes] = await Promise.all([
+      this.listPresets(),
+      loadAllPresetCnaes(),
+      this.listRefCnaes(),
+    ]);
+    const preset = matchPresetForCnae(
+      hit.cnaeCodigo,
+      presets,
+      curated,
+      refCnaes,
+    );
+    const filters: SearchFilters = {
+      ...DEFAULT_FILTERS,
+      cnpjs: [padded],
+      ufs: hit.uf ? [hit.uf] : [],
+      segmentIds: preset ? [preset.id] : [],
+      intentQuery: preset ? null : hit.cnaeDescricao || null,
+    };
+    const snapshot: GridRowSnapshot = {
+      razaoSocial: hit.razaoSocial,
+      nomeFantasia: hit.nomeFantasia,
+      municipio: hit.municipio,
+      uf: hit.uf,
+      cnaeCodigo: hit.cnaeCodigo,
+      cnaeDescricao: hit.cnaeDescricao,
+      telefone: hit.telefone,
+      seal: "NAO_CONFIRMADO",
+      sharedCount: 0,
+      decisorNome: hit.decisorNome,
+      porte: null,
+      email: null,
+    };
+    const inserted = await query(
+      `insert into searches (user_id, nome, filtros, total_found, saved)
+       values ($1, $2, $3::jsonb, 1, true)
+       returning *`,
+      [
+        userId,
+        nome?.trim() || displayCompanyName(hit.nomeFantasia, hit.razaoSocial),
+        JSON.stringify(filters),
+      ],
+    );
+    const search = mapSearch(inserted.rows[0]);
+    await query(
+      `insert into saved_leads (search_id, user_id, cnpj, grid_score, grid_position, status, enrichment)
+       values ($1, $2, $3::char(14), 0, 1, 'novo', $4::jsonb)`,
+      [search.id, userId, padded, JSON.stringify({ gridSnapshot: snapshot })],
+    );
+    return search;
+  },
+
+  async listCompanyBriefs(cnpjs) {
+    const padded = [...new Set(cnpjs.map(digitsCnpj))].filter(Boolean);
+    if (!padded.length) return [];
+    const { rows } = await querySearch<{
+      cnpj: string;
+      razao_social: string;
+      nome_fantasia: string | null;
+      ddd1: string | null;
+      telefone1: string | null;
+    }>(
+      `select e.cnpj, c.razao_social, e.nome_fantasia, e.ddd1, e.telefone1
+         from establishments e
+         join companies c on c.cnpj_basico = e.cnpj_basico
+        where e.cnpj = any($1::char(14)[])`,
+      [padded],
+    );
+    const hits: CompanySearchHit[] = rows.map((r) => ({
+      cnpj: trimChar(r.cnpj),
+      razaoSocial: r.razao_social,
+      nomeFantasia: r.nome_fantasia,
+      municipio: "",
+      uf: "",
+      cnaeCodigo: null,
+      cnaeDescricao: "",
+      telefone:
+        r.ddd1 && r.telefone1 ? `${r.ddd1}${r.telefone1}` : null,
+      decisorNome: null,
+    }));
+    const withDecisor = await attachDecisorsToCompanyHits(hits);
+    const dddByCnpj = new Map(
+      rows.map((r) => [trimChar(r.cnpj), r] as const),
+    );
+    return withDecisor.map((hit) => {
+      const raw = dddByCnpj.get(hit.cnpj);
+      return {
+        cnpj: hit.cnpj,
+        razaoSocial: hit.razaoSocial,
+        nomeFantasia: hit.nomeFantasia,
+        ddd1: raw?.ddd1 ?? null,
+        telefone1: raw?.telefone1 ?? null,
+        decisorNome: hit.decisorNome ?? null,
+      } satisfies CompanyBrief;
+    });
+  },
+
   async listGridRows(searchId, cursor = 0, limit = 50) {
     const search = await this.getSearch(searchId);
     if (!search) return { rows: [], nextCursor: null, total: 0, unaudited: 0 };
@@ -2673,7 +2846,7 @@ export const supabaseRepo: GridRepo = {
     );
 
     const [unaudited, rfRows] = await Promise.all([
-      countUnaudited(searchId, total),
+      countUnaudited(searchId, search.user_id, total),
       missing.length
         ? rowsFromReceita(missing, leadByCnpj).catch(
             () => new Map<string, GridRow>(),
@@ -2687,7 +2860,7 @@ export const supabaseRepo: GridRepo = {
     });
 
     try {
-      rows = await overlayGridRows(searchId, rows);
+      rows = await overlayGridRows(searchId, search.user_id, rows);
     } catch {
       /* snapshots / RF rows still render */
     }
@@ -2696,18 +2869,26 @@ export const supabaseRepo: GridRepo = {
   },
 
   async listUnauditedCnpjs(searchId) {
+    const search = await this.getSearch(searchId);
+    if (!search) return [];
     const { rows } = await query<{ cnpj: string }>(
       `select sl.cnpj
        from saved_leads sl
        where sl.search_id = $1
          and not exists (
-           select 1 from lead_enrichment le
-           where le.cnpj = sl.cnpj
-             and le.expires_at > now()
-             and (le.stage is null or le.stage = 'complete')
+           select 1 from billed_cnpjs b
+            where b.profile_id = $2
+              and b.kind = 'enrich'
+              and rtrim(b.cnpj) = rtrim(sl.cnpj)
+         )
+         and not exists (
+           select 1 from enrichment_jobs j
+            where j.search_id = sl.search_id
+              and rtrim(j.cnpj) = rtrim(sl.cnpj)
+              and j.status in ('done', 'skipped')
          )
        order by sl.grid_position`,
-      [searchId],
+      [searchId, search.user_id],
     );
     return rows.map((r) => trimChar(r.cnpj));
   },
@@ -2789,7 +2970,15 @@ export const supabaseRepo: GridRepo = {
     return Boolean(rows[0]);
   },
 
-  async findNextCallLead(userId): Promise<NextCallLead | null> {
+  async findNextCallLead(userId, searchId?: string | null): Promise<NextCallLead | null> {
+    const params: unknown[] = [userId];
+    let preferred = "";
+    if (searchId) {
+      params.push(searchId);
+      preferred = `order by (s.id = $2) desc, s.created_at desc`;
+    } else {
+      preferred = "order by s.created_at desc";
+    }
     const { rows } = await query(
       `with chosen as (
          select s.id
@@ -2800,7 +2989,7 @@ export const supabaseRepo: GridRepo = {
              select 1 from saved_leads sl
              where sl.search_id = s.id and sl.status = 'novo'
            )
-         order by s.created_at desc
+         ${preferred}
          limit 1
        )
        select sl.cnpj, sl.search_id, sl.grid_position,
@@ -2812,7 +3001,7 @@ export const supabaseRepo: GridRepo = {
        where sl.status = 'novo'
        order by sl.grid_position
        limit 1`,
-      [userId],
+      params,
     );
     const row = rows[0];
     if (!row) return null;
@@ -2909,7 +3098,7 @@ export const supabaseRepo: GridRepo = {
     return Number(rows[0]?.n ?? 0) > 0;
   },
 
-  async classifyEnrichmentCnpjs(cnpjs) {
+  async classifyEnrichmentCnpjs(cnpjs, userId) {
     const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "")))].filter(
       Boolean,
     );
@@ -2928,6 +3117,29 @@ export const supabaseRepo: GridRepo = {
     const remaining = unique.filter((c) => !optedSet.has(c));
     if (!remaining.length) {
       return { chargeable: [], skippedOptOut: optedSet.size };
+    }
+
+    if (userId) {
+      const [{ rows: billed }, { rows: active }] = await Promise.all([
+        query<{ cnpj: string }>(
+          `select cnpj from billed_cnpjs
+            where profile_id = $1 and kind = 'enrich' and cnpj = any($2::text[])`,
+          [userId, remaining],
+        ).catch(() => ({ rows: [] as Array<{ cnpj: string }> })),
+        query<{ cnpj: string }>(
+          `select distinct cnpj from enrichment_jobs
+            where requested_by = $1
+              and cnpj = any($2::text[])
+              and status in ('pending', 'running')`,
+          [userId, remaining],
+        ),
+      ]);
+      const billedSet = new Set(billed.map((r) => trimChar(r.cnpj)));
+      const activeSet = new Set(active.map((r) => trimChar(r.cnpj)));
+      const chargeable = remaining.filter(
+        (c) => !billedSet.has(c) && !activeSet.has(c),
+      );
+      return { chargeable, skippedOptOut: optedSet.size };
     }
 
     const { rows: fresh } = await query<{ cnpj: string }>(

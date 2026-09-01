@@ -24,6 +24,7 @@ import type {
 import type { SearchJob, SearchJobStatus } from "@/lib/search-jobs";
 import type {
   CallEventSource,
+  CompanyBrief,
   CompanySearchHit,
   CountMode,
   CountResult,
@@ -107,6 +108,12 @@ export type GridRepo = {
     patch: { nome?: string; saved?: boolean },
   ): Promise<Search | undefined>;
   deleteSearch(searchId: string): Promise<boolean>;
+  deleteSavedLead(searchId: string, cnpj: string): Promise<boolean>;
+  createSavedCnpjSearch(
+    userId: string,
+    cnpj: string,
+    nome?: string,
+  ): Promise<Search | null>;
   listGridRows(
     searchId: string,
     cursor?: number,
@@ -128,7 +135,11 @@ export type GridRepo = {
     },
   ): Promise<boolean>;
   getPilotStats(userId: string): Promise<PilotStats>;
-  findNextCallLead(userId: string): Promise<NextCallLead | null>;
+  findNextCallLead(
+    userId: string,
+    searchId?: string | null,
+  ): Promise<NextCallLead | null>;
+  listCompanyBriefs(cnpjs: string[]): Promise<CompanyBrief[]>;
   saveNicheCuradoria(
     presetId: string,
     rows: Array<{ cnae: string; incluido: boolean }>,
@@ -157,7 +168,10 @@ export type GridRepo = {
   claimEnrichmentJob(): Promise<EnrichmentJob | null>;
   findFreshEnrichment(cnpj: string): Promise<LeadEnrichment | null>;
   hasActiveEnrichmentJob(cnpj: string): Promise<boolean>;
-  classifyEnrichmentCnpjs(cnpjs: string[]): Promise<{
+  classifyEnrichmentCnpjs(
+    cnpjs: string[],
+    userId?: string,
+  ): Promise<{
     chargeable: string[];
     skippedOptOut: number;
   }>;

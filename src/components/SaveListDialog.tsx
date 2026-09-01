@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import { BookmarkPlus, List, Phone, X } from "lucide-react";
+import { BookmarkPlus, Flag, List, Phone, X } from "lucide-react";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +89,10 @@ export function SaveListDialog({
           <li className="flex items-start gap-3 rounded-xl bg-white/5 px-3 py-2.5">
             <Phone className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
             <span className="text-sm text-podium-gray">{COPY.salvarMotivoOrdem}</span>
+          </li>
+          <li className="flex items-start gap-3 rounded-xl bg-white/5 px-3 py-2.5">
+            <Flag className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
+            <span className="text-sm text-podium-gray">{COPY.salvarMotivoCrm}</span>
           </li>
         </ul>
 

@@ -67,4 +67,22 @@ describe("findNextCallLead", () => {
     expect(next?.cnpj).toBe(est.cnpj);
     expect(next?.gridPosition).toBe(1);
   });
+
+  it("prefers the working list when it still has P novo", async () => {
+    const store = getMockStore();
+    const first = store.establishments[0]!;
+    const second = store.establishments[1]!;
+    store.searches.push(
+      search("older-saved", true, "2026-08-17T12:00:00.000Z"),
+      search("newer-saved", true, "2026-08-17T14:00:00.000Z"),
+    );
+    store.saved_leads.push(
+      lead("lead-older", "older-saved", first.cnpj),
+      lead("lead-newer", "newer-saved", second.cnpj),
+    );
+
+    const next = await mockRepo.findNextCallLead(USER, "older-saved");
+    expect(next?.searchId).toBe("older-saved");
+    expect(next?.cnpj).toBe(first.cnpj);
+  });
 });

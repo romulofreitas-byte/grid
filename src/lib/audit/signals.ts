@@ -316,10 +316,23 @@ function socialBlockedHint(asset: string): string {
   return `Sem site confirmado e sem marca distintiva — confirme o site para cruzar o ${asset}.`;
 }
 
+function siteOffline(e: LeadEnrichment): boolean {
+  if (!e.domain || e.domain_status === "nao_encontrado") return false;
+  if (e.http_status != null) return e.http_status >= 500;
+  return e.stage == null || e.stage === "complete";
+}
+
+function siteClientError(e: LeadEnrichment): boolean {
+  if (!e.domain || e.domain_status === "nao_encontrado") return false;
+  return e.http_status != null && e.http_status >= 400 && e.http_status < 500;
+}
+
 function siteNote(e: LeadEnrichment): string | undefined {
   const bits: string[] = [];
-  if (e.http_status != null && e.http_status >= 400 && e.domain) {
+  if (siteOffline(e)) {
     bits.push("Site fora do ar");
+  } else if (siteClientError(e)) {
+    bits.push("Não abriu agora");
   }
   if (e.osm?.matched === true) {
     bits.push(
@@ -463,17 +476,21 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
     (e.tech.plataforma && PLATFORM_MARK[e.tech.plataforma]) || GENERIC_PLATFORM;
   const chat = (e.tech.chat && CHAT_MARK[e.tech.chat]) || GENERIC_CHAT;
 
-  const siteDown =
-    e.http_status != null && e.http_status >= 400 && e.domain_status !== "nao_encontrado";
+  const siteDown = siteOffline(e);
+  const siteSoftFail = siteClientError(e);
   const siteHint =
     e.domain_status === "confirmado"
       ? siteDown
         ? "Site confirmado, mas fora do ar agora. Dá para abrir a ligação por isso."
-        : "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
+        : siteSoftFail
+          ? "Achei o site, mas a página não abriu agora (bloqueio ou 404). Confirme se é o domínio certo."
+          : "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
       : e.domain_status === "nao_confirmado"
         ? siteDown
           ? "Achei este domínio, mas ele não abriu. Confirme se é o site da empresa."
-          : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
+          : siteSoftFail
+            ? "Achei este domínio, mas a página não abriu agora. Confirme se é o site da empresa."
+            : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
         : "Sem site encontrado — dá para abrir a ligação por isso.";
 
   const atualizacao =

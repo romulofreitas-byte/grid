@@ -1,13 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Flag, Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
+import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
-import { canSearchCompanies } from "@/lib/data/company-search";
+import { gridHref } from "@/lib/back";
+import { COPY } from "@/lib/copy";
+import {
+  canSearchCompanies,
+  isFullCnpjQuery,
+} from "@/lib/data/company-search";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnpj } from "@/lib/format";
 import {
@@ -41,16 +48,13 @@ function useDebounced<T>(value: T, delay: number): T {
 function CompanyRow({
   hit,
   onOpen,
+  onSaveToPista,
+  saving,
 }: {
-  hit: Pick<
-    CompanySearchHit,
-    "cnpj" | "razaoSocial" | "nomeFantasia" | "municipio" | "uf"
-  > & {
-    decisorNome?: string | null;
-    telefone?: string | null;
-    cnaeDescricao?: string;
-  };
+  hit: CompanySearchHit | RecentCompany;
   onOpen: () => void;
+  onSaveToPista: (hit: CompanySearchHit | RecentCompany) => void;
+  saving: boolean;
 }) {
   const qc = useQueryClient();
   function warm() {
@@ -62,16 +66,17 @@ function CompanyRow({
     });
   }
   return (
-    <Link
-      href={`/lead/${hit.cnpj}?from=empresas`}
-      onClick={() => {
-        warm();
-        onOpen();
-      }}
-      onPointerEnter={warm}
-      onFocus={warm}
-    >
-      <GlassCard className="mb-2 px-4 py-3 hover:bg-white/[0.03]">
+    <GlassCard className="mb-2 px-4 py-3 hover:bg-white/[0.03]">
+      <Link
+        href={`/lead/${hit.cnpj}?from=empresas`}
+        onClick={() => {
+          warm();
+          onOpen();
+        }}
+        onPointerEnter={warm}
+        onFocus={warm}
+        className="block"
+      >
         <div className="flex items-baseline justify-between gap-3">
           <p className="min-w-0 truncate font-bold">
             {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
@@ -87,22 +92,34 @@ function CompanyRow({
         ) : null}
         <p className="mt-1 text-xs tabular-nums text-podium-muted">
           {formatCnpj(hit.cnpj)}
-          {hit.decisorNome ? (
+          {"decisorNome" in hit && hit.decisorNome ? (
             <span className="ml-2 normal-case">· Decisor: {hit.decisorNome}</span>
           ) : null}
         </p>
-      </GlassCard>
-    </Link>
+      </Link>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onSaveToPista(hit)}
+        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-podium-yellow px-3 py-1.5 text-xs font-bold text-podium-navy disabled:opacity-40"
+      >
+        <Flag className="h-3 w-3" />
+        {saving ? "Salvando…" : COPY.salvarNaPista}
+      </button>
+    </GlassCard>
   );
 }
 
 export default function EmpresasPage() {
+  const router = useRouter();
   const [draft, setDraft] = useState("");
   const [immediate, setImmediate] = useState<string | null>(null);
   const [ufs, setUfs] = useState<string[]>([]);
   const [soMatriz, setSoMatriz] = useState(false);
   const [ufOpen, setUfOpen] = useState(false);
   const [recent, setRecent] = useState<RecentCompany[]>([]);
+  const [savingCnpj, setSavingCnpj] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const debounced = useDebounced(draft, 300);
   const q = (immediate ?? debounced).trim();
   const ready = canSearchCompanies(q);
@@ -135,6 +152,28 @@ export default function EmpresasPage() {
   });
 
   const hits = ready ? (query.data ?? []) : [];
+
+  async function saveToPista(hit: { cnpj: string }) {
+    setSaveError(null);
+    setSavingCnpj(hit.cnpj);
+    try {
+      const res = await fetch("/api/empresas/pista", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cnpj: hit.cnpj }),
+      });
+      const json = (await res.json()) as { searchId?: string; error?: string };
+      if (!res.ok || !json.searchId) {
+        throw new Error(json.error ?? "Não foi possível salvar na pista");
+      }
+      router.push(gridHref(json.searchId, "empresas"));
+    } catch (err) {
+      setSavingCnpj(null);
+      setSaveError(
+        err instanceof Error ? err.message : "Não foi possível salvar na pista",
+      );
+    }
+  }
 
   return (
     <AppShell title="Empresas" back={{ href: "/box", label: "Voltar ao Box" }}>
@@ -240,15 +279,27 @@ export default function EmpresasPage() {
         </GlassCard>
       ) : ready && hits.length === 0 && !query.isFetching ? (
         <GlassCard className="mt-6 p-5 text-sm text-podium-muted">
-          Nenhuma empresa encontrada para “{q}”.
+          {isFullCnpjQuery(q)
+            ? COPY.empresaForaDaBase
+            : `Nenhuma empresa encontrada para “${q}”.`}
         </GlassCard>
       ) : hits.length > 0 ? (
-        <div className="mt-6 space-y-1">
+        <div className="mt-6 space-y-3">
+          <SaveToCrmTelemetry cta={COPY.salvarNaPista} />
+          {saveError ? (
+            <p className="text-sm text-podium-yellow">{saveError}</p>
+          ) : null}
           {query.isFetching ? (
-            <p className="mb-2 text-xs text-podium-muted">Buscando…</p>
+            <p className="text-xs text-podium-muted">Buscando…</p>
           ) : null}
           {hits.map((h) => (
-            <CompanyRow key={h.cnpj} hit={h} onOpen={() => openCompany(h)} />
+            <CompanyRow
+              key={h.cnpj}
+              hit={h}
+              onOpen={() => openCompany(h)}
+              onSaveToPista={saveToPista}
+              saving={savingCnpj === h.cnpj}
+            />
           ))}
         </div>
       ) : draft.trim().length > 0 && !ready ? (
@@ -260,9 +311,18 @@ export default function EmpresasPage() {
       {!ready && recent.length > 0 ? (
         <section className="mt-8">
           <SectionTitle>Recentes</SectionTitle>
+          {saveError ? (
+            <p className="mt-2 text-sm text-podium-yellow">{saveError}</p>
+          ) : null}
           <div className="mt-4 space-y-1">
             {recent.map((h) => (
-              <CompanyRow key={h.cnpj} hit={h} onOpen={() => openCompany(h)} />
+              <CompanyRow
+                key={h.cnpj}
+                hit={h}
+                onOpen={() => openCompany(h)}
+                onSaveToPista={saveToPista}
+                saving={savingCnpj === h.cnpj}
+              />
             ))}
           </div>
         </section>

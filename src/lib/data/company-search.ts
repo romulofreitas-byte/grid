@@ -26,3 +26,28 @@ export function canSearchCompanies(q: string): boolean {
 export function escapeIlike(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
+
+const ACCENT_FROM =
+  "áàâãäåéèêëíìîïóòôõöúùûüýÿçñÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÝÇÑ";
+const ACCENT_TO =
+  "aaaaaaeeeeiiiiooooouuuuyycnAAAAAAEEEEIIIIOOOOOUUUUYCN";
+
+/** Fold accents in a SQL text expression (no unaccent extension). */
+export function sqlFoldAccent(expr: string): string {
+  return `translate(lower(${expr}), '${ACCENT_FROM}', '${ACCENT_TO}')`;
+}
+
+export function companyNameTokens(q: string): string[] {
+  return q
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter((t) => t.length >= 2);
+}
+
+export function isFullCnpjQuery(q: string): boolean {
+  return companySearchDigits(q).length === 14;
+}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MapPin, MessageCircle } from "lucide-react";
+import { Flag, MapPin, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnatomyCard } from "@/components/AnatomyCard";
 import { SociosPanel } from "@/components/ApproachDoors";
@@ -15,7 +15,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { LeadCompanyCard } from "@/components/LeadCompanyCard";
 import { LeadStatusStrip } from "@/components/LeadStatusStrip";
 import { Button } from "@/components/ui/Button";
-import { leadBack, leadHref, parseGridFrom } from "@/lib/back";
+import { leadBack, leadHref, parseGridFrom, gridHref } from "@/lib/back";
+import { COPY } from "@/lib/copy";
 import {
   blockQualifyIfFree,
   isBillingGateError,
@@ -114,9 +115,11 @@ function LeadPreviewShell({
 
 export default function LeadPage() {
   const params = useParams<{ cnpj: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const searchId = searchParams.get("searchId") ?? undefined;
   const from = parseGridFrom(searchParams.get("from"));
+  const fromEmpresas = searchParams.get("from") === "empresas";
   const back = leadBack(searchId, searchParams.get("from"));
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
@@ -125,6 +128,7 @@ export default function LeadPage() {
   const [refreshQueued, setRefreshQueued] = useState(false);
   const [qualifyError, setQualifyError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
+  const [savingPista, setSavingPista] = useState(false);
   const heldCompleteRef = useRef<LeadEnrichment | null>(null);
   const ensuringRef = useRef<string | null>(null);
 
@@ -504,6 +508,43 @@ export default function LeadPage() {
           addressSharedCount={d.addressSharedCount}
           emailSeal={d.emailSeal}
         />
+
+        {fromEmpresas && !searchId ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              size="sm"
+              disabled={savingPista}
+              onClick={() => {
+                setSavingPista(true);
+                void fetch("/api/empresas/pista", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ cnpj: params.cnpj }),
+                })
+                  .then(async (res) => {
+                    const json = (await res.json()) as {
+                      searchId?: string;
+                      error?: string;
+                    };
+                    if (!res.ok || !json.searchId) {
+                      throw new Error(json.error ?? "Não foi possível salvar");
+                    }
+                    router.push(gridHref(json.searchId, "empresas"));
+                  })
+                  .catch((err: Error) => {
+                    setSavingPista(false);
+                    setQualifyError(err.message);
+                  });
+              }}
+              className="gap-1.5"
+            >
+              <Flag className="h-3.5 w-3.5" />
+              {savingPista ? "Salvando…" : COPY.salvarNaPista}
+            </Button>
+            <p className="text-xs text-podium-muted">{COPY.crmSaveListToEnter}</p>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
           <GlassCard
