@@ -40,8 +40,17 @@ describe("COPY box cluster", () => {
     expect(COPY.boxSequenciaHintMany.replace("{n}", "4")).toBe(
       "Você está numa sequência de 4 dias fazendo ligações.",
     );
-    expect(COPY.boxAcessoHint.replace("{n}", "900")).toBe(
-      "Você ainda possui 900 créditos.",
+    expect(COPY.boxAcessoHint).toMatch(/de meta/);
+    expect(COPY.boxAcessoHintLocked).toMatch(/não reabre/i);
+    expect(
+      COPY.boxAcessoHint
+        .replace("{days}", "18")
+        .replace("{dayWord}", "dias")
+        .replace("{goal}", "20")
+        .replace("{credits}", "900")
+        .replace("{cost}", "1"),
+    ).toBe(
+      "Ainda dá 18 dias de meta (20 fichas/dia). 900 créditos · 1 por ficha.",
     );
     expect(COPY.boxListasHintZero).toMatch(/não tem listas/i);
     expect(COPY.boxListasHintOne).toMatch(/1 lista salva/);

@@ -43,7 +43,7 @@ const schema = z
     searchId: z.string().optional(),
     cnpjs: z.array(z.string()).optional(),
     scope: z.enum(["first_unaudited", "all_unaudited"]).optional(),
-    limit: z.union([z.literal(10), z.literal(20), z.literal(50)]).optional(),
+    limit: z.number().int().min(1).max(100).optional(),
     action: z.enum(["confirm", "reject", "correct"]).optional(),
     domain: z.string().optional(),
     refresh: z.boolean().optional(),

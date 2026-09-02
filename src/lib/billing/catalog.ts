@@ -48,7 +48,7 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "25 créditos / mês",
-      "Exportação de cadastro + decisor",
+      "Exportação cara (10 / CNPJ)",
       "Sem qualificação nem CRM",
     ],
   },
@@ -63,9 +63,9 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "900 créditos / mês",
-      "500 exportações + 200 qualificações",
+      "~20 fichas por dia no mês",
       "CRM nativo",
-      "Pix, cartão ou boleto",
+      "Exportar: 10 créditos / CNPJ",
     ],
   },
   {
@@ -79,7 +79,7 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "4.000 créditos / mês",
-      "2.000 exportações + 1.000 qualificações",
+      "Volume de quem vive de lista",
       "Prioridade na fila de qualificação",
     ],
   },
@@ -109,8 +109,8 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "900 créditos nos 30 dias",
-      "Depois: recarga ou assine o Piloto",
-      "Ative com o cupom da Plataforma",
+      "~20 fichas por dia",
+      "Depois: assine o Piloto",
     ],
   },
 ];
@@ -123,7 +123,7 @@ export const PACKS: PackDefinition[] = [
     tagline: "Créditos que não expiram.",
     priceCents: 4_700,
     credits: 100,
-    highlights: ["100 créditos", "Não substitui o plano", "Não expira"],
+    highlights: ["100 créditos", "Não substitui o plano", "Não reabre o CRM"],
   },
   {
     sku: "pack_500",
@@ -132,7 +132,7 @@ export const PACKS: PackDefinition[] = [
     tagline: "Boost no meio do mês.",
     priceCents: 16_700,
     credits: 500,
-    highlights: ["500 créditos", "Não expira", "Usa depois do saldo do plano"],
+    highlights: ["500 créditos", "Não reabre o CRM", "Usa depois do saldo do plano"],
   },
   {
     sku: "pack_2000",
@@ -141,7 +141,7 @@ export const PACKS: PackDefinition[] = [
     tagline: "Campanha pesada, sem upgrade.",
     priceCents: 49_700,
     credits: 2_000,
-    highlights: ["2.000 créditos", "Não expira", "Pior custo que a assinatura"],
+    highlights: ["2.000 créditos", "Não reabre o CRM", "Pior custo que a assinatura"],
   },
 ];
 
@@ -174,5 +174,13 @@ export function formatBrl(cents: number): string {
   }).format(cents / 100);
 }
 
-export const EXPORT_CREDIT_COST = 1;
-export const ENRICH_CREDIT_COST = 2;
+export const EXPORT_CREDIT_COST = 10;
+export const ENRICH_CREDIT_COST = 1;
+
+export function creditsPhrase(n: number): string {
+  return Math.abs(n) === 1 ? `${n} crédito` : `${n} créditos`;
+}
+
+export function creditsEach(n: number): string {
+  return `${creditsPhrase(n)} cada`;
+}

@@ -20,9 +20,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
+import { DEFAULT_CALL_GOAL } from "@/lib/pilot-profile";
 import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
 import { gridBack, largadaEditHref, leadHref, parseGridFrom, crmHref } from "@/lib/back";
-import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
+import { ENRICH_CREDIT_COST, EXPORT_CREDIT_COST, creditsEach } from "@/lib/billing/catalog";
 import {
   blockQualifyIfFree,
   isBillingGateError,
@@ -32,7 +33,7 @@ import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { sealLabel } from "@/lib/seal-display";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
-import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
+import type { EnrichmentJob, GridRow, Profile, Search } from "@/lib/types";
 import {
   ENRICH_QUEUE_STUCK_MS,
   enrichJobsPollInterval,
@@ -69,7 +70,7 @@ async function fetchPage(searchId: string, cursor: number) {
 type EnrichBody = {
   cnpjs?: string[];
   scope?: "first_unaudited" | "all_unaudited";
-  limit?: 10 | 20 | 50;
+  limit?: number;
 };
 
 const QUALIFY_BATCH_SIZES = [10, 20, 50] as const;
@@ -276,6 +277,15 @@ export default function GridPage() {
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
   const billingQuery = useBillingMe();
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile");
+      if (!res.ok) throw new Error("Não foi possível carregar o perfil");
+      return (await res.json()) as Profile;
+    },
+  });
+  const callGoal = profileQuery.data?.meta_ligacoes_dia || DEFAULT_CALL_GOAL;
   const [listName, setListName] = useState("");
   const [renamed, setRenamed] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -812,12 +822,23 @@ export default function GridPage() {
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          {QUALIFY_BATCH_SIZES.map((size) => (
+          <Button
+            size="sm"
+            variant="primary"
+            title={creditsEach(ENRICH_CREDIT_COST)}
+            disabled={enrichMutation.isPending || unaudited === 0}
+            onClick={() =>
+              requestQualify({ scope: "first_unaudited", limit: callGoal })
+            }
+          >
+            {COPY.qualificarMetaHoje} ({callGoal})
+          </Button>
+          {QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal).map((size) => (
             <Button
               key={size}
               size="sm"
               variant="secondary"
-              title={`${ENRICH_CREDIT_COST} créditos cada`}
+              title={creditsEach(ENRICH_CREDIT_COST)}
               disabled={enrichMutation.isPending || unaudited === 0}
               onClick={() =>
                 requestQualify({ scope: "first_unaudited", limit: size })
@@ -839,7 +860,7 @@ export default function GridPage() {
             <Button
               size="sm"
               variant="secondary"
-              title={`${ENRICH_CREDIT_COST} créditos cada`}
+              title={creditsEach(ENRICH_CREDIT_COST)}
               disabled={unaudited === 0}
               onClick={() => setConfirmAll(true)}
             >
@@ -888,6 +909,7 @@ export default function GridPage() {
                     pushMutation.mutate(connectionId || destinations[0]!.id)
                   }
                   className="gap-1.5"
+                  title={`${EXPORT_CREDIT_COST} créditos / CNPJ`}
                 >
                   <Send className="h-3.5 w-3.5" />
                   Enviar
@@ -910,6 +932,7 @@ export default function GridPage() {
               searchId={searchId}
               format={fmt}
               label={fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}
+              costHint={`${EXPORT_CREDIT_COST} / CNPJ`}
             />
           ))}
         </div>
@@ -1239,7 +1262,7 @@ export default function GridPage() {
                     {selectedCount}
                   </span>{" "}
                   selecionada{selectedCount === 1 ? "" : "s"} ·{" "}
-                  {ENRICH_CREDIT_COST} créditos cada ·{" "}
+                  {creditsEach(ENRICH_CREDIT_COST)} ·{" "}
                   <span className="font-semibold text-podium-yellow">
                     {selectedCost} créditos
                   </span>
@@ -1248,7 +1271,7 @@ export default function GridPage() {
                 <>
                   Selecione quem qualificar
                   {" · "}
-                  {ENRICH_CREDIT_COST} créditos cada
+                  {creditsEach(ENRICH_CREDIT_COST)}
                 </>
               )}
             </p>

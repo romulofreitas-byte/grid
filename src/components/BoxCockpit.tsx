@@ -12,6 +12,7 @@ import { VoltaRing } from "@/components/VoltaRing";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
+import { tankDaysLabel, tankHint, qualifyDaysRemaining } from "@/lib/billing/tank";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { NextCallLead, Profile, Search } from "@/lib/types";
 import { writeWorkingSearchCookie } from "@/lib/working-search";
@@ -23,8 +24,16 @@ function sequenciaHint(n: number): string {
   return COPY.boxSequenciaHintMany.replace("{n}", String(n));
 }
 
-function acessoHint(n: number): string {
-  return COPY.boxAcessoHint.replace("{n}", String(n));
+function acessoHint(input: {
+  total: number;
+  enrichAllowed: boolean;
+  meta: number;
+}): string {
+  return tankHint({
+    enrichAllowed: input.enrichAllowed,
+    credits: input.total,
+    dailyGoal: input.meta,
+  });
 }
 
 function listasHint(n: number): string {
@@ -265,8 +274,15 @@ export function BoxCockpit({
                   />
                   <ClusterCard
                     label="Acesso"
-                    value={String(billing.total)}
-                    hint={acessoHint(billing.total)}
+                    value={tankDaysLabel(
+                      qualifyDaysRemaining(billing.total, meta),
+                      billing.enrichAllowed,
+                    )}
+                    hint={acessoHint({
+                      total: billing.total,
+                      enrichAllowed: billing.enrichAllowed,
+                      meta,
+                    })}
                     icon={Wallet}
                     href={planosHref("/box")}
                     hrefLabel={

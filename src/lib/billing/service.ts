@@ -4,7 +4,6 @@ import { isUndefinedTableError } from "@/lib/data/pg";
 import {
   addUtcDays,
   isTrialExpired,
-  PACK_ACCESS_EXTEND_DAYS,
   PLATFORM_TRIAL_DAYS,
   subscriptionGrantsAccess,
   trialDaysRemaining,
@@ -236,7 +235,7 @@ export async function assertCrmAccess(profileId: string): Promise<CreditBalance>
   if (!balance.enrichAllowed) {
     throw new CrmNotAllowedError(
       balance.trialExpired
-        ? "Os 30 dias do Piloto da Plataforma acabaram. Recarregue ou assine o Piloto."
+        ? "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar."
         : undefined,
     );
   }
@@ -275,7 +274,7 @@ export async function createCheckout(input: {
     const prior = await store.listOrders(input.profileId);
     if (prior.some((o) => o.kind === "platform" && o.status === "paid")) {
       throw new BillingError(
-        "Os 30 dias do Piloto da Plataforma já foram usados. Recarregue ou assine o Piloto.",
+        "Os 30 dias do Piloto da Plataforma já foram usados. Assine o Piloto.",
         403,
       );
     }
@@ -420,23 +419,6 @@ export async function simulateMockPayment(orderId: string, profileId: string): P
   return paid;
 }
 
-async function extendAccessFromPack(
-  store: BillingStore,
-  profileId: string,
-): Promise<void> {
-  const existing = await store.getActiveSubscription(profileId);
-  if (!existing) return;
-  if (subscriptionGrantsAccess(existing)) return;
-  const start = new Date();
-  const end = addUtcDays(start, PACK_ACCESS_EXTEND_DAYS);
-  await store.updateSubscription(existing.id, {
-    status: "active",
-    currentPeriodStart: start.toISOString(),
-    currentPeriodEnd: end.toISOString(),
-    cancelAtPeriodEnd: false,
-  });
-}
-
 export async function applyPaymentPaid(orderId: string): Promise<void> {
   const store = await getBillingStore();
   const order = await store.getOrder(orderId);
@@ -457,7 +439,6 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
       orderId: order.id,
       reason: `pack_${item.sku}`,
     });
-    await extendAccessFromPack(store, order.profileId);
     await syncCache(store, order.profileId);
     await enqueueTreasurySweep(store, order);
     return;
@@ -750,7 +731,7 @@ export async function debitEnrich(
   if (!balance.enrichAllowed) {
     throw new EnrichmentNotAllowedError(
       balance.trialExpired
-        ? "Os 30 dias do Piloto da Plataforma acabaram. Recarregue ou assine o Piloto."
+        ? "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar."
         : undefined,
     );
   }

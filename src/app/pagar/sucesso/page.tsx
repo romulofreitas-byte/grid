@@ -117,9 +117,8 @@ function SucessoInner() {
             </div>
             <div className="flex flex-col justify-center gap-6 border-t border-white/10 px-6 py-10 md:px-10 lg:border-l lg:border-t-0">
               <p className="text-sm leading-relaxed text-podium-gray md:text-base">
-                Buscar e ver continua grátis — o crédito só queima na exportação
-                (Excel ou envio ao discador/CRM) e na qualificação. Ligar pela
-                ficha não cobra.
+                A mensalidade abre o CRM. Crédito paga a ficha que você liga;
+                exportar a lista custa mais. Ligar pela ficha não cobra.
               </p>
               {orderId ? (
                 <p className="text-xs text-podium-muted">Pedido {orderId}</p>

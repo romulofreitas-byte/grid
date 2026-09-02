@@ -9,6 +9,7 @@ describe("filterFaq", () => {
   it("matches without accents", () => {
     const hits = filterFaq(FAQ_ITEMS, "credito");
     expect(hits.some((item) => item.id === "quando-credito")).toBe(true);
+    expect(hits.some((item) => item.id === "plano-zera")).toBe(true);
   });
 
   it("matches saved vs unsaved lists", () => {

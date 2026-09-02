@@ -37,7 +37,7 @@ describe("guardCrmApi", () => {
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     assertCrmAccess.mockRejectedValue(
       new CrmNotAllowedError(
-        "Os 30 dias do Piloto da Plataforma acabaram. Recarregue ou assine o Piloto.",
+        "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar.",
       ),
     );
     const res = await guardCrmApi(new Request("http://localhost/api/crm/pipelines"), "read");

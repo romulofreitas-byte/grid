@@ -1,7 +1,6 @@
 import type { BillingSubscription } from "@/lib/billing/types";
 
 export const PLATFORM_TRIAL_DAYS = 30;
-export const PACK_ACCESS_EXTEND_DAYS = 30;
 
 export function addUtcDays(from: Date, days: number): Date {
   const d = new Date(from.getTime());

@@ -13,12 +13,14 @@ export function ExportDownload({
   label,
   className,
   wrapperClassName,
+  costHint,
 }: {
   searchId: string;
   format: "xlsx" | "csv" | "pdf";
   label: string;
   className?: string;
   wrapperClassName?: string;
+  costHint?: string;
 }) {
   const { openPaywall } = usePaywall();
   const [error, setError] = useState<string | null>(null);
@@ -70,9 +72,13 @@ export function ExportDownload({
         variant="secondary"
         onClick={() => void run()}
         className={className}
+        title={costHint}
       >
         <Download className="h-3.5 w-3.5" />
         {label}
+        {costHint ? (
+          <span className="text-[10px] font-medium opacity-70">{costHint}</span>
+        ) : null}
       </Button>
       {error ? (
         <span className="max-w-xs text-right text-[11px] text-podium-yellow">

@@ -263,9 +263,12 @@ export default function ContaPage() {
                 {billing?.balance.plan ?? 0} do plano · {billing?.balance.pack ?? 0} de
                 recarga
               </p>
+              <p className="mt-1 text-xs text-podium-muted">
+                O do plano zera no mês. Recarga fica e não reabre o CRM.
+              </p>
               {billing?.balance.trialExpired ? (
                 <p className="mt-2 text-xs text-podium-yellow">
-                  Os 30 dias acabaram. Recarregue ou assine o Piloto.
+                  Os 30 dias acabaram. Assine o Piloto para continuar.
                 </p>
               ) : billing?.subscription?.status === "trialing" &&
                 billing.balance.trialDaysLeft != null ? (

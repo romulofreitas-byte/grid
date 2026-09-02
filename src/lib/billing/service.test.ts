@@ -101,7 +101,7 @@ describe("billing service", () => {
     expect(first.charged).toBe(1);
     const second = await debitExport(profileId, ["12345678000190"], "search-1");
     expect(second.charged).toBe(0);
-    expect(second.balance.total).toBe(899);
+    expect(second.balance.total).toBe(890);
   });
 
   it("shares export billing between CSV and list push", async () => {
@@ -117,7 +117,7 @@ describe("billing service", () => {
     const push = await debitExport(profileId, ["12345678000190", "98765432000100"], "search-push");
     expect(push.charged).toBe(0);
     expect(push.skipped).toBe(2);
-    expect(push.balance.total).toBe(898);
+    expect(push.balance.total).toBe(880);
   });
 
   it("blocks enrichment on free", async () => {
@@ -155,9 +155,9 @@ describe("billing service", () => {
       method: "card_br",
     });
     const first = await debitEnrich(profileId, ["12345678000190"], "s1");
-    expect(first.total).toBe(898);
+    expect(first.total).toBe(899);
     const second = await debitEnrich(profileId, ["12345678000190"], "s1");
-    expect(second.total).toBe(898);
+    expect(second.total).toBe(899);
   });
 
   it("forceCharge debits enrich again for an already-billed CNPJ", async () => {
@@ -169,11 +169,11 @@ describe("billing service", () => {
       method: "card_br",
     });
     const first = await debitEnrich(profileId, ["12345678000190"], "s1");
-    expect(first.total).toBe(898);
+    expect(first.total).toBe(899);
     const refresh = await debitEnrich(profileId, ["12345678000190"], "s1", {
       forceCharge: true,
     });
-    expect(refresh.total).toBe(896);
+    expect(refresh.total).toBe(898);
   });
 
   it("throws when credits run out", async () => {
@@ -285,7 +285,7 @@ describe("billing service", () => {
     vi.useRealTimers();
   });
 
-  it("extends access 30 days when a pack is paid after the trial ends", async () => {
+  it("does not restore qualify or CRM when a pack is paid after the trial ends", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
     await createCheckout({
@@ -305,12 +305,13 @@ describe("billing service", () => {
       method: "card_br",
     });
     const bal = await getBalance(profileId);
-    expect(bal.enrichAllowed).toBe(true);
-    expect(bal.plano).toBe("membro_plataforma");
+    expect(bal.enrichAllowed).toBe(false);
+    expect(bal.plano).toBe("free");
     expect(bal.pack).toBe(100);
-    expect(bal.trialExpired).toBe(false);
-    const end = bal.periodEndsAt ? new Date(bal.periodEndsAt).getTime() : 0;
-    expect(end).toBeGreaterThan(Date.now() + 29 * 24 * 60 * 60 * 1000);
+    expect(bal.trialExpired).toBe(true);
+    await expect(
+      debitEnrich(profileId, ["12345678000190"], null),
+    ).rejects.toBeInstanceOf(EnrichmentNotAllowedError);
     vi.useRealTimers();
   });
 

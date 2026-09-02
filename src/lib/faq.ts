@@ -79,7 +79,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (2 créditos). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da Anatomia. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar no CRM. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da Anatomia. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar no CRM. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -125,7 +125,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Quando gasta crédito?",
     answer:
-      "Buscar e ver a lista é grátis. Crédito só na exportação (1) e na qualificação (2).",
+      "Buscar e ver a lista é grátis. Qualificar custa 1 crédito e cai no CRM. Exportar CSV/Excel ou enviar para CRM externo custa 10. Atualizar a qualificação cobra de novo.",
     links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
@@ -133,15 +133,23 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Recarga substitui o plano?",
     answer:
-      "Não. Pacotes não expiram e não substituem a assinatura. Servem para o meio do mês, com custo por crédito pior que o plano.",
+      "Não. Pacotes não expiram e não substituem a assinatura — nem reabrem o CRM. Servem para o meio do mês ou para exportar, com custo por crédito pior que o plano.",
     links: [{ href: "/planos", label: "Recarregar" }],
+  },
+  {
+    id: "plano-zera",
+    category: "Créditos",
+    question: "O crédito que eu não usei passa para o mês seguinte?",
+    answer:
+      "O crédito do plano zera na renovação. Recarga não expira e fica na conta. Sem mensalidade, o CRM e a qualificação fecham — recarga só soma crédito, não reabre o acesso.",
+    links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
     id: "membro-plataforma",
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      `Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom ${DEFAULT_PLATFORM_COUPON}. Depois, recarregue ou assine o Piloto.`,
+      `Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom ${DEFAULT_PLATFORM_COUPON}. Depois, assine o Piloto. Recarga só soma crédito.`,
     links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {
@@ -149,7 +157,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Como exporto a lista?",
     answer:
-      "No Grid, baixe XLSX ou CSV para o CRM. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida.",
+      "No Grid, baixe XLSX ou CSV. Cada CNPJ custa 10 créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. Trabalhar no CRM nativo não cobra essa taxa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {

@@ -33,7 +33,7 @@ export function planRequiredPayload(error: string, code: BillingGateCode = "plan
   return {
     error,
     code,
-    upgradeUrl: code === "trial_expired" ? RECARGA_URL : PLANOS_URL,
+    upgradeUrl: PLANOS_URL,
   };
 }
 
@@ -83,7 +83,7 @@ export function parseBillingGate(
     status === 403 &&
     (error.includes("30 dias") || error.includes("trial"))
   ) {
-    return { kind: "trial", upgradeUrl: upgradeUrl || RECARGA_URL };
+    return { kind: "trial", upgradeUrl: upgradeUrl || PLANOS_URL };
   }
   if (
     status === 403 &&
@@ -164,9 +164,9 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     return {
       eyebrow: "30 dias",
       title: "O trial do Piloto acabou",
-      body: "Recarregue para mais 30 dias de acesso ou assine o Piloto.",
-      primary: { href: RECARGA_URL, label: "Recarregar" },
-      secondary: { href: PLANOS_URL, label: "Ver planos" },
+      body: "Assine o Piloto para reabrir o CRM e a qualificação. Recarga só soma crédito — não substitui a mensalidade.",
+      primary: { href: PLANOS_URL, label: "Ver planos" },
+      secondary: { href: RECARGA_URL, label: "Recarregar créditos" },
     };
   }
   if (state.kind === "plan") {

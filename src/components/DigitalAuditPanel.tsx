@@ -20,7 +20,7 @@ import {
   type AuditSignal,
   type QualifyChipKind,
 } from "@/lib/audit/signals";
-import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
+import { ENRICH_CREDIT_COST, creditsPhrase } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
 import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
@@ -89,7 +89,7 @@ function QualifyHeader({
           >
             {refreshing
               ? COPY.atualizandoQualificacao
-              : `${COPY.atualizarQualificacao} · ${ENRICH_CREDIT_COST}`}
+              : `${COPY.atualizarQualificacao} · ${creditsPhrase(ENRICH_CREDIT_COST)}`}
           </button>
         ) : null}
         {mapsUrl ? (
@@ -718,7 +718,7 @@ export function DigitalAuditPanel({
           >
             {qualifyPending
               ? "Qualificando…"
-              : `${COPY.qualificar} · ${ENRICH_CREDIT_COST} créditos`}
+              : `${COPY.qualificar} · ${creditsPhrase(ENRICH_CREDIT_COST)}`}
           </Button>
         </>
       ) : null}

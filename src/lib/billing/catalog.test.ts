@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ENRICH_CREDIT_COST,
+  EXPORT_CREDIT_COST,
+  creditsPhrase,
   formatBrl,
   getCatalogItem,
   orderKindFor,
@@ -52,8 +54,22 @@ describe("catalog", () => {
     expect(formatBrl(9_700)).toBe("R$ 97,00");
   });
 
-  it("charges two credits per enrichment", () => {
-    expect(ENRICH_CREDIT_COST).toBe(2);
+  it("sizes Piloto around a month of daily calls, not bulk export", () => {
+    const piloto = getCatalogItem("piloto");
+    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
+      "~20 fichas por dia no mês",
+    );
+    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
+      "Exportar: 10 créditos / CNPJ",
+    );
+  });
+
+  it("charges one credit to qualify and ten to export", () => {
+    expect(ENRICH_CREDIT_COST).toBe(1);
+    expect(EXPORT_CREDIT_COST).toBe(10);
+    expect(EXPORT_CREDIT_COST).toBeGreaterThan(ENRICH_CREDIT_COST);
+    expect(creditsPhrase(1)).toBe("1 crédito");
+    expect(creditsPhrase(10)).toBe("10 créditos");
     expect(PLANS).toHaveLength(5);
   });
 });

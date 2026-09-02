@@ -63,7 +63,7 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano e comece pela lista",
   landingPlansBody:
-    "Buscar e ver a lista é grátis. Crédito só na exportação e na qualificação.",
+    "A mensalidade abre o CRM e a qualificação. Crédito paga a ficha que você liga; exportar a lista custa mais.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
@@ -92,7 +92,7 @@ export const COPY = {
   boxPlatformCoupon:
     "Você assina o Mundo Pódium. Ative 30 dias de Piloto com o cupom no checkout.",
   boxPlatformTrialEnded:
-    "Os 30 dias do Piloto acabaram. Recarregue ou assine o mesmo plano para continuar.",
+    "Os 30 dias do Piloto acabaram. Assine o Piloto para continuar. Recarga só soma crédito — não reabre o CRM.",
   cnae: "Código da atividade da empresa na Receita.",
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outros contatos",
@@ -140,12 +140,13 @@ export const COPY = {
   novaLista: "Nova lista",
   continuarLista: "Continuar lista",
   qualificar: "Qualificar",
+  qualificarMetaHoje: "Qualificar a meta de hoje",
   qualificarMarque:
-    "Selecione para ver site, redes e Google — telefone e nome mais confiáveis. 2 créditos cada. A ordem pode mudar depois.",
+    "Selecione para ver site, redes e Google — telefone e nome mais confiáveis. 1 crédito cada. A ordem pode mudar depois.",
   qualificarEstaEmpresa: "Qualificar esta empresa",
   atualizarQualificacao: "Atualizar",
   atualizarQualificacaoHint:
-    "Mantém o resultado atual e busca de novo site, redes e Google. Consome 2 créditos — só quando você pedir.",
+    "Mantém o resultado atual e busca de novo site, redes e Google. Consome 1 crédito — só quando você pedir.",
   atualizandoQualificacao: "Atualizando…",
   corrigirQualificacao: "Corrigir",
   inserirQualificacao: "Inserir",
@@ -181,7 +182,12 @@ export const COPY = {
     "Você está numa sequência de 1 dia fazendo ligações.",
   boxSequenciaHintMany:
     "Você está numa sequência de {n} dias fazendo ligações.",
-  boxAcessoHint: "Você ainda possui {n} créditos.",
+  boxAcessoHint:
+    "Ainda dá {days} {dayWord} de meta ({goal} fichas/dia). {credits} créditos · {cost} por ficha.",
+  boxAcessoHintZero:
+    "Saldo insuficiente para um dia de meta ({goal} fichas). {credits} créditos · {cost} por ficha.",
+  boxAcessoHintLocked:
+    "A mensalidade abre o CRM e a qualificação. Recarga só soma crédito — não reabre o acesso.",
   boxListasHintZero: "Você não tem listas salvas.",
   boxListasHintOne: "Você possui 1 lista salva.",
   boxListasHintMany: "Você possui {n} listas salvas.",

@@ -20,7 +20,7 @@ describe("parseBillingGate", () => {
         403,
         planRequiredPayload("Os 30 dias acabaram.", "trial_expired"),
       ),
-    ).toEqual({ kind: "trial", upgradeUrl: RECARGA_URL });
+    ).toEqual({ kind: "trial", upgradeUrl: PLANOS_URL });
   });
 
   it("reads plan_required from code", () => {
@@ -73,11 +73,12 @@ describe("parseBillingGate", () => {
 });
 
 describe("paywallCopy", () => {
-  it("points expired trial to recarga and planos", () => {
+  it("points expired trial to planos first", () => {
     const copy = paywallCopy({ kind: "trial", feature: "qualify" });
     expect(copy.title).toMatch(/trial/i);
-    expect(copy.primary).toEqual({ href: RECARGA_URL, label: "Recarregar" });
-    expect(copy.secondary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
+    expect(copy.body).toMatch(/não substitui/i);
+    expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
+    expect(copy.secondary).toEqual({ href: RECARGA_URL, label: "Recarregar créditos" });
   });
 
   it("points plan qualify to /planos", () => {

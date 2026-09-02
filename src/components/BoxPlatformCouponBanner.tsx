@@ -37,16 +37,16 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
       {ended ? (
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href={planosHref("/box", true)}
+            href={planosHref("/box")}
             className="inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
           >
-            Recarregar
+            Assinar o Piloto
           </Link>
           <Link
-            href={planosHref("/box")}
+            href={planosHref("/box", true)}
             className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
           >
-            Assinar o Piloto
+            Recarregar créditos
           </Link>
         </div>
       ) : (

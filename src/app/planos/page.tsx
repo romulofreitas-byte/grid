@@ -22,9 +22,10 @@ export default async function PlanosPage({
     <PublicPage className="max-w-6xl" back={back}>
       <SectionTitle className="mt-8">Planos e créditos</SectionTitle>
       <p className="mt-3 max-w-2xl text-sm text-podium-gray">
-        Buscar e ver a lista é grátis. Crédito só na exportação (1) e na
-        qualificação (2). Pix é o caminho padrão — cartão e boleto também
-        entram.
+        Buscar e ver a lista é grátis. A mensalidade abre o CRM. Crédito paga
+        a ficha que você liga (1); exportar custa 10 por CNPJ. O crédito do
+        plano zera no mês — recarga fica e não substitui a assinatura. Pix é o
+        caminho padrão — cartão e boleto também entram.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -80,8 +81,9 @@ export default async function PlanosPage({
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
         <p className="mt-3 max-w-2xl text-sm text-podium-gray">
-          Pacotes não expiram e não substituem o plano. O custo por crédito é
-          pior que a assinatura — serve para o meio do mês.
+          Pacotes não expiram e não substituem o plano — nem reabrem o CRM. O
+          custo por crédito é pior que a assinatura: serve para o meio do mês
+          ou para exportar.
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {PACKS.map((pack) => (
@@ -115,7 +117,7 @@ export default async function PlanosPage({
         <p className="mt-2 text-sm text-podium-gray">
           Quem já assina o Mundo Pódium entra no nível Piloto por 30 dias, sem
           pagar de novo no GRID. No checkout, use o cupom {DEFAULT_PLATFORM_COUPON}. Depois,
-          recarregue ou assine o Piloto.
+          assine o Piloto. Recarga só soma crédito.
         </p>
         <Link
           href={pagarHref("membro_plataforma", from)}

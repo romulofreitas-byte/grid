@@ -137,7 +137,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       label: "Acesso",
       done: creditosReady,
       title: "Ative o plano",
-      body: "Qualificar e exportar gastam crédito. Sem saldo essas ações param.",
+      body: "A mensalidade abre o CRM. Crédito paga a ficha que você liga; exportar a lista custa mais.",
       href: planosHref("/box"),
       cta: "Ver planos",
     },
