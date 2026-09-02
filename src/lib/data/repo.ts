@@ -190,7 +190,10 @@ export type GridRepo = {
       Pick<EnrichmentJob, "status" | "attempts" | "last_error" | "locked_at" | "finished_at">
     >,
   ): Promise<void>;
-  claimEnrichmentJob(): Promise<EnrichmentJob | null>;
+  claimEnrichmentJob(opts?: {
+    searchId?: string | null;
+    requestedBy?: string | null;
+  }): Promise<EnrichmentJob | null>;
   findFreshEnrichment(cnpj: string): Promise<LeadEnrichment | null>;
   hasActiveEnrichmentJob(cnpj: string): Promise<boolean>;
   classifyEnrichmentCnpjs(

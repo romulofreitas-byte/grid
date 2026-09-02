@@ -6,6 +6,10 @@ export const BULK_ENRICH_PRIORITY = 0;
 export const ENRICH_QUEUE_STUCK_MS = 15_000;
 export const ENRICH_JOB_POLL_RUNNING_MS = 1_500;
 export const ENRICH_JOB_POLL_PENDING_MS = 3_000;
+/** Reclaim `running` jobs whose worker died mid-crawl. */
+export const ENRICH_STALE_RUNNING_SECONDS = 120;
+export const ENRICH_OWNED_BUDGET_MS = 50_000;
+export const ENRICH_OWNED_MAX_JOBS = 2;
 
 export function enrichJobPriority(interactive: boolean): number {
   return interactive ? INTERACTIVE_ENRICH_PRIORITY : BULK_ENRICH_PRIORITY;

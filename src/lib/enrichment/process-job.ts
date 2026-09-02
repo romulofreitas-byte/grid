@@ -16,6 +16,10 @@ import {
 } from "@/lib/enrichment/osm";
 import type { GridRepo } from "@/lib/data/repo";
 import { isEnrichmentComplete } from "@/lib/enrichment/fresh";
+import {
+  ENRICH_OWNED_BUDGET_MS,
+  ENRICH_OWNED_MAX_JOBS,
+} from "@/lib/enrichment/jobs";
 import type { EnrichmentJob, ScoreProfile } from "@/lib/types";
 
 export const DEFAULT_ENRICH_CONCURRENCY = 8;
@@ -430,6 +434,29 @@ export async function runEnrichmentWorker(
   }
 
   await Promise.all(Array.from({ length: concurrency }, (_, i) => slot(i)));
+}
+
+/** Claim this search's jobs (if pending/stale) and run them. Safe if the Railway worker holds the lock. */
+export async function processOwnedEnrichmentJobs(
+  searchId: string,
+  userId: string,
+  options: { budgetMs?: number; maxJobs?: number } = {},
+): Promise<number> {
+  const repo = getRepo();
+  const budgetMs = options.budgetMs ?? ENRICH_OWNED_BUDGET_MS;
+  const maxJobs = options.maxJobs ?? ENRICH_OWNED_MAX_JOBS;
+  const deadline = Date.now() + budgetMs;
+  let processed = 0;
+  while (processed < maxJobs && Date.now() < deadline) {
+    const job = await repo.claimEnrichmentJob({
+      searchId,
+      requestedBy: userId,
+    });
+    if (!job) return processed;
+    await processJob(job);
+    processed += 1;
+  }
+  return processed;
 }
 
 /** Mock store lives in the Next process. Postgres jobs are owned by `pnpm worker:dev`. */

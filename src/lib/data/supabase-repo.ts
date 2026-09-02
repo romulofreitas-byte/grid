@@ -69,6 +69,7 @@ import {
   allQueries,
   isMissingOrUnpopulatedRelationError,
   isStatementTimeoutError,
+  isUndefinedColumnError,
   isUndefinedTableError,
   pgErrorCode,
   query,
@@ -127,6 +128,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_FILTERS } from "@/lib/types";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
+import { ENRICH_STALE_RUNNING_SECONDS } from "@/lib/enrichment/jobs";
 import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
 
 const COUNT_CAP = FLAT_COUNT_CAP;
@@ -3485,28 +3487,55 @@ export const supabaseRepo: GridRepo = {
 
     const priority = input.priority ? 1 : 0;
     if (pending.length) {
-      await query(
-        `insert into enrichment_jobs
-           (cnpj, requested_by, search_id, status, attempts, finished_at, payload, priority)
-         select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb, $5
-         from unnest($1::text[]) as x(cnpj)`,
-        [
-          pending,
-          input.userId,
-          input.searchId,
-          input.payload ? JSON.stringify(input.payload) : null,
-          priority,
-        ],
-      );
+      try {
+        await query(
+          `insert into enrichment_jobs
+             (cnpj, requested_by, search_id, status, attempts, finished_at, payload, priority)
+           select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb, $5
+           from unnest($1::text[]) as x(cnpj)`,
+          [
+            pending,
+            input.userId,
+            input.searchId,
+            input.payload ? JSON.stringify(input.payload) : null,
+            priority,
+          ],
+        );
+      } catch (err) {
+        if (!isUndefinedColumnError(err)) throw err;
+        await query(
+          `insert into enrichment_jobs
+             (cnpj, requested_by, search_id, status, attempts, finished_at, payload)
+           select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb
+           from unnest($1::text[]) as x(cnpj)`,
+          [
+            pending,
+            input.userId,
+            input.searchId,
+            input.payload ? JSON.stringify(input.payload) : null,
+          ],
+        );
+      }
     }
     if (skippedFresh.length) {
-      await query(
-        `insert into enrichment_jobs
-           (cnpj, requested_by, search_id, status, attempts, finished_at, priority)
-         select x.cnpj, $2, $3, 'skipped', 0, now(), $4
-         from unnest($1::text[]) as x(cnpj)`,
-        [skippedFresh, input.userId, input.searchId, priority],
-      );
+      try {
+        await query(
+          `insert into enrichment_jobs
+             (cnpj, requested_by, search_id, status, attempts, finished_at, priority)
+           select x.cnpj, $2, $3, 'skipped', 0, now(), $4
+           from unnest($1::text[]) as x(cnpj)`,
+          [skippedFresh, input.userId, input.searchId, priority],
+        );
+      } catch (err) {
+        if (!isUndefinedColumnError(err)) throw err;
+        await query(
+          `insert into enrichment_jobs
+             (cnpj, requested_by, search_id, status, attempts, finished_at)
+           select x.cnpj, $2, $3, 'skipped', 0, now()
+           from unnest($1::text[]) as x(cnpj)`,
+          [skippedFresh, input.userId, input.searchId],
+        );
+      }
     }
     return { queued: pending.length, skippedOptOut: optedSet.size };
   },
@@ -3595,21 +3624,51 @@ export const supabaseRepo: GridRepo = {
     await query(`update enrichment_jobs set ${sets.join(", ")} where id = $1`, params);
   },
 
-  async claimEnrichmentJob() {
-    const { rows } = await query(
-      `update enrichment_jobs
-       set status = 'running', locked_at = now(), attempts = attempts + 1
+  async claimEnrichmentJob(opts) {
+    const searchId = opts?.searchId ?? null;
+    const requestedBy = opts?.requestedBy ?? null;
+    const staleSeconds = ENRICH_STALE_RUNNING_SECONDS;
+    const params = [searchId, requestedBy, staleSeconds];
+    const where = `
+         where (
+              status = 'pending'
+              or (
+                status = 'running'
+                and locked_at < now() - ($3::int * interval '1 second')
+              )
+            )
+            and ($1::uuid is null or search_id = $1)
+            and ($2::uuid is null or requested_by = $2)`;
+    const sqlWithPriority = `
+      update enrichment_jobs
+         set status = 'running', locked_at = now(), attempts = attempts + 1
        where id = (
          select id from enrichment_jobs
-         where status = 'pending'
-            or (status = 'running' and locked_at < now() - interval '10 minutes')
-         order by priority desc, created_at, id
+         ${where}
+         order by coalesce(priority, 0) desc, created_at, id
          limit 1
          for update skip locked
        )
-       returning *`,
-    );
-    return rows[0] ? mapJob(rows[0]) : null;
+       returning *`;
+    const sqlFifo = `
+      update enrichment_jobs
+         set status = 'running', locked_at = now(), attempts = attempts + 1
+       where id = (
+         select id from enrichment_jobs
+         ${where}
+         order by created_at, id
+         limit 1
+         for update skip locked
+       )
+       returning *`;
+    try {
+      const { rows } = await query(sqlWithPriority, params);
+      return rows[0] ? mapJob(rows[0]) : null;
+    } catch (err) {
+      if (!isUndefinedColumnError(err)) throw err;
+      const { rows } = await query(sqlFifo, params);
+      return rows[0] ? mapJob(rows[0]) : null;
+    }
   },
 
   async findFreshEnrichment(cnpj) {

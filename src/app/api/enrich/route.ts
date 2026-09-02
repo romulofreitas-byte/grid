@@ -7,7 +7,7 @@ import {
 } from "@/lib/billing/paywall";
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
 import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
-import { getRepo } from "@/lib/data";
+import { getDataSource, getRepo } from "@/lib/data";
 import {
   applyPresenceCorrection,
   applySiteConfirm,
@@ -21,6 +21,7 @@ import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/
 import { isInteractiveEnrichScope } from "@/lib/enrichment/jobs";
 import {
   drainJobsIfMock,
+  processOwnedEnrichmentJobs,
   resolveJobScoreProfile,
 } from "@/lib/enrichment/process-job";
 import { z } from "zod";
@@ -73,6 +74,22 @@ const schema = z
   .refine((d) => !d.refresh || (d.cnpjs && d.cnpjs.length === 1), {
     message: "refresh exige exatamente um cnpj",
   });
+
+function kickOwnedEnrichment(searchId: string | null, userId: string) {
+  drainJobsIfMock();
+  if (!searchId || getDataSource() === "mock") return;
+  after(() =>
+    processOwnedEnrichmentJobs(searchId, userId).catch((err) => {
+      console.error(
+        JSON.stringify({
+          event: "enrich_owned_error",
+          searchId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }),
+  );
+}
 
 function enrichBillingError(err: unknown) {
   if (err instanceof EnrichmentNotAllowedError) {
@@ -175,7 +192,7 @@ export async function POST(req: Request) {
         domain: host,
       },
     });
-    drainJobsIfMock();
+    kickOwnedEnrichment(searchId, userId);
     return NextResponse.json({ ...result, enrichment: patched, recrawl: true });
   }
 
@@ -234,7 +251,7 @@ export async function POST(req: Request) {
           domain: decided.domain,
         },
       });
-      drainJobsIfMock();
+      kickOwnedEnrichment(searchId, userId);
       return NextResponse.json({ ...result, recrawl: true });
     }
     await repo.upsertEnrichment(decided.row);
@@ -271,7 +288,7 @@ export async function POST(req: Request) {
       priority: true,
       payload: { force: true, refresh: true },
     });
-    drainJobsIfMock();
+    kickOwnedEnrichment(searchId, userId);
     return NextResponse.json(result);
   }
 
@@ -305,7 +322,7 @@ export async function POST(req: Request) {
     searchId,
     priority: isInteractiveEnrichScope(parsed.data.scope),
   });
-  drainJobsIfMock();
+  kickOwnedEnrichment(searchId, userId);
 
   if (search?.saved) {
     after(() =>
@@ -343,6 +360,14 @@ export async function GET(req: Request) {
     const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
     const showEnrichment = await store.isCnpjBilled(gated.userId, digits, "enrich");
     const visible = isEnrichmentVisible(enrichment);
+    if (
+      job &&
+      (job.status === "pending" || job.status === "running") &&
+      job.search_id &&
+      (job.requested_by == null || job.requested_by === gated.userId)
+    ) {
+      kickOwnedEnrichment(job.search_id, gated.userId);
+    }
     return NextResponse.json({
       enrichment: visible && showEnrichment ? enrichment : null,
       jobStatus: job?.status ?? null,
@@ -352,6 +377,13 @@ export async function GET(req: Request) {
   if (!searchId) {
     return NextResponse.json({ error: "searchId ou cnpj obrigatório" }, { status: 400 });
   }
+  const search = await repo.getSearch(searchId);
+  if (!search || search.user_id !== gated.userId) {
+    return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
+  }
   const jobs = await repo.listEnrichmentJobs(searchId);
+  if (jobs.some((j) => j.status === "pending" || j.status === "running")) {
+    kickOwnedEnrichment(searchId, gated.userId);
+  }
   return NextResponse.json({ jobs });
 }

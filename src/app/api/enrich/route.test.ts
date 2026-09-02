@@ -12,9 +12,12 @@ const setDomainCache = vi.hoisted(() => vi.fn());
 const getSearch = vi.hoisted(() => vi.fn());
 const classifyEnrichmentCnpjs = vi.hoisted(() => vi.fn());
 const listUnauditedCnpjs = vi.hoisted(() => vi.fn());
+const listEnrichmentJobs = vi.hoisted(() => vi.fn());
 const drainJobsIfMock = vi.hoisted(() => vi.fn());
+const processOwnedEnrichmentJobs = vi.hoisted(() => vi.fn());
 const resolveJobScoreProfile = vi.hoisted(() => vi.fn());
 const bridgeQualifiedLeadsToCrm = vi.hoisted(() => vi.fn());
+const getDataSource = vi.hoisted(() => vi.fn(() => "mock"));
 const after = vi.hoisted(() =>
   vi.fn((cb: () => unknown) => {
     void cb();
@@ -47,12 +50,16 @@ vi.mock("@/lib/data", () => ({
     setDomainCache,
     getPreset: vi.fn(),
     listUnauditedCnpjs,
+    listEnrichmentJobs,
     classifyEnrichmentCnpjs,
   }),
+  getDataSource,
 }));
 
 vi.mock("@/lib/enrichment/process-job", () => ({
   drainJobsIfMock: (...args: unknown[]) => drainJobsIfMock(...args),
+  processOwnedEnrichmentJobs: (...args: unknown[]) =>
+    processOwnedEnrichmentJobs(...args),
   resolveJobScoreProfile: (...args: unknown[]) => resolveJobScoreProfile(...args),
 }));
 
@@ -60,7 +67,7 @@ vi.mock("@/lib/crm/bridge", () => ({
   bridgeQualifiedLeadsToCrm,
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const emptyTech: TechSignals = {
   metaPixel: false,
@@ -315,6 +322,10 @@ describe("POST /api/enrich qualify bridge", () => {
     listUnauditedCnpjs.mockReset();
     enqueueEnrichment.mockReset();
     drainJobsIfMock.mockReset();
+    processOwnedEnrichmentJobs.mockReset();
+    processOwnedEnrichmentJobs.mockResolvedValue(0);
+    getDataSource.mockReset();
+    getDataSource.mockReturnValue("mock");
     bridgeQualifiedLeadsToCrm.mockReset();
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     classifyEnrichmentCnpjs.mockResolvedValue({
@@ -413,5 +424,55 @@ describe("POST /api/enrich qualify bridge", () => {
     expect(enqueueEnrichment).toHaveBeenCalledWith(
       expect.objectContaining({ priority: false }),
     );
+  });
+
+  it("starts owned enrichment on live after enqueue", async () => {
+    getDataSource.mockReturnValue("supabase");
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: false,
+      nome: "Lista",
+      filtros: {},
+    });
+    await POST(
+      correctRequest({
+        searchId: "s1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
+    expect(processOwnedEnrichmentJobs).toHaveBeenCalledWith("s1", "u1");
+  });
+});
+
+describe("GET /api/enrich", () => {
+  beforeEach(() => {
+    guardApi.mockReset();
+    getSearch.mockReset();
+    listEnrichmentJobs.mockReset();
+    processOwnedEnrichmentJobs.mockReset();
+    processOwnedEnrichmentJobs.mockResolvedValue(0);
+    getDataSource.mockReset();
+    getDataSource.mockReturnValue("supabase");
+    drainJobsIfMock.mockReset();
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+  });
+
+  it("kicks owned jobs when this search still has pending work", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: true,
+      nome: "Lista",
+      filtros: {},
+    });
+    listEnrichmentJobs.mockResolvedValue([
+      { id: 1, cnpj: "1", status: "pending" },
+    ]);
+    const res = await GET(
+      new Request("http://localhost/api/enrich?searchId=s1"),
+    );
+    expect(res.status).toBe(200);
+    expect(processOwnedEnrichmentJobs).toHaveBeenCalledWith("s1", "u1");
   });
 });

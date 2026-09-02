@@ -7,6 +7,7 @@ import {
   isPoolerUrl,
   isSessionPoolerUrl,
   isStatementTimeoutError,
+  isUndefinedColumnError,
   isUndefinedTableError,
   isUnpopulatedRelationError,
   pgErrorCode,
@@ -43,6 +44,11 @@ describe("pg error helpers", () => {
   it("classifies statement timeout", () => {
     expect(isStatementTimeoutError(pgErr("57014"))).toBe(true);
     expect(isStatementTimeoutError(pgErr("42P01"))).toBe(false);
+  });
+
+  it("classifies missing columns", () => {
+    expect(isUndefinedColumnError(pgErr("42703"))).toBe(true);
+    expect(isUndefinedColumnError(pgErr("42P01"))).toBe(false);
   });
 
   it("classifies session pooler exhaustion", () => {

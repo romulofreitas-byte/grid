@@ -461,6 +461,7 @@ export async function serperOrganic(
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num }),
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     console.warn(
@@ -483,6 +484,7 @@ export async function serperMaps(query: string): Promise<MapsPlace[]> {
     method: "POST",
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({ q: query, gl: "br", hl: "pt-br" }),
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     console.warn(

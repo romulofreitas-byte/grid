@@ -292,6 +292,11 @@ export function pgErrorCode(err: unknown): string {
   return String((err as { code?: unknown }).code ?? "");
 }
 
+/** Postgres 42703 — column missing (migration not applied). */
+export function isUndefinedColumnError(err: unknown): boolean {
+  return pgErrorCode(err) === "42703";
+}
+
 /** Postgres 42P01 — table missing (migrations not applied). */
 export function isUndefinedTableError(err: unknown): boolean {
   return pgErrorCode(err) === "42P01";

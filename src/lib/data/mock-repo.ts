@@ -38,6 +38,7 @@ import { digitsCnpj } from "@/lib/crm/bridge";
 import {
   compareEnrichmentClaimOrder,
   enrichJobPriority,
+  ENRICH_STALE_RUNNING_SECONDS,
   latestEnrichmentJobPerCnpj,
 } from "@/lib/enrichment/jobs";
 import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
@@ -1427,17 +1428,20 @@ export const mockRepo: GridRepo = {
     Object.assign(job, patch);
   },
 
-  async claimEnrichmentJob() {
+  async claimEnrichmentJob(opts) {
     const store = getMockStore();
-    const stale = Date.now() - 10 * 60 * 1000;
+    const stale = Date.now() - ENRICH_STALE_RUNNING_SECONDS * 1000;
     const job = store.enrichment_jobs
-      .filter(
-        (j) =>
+      .filter((j) => {
+        if (opts?.searchId && j.search_id !== opts.searchId) return false;
+        if (opts?.requestedBy && j.requested_by !== opts.requestedBy) return false;
+        return (
           j.status === "pending" ||
           (j.status === "running" &&
             j.locked_at &&
-            new Date(j.locked_at).getTime() < stale),
-      )
+            new Date(j.locked_at).getTime() < stale)
+        );
+      })
       .sort(compareEnrichmentClaimOrder)[0];
     if (!job) return null;
     job.status = "running";

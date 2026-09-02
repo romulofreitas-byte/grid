@@ -71,4 +71,29 @@ describe("claimEnrichmentJob priority", () => {
     );
     expect(job?.priority).toBe(1);
   });
+
+  it("claims this search's job instead of an older global pending job", async () => {
+    const store = getMockStore();
+    store.enrichment_jobs.push(
+      pendingJob({
+        id: 9101,
+        cnpj: "00000000000001",
+        search_id: "other-search",
+        created_at: "2026-09-02T10:00:00.000Z",
+        priority: 0,
+      }),
+      pendingJob({
+        id: 9102,
+        cnpj: "00000000000002",
+        search_id: "s-priority",
+        created_at: "2026-09-02T12:00:00.000Z",
+        priority: 1,
+      }),
+    );
+    const claimed = await mockRepo.claimEnrichmentJob({
+      searchId: "s-priority",
+      requestedBy: USER,
+    });
+    expect(claimed?.cnpj).toBe("00000000000002");
+  });
 });
