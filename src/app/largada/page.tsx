@@ -1354,7 +1354,7 @@ function LargadaWizard() {
                   checked={filters.ocultarTelefonesCompartilhados}
                   onChange={(v) => patch({ ocultarTelefonesCompartilhados: v })}
                   title="Excluir números de escritório contábil"
-                  hint="O mesmo telefone em 3 ou mais empresas costuma ser da contabilidade. Desligue para ver esses números na lista, com a tag Contabilidade."
+                  hint="Número em várias empresas, sem serem do mesmo grupo. Desligue para vê-los na lista, com a tag Contabilidade. Grupo econômico continua na lista."
                   recommended
                 />
                 <ToggleRow
