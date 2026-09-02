@@ -37,6 +37,7 @@ export function CrmPipelineRail({
   pipelines,
   activeId,
   onSelect,
+  onPrefetch,
   onCreate,
   onRename,
   onDelete,
@@ -44,6 +45,7 @@ export function CrmPipelineRail({
   pipelines: CrmPipelineSummary[];
   activeId: string | null;
   onSelect: (pipelineId: string) => void;
+  onPrefetch?: (pipelineId: string) => void;
   onCreate: (nome: string) => void;
   onRename: (pipelineId: string, nome: string) => void;
   onDelete: (pipelineId: string) => void;
@@ -128,7 +130,7 @@ export function CrmPipelineRail({
       >
         {open ? (
           <>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em]">
               {COPY.crmNichoLabel}
             </span>
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -136,7 +138,7 @@ export function CrmPipelineRail({
         ) : (
           <>
             <ChevronRight className="h-3.5 w-3.5" />
-            <span className="max-h-40 overflow-hidden text-[10px] font-semibold uppercase tracking-[0.18em] [writing-mode:vertical-rl]">
+            <span className="max-h-40 overflow-hidden text-[10px] font-medium uppercase tracking-[0.12em] [writing-mode:vertical-rl]">
               {active?.nome ?? COPY.crmNichoLabel}
             </span>
           </>
@@ -173,12 +175,14 @@ export function CrmPipelineRail({
                       <button
                         type="button"
                         onClick={() => onSelect(pipeline.id)}
+                        onMouseEnter={() => onPrefetch?.(pipeline.id)}
+                        onFocus={() => onPrefetch?.(pipeline.id)}
                         onDoubleClick={() => {
                           setRenamingId(pipeline.id);
                           setRenameDraft(pipeline.nome);
                         }}
                         className={cn(
-                          "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs leading-snug transition",
+                          "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs leading-snug transition",
                           selected
                             ? "text-podium-white"
                             : "text-podium-muted hover:bg-white/[0.04] hover:text-podium-gray",

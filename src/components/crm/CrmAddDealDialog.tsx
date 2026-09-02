@@ -50,16 +50,16 @@ export function CrmAddDealDialog({
         className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-podium-navy p-5 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-lg border border-white/10 bg-podium-navy p-5 shadow-2xl">
         <div className="flex items-start justify-between">
           <div>
             <p className={CRM_LABEL}>{COPY.crmAddDeal}</p>
-            <h2 className="mt-1 text-lg font-extrabold">Entrada de lista</h2>
+            <h2 className="mt-1 text-base font-semibold">Entrada de lista</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-podium-muted hover:text-podium-white"
+            className="rounded-md p-1.5 text-podium-muted hover:text-podium-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -90,12 +90,12 @@ export function CrmAddDealDialog({
               onChange={(event) => setSecretary(event.target.value)}
             />
           </label>
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-xs text-red-400">{error}</p> : null}
           <button
             type="button"
             disabled={saving}
             onClick={() => void submit()}
-            className="w-full rounded-xl bg-podium-yellow py-2.5 text-sm font-extrabold text-podium-navy hover:brightness-110 disabled:opacity-50"
+            className="w-full rounded-md bg-podium-yellow py-1.5 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
           >
             {COPY.crmAddDeal}
           </button>

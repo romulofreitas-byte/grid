@@ -1,5 +1,6 @@
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { cloneDefaultCadenceEntries } from "@/lib/crm/cadence";
+import { peopleFromDeal } from "@/lib/crm/people";
 import type { CrmActivityKind } from "@/lib/crm/types";
 import type { MockStore } from "@/lib/data/mock-store";
 
@@ -167,14 +168,30 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
         company_name: row.company,
         contact_name: row.contact,
         secretaries: row.secretaries,
+        people: peopleFromDeal({
+          contact_name: row.contact,
+          secretaries: row.secretaries,
+        }),
         phones: row.phones ?? [],
         notes: row.notes,
         cnpj: null,
         meta: {},
+        outcome: "open",
         position,
         created_at: created,
         updated_at: created,
       });
+      if (row.notes.trim()) {
+        store.crm_events.push({
+          id: crypto.randomUUID(),
+          deal_id: dealId,
+          kind: "nota",
+          body: row.notes,
+          meta: {},
+          created_at: created,
+          updated_at: created,
+        });
+      }
       if (row.activity) {
         store.crm_activities.push({
           id: crypto.randomUUID(),

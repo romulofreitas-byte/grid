@@ -3,12 +3,28 @@ import type { CrmStageKey, FichaMoveKey } from "@/lib/crm/cadence";
 export const CRM_ACTIVITY_KINDS = [
   "ligar",
   "whatsapp",
+  "email",
   "reuniao",
   "followup",
   "proposta",
+  "nota",
 ] as const;
 
 export type CrmActivityKind = (typeof CRM_ACTIVITY_KINDS)[number];
+
+export const CRM_EVENT_KINDS = [...CRM_ACTIVITY_KINDS, "outcome"] as const;
+
+export type CrmPerson = {
+  name: string;
+  phone: string;
+  email: string;
+};
+
+export type CrmEventKind = (typeof CRM_EVENT_KINDS)[number];
+
+export const CRM_OUTCOMES = ["open", "won", "lost"] as const;
+
+export type CrmOutcome = (typeof CRM_OUTCOMES)[number];
 
 export const CRM_ACTIVITY_STATUSES = ["open", "done"] as const;
 
@@ -52,14 +68,43 @@ export type CrmDeal = {
   company_name: string;
   contact_name: string;
   secretaries: string[];
+  people: CrmPerson[];
   phones: string[];
   notes: string;
   /** Digits-only CNPJ when bridged from Grid qualify; null for manual deals. */
   cnpj: string | null;
   meta: CrmDealMeta;
+  outcome: CrmOutcome;
   position: number;
   created_at: string;
   updated_at: string;
+};
+
+export type CrmEventMeta = {
+  phone?: string;
+  outcome?: CrmOutcome;
+};
+
+export type CrmEvent = {
+  id: string;
+  deal_id: string;
+  kind: CrmEventKind;
+  body: string;
+  meta: CrmEventMeta;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrmNextAction = {
+  kind: CrmActivityKind;
+  dueAt: string;
+};
+
+export type CrmEventCreateInput = {
+  kind: CrmEventKind;
+  body?: string;
+  meta?: CrmEventMeta;
+  next?: CrmNextAction | null;
 };
 
 export type CrmActivity = {
@@ -96,13 +141,10 @@ export type CrmDealPatch = {
   company_name?: string;
   contact_name?: string;
   secretaries?: string[];
+  people?: CrmPerson[];
   phones?: string[];
   notes?: string;
-};
-
-export type CrmNextAction = {
-  kind: CrmActivityKind;
-  dueAt: string;
+  outcome?: CrmOutcome;
 };
 
 export type LeadCrmFirstMileStage = {

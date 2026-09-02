@@ -176,7 +176,7 @@ function GridCompanyLink({
           : row.razaoSocial
       }
       className={cn(
-        "truncate font-bold hover:text-podium-yellow focus-visible:outline-none focus-visible:text-podium-yellow",
+        "truncate font-medium hover:text-podium-yellow focus-visible:outline-none focus-visible:text-podium-yellow",
         className,
       )}
     >
@@ -705,7 +705,7 @@ export default function GridPage() {
           <SectionTitle>Grid de resultados</SectionTitle>
           <div className="flex flex-wrap items-center gap-2">
             {searchQuery.isLoading ? (
-              <div className="h-9 w-28 animate-pulse rounded-xl bg-white/5" />
+              <div className="h-7 w-24 animate-pulse rounded-md bg-white/5" />
             ) : search?.saved ? (
               <div className="inline-flex items-center gap-2">
                 <Button
@@ -719,7 +719,7 @@ export default function GridPage() {
                 </Button>
                 <Link
                   href="/listas"
-                  className="text-xs font-bold text-podium-muted hover:text-podium-yellow"
+                  className="text-[11px] font-medium text-podium-muted hover:text-podium-yellow"
                 >
                   Minhas listas
                 </Link>
@@ -750,17 +750,17 @@ export default function GridPage() {
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-baseline gap-1.5 rounded-xl bg-white/5 px-3 py-1.5">
-            <span className="text-lg font-extrabold tabular-nums leading-none">
+          <span className="inline-flex items-baseline gap-1.5 rounded-md bg-white/5 px-2.5 py-1">
+            <span className="text-sm font-semibold tabular-nums leading-none">
               {total}
             </span>
-            <span className="text-xs font-bold text-podium-muted">leads</span>
+            <span className="text-[11px] font-medium text-podium-muted">leads</span>
           </span>
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-1.5">
-            <span className="inline-flex items-center justify-center rounded-lg bg-podium-yellow px-2 py-0.5 text-xs font-bold text-podium-navy">
+          <span className="inline-flex items-center gap-2 rounded-md bg-white/5 px-2.5 py-1">
+            <span className="inline-flex items-center justify-center rounded-md bg-podium-yellow px-1.5 py-0.5 text-[10px] font-medium text-podium-navy">
               P1
             </span>
-            <span className="text-xs font-bold text-podium-gray">
+            <span className="text-[11px] font-medium text-podium-gray">
               {COPY.gridLigarOrdem}
             </span>
           </span>
@@ -847,7 +847,7 @@ export default function GridPage() {
                 <select
                   value={connectionId || destinations[0]?.id || ""}
                   onChange={(e) => setConnectionId(e.target.value)}
-                  className="h-8 rounded-lg border border-white/15 bg-podium-panel px-3 text-xs text-podium-white"
+                  className="h-7 rounded-md border border-white/15 bg-podium-panel px-2.5 text-xs text-podium-white"
                 >
                   {destinations.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -931,8 +931,8 @@ export default function GridPage() {
 
       {query.isLoading ? (
         <div className="space-y-3">
-          <div className="h-64 animate-pulse rounded-2xl bg-white/5" />
-          <div className="h-24 animate-pulse rounded-2xl bg-white/5 lg:hidden" />
+          <div className="h-64 animate-pulse rounded-lg bg-white/5" />
+          <div className="h-24 animate-pulse rounded-lg bg-white/5 lg:hidden" />
         </div>
       ) : query.isError && !query.data ? (
         <GlassCard className="p-5 text-sm text-podium-muted">
@@ -969,7 +969,7 @@ export default function GridPage() {
             type="button"
             disabled={markingAll}
             onClick={() => void markAllUnaudited()}
-            className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+            className="text-[11px] font-medium text-podium-yellow hover:underline disabled:opacity-40"
           >
             {markingAll
               ? "Selecionando…"
@@ -979,7 +979,7 @@ export default function GridPage() {
             type="button"
             disabled={selectedCount === 0}
             onClick={() => setSelected(new Set())}
-            className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
+            className="text-[11px] font-medium text-podium-yellow hover:underline disabled:opacity-40"
           >
             Desmarcar tudo
           </button>
@@ -997,7 +997,7 @@ export default function GridPage() {
           </colgroup>
           <thead className="sticky top-14 z-20 border-b border-white/10 bg-podium-panel/95 text-xs uppercase tracking-wide text-podium-muted backdrop-blur-xl">
             <tr>
-              <th className="px-2 py-3">
+              <th className="px-2 py-2">
                 <div className="flex flex-col items-start gap-1">
                   <span>Ações</span>
                   <SelectToggle
@@ -1010,10 +1010,10 @@ export default function GridPage() {
                   />
                 </div>
               </th>
-              <th className="px-2 py-3">Pos.</th>
-              <th className="px-3 py-3">Empresa</th>
-              <th className="px-3 py-3">Telefone</th>
-              <th className="px-3 py-3">Decisor</th>
+              <th className="px-2 py-2">Pos.</th>
+              <th className="px-3 py-2">Empresa</th>
+              <th className="px-3 py-2">Telefone</th>
+              <th className="px-3 py-2">Decisor</th>
             </tr>
           </thead>
           <tbody>
@@ -1032,7 +1032,7 @@ export default function GridPage() {
                     selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
                   )}
                 >
-                  <td className="whitespace-nowrap px-2 py-3 align-middle">
+                  <td className="whitespace-nowrap px-2 py-2 align-middle">
                     <GridRowActions
                       row={row}
                       searchId={searchId}
@@ -1044,7 +1044,7 @@ export default function GridPage() {
                       onRemove={() => void removeFromList(row.cnpj)}
                     />
                   </td>
-                  <td className="px-2 py-3 align-middle">
+                  <td className="px-2 py-2 align-middle">
                     <PositionBadge
                       position={row.gridPosition}
                       score={row.gridScore}
@@ -1056,7 +1056,7 @@ export default function GridPage() {
                       className="mt-1"
                     />
                   </td>
-                  <td className="min-w-0 px-3 py-3 align-middle">
+                  <td className="min-w-0 px-3 py-2 align-middle">
                     <GridCompanyLink
                       row={row}
                       searchId={searchId}
@@ -1079,7 +1079,7 @@ export default function GridPage() {
                       </p>
                     ) : null}
                   </td>
-                  <td className="px-3 py-3 align-middle">
+                  <td className="px-3 py-2 align-middle">
                     {formatPhone(ddd, tel) ? (
                       <div className="min-w-0">
                         <p className="font-medium tabular-nums">
@@ -1096,7 +1096,7 @@ export default function GridPage() {
                       <EmptyValue />
                     )}
                   </td>
-                  <td className="px-3 py-3 align-middle">
+                  <td className="px-3 py-2 align-middle">
                     <p className="break-words leading-snug">
                       {row.decisorNome ?? <EmptyValue />}
                     </p>
@@ -1192,7 +1192,7 @@ export default function GridPage() {
           type="button"
           onClick={() => query.fetchNextPage()}
           className={cn(
-            "mt-6 w-full rounded-xl border border-white/15 py-3 text-sm font-bold text-podium-gray",
+            "mt-6 w-full rounded-md border border-white/15 py-2 text-xs font-medium text-podium-gray",
             selectedCount > 0 || unaudited > 0 ? "mb-24" : undefined,
           )}
         >
@@ -1205,17 +1205,17 @@ export default function GridPage() {
       {unaudited > 0 ? <div className="h-24" aria-hidden /> : null}
 
       {unaudited > 0 ? (
-        <div className="fixed inset-x-0 bottom-16 z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-3 backdrop-blur-xl lg:bottom-0">
+        <div className="fixed inset-x-0 bottom-16 z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-2 backdrop-blur-xl lg:bottom-0">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-podium-gray">
+            <p className="text-xs text-podium-gray">
               {selectedCount > 0 ? (
                 <>
-                  <span className="font-extrabold text-podium-white">
+                  <span className="font-semibold text-podium-white">
                     {selectedCount}
                   </span>{" "}
                   selecionada{selectedCount === 1 ? "" : "s"} ·{" "}
                   {ENRICH_CREDIT_COST} créditos cada ·{" "}
-                  <span className="font-extrabold text-podium-yellow">
+                  <span className="font-semibold text-podium-yellow">
                     {selectedCost} créditos
                   </span>
                 </>

@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef, ElementType, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const CHIP =
-  "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold";
+  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium";
 
 export function FichaChip<T extends ElementType = "button">({
   as,

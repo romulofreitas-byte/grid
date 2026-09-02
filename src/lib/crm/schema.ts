@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { CRM_ACTIVITY_KINDS } from "@/lib/crm/types";
+import { CRM_ACTIVITY_KINDS, CRM_EVENT_KINDS, CRM_OUTCOMES } from "@/lib/crm/types";
+
+export const crmPersonSchema = z.object({
+  name: z.string().trim().max(80),
+  phone: z.string().trim().max(24),
+  email: z.string().trim().max(120),
+});
 
 export const pipelineNameSchema = z.string().trim().min(1).max(80);
 
@@ -41,6 +47,7 @@ export const dealPatchSchema = z.object({
   company_name: z.string().trim().min(1).max(120).optional(),
   contact_name: z.string().trim().max(80).optional(),
   secretaries: z.array(z.string().trim().max(80)).max(8).optional(),
+  people: z.array(crmPersonSchema).max(12).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   notes: z.string().max(4000).optional(),
 });
@@ -60,4 +67,22 @@ export const scheduleSchema = z.object({
 export const logCallSchema = z.object({
   notes: z.string().max(4000),
   next: scheduleSchema.nullable().optional(),
+  phone: z.string().trim().max(24).optional(),
+});
+
+export const eventKindSchema = z.enum(CRM_EVENT_KINDS);
+
+export const eventCreateSchema = z.object({
+  kind: eventKindSchema,
+  body: z.string().max(4000).optional(),
+  phone: z.string().trim().max(24).optional(),
+  next: scheduleSchema.nullable().optional(),
+});
+
+export const eventPatchSchema = z.object({
+  body: z.string().max(4000),
+});
+
+export const outcomeSchema = z.object({
+  outcome: z.enum(CRM_OUTCOMES),
 });

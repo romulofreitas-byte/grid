@@ -41,7 +41,7 @@ function QualifyHeader({
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-podium-yellow">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Qualificação
         </p>
         <SectionTitle className="mt-1 text-base md:text-base">
@@ -55,7 +55,7 @@ function QualifyHeader({
             title={COPY.atualizarQualificacaoHint}
             disabled={refreshing}
             onClick={onRefresh}
-            className="inline-flex h-8 shrink-0 items-center rounded-lg px-2.5 text-xs font-semibold text-podium-muted transition hover:bg-white/5 hover:text-podium-gray disabled:opacity-50"
+            className="inline-flex h-7 shrink-0 items-center rounded-md px-2 text-[11px] font-medium text-podium-muted transition hover:bg-white/5 hover:text-podium-gray disabled:opacity-50"
           >
             {refreshing
               ? COPY.atualizandoQualificacao
@@ -67,7 +67,7 @@ function QualifyHeader({
             href={mapsUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-podium-muted transition hover:bg-white/5 hover:text-podium-gray"
+            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-podium-muted transition hover:bg-white/5 hover:text-podium-gray"
           >
             <MapPin className="h-3.5 w-3.5" />
             Maps
@@ -153,7 +153,7 @@ function OpenLinks({
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition",
+            "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] font-medium transition",
             primary && i === 0
               ? "border-white/20 bg-white/[0.06] text-podium-white"
               : "border-white/10 text-podium-muted hover:border-white/20 hover:text-podium-gray",
@@ -272,7 +272,7 @@ function SelectedSignalCard({
   return (
     <div
       ref={cardRef}
-      className="rounded-2xl border border-white/10 bg-podium-navy/50 p-4"
+      className="rounded-lg border border-white/10 bg-podium-navy/50 p-4"
     >
       <div className="flex items-start gap-3">
         <AuditLogo
@@ -283,10 +283,10 @@ function SelectedSignalCard({
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-bold">{signal.name}</p>
+            <p className="text-sm font-semibold">{signal.name}</p>
             <span
               className={cn(
-                "text-[11px] font-bold uppercase tracking-wide",
+                "text-[11px] font-medium uppercase tracking-wide",
                 status.className,
               )}
             >
@@ -441,7 +441,7 @@ function SignalTile({
       aria-busy={scanning || undefined}
       onClick={onSelect}
       className={cn(
-        "group box-border flex h-[7.25rem] w-full min-w-0 flex-col items-center justify-between rounded-2xl border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
+        "group box-border flex h-[7.25rem] w-full min-w-0 flex-col items-center justify-between rounded-lg border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
         selected
           ? "border-podium-yellow/50 bg-podium-yellow/10 shadow-[inset_0_0_0_1px_rgba(245,179,1,0.15)]"
           : scanning
@@ -464,7 +464,7 @@ function SignalTile({
       />
       <span
         className={cn(
-          "line-clamp-2 h-[2.5em] w-full text-[10px] font-semibold leading-tight",
+          "line-clamp-2 h-[2.5em] w-full text-[10px] font-medium leading-tight",
           selected || scanning
             ? "text-podium-yellow"
             : live
@@ -690,13 +690,13 @@ export function DigitalAuditPanel({
         <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
       ) : null}
       {refreshing ? (
-        <p className="mt-3 flex items-center gap-2 text-sm font-bold text-podium-yellow">
+        <p className="mt-3 flex items-center gap-2 text-sm font-medium text-podium-yellow">
           <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-podium-yellow" />
           {COPY.atualizandoQualificacao} Mantendo a auditoria atual até terminar.
         </p>
       ) : null}
       {awaitingAudit ? (
-        <p className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm leading-relaxed text-podium-gray">
+        <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-podium-gray">
           Auditoria digital ainda não rodou nesta empresa. O ranking e o Minuto
           de Ouro usam só a Receita até você qualificar.
         </p>
@@ -711,7 +711,7 @@ export function DigitalAuditPanel({
 
       {selected && showBoard && !previewPresence ? (
         <div className="mt-4">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-podium-muted">
             Em foco
           </p>
           <AnimatePresence mode="wait">
@@ -823,9 +823,9 @@ export function DigitalAuditPanel({
                     type="button"
                     aria-expanded={toolsMissingOpen}
                     onClick={() => setToolsMissingOpen((v) => !v)}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-white/15 px-3 py-2 text-left text-podium-muted hover:border-white/25 hover:text-podium-gray"
+                    className="flex w-full items-center justify-between gap-3 rounded-md border border-dashed border-white/15 px-3 py-2 text-left text-podium-muted hover:border-white/25 hover:text-podium-gray"
                   >
-                    <span className="text-xs font-semibold">
+                    <span className="text-xs font-medium">
                       {toolsMissingOpen
                         ? "Recolher"
                         : `Ver ${missing.length} ferramenta${missing.length === 1 ? "" : "s"} sem sinal`}

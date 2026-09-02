@@ -83,18 +83,18 @@ function LeadPreviewShell({
           cnpj={preview.cnpj}
         />
         <GlassCard className="border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
             Contato
           </p>
-          <p className="mt-1 text-lg font-semibold text-podium-white">
+          <p className="mt-1 text-sm font-medium text-podium-white">
             {preview.decisorNome ?? "Sem sócio no quadro"}
           </p>
           {phone ? (
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-podium-muted">
+            <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] p-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Telefone
               </p>
-              <p className="mt-1 text-lg font-semibold">{phone}</p>
+              <p className="mt-1 text-sm font-medium">{phone}</p>
               {preview.seal ? (
                 <ContactSealBadge
                   seal={preview.seal}
@@ -108,7 +108,7 @@ function LeadPreviewShell({
             <p className="mt-4 text-sm text-podium-muted">Carregando contato…</p>
           )}
         </GlassCard>
-        <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-24 animate-pulse rounded-lg bg-white/5" />
       </div>
     </AppShell>
   );
@@ -492,7 +492,7 @@ export default function LeadPage() {
     if (dossierQuery.isLoading) {
       return (
         <AppShell fill title="Ficha" back={back}>
-          <div className="min-h-0 flex-1 animate-pulse rounded-2xl bg-white/5" />
+          <div className="min-h-0 flex-1 animate-pulse rounded-lg bg-white/5" />
         </AppShell>
       );
     }
@@ -606,10 +606,10 @@ export default function LeadPage() {
               fillCard,
             )}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Contato
             </p>
-            <p className="mt-1 text-lg font-semibold text-podium-white">
+            <p className="mt-1 text-sm font-medium text-podium-white">
               {d.decisor?.nome ?? "Sem sócio no quadro"}
             </p>
             <p className="mt-1 text-xs text-podium-gray">
@@ -619,8 +619,8 @@ export default function LeadPage() {
             </p>
 
             {primary ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-podium-muted">
+              <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] p-3">
+                <p className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                   {callConnection &&
                   d.status !== "reuniao" &&
                   d.status !== "descartado" &&
@@ -636,7 +636,7 @@ export default function LeadPage() {
                     "Telefone"
                   )}
                 </p>
-                <p className="mt-1 text-lg font-semibold">
+                <p className="mt-1 text-sm font-medium">
                   {formatPhone(primary.ddd, primary.telefone)}
                 </p>
                 <ContactSealBadge
@@ -654,7 +654,7 @@ export default function LeadPage() {
                     Confira no Maps antes de discar.
                   </p>
                 ) : null}
-                <div className="mt-4">
+                <div className="mt-3">
                   <CallButton
                     telHref={`tel:+55${primary.ddd}${primary.telefone}`}
                     connection={callConnection}
@@ -677,7 +677,7 @@ export default function LeadPage() {
                   return (
                     <Link
                       href={leadHref(next.cnpj, next.searchId, from)}
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-podium-gray hover:border-white/25 hover:text-podium-white"
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-md border border-white/15 px-3 py-1.5 text-xs font-medium text-podium-gray hover:border-white/25 hover:text-podium-white"
                     >
                       P{next.gridPosition} · {next.nome}
                     </Link>
@@ -692,18 +692,18 @@ export default function LeadPage() {
 
             {others.length > 0 ? (
               <div className="mt-4 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                   Outros números
                 </p>
                 {others.map((c, i) => (
                   <div
                     key={contactKey(c, i)}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white/10 px-2.5 py-1.5"
                   >
                     <div className="min-w-0">
                       <a
                         href={`tel:+55${c.ddd}${c.telefone}`}
-                        className="text-sm font-semibold"
+                        className="text-sm font-medium"
                       >
                         {formatPhone(c.ddd, c.telefone)}
                       </a>

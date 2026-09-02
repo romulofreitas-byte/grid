@@ -153,5 +153,56 @@ export function completeTimeDigits(digits: string): string {
   return d.slice(0, 4);
 }
 
+export function formatDateInput(
+  year: number,
+  month: number,
+  day: number,
+): string {
+  return `${pad(day)}/${pad(month + 1)}/${year}`;
+}
+
+export function dateDigits(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 8);
+}
+
+export function maskDateDigits(digits: string): string {
+  const d = dateDigits(digits);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+export function parseDateInput(
+  raw: string,
+): { year: number; month: number; day: number } | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  let day: number;
+  let month: number;
+  let year: number;
+  const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  if (slash) {
+    day = Number(slash[1]);
+    month = Number(slash[2]);
+    year = Number(slash[3]);
+  } else {
+    const digits = dateDigits(trimmed);
+    if (digits.length !== 8) return null;
+    day = Number(digits.slice(0, 2));
+    month = Number(digits.slice(2, 4));
+    year = Number(digits.slice(4, 8));
+  }
+  if (month < 1 || month > 12 || day < 1 || year < 1000) return null;
+  const stamp = new Date(year, month - 1, day);
+  if (
+    stamp.getFullYear() !== year ||
+    stamp.getMonth() !== month - 1 ||
+    stamp.getDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month: month - 1, day };
+}
+
 
 

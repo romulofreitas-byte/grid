@@ -2,13 +2,14 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { memo } from "react";
 import { COPY } from "@/lib/copy";
 import { activitySignal, formatNextAction } from "@/lib/crm/activity";
 import type { CrmDealCard as Deal } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 import { CrmTelemetryPip } from "@/components/crm/CrmTelemetryPip";
 
-export function CrmDealCardView({
+export const CrmDealCardView = memo(function CrmDealCardView({
   deal,
   overlay = false,
   className,
@@ -22,12 +23,12 @@ export function CrmDealCardView({
   return (
     <div
       className={cn(
-        "w-full rounded-xl border border-white/[0.08] bg-white/[0.04] p-3 text-left backdrop-blur-xl transition",
+        "w-full rounded-md border border-white/[0.08] bg-white/[0.04] p-2.5 text-left backdrop-blur-xl transition",
         overlay && "shadow-xl shadow-black/40 ring-1 ring-podium-yellow/30",
         className,
       )}
     >
-      <p className="text-sm font-bold leading-snug text-podium-white">
+      <p className="text-xs font-semibold leading-snug text-podium-white">
         {deal.company_name}
       </p>
       {deal.contact_name ? (
@@ -54,9 +55,32 @@ export function CrmDealCardView({
       </div>
     </div>
   );
-}
+});
 
-export function CrmDealCard({
+export const CrmDealCard = memo(function CrmDealCard({
+  deal,
+  onOpen,
+  dnd = true,
+}: {
+  deal: Deal;
+  onOpen?: (dealId: string) => void;
+  dnd?: boolean;
+}) {
+  if (!dnd) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen?.(deal.id)}
+        className="w-full"
+      >
+        <DealCardFace deal={deal} />
+      </button>
+    );
+  }
+  return <CrmSortableDealCard deal={deal} onOpen={onOpen} />;
+});
+
+function CrmSortableDealCard({
   deal,
   onOpen,
 }: {
@@ -85,10 +109,16 @@ export function CrmDealCard({
       onClick={() => onOpen?.(deal.id)}
       className="w-full"
     >
-      <CrmDealCardView
-        deal={deal}
-        className="hover:border-white/15 hover:bg-white/[0.06]"
-      />
+      <DealCardFace deal={deal} />
     </button>
+  );
+}
+
+function DealCardFace({ deal }: { deal: Deal }) {
+  return (
+    <CrmDealCardView
+      deal={deal}
+      className="hover:border-white/15 hover:bg-white/[0.06]"
+    />
   );
 }

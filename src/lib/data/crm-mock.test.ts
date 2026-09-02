@@ -16,6 +16,10 @@ describe("crm mock board", () => {
       const deal = store.crm_deals.find((d) => d.id === row.deal_id);
       return !deal || !ids.has(deal.pipeline_id);
     });
+    store.crm_events = store.crm_events.filter((row) => {
+      const deal = store.crm_deals.find((d) => d.id === row.deal_id);
+      return !deal || !ids.has(deal.pipeline_id);
+    });
     store.crm_deals = store.crm_deals.filter((row) => !ids.has(row.pipeline_id));
     store.crm_stages = store.crm_stages.filter((row) => !ids.has(row.pipeline_id));
     store.crm_pipelines = store.crm_pipelines.filter((row) => row.user_id !== USER);
@@ -161,6 +165,148 @@ describe("crm mock board", () => {
     expect(refused.crm?.stageKey).toBe("reuniao_realizada");
     expect(refused.crm?.pastFirstMile).toBe(true);
   });
+
+  it("appends call events instead of overwriting notes and keeps the open volta", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria Histórico",
+      notes: "Primeira conversa.",
+    });
+    const first = await mockRepo.logCrmCall(USER, created!.id, "Não atendeu.");
+    expect(first?.event.kind).toBe("ligar");
+    expect(first?.deal.notes).toBe("Não atendeu.");
+    expect(first?.deal.next_activity).toBeNull();
+    const second = await mockRepo.logCrmCall(USER, created!.id, "Falou com a secretária.");
+    expect(second?.deal.notes).toBe("Falou com a secretária.");
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.map((row) => row.body)).toEqual([
+      "Falou com a secretária.",
+      "Não atendeu.",
+      "Primeira conversa.",
+    ]);
+    expect(events?.filter((row) => row.kind === "ligar")).toHaveLength(2);
+  });
+
+  it("schedules the next volta without a history item", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Só Agendar",
+    });
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "whatsapp", dueAt);
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events).toEqual([]);
+    const card = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const deal = card?.deals.find((row) => row.id === created!.id);
+    expect(deal?.next_activity?.kind).toBe("whatsapp");
+  });
+
+  it("marks the open volta as done and writes it to the histórico", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Concluir volta",
+    });
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "followup", dueAt);
+    const none = await mockRepo.completeCrmActivity(USER, "missing");
+    expect(none).toBeNull();
+    const empty = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Sem volta",
+    });
+    const skipped = await mockRepo.completeCrmActivity(USER, empty!.id);
+    expect(skipped?.event).toBeNull();
+    expect(skipped?.deal.next_activity).toBeNull();
+    const done = await mockRepo.completeCrmActivity(USER, created!.id);
+    expect(done?.event?.kind).toBe("followup");
+    expect(done?.deal.next_activity).toBeNull();
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.[0]?.kind).toBe("followup");
+  });
+
+  it("hides won and lost deals from the active pista unless asked", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Fechou",
+    });
+    const won = await mockRepo.setCrmDealOutcome(USER, created!.id, "won");
+    expect(won?.deal.outcome).toBe("won");
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const { visibleKanbanDeals, closedDealCount } = await import("@/lib/crm/events");
+    expect(visibleKanbanDeals(board!.deals, false)).toHaveLength(0);
+    expect(visibleKanbanDeals(board!.deals, true)).toHaveLength(1);
+    expect(closedDealCount(board!.deals)).toBe(1);
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.[0]?.kind).toBe("outcome");
+  });
+
+  it("persists people with email and phone and snapshots contact_name", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Pessoas",
+      contact_name: "Ana",
+      secretaries: ["Bia"],
+    });
+    expect(created?.people.map((row) => row.name)).toEqual(["Ana"]);
+    expect(created?.secretaries).toEqual(["Bia"]);
+    const updated = await mockRepo.updateCrmDeal(USER, created!.id, {
+      people: [
+        { name: "Carlos", phone: "(34) 99999-0000", email: "c@x.com" },
+        { name: "Bia", phone: "(34) 3333-2020", email: "" },
+      ],
+    });
+    expect(updated?.people[0]).toEqual({
+      name: "Carlos",
+      phone: "(34) 99999-0000",
+      email: "c@x.com",
+    });
+    expect(updated?.contact_name).toBe("Carlos");
+    expect(updated?.secretaries).toEqual(["Bia"]);
+    const renamed = await mockRepo.updateCrmDeal(USER, created!.id, {
+      people: [{ name: "Diego", phone: "", email: "" }],
+    });
+    expect(renamed?.contact_name).toBe("Diego");
+    expect(renamed?.secretaries).toEqual(["Bia"]);
+  });
+
+  it("schedules a dated note as next_activity and leaves undated notes alone", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Nota agendada",
+    });
+    const dueAt = new Date("2026-09-02T17:00:00-03:00").toISOString();
+    const dated = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "nota",
+      body: "Voltar na sexta.",
+      next: { kind: "nota", dueAt },
+    });
+    expect(dated?.deal.next_activity?.kind).toBe("nota");
+    expect(
+      activitySignal(
+        dated!.deal.next_activity,
+        new Date("2026-09-02T15:00:00-03:00"),
+      ),
+    ).toBe("today");
+
+    const scheduled = await mockRepo.scheduleCrmActivity(
+      USER,
+      created!.id,
+      "whatsapp",
+      new Date("2026-09-05T15:00:00.000Z").toISOString(),
+    );
+    expect(scheduled?.next_activity?.kind).toBe("whatsapp");
+    const undated = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "nota",
+      body: "Só um recado.",
+    });
+    expect(undated?.deal.next_activity?.kind).toBe("whatsapp");
+  });
 });
 
 describe("seeded telemetry mix", () => {
@@ -179,5 +325,33 @@ describe("seeded telemetry mix", () => {
     expect(signals.has("today")).toBe(true);
     expect(signals.has("scheduled")).toBe(true);
     expect(signals.has("overdue")).toBe(true);
+  });
+
+  it("caps event history at the feed limit", async () => {
+    const { CRM_EVENT_HISTORY_LIMIT } = await import("@/lib/crm/events");
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Histórico longo",
+    });
+    for (let i = 0; i < CRM_EVENT_HISTORY_LIMIT + 3; i += 1) {
+      await mockRepo.logCrmCall(USER, created!.id, `Ligação ${i}`);
+    }
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events).toHaveLength(CRM_EVENT_HISTORY_LIMIT);
+    expect(events?.[0]?.body).toBe(`Ligação ${CRM_EVENT_HISTORY_LIMIT + 2}`);
+  });
+
+  it("loads a slim briefing lookup without assembling a dossier", async () => {
+    const store = getMockStore();
+    const est = store.establishments[0];
+    expect(est).toBeTruthy();
+    const lookup = await mockRepo.getCrmBriefingLookup(est!.cnpj);
+    expect(lookup).toBeTruthy();
+    expect(lookup?.municipioNome).toBeTruthy();
+    expect(Array.isArray(lookup?.extraPhones)).toBe(true);
+    expect(lookup?.presence === null || typeof lookup?.presence?.site === "boolean").toBe(
+      true,
+    );
   });
 });

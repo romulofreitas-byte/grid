@@ -10,9 +10,21 @@ import type {
 export const CRM_ACTIVITY_KIND_LABELS: Record<CrmActivityKind, string> = {
   ligar: "Ligar",
   whatsapp: "WhatsApp",
+  email: "E-mail",
   reuniao: "Reunião",
   followup: "Follow-up",
   proposta: "Proposta",
+  nota: "Nota",
+};
+
+export const CRM_NEXT_ACTION_LABELS: Record<CrmActivityKind, string> = {
+  ligar: "Próxima ligação",
+  whatsapp: "Próximo WhatsApp",
+  email: "Próximo e-mail",
+  reuniao: "Próxima reunião",
+  followup: "Próximo follow-up",
+  proposta: "Próxima proposta",
+  nota: "Próxima nota",
 };
 
 export function activitySignal(
@@ -35,6 +47,16 @@ export function formatNextAction(
   const due = new Date(activity.due_at);
   if (Number.isNaN(due.getTime())) return emptyLabel;
   const when = format(due, "EEE HH:mm", { locale: ptBR });
+  return `${CRM_ACTIVITY_KIND_LABELS[activity.kind]} · ${when}`;
+}
+
+export function formatPlannedActivity(
+  activity: Pick<CrmActivity, "kind" | "due_at" | "status"> | null | undefined,
+): string | null {
+  if (!activity || activity.status !== "open") return null;
+  const due = new Date(activity.due_at);
+  if (Number.isNaN(due.getTime())) return null;
+  const when = format(due, "d/MMM HH:mm", { locale: ptBR });
   return `${CRM_ACTIVITY_KIND_LABELS[activity.kind]} · ${when}`;
 }
 

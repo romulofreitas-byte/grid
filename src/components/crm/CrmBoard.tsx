@@ -14,15 +14,22 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Plus, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CrmAddDealDialog } from "@/components/crm/CrmAddDealDialog";
 import { CrmCadencePanel } from "@/components/crm/CrmCadencePanel";
 import { CrmDealCardView } from "@/components/crm/CrmDealCard";
-import { CrmDealDrawer } from "@/components/crm/CrmDealDrawer";
+import { CrmDealModal } from "@/components/crm/CrmDealModal";
 import { CrmLane } from "@/components/crm/CrmLane";
+import { CrmLanesSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { CrmPipelineRail } from "@/components/crm/CrmPipelineRail";
+import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
+import { closedDealCount, visibleKanbanDeals } from "@/lib/crm/events";
+import {
+  dedupeInflight,
+  isBoardCacheFresh,
+} from "@/lib/crm/pipeline-cache";
 import type {
   CrmBoard as Board,
   CrmDealCard as Deal,
@@ -31,17 +38,20 @@ import type {
 
 type Columns = Record<string, string[]>;
 
+const EMPTY_DEALS: Deal[] = [];
+
 function cloneColumns(columns: Columns): Columns {
   return Object.fromEntries(
     Object.entries(columns).map(([stageId, ids]) => [stageId, [...ids]]),
   );
 }
 
-function group(board: Board | null): Columns {
+function group(board: Board | null, showClosedDeals = false): Columns {
   const columns: Columns = {};
   if (!board) return columns;
   for (const stage of board.stages) columns[stage.id] = [];
-  for (const deal of [...board.deals].sort((a, b) => a.position - b.position)) {
+  const deals = visibleKanbanDeals(board.deals, showClosedDeals);
+  for (const deal of [...deals].sort((a, b) => a.position - b.position)) {
     if (!columns[deal.stage_id]) columns[deal.stage_id] = [];
     columns[deal.stage_id]!.push(deal.id);
   }
@@ -71,6 +81,17 @@ function findContainer(id: string, columns: Columns): string | undefined {
   return Object.keys(columns).find((stageId) => columns[stageId]?.includes(id));
 }
 
+function writeCrmUrl(pipelineId: string | null, dealId: string | null) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams();
+  if (pipelineId) params.set("pipeline", pipelineId);
+  if (dealId) params.set("deal", dealId);
+  const qs = params.toString();
+  const next = qs ? `/crm?${qs}` : "/crm";
+  if (`${window.location.pathname}${window.location.search}` === next) return;
+  window.history.replaceState(window.history.state, "", next);
+}
+
 export function CrmBoard({
   initialPipelines,
   initialBoard,
@@ -82,7 +103,7 @@ export function CrmBoard({
 }) {
   const [pipelines, setPipelines] = useState(initialPipelines);
   const [board, setBoard] = useState(initialBoard);
-  const [columns, setColumns] = useState(() => group(initialBoard));
+  const [columns, setColumns] = useState(() => group(initialBoard, false));
   const columnsRef = useRef(columns);
   columnsRef.current = columns;
   const dragOrigin = useRef<{ columns: Columns; board: Board | null } | null>(
@@ -96,6 +117,27 @@ export function CrmBoard({
   const [cadenceOpen, setCadenceOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
+  const [loadingPipelineId, setLoadingPipelineId] = useState<string | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(
+    initialBoard?.pipeline.id ?? null,
+  );
+  const dndId = useId();
+  const [dndReady, setDndReady] = useState(false);
+  const cacheRef = useRef(
+    new Map<string, Board>(
+      initialBoard ? [[initialBoard.pipeline.id, initialBoard]] : [],
+    ),
+  );
+  const fetchedAtRef = useRef(
+    new Map<string, number>(
+      initialBoard ? [[initialBoard.pipeline.id, Date.now()]] : [],
+    ),
+  );
+  const inflightRef = useRef(new Map<string, Promise<Board>>());
+  const requestedPipelineRef = useRef<string | null>(
+    initialBoard?.pipeline.id ?? null,
+  );
 
   const dealsById = useMemo(() => {
     const map = new Map<string, Deal>();
@@ -103,12 +145,43 @@ export function CrmBoard({
     return map;
   }, [board]);
 
+  const kanbanDeals = useMemo(
+    () => visibleKanbanDeals(board?.deals ?? [], showClosed),
+    [board, showClosed],
+  );
+  const kanbanById = useMemo(() => {
+    const map = new Map<string, Deal>();
+    for (const deal of kanbanDeals) map.set(deal.id, deal);
+    return map;
+  }, [kanbanDeals]);
+  const closedCount = closedDealCount(board?.deals ?? []);
+
   const openDeal = openDealId ? (dealsById.get(openDealId) ?? null) : null;
 
   useEffect(() => {
+    setDndReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (board) cacheRef.current.set(board.pipeline.id, board);
+  }, [board]);
+
+  function writeUrl(pipelineId: string | null, dealId: string | null) {
+    writeCrmUrl(pipelineId, dealId);
+  }
+
+  const openDealCard = useCallback(
+    (dealId: string | null) => {
+      setOpenDealId(dealId);
+      writeCrmUrl(selectedPipelineId ?? board?.pipeline.id ?? null, dealId);
+    },
+    [selectedPipelineId, board?.pipeline.id],
+  );
+
+  useEffect(() => {
     if (activeId || syncLocked.current) return;
-    setColumns(group(board));
-  }, [board, activeId]);
+    setColumns(group(board, showClosed));
+  }, [board, activeId, showClosed]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -138,13 +211,65 @@ export function CrmBoard({
     );
   }
 
-  async function loadPipeline(pipelineId: string) {
+  function fetchBoard(pipelineId: string): Promise<Board> {
+    return dedupeInflight(inflightRef.current, pipelineId, async () => {
+      const res = await crmFetch<{ board: Board }>(
+        `/api/crm/pipelines/${pipelineId}`,
+      );
+      cacheRef.current.set(pipelineId, res.board);
+      fetchedAtRef.current.set(pipelineId, Date.now());
+      return res.board;
+    });
+  }
+
+  async function prefetchPipeline(pipelineId: string) {
+    if (
+      cacheRef.current.has(pipelineId) &&
+      isBoardCacheFresh(fetchedAtRef.current.get(pipelineId))
+    ) {
+      return;
+    }
+    try {
+      await fetchBoard(pipelineId);
+    } catch {
+      /* prefetch is best-effort */
+    }
+  }
+
+  async function loadPipeline(
+    pipelineId: string,
+    opts?: { force?: boolean },
+  ) {
+    if (pipelineId === selectedPipelineId && board && !opts?.force) return;
     setError(null);
-    const res = await crmFetch<{ board: Board }>(
-      `/api/crm/pipelines/${pipelineId}`,
-    );
-    setBoard(res.board);
+    setSelectedPipelineId(pipelineId);
+    requestedPipelineRef.current = pipelineId;
     setOpenDealId(null);
+    writeUrl(pipelineId, null);
+    const cached = cacheRef.current.get(pipelineId);
+    const fresh =
+      Boolean(cached) &&
+      isBoardCacheFresh(fetchedAtRef.current.get(pipelineId)) &&
+      !opts?.force;
+    if (cached) {
+      setBoard(cached);
+      if (fresh) return;
+    } else {
+      setBoard(null);
+      setLoadingPipelineId(pipelineId);
+    }
+    try {
+      const next = await fetchBoard(pipelineId);
+      if (requestedPipelineRef.current !== pipelineId) return;
+      setBoard(next);
+    } catch (err) {
+      if (requestedPipelineRef.current !== pipelineId) return;
+      setError(err instanceof Error ? err.message : "Não abriu o nicho.");
+    } finally {
+      if (requestedPipelineRef.current === pipelineId) {
+        setLoadingPipelineId(null);
+      }
+    }
   }
 
   function revertDrag() {
@@ -258,38 +383,126 @@ export function CrmBoard({
     void persistMove(dealId, to, position);
   }
 
+  function moveDealToStage(dealId: string, stageId: string) {
+    if (!board) return;
+    const deal = board.deals.find((row) => row.id === dealId);
+    if (!deal || deal.stage_id === stageId) return;
+    const originColumns = cloneColumns(columnsRef.current);
+    const nextColumns = cloneColumns(columnsRef.current);
+    const fromItems = (nextColumns[deal.stage_id] ?? []).filter(
+      (id) => id !== dealId,
+    );
+    const toItems = [...(nextColumns[stageId] ?? [])];
+    if (!toItems.includes(dealId)) toItems.push(dealId);
+    nextColumns[deal.stage_id] = fromItems;
+    nextColumns[stageId] = toItems;
+    columnsRef.current = nextColumns;
+    setColumns(nextColumns);
+    dragOrigin.current = { columns: originColumns, board };
+    syncLocked.current = true;
+    setBoard((current) =>
+      current ? applyLayout(current, nextColumns) : current,
+    );
+    void persistMove(dealId, stageId, Math.max(0, toItems.indexOf(dealId)));
+  }
+
+  const renameStage = useCallback(async (stageId: string, nome: string) => {
+    await crmFetch(`/api/crm/stages/${stageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ nome }),
+    });
+    setBoard((current) =>
+      current
+        ? {
+            ...current,
+            stages: current.stages.map((row) =>
+              row.id === stageId ? { ...row, nome } : row,
+            ),
+          }
+        : current,
+    );
+  }, []);
+
+  const dealsByStage = useMemo(() => {
+    const map = new Map<string, Deal[]>();
+    for (const stage of board?.stages ?? []) {
+      const deals = (columns[stage.id] ?? [])
+        .map((id) => kanbanById.get(id) ?? dealsById.get(id))
+        .filter((deal): deal is Deal => Boolean(deal));
+      map.set(stage.id, deals);
+    }
+    return map;
+  }, [board?.stages, columns, kanbanById, dealsById]);
+
   const activeDeal = activeId ? dealsById.get(activeId) : null;
+
+  const lanes = (
+    <div className="flex h-full min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden pb-2">
+      {loadingPipelineId && !board ? (
+        <CrmLanesSkeleton />
+      ) : (
+        board?.stages.map((stage, index) => (
+          <CrmLane
+            key={stage.id}
+            stage={stage}
+            index={index}
+            dnd={dndReady}
+            deals={dealsByStage.get(stage.id) ?? EMPTY_DEALS}
+            onOpenDeal={openDealCard}
+            onRename={renameStage}
+          />
+        ))
+      )}
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-podium-yellow">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             {COPY.crmNav}
           </p>
-          <h1 className="mt-1 text-xl font-extrabold md:text-2xl">
-            {board?.pipeline.nome ?? COPY.crmTitle}
+          <h1 className="mt-1 text-lg font-semibold">
+            {board?.pipeline.nome ??
+              pipelines.find((row) => row.id === selectedPipelineId)?.nome ??
+              COPY.crmTitle}
           </h1>
           <p className="mt-1 max-w-xl text-sm text-podium-gray">{COPY.crmHint}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
-            onClick={() => setCadenceOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-3 py-2 text-sm text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+            size="sm"
+            variant={showClosed ? "accent" : "secondary"}
+            onClick={() => setShowClosed((current) => !current)}
           >
-            <SlidersHorizontal className="h-4 w-4" />
-            {COPY.crmAdjustCadence}
-          </button>
-          <button
+            {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
+            {closedCount > 0 ? (
+              <span className="ml-1.5 font-mono text-[10px] text-podium-muted">
+                {closedCount}
+              </span>
+            ) : null}
+          </Button>
+          <Button
             type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setCadenceOpen(true)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {COPY.crmAdjustCadence}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
             onClick={() => setAddOpen(true)}
             disabled={!board}
-            className="inline-flex items-center gap-2 rounded-xl bg-podium-yellow px-3 py-2 text-sm font-extrabold text-podium-navy hover:brightness-110 disabled:opacity-40"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             {COPY.crmAddDeal}
-          </button>
+          </Button>
         </div>
       </div>
       {error ? (
@@ -298,8 +511,9 @@ export function CrmBoard({
       <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
         <CrmPipelineRail
           pipelines={pipelines}
-          activeId={board?.pipeline.id ?? null}
+          activeId={selectedPipelineId}
           onSelect={(pipelineId) => void loadPipeline(pipelineId)}
+          onPrefetch={(pipelineId) => void prefetchPipeline(pipelineId)}
           onCreate={async (nome) => {
             const res = await crmFetch<{
               pipeline: CrmPipelineSummary;
@@ -313,6 +527,8 @@ export function CrmBoard({
               { ...res.pipeline, deal_count: 0 },
             ]);
             setBoard(res.board);
+            setSelectedPipelineId(res.board.pipeline.id);
+            writeUrl(res.board.pipeline.id, null);
           }}
           onRename={async (pipelineId, nome) => {
             const res = await crmFetch<{ pipeline: CrmPipelineSummary }>(
@@ -341,56 +557,39 @@ export function CrmBoard({
           }}
         />
         <div className="flex min-h-0 min-w-0 flex-1">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDragEnd={onDragEnd}
-            onDragCancel={onDragCancel}
-          >
-            <div className="flex h-full min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden pb-2">
-              {board?.stages.map((stage, index) => (
-                <CrmLane
-                  key={stage.id}
-                  stage={stage}
-                  index={index}
-                  deals={(columns[stage.id] ?? [])
-                    .map((id) => dealsById.get(id))
-                    .filter((deal): deal is Deal => Boolean(deal))}
-                  onOpenDeal={setOpenDealId}
-                  onRename={async (stageId, nome) => {
-                    await crmFetch(`/api/crm/stages/${stageId}`, {
-                      method: "PATCH",
-                      body: JSON.stringify({ nome }),
-                    });
-                    setBoard((current) =>
-                      current
-                        ? {
-                            ...current,
-                            stages: current.stages.map((row) =>
-                              row.id === stageId ? { ...row, nome } : row,
-                            ),
-                          }
-                        : current,
-                    );
-                  }}
-                />
-              ))}
-            </div>
-            <DragOverlay dropAnimation={null}>
-              {activeDeal ? <CrmDealCardView deal={activeDeal} overlay /> : null}
-            </DragOverlay>
-          </DndContext>
+          {dndReady ? (
+            <DndContext
+              id={dndId}
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDragEnd={onDragEnd}
+              onDragCancel={onDragCancel}
+            >
+              {lanes}
+              <DragOverlay dropAnimation={null}>
+                {activeDeal ? (
+                  <CrmDealCardView deal={activeDeal} overlay />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            lanes
+          )}
         </div>
       </div>
-      {openDeal ? (
-        <CrmDealDrawer
+      {openDeal && board ? (
+        <CrmDealModal
           deal={openDeal}
-          onClose={() => setOpenDealId(null)}
+          stages={board.stages}
+          onClose={() => openDealCard(null)}
           onChange={replaceDeal}
+          onMoveStage={(stageId) => {
+            moveDealToStage(openDeal.id, stageId);
+          }}
           onDeleted={(dealId) => {
-            const pipelineId = board?.pipeline.id;
+            const pipelineId = board.pipeline.id;
             setBoard((current) =>
               current
                 ? {
@@ -400,7 +599,7 @@ export function CrmBoard({
                 : current,
             );
             if (pipelineId) bumpCount(pipelineId, -1);
-            setOpenDealId(null);
+            openDealCard(null);
           }}
         />
       ) : null}
@@ -441,7 +640,7 @@ export function CrmBoard({
               method: "DELETE",
               body: JSON.stringify({ moveToStageId }),
             });
-            await loadPipeline(board.pipeline.id);
+            await loadPipeline(board.pipeline.id, { force: true });
             setCadenceOpen(true);
           }}
           onReorder={async (stageIds) => {
@@ -464,7 +663,7 @@ export function CrmBoard({
             replaceDeal(res.deal);
             bumpCount(board.pipeline.id, 1);
             setAddOpen(false);
-            setOpenDealId(res.deal.id);
+            openDealCard(res.deal.id);
           }}
         />
       ) : null}

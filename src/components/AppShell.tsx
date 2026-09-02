@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
   Columns3,
   Flag,
@@ -17,6 +18,7 @@ import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { CatchUpRunner } from "@/components/CatchUpRunner";
 import { SupportDock } from "@/components/SupportDock";
+import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -26,6 +28,78 @@ const nav = [
   { href: "/listas", label: "Listas", icon: List },
   { href: "/crm", label: "CRM", icon: Columns3 },
 ];
+
+function ShellNavItem({
+  href,
+  label,
+  icon: Icon,
+  mobile = false,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  mobile?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        mobile
+          ? "group relative flex flex-1 flex-col items-center gap-1 rounded-md px-2 py-1 text-[11px]"
+          : "group relative inline-flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition"
+      }
+    >
+      <ShellNavFace href={href} label={label} icon={Icon} mobile={mobile} />
+    </Link>
+  );
+}
+
+function ShellNavFace({
+  href,
+  label,
+  icon: Icon,
+  mobile,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  mobile: boolean;
+}) {
+  const pathname = usePathname();
+  const { pending } = useLinkStatus();
+  const active = pathname.startsWith(href) || pending;
+  const opening = pending && href === "/crm";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2",
+        mobile && "w-full flex-col gap-1",
+        active
+          ? "text-podium-yellow"
+          : mobile
+            ? "text-podium-muted"
+            : "text-podium-gray group-hover:text-podium-white",
+      )}
+    >
+      {active ? (
+        <span
+          className={cn(
+            "absolute rounded-full bg-podium-yellow",
+            mobile ? "inset-x-4 top-0 h-0.5" : "inset-x-3 -bottom-px h-0.5",
+          )}
+        />
+      ) : null}
+      {!mobile && active ? (
+        <span className="absolute inset-0 -z-10 rounded-md bg-podium-yellow/15" />
+      ) : null}
+      <Icon
+        className={cn(mobile ? "h-5 w-5" : "h-4 w-4", pending && "animate-pulse")}
+      />
+      {opening ? COPY.crmOpeningNav : label}
+    </span>
+  );
+}
 
 export function AppShell({
   children,
@@ -42,8 +116,6 @@ export function AppShell({
   wide?: boolean;
   lockHeight?: boolean;
 }) {
-  const pathname = usePathname();
-
   return (
     <div
       className={cn(
@@ -70,28 +142,14 @@ export function AppShell({
             />
           </Link>
           <nav className="hidden min-w-0 flex-1 items-center gap-1 md:flex">
-            {nav.map((item) => {
-              const active = pathname.startsWith(item.href);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition",
-                    active
-                      ? "bg-podium-yellow/15 text-podium-yellow"
-                      : "text-podium-gray hover:text-podium-white",
-                  )}
-                >
-                  {active ? (
-                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-podium-yellow" />
-                  ) : null}
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+            {nav.map((item) => (
+              <ShellNavItem
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+              />
+            ))}
           </nav>
           <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:flex-none">
             <LongOpChip />
@@ -137,26 +195,15 @@ export function AppShell({
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-podium-navy/95 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 py-2">
-          {nav.map((item) => {
-            const active = pathname.startsWith(item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative flex flex-1 flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px]",
-                  active ? "text-podium-yellow" : "text-podium-muted",
-                )}
-              >
-                {active ? (
-                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-podium-yellow" />
-                ) : null}
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            );
-          })}
+          {nav.map((item) => (
+            <ShellNavItem
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              mobile
+            />
+          ))}
         </div>
       </nav>
     </div>

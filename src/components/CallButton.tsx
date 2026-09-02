@@ -70,8 +70,8 @@ export function CallButton({
     variant === "cockpit"
       ? buttonClassName({
           variant: "primary",
-          size: "lg",
-          className: cn("w-full gap-2 sm:w-auto", className),
+          size: "md",
+          className: cn("w-full gap-2", className),
         })
       : buttonClassName({ variant: "secondary", size: "sm", className });
 

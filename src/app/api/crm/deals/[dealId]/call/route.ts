@@ -24,12 +24,13 @@ export async function POST(
     if (!dueAt) return jsonError("Horário da próxima volta inválido.");
     next = { kind: next.kind, dueAt };
   }
-  const deal = await getRepo().logCrmCall(
+  const result = await getRepo().logCrmCall(
     gated.userId,
     dealId,
     parsed.data.notes,
     next,
+    parsed.data.phone,
   );
-  if (!deal) return jsonError("Negócio não encontrado.", 404);
-  return NextResponse.json({ deal });
+  if (!result) return jsonError("Negócio não encontrado.", 404);
+  return NextResponse.json(result);
 }

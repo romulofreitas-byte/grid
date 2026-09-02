@@ -166,8 +166,8 @@ export function LeadCompanyCard({
         </p>
       ) : null}
 
-      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+      <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
           E-mail
         </p>
         {emailSeal?.email ? (
@@ -193,9 +193,9 @@ export function LeadCompanyCard({
             type="button"
             onClick={() => setShowCadastro((v) => !v)}
             aria-expanded={showCadastro}
-            className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-left text-podium-muted hover:border-white/20 hover:text-podium-gray"
+            className="mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-white/10 px-3 py-1.5 text-left text-podium-muted hover:border-white/20 hover:text-podium-gray"
           >
-            <span className="text-xs font-semibold">Cadastro da Receita</span>
+            <span className="text-xs font-medium">Cadastro da Receita</span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 transition",

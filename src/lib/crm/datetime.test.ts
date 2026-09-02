@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDatetimeLocal,
+  formatDateInput,
   monthCells,
   parseDatetimeLocal,
+  parseDateInput,
   parseTimeInput,
+  maskDateDigits,
   maskTimeDigits,
   completeTimeDigits,
   shiftMonth,
@@ -49,6 +52,24 @@ describe("datetime local", () => {
     expect(parseTimeInput("1400")).toEqual({ hours: 14, minutes: 0 });
     expect(parseTimeInput("7")).toEqual({ hours: 7, minutes: 0 });
     expect(parseTimeInput("25:00")).toBeNull();
+  });
+
+  it("formats and parses DD/MM/YYYY", () => {
+    expect(formatDateInput(2026, 8, 2)).toBe("02/09/2026");
+    expect(parseDateInput("02/09/2026")).toEqual({
+      year: 2026,
+      month: 8,
+      day: 2,
+    });
+    expect(parseDateInput("02092026")).toEqual({
+      year: 2026,
+      month: 8,
+      day: 2,
+    });
+    expect(parseDateInput("31/02/2026")).toBeNull();
+    expect(parseDateInput("00/01/2026")).toBeNull();
+    expect(maskDateDigits("0209")).toBe("02/09");
+    expect(maskDateDigits("02092026")).toBe("02/09/2026");
   });
 
   it("masks four keystrokes into hour and minute", () => {

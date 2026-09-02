@@ -41,7 +41,7 @@ function PersonRow({
   chips: Array<{ label: string; emphasize?: boolean }>;
 }) {
   return (
-    <li className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+    <li className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
       <div className="flex flex-wrap items-center gap-1.5">
         <p className="text-sm font-semibold text-podium-white">{nome}</p>
         {chips.map((c) => (
@@ -174,7 +174,7 @@ export function SociosPanel({
     return (
       <div
         className={cn(
-          "mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-3",
+          "mt-4 rounded-md border border-white/10 bg-white/[0.02] p-3",
           className,
         )}
       >

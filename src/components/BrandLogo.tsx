@@ -67,14 +67,14 @@ export function BrandLogo({
         >
           <span
             className={cn(
-              "font-extrabold leading-none tracking-tight text-podium-white whitespace-nowrap",
+              "font-[family-name:var(--font-sora)] font-extrabold leading-none tracking-tight text-podium-white whitespace-nowrap",
               endorsed ? "text-[0.52em]" : "text-[0.68em]",
             )}
           >
             GRID
           </span>
           {endorsed ? (
-            <span className="whitespace-nowrap font-semibold uppercase leading-none tracking-[0.22em] text-[0.18em] text-podium-muted">
+            <span className="whitespace-nowrap font-[family-name:var(--font-sora)] font-semibold uppercase leading-none tracking-[0.22em] text-[0.18em] text-podium-muted">
               Mundo Pódium
             </span>
           ) : null}

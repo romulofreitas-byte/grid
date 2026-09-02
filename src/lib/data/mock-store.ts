@@ -6,6 +6,7 @@ import { seedCrmStore } from "@/lib/crm/mock-seed";
 import type {
   CrmActivity,
   CrmDeal,
+  CrmEvent,
   CrmPipeline,
   CrmStage,
 } from "@/lib/crm/types";
@@ -81,6 +82,7 @@ export type MockStore = {
   crm_stages: CrmStage[];
   crm_deals: CrmDeal[];
   crm_activities: CrmActivity[];
+  crm_events: CrmEvent[];
   billed_cnpjs: Array<{
     profile_id: string;
     cnpj: string;
@@ -669,6 +671,7 @@ function createMockStore(): MockStore {
     crm_stages: [],
     crm_deals: [],
     crm_activities: [],
+    crm_events: [],
     billed_cnpjs: [],
     user_catchup_state: [],
   };

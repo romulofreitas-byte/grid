@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import { Flame, List, Wallet } from "lucide-react";
 import { BoxDayCta } from "@/components/BoxDayCta";
 import { BoxEstrutura } from "@/components/BoxEstrutura";
 import { GlassCard } from "@/components/GlassCard";
@@ -14,32 +16,65 @@ import type { NextCallLead, Profile, Search } from "@/lib/types";
 import { writeWorkingSearchCookie } from "@/lib/working-search";
 import { cn } from "@/lib/utils";
 
-function ClusterStat({
+function sequenciaHint(n: number): string {
+  if (n <= 0) return COPY.boxSequenciaHintZero;
+  if (n === 1) return COPY.boxSequenciaHintOne;
+  return COPY.boxSequenciaHintMany.replace("{n}", String(n));
+}
+
+function acessoHint(n: number): string {
+  return COPY.boxAcessoHint.replace("{n}", String(n));
+}
+
+function listasHint(n: number): string {
+  if (n <= 0) return COPY.boxListasHintZero;
+  if (n === 1) return COPY.boxListasHintOne;
+  return COPY.boxListasHintMany.replace("{n}", String(n));
+}
+
+function ClusterCard({
   label,
   value,
+  hint,
+  icon: Icon,
   href,
   hrefLabel,
   warn = false,
 }: {
   label: string;
   value: string;
+  hint: string;
+  icon: LucideIcon;
   href?: string;
   hrefLabel?: string;
   warn?: boolean;
 }) {
   return (
-    <div className="min-w-0">
+    <div
+      className="group relative min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-2 outline-none md:px-3 md:py-2.5"
+      tabIndex={href ? undefined : 0}
+      aria-label={hint}
+    >
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
         {label}
       </p>
-      <p
-        className={cn(
-          "mt-0.5 text-sm font-extrabold tabular-nums",
-          warn ? "text-podium-yellow" : "text-podium-gray",
-        )}
-      >
-        {value}
-      </p>
+      <div className="mt-0.5 flex items-center gap-1.5">
+        <Icon
+          className={cn(
+            "h-3.5 w-3.5 shrink-0",
+            warn ? "text-podium-yellow" : "text-podium-muted",
+          )}
+          aria-hidden
+        />
+        <p
+          className={cn(
+            "truncate text-sm font-extrabold tabular-nums",
+            warn ? "text-podium-yellow" : "text-podium-gray",
+          )}
+        >
+          {value}
+        </p>
+      </div>
       {href && hrefLabel ? (
         <Link
           href={href}
@@ -48,6 +83,17 @@ function ClusterStat({
           {hrefLabel}
         </Link>
       ) : null}
+      <span
+        role="tooltip"
+        className={cn(
+          "pointer-events-none absolute z-20 hidden rounded-lg border border-white/10 bg-podium-navy/95 px-2.5 py-1.5 text-[11px] font-medium leading-snug text-podium-gray shadow-lg",
+          "group-hover:flex group-focus-within:flex",
+          "inset-0 items-center justify-center px-2 text-center",
+          "md:inset-auto md:right-full md:top-1/2 md:mr-2 md:w-max md:max-w-[14rem] md:-translate-y-1/2 md:text-left",
+        )}
+      >
+        {hint}
+      </span>
     </div>
   );
 }
@@ -207,16 +253,20 @@ export function BoxCockpit({
                     className="relative"
                   />
                 </div>
-                <div className="flex min-w-0 flex-1 flex-row gap-4 md:w-full md:flex-col md:gap-3 md:px-2">
-                  <ClusterStat
+                <div className="flex min-w-0 flex-1 flex-col gap-2 md:w-full md:gap-3 md:px-2">
+                  <ClusterCard
                     label="Sequência"
                     value={
                       sequencia === 1 ? "1 dia" : `${sequencia} dias`
                     }
+                    hint={sequenciaHint(sequencia)}
+                    icon={Flame}
                   />
-                  <ClusterStat
+                  <ClusterCard
                     label="Acesso"
                     value={String(billing.total)}
+                    hint={acessoHint(billing.total)}
+                    icon={Wallet}
                     href="/planos"
                     hrefLabel={
                       billing.trialDaysLeft != null && billing.trialDaysLeft > 0
@@ -225,9 +275,11 @@ export function BoxCockpit({
                     }
                     warn={tankEmpty}
                   />
-                  <ClusterStat
+                  <ClusterCard
                     label="Listas"
                     value={String(savedCount)}
+                    hint={listasHint(savedCount)}
+                    icon={List}
                     href="/listas"
                     hrefLabel="Ver listas"
                   />

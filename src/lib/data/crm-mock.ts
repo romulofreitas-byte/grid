@@ -1,5 +1,15 @@
+import { digitsCnpj } from "@/lib/crm/bridge";
 import { cloneDefaultCadenceEntries, pickEntradaStage } from "@/lib/crm/cadence";
+import {
+  briefingPresenceFromFields,
+  type CrmBriefingLookup,
+} from "@/lib/crm/briefing";
+import { uniquePhones } from "@/lib/crm/dial";
+import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
+import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import { formatPhone } from "@/lib/format";
 import type {
   CrmActivity,
   CrmActivityKind,
@@ -8,7 +18,11 @@ import type {
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmEvent,
+  CrmEventCreateInput,
+  CrmEventKind,
   CrmNextAction,
+  CrmOutcome,
   CrmPipeline,
   CrmPipelineSummary,
   CrmStage,
@@ -41,13 +55,16 @@ function stagesOf(store: MockStore, pipelineId: string): CrmStage[] {
 
 function openActivity(store: MockStore, dealId: string): CrmActivity | null {
   return (
-    store.crm_activities.find(
-      (row) => row.deal_id === dealId && row.status === "open",
-    ) ?? null
+    store.crm_activities
+      .filter((row) => row.deal_id === dealId && row.status === "open")
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
   );
 }
 
 function toCard(store: MockStore, deal: CrmDeal): CrmDealCard {
+  if (!deal.people) {
+    deal.people = peopleFromDeal(deal);
+  }
   return { ...deal, next_activity: openActivity(store, deal.id) };
 }
 
@@ -105,6 +122,32 @@ function closeOpenActivity(store: MockStore, dealId: string): void {
       row.status = "done";
     }
   }
+}
+
+function insertEvent(
+  store: MockStore,
+  dealId: string,
+  kind: CrmEventKind,
+  body: string,
+  meta: CrmEvent["meta"] = {},
+): CrmEvent {
+  const now = nowIso();
+  const row: CrmEvent = {
+    id: id(),
+    deal_id: dealId,
+    kind,
+    body,
+    meta,
+    created_at: now,
+    updated_at: now,
+  };
+  store.crm_events.push(row);
+  const deal = store.crm_deals.find((entry) => entry.id === dealId);
+  if (deal) {
+    if (body.trim()) deal.notes = body;
+    deal.updated_at = now;
+  }
+  return row;
 }
 
 function insertActivity(
@@ -230,6 +273,9 @@ export const crmMockMethods = {
         .map((row) => row.id),
     );
     store.crm_activities = store.crm_activities.filter(
+      (row) => !dealIds.has(row.deal_id),
+    );
+    store.crm_events = store.crm_events.filter(
       (row) => !dealIds.has(row.deal_id),
     );
     store.crm_deals = store.crm_deals.filter(
@@ -362,15 +408,22 @@ export const crmMockMethods = {
       company_name: input.company_name.trim(),
       contact_name: input.contact_name?.trim() ?? "",
       secretaries: cleanList(input.secretaries),
+      people: peopleFromDeal({
+        contact_name: input.contact_name?.trim() ?? "",
+        secretaries: cleanList(input.secretaries),
+      }),
       phones: cleanList(input.phones),
       notes: input.notes?.trim() ?? "",
       cnpj,
       meta: input.meta ?? {},
+      outcome: "open",
       position,
       created_at: created,
       updated_at: created,
     };
     store.crm_deals.push(deal);
+    const notes = input.notes?.trim() ?? "";
+    if (notes) insertEvent(store, deal.id, "nota", notes);
     return toCard(store, deal);
   },
 
@@ -428,6 +481,48 @@ export const crmMockMethods = {
     return [...found];
   },
 
+  async getCrmDeal(
+    userId: string,
+    dealId: string,
+  ): Promise<CrmDealCard | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    return deal ? toCard(store, deal) : null;
+  },
+
+  async getCrmBriefingLookup(cnpj: string): Promise<CrmBriefingLookup | null> {
+    const store = getMockStore();
+    const padded = digitsCnpj(cnpj);
+    const est = store.establishments.find(
+      (row) => digitsCnpj(row.cnpj) === padded,
+    );
+    if (!est) return null;
+    const municipioNome =
+      store.ref_municipio.find((row) => row.id === est.municipio_id)?.nome ??
+      null;
+    const enrichment =
+      store.lead_enrichment.find(
+        (row) => digitsCnpj(row.cnpj) === padded && isEnrichmentVisible(row),
+      ) ?? null;
+    return {
+      municipioNome,
+      extraPhones: uniquePhones(
+        [
+          formatPhone(est.ddd1, est.telefone1),
+          formatPhone(est.ddd2, est.telefone2),
+        ].filter((value): value is string => Boolean(value)),
+      ),
+      presence: enrichment
+        ? briefingPresenceFromFields({
+            domainStatus: enrichment.domain_status,
+            instagram: enrichment.socials?.instagram,
+            whatsapp: enrichment.whatsapp,
+            gmbMatched: enrichment.gmb?.matched,
+          })
+        : null,
+    };
+  },
+
   async updateCrmDeal(
     userId: string,
     dealId: string,
@@ -437,7 +532,12 @@ export const crmMockMethods = {
     const deal = ownDeal(store, userId, dealId);
     if (!deal) return null;
     if (patch.company_name !== undefined) deal.company_name = patch.company_name;
-    if (patch.contact_name !== undefined) deal.contact_name = patch.contact_name;
+    if (patch.people !== undefined) {
+      deal.people = sanitizePeople(patch.people);
+      deal.contact_name = snapshotContactName(deal.people);
+    } else if (patch.contact_name !== undefined) {
+      deal.contact_name = patch.contact_name;
+    }
     if (patch.secretaries !== undefined) {
       deal.secretaries = cleanList(patch.secretaries);
     }
@@ -470,6 +570,7 @@ export const crmMockMethods = {
     store.crm_activities = store.crm_activities.filter(
       (row) => row.deal_id !== dealId,
     );
+    store.crm_events = store.crm_events.filter((row) => row.deal_id !== dealId);
     store.crm_deals = store.crm_deals.filter((row) => row.id !== dealId);
     compactStage(store, deal.stage_id);
     return true;
@@ -489,19 +590,109 @@ export const crmMockMethods = {
     return toCard(store, deal);
   },
 
+  async completeCrmActivity(
+    userId: string,
+    dealId: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    if (!deal) return null;
+    const open = openActivity(store, dealId);
+    if (!open) return { deal: toCard(store, deal), event: null };
+    closeOpenActivity(store, dealId);
+    const event = insertEvent(store, dealId, open.kind, "");
+    return { deal: toCard(store, deal), event };
+  },
+
   async logCrmCall(
     userId: string,
     dealId: string,
     notes: string,
     next?: CrmNextAction | null,
-  ): Promise<CrmDealCard | null> {
+    phone?: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    return crmMockMethods.createCrmEvent(userId, dealId, {
+      kind: "ligar",
+      body: notes,
+      next,
+      meta: phone ? { phone } : {},
+    });
+  },
+
+  async listCrmEvents(
+    userId: string,
+    dealId: string,
+  ): Promise<CrmEvent[] | null> {
+    const store = getMockStore();
+    if (!ownDeal(store, userId, dealId)) return null;
+    return store.crm_events
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => row.deal_id === dealId)
+      .sort((a, b) => {
+        const byTime = b.row.created_at.localeCompare(a.row.created_at);
+        return byTime !== 0 ? byTime : b.index - a.index;
+      })
+      .map(({ row }) => row)
+      .slice(0, CRM_EVENT_HISTORY_LIMIT);
+  },
+
+  async createCrmEvent(
+    userId: string,
+    dealId: string,
+    input: CrmEventCreateInput,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);
     if (!deal) return null;
-    deal.notes = notes;
-    closeOpenActivity(store, dealId);
-    if (next) insertActivity(store, dealId, next.kind, next.dueAt);
-    deal.updated_at = nowIso();
-    return toCard(store, deal);
+    const event = insertEvent(
+      store,
+      dealId,
+      input.kind,
+      input.body?.trim() ?? "",
+      input.meta ?? {},
+    );
+    if (input.next) insertActivity(store, dealId, input.next.kind, input.next.dueAt);
+    return { deal: toCard(store, deal), event };
+  },
+
+  async updateCrmEvent(
+    userId: string,
+    dealId: string,
+    eventId: string,
+    body: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    if (!deal) return null;
+    const event = store.crm_events.find(
+      (row) => row.id === eventId && row.deal_id === dealId,
+    );
+    if (!event) return null;
+    event.body = body;
+    event.updated_at = nowIso();
+    if (body.trim()) deal.notes = body;
+    deal.updated_at = event.updated_at;
+    return { deal: toCard(store, deal), event };
+  },
+
+  async setCrmDealOutcome(
+    userId: string,
+    dealId: string,
+    outcome: CrmOutcome,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    if (!deal) return null;
+    if (deal.outcome === outcome) {
+      const existing = [...store.crm_events]
+        .reverse()
+        .find((row) => row.deal_id === dealId && row.kind === "outcome");
+      const event =
+        existing ?? insertEvent(store, dealId, "outcome", "", { outcome });
+      return { deal: toCard(store, deal), event };
+    }
+    deal.outcome = outcome;
+    const event = insertEvent(store, dealId, "outcome", "", { outcome });
+    return { deal: toCard(store, deal), event };
   },
 };

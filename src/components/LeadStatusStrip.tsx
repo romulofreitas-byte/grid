@@ -62,7 +62,7 @@ export function LeadStatusStrip({
           </p>
           <Link
             href={crmLink}
-            className="ml-auto text-xs font-semibold text-podium-yellow hover:underline"
+            className="ml-auto text-xs font-medium text-podium-yellow hover:underline"
           >
             {COPY.crmOpenDeal}
           </Link>
@@ -113,7 +113,7 @@ export function LeadStatusStrip({
         onBlur={(e) => onNotasBlur(e.target.value)}
         rows={2}
         placeholder="O que rolou na ligação"
-        className="w-full resize-none rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm outline-none focus:border-podium-yellow/40"
+        className="w-full resize-none rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40"
       />
 
       {crm ? (

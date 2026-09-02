@@ -28,7 +28,8 @@
   --color-podium-success: var(--podium-success);
   --color-podium-info: var(--podium-info);
   --color-podium-alert: var(--podium-alert);
-  --font-sans: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
@@ -77,7 +78,7 @@ input,
 select,
 textarea,
 button {
-  font: inherit;
+  font-family: inherit;
 }
 
 .race-grid {

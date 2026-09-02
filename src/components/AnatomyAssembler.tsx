@@ -136,7 +136,7 @@ export function AnatomyAssembler({
           className={cn(
             "mt-2 text-pretty",
             sealed
-              ? "text-lg font-extrabold leading-snug text-podium-yellow md:text-xl"
+              ? "text-base font-semibold leading-snug text-podium-yellow md:text-lg"
               : "text-sm leading-snug text-podium-muted",
           )}
         >

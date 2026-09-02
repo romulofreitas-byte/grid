@@ -61,7 +61,7 @@ function Cue({
   return (
     <div
       className={cn(
-        "rounded-xl border px-3 py-2.5 text-left",
+        "rounded-md border px-3 py-2 text-left",
         live
           ? "border-podium-yellow/40 bg-podium-yellow/10"
           : "border-white/10 bg-white/[0.03]",
@@ -70,7 +70,7 @@ function Cue({
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
-            "text-[9px] font-semibold uppercase tracking-[0.16em]",
+            "text-[9px] font-medium uppercase tracking-[0.12em]",
             live ? "text-podium-yellow" : "text-podium-muted",
           )}
         >
@@ -79,7 +79,7 @@ function Cue({
         {pill ? (
           <span
             className={cn(
-              "rounded-lg px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+              "rounded-md px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide",
               live
                 ? "bg-podium-yellow text-podium-navy"
                 : "border border-white/15 text-podium-muted",
@@ -150,7 +150,7 @@ function SeasonCalendar({
       {banner ? (
         <p
           className={cn(
-            "mt-3 rounded-xl border px-3 py-2 text-xs font-semibold leading-snug",
+            "mt-3 rounded-md border px-3 py-2 text-xs font-medium leading-snug",
             banner.className,
           )}
         >
@@ -212,8 +212,8 @@ function SeasonCalendar({
       ) : null}
 
       {sazonalidade?.trim() ? (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+        <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
             Contexto do nicho
           </p>
           <p className="mt-1 text-xs leading-relaxed text-podium-gray">
@@ -252,10 +252,10 @@ export function AnatomyCard({
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Mercado
             </p>
-            <h2 className="mt-1 text-lg font-semibold leading-tight text-podium-white">
+            <h2 className="mt-1 text-base font-semibold leading-tight text-podium-white">
               {market.dorChip}
             </h2>
             <p className="mt-1 truncate text-xs capitalize text-podium-gray">

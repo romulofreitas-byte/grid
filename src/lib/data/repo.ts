@@ -10,13 +10,17 @@ import type {
   SavedLeadRef,
 } from "@/lib/integrations/records";
 import type { CompanySearchOpts } from "@/lib/data/company-search";
+import type { CrmBriefingLookup } from "@/lib/crm/briefing";
 import type {
   CrmActivityKind,
   CrmBoard,
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmEvent,
+  CrmEventCreateInput,
   CrmNextAction,
+  CrmOutcome,
   CrmPipeline,
   CrmPipelineSummary,
   CrmStage,
@@ -279,6 +283,8 @@ export type GridRepo = {
   ): Promise<CrmDealCard | null>;
   hasCrmPipeline(userId: string): Promise<boolean>;
   listCrmDealCnpjs(userId: string, cnpjs: string[]): Promise<string[]>;
+  getCrmDeal(userId: string, dealId: string): Promise<CrmDealCard | null>;
+  getCrmBriefingLookup(cnpj: string): Promise<CrmBriefingLookup | null>;
   updateCrmDeal(
     userId: string,
     dealId: string,
@@ -297,12 +303,34 @@ export type GridRepo = {
     kind: CrmActivityKind,
     dueAt: string,
   ): Promise<CrmDealCard | null>;
+  completeCrmActivity(
+    userId: string,
+    dealId: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null>;
   logCrmCall(
     userId: string,
     dealId: string,
     notes: string,
     next?: CrmNextAction | null,
-  ): Promise<CrmDealCard | null>;
+    phone?: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
+  listCrmEvents(userId: string, dealId: string): Promise<CrmEvent[] | null>;
+  createCrmEvent(
+    userId: string,
+    dealId: string,
+    input: CrmEventCreateInput,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
+  updateCrmEvent(
+    userId: string,
+    dealId: string,
+    eventId: string,
+    body: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
+  setCrmDealOutcome(
+    userId: string,
+    dealId: string,
+    outcome: CrmOutcome,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
   listCatchUpQualifiedCnpjs(
     userId: string,
     opts?: { searchId?: string; limit?: number },

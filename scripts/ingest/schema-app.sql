@@ -225,7 +225,7 @@ create table if not exists crm_activities (
   status      text not null default 'open',
   created_at  timestamptz not null default now(),
   constraint crm_activities_kind_chk
-    check (kind in ('ligar', 'whatsapp', 'reuniao', 'followup', 'proposta')),
+    check (kind in ('ligar', 'whatsapp', 'email', 'reuniao', 'followup', 'proposta', 'nota')),
   constraint crm_activities_status_chk
     check (status in ('open', 'done'))
 );

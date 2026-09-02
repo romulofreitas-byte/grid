@@ -1,9 +1,18 @@
+import { digitsCnpj } from "@/lib/crm/bridge";
+import {
+  briefingPresenceFromFields,
+  type CrmBriefingLookup,
+} from "@/lib/crm/briefing";
 import {
   cloneDefaultCadenceEntries,
   isCrmStageKey,
   pickEntradaStage,
 } from "@/lib/crm/cadence";
+import { uniquePhones } from "@/lib/crm/dial";
+import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import { formatPhone } from "@/lib/format";
 import { planDeleteStage } from "@/lib/crm/stages";
+import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
 import type {
   CrmActivity,
   CrmActivityKind,
@@ -12,7 +21,11 @@ import type {
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmEvent,
+  CrmEventCreateInput,
+  CrmEventKind,
   CrmNextAction,
+  CrmOutcome,
   CrmPipeline,
   CrmPipelineSummary,
   CrmStage,
@@ -64,10 +77,16 @@ function mapDeal(row: QueryResultRow): CrmDeal {
     company_name: String(row.company_name),
     contact_name: String(row.contact_name ?? ""),
     secretaries: asStringList(row.secretaries),
+    people: peopleFromDeal({
+      contact_name: String(row.contact_name ?? ""),
+      secretaries: asStringList(row.secretaries),
+      people: row.people,
+    }),
     phones: asStringList(row.phones),
     notes: String(row.notes ?? ""),
     cnpj: row.cnpj == null || row.cnpj === "" ? null : String(row.cnpj),
     meta,
+    outcome: mapOutcome(row.outcome),
     position: Number(row.position),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
@@ -82,6 +101,35 @@ function mapActivity(row: QueryResultRow): CrmActivity {
     due_at: asIso(row.due_at),
     status: row.status === "done" ? "done" : "open",
     created_at: asIso(row.created_at),
+  };
+}
+
+function mapOutcome(value: unknown): CrmOutcome {
+  return value === "won" || value === "lost" ? value : "open";
+}
+
+function mapEventMeta(value: unknown): CrmEvent["meta"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  const meta: CrmEvent["meta"] = {};
+  if (typeof raw.phone === "string" && raw.phone.trim()) {
+    meta.phone = raw.phone;
+  }
+  if (raw.outcome === "open" || raw.outcome === "won" || raw.outcome === "lost") {
+    meta.outcome = raw.outcome;
+  }
+  return meta;
+}
+
+function mapEvent(row: QueryResultRow): CrmEvent {
+  return {
+    id: String(row.id),
+    deal_id: String(row.deal_id),
+    kind: row.kind as CrmEventKind,
+    body: String(row.body ?? ""),
+    meta: mapEventMeta(row.meta),
+    created_at: asIso(row.created_at),
+    updated_at: asIso(row.updated_at),
   };
 }
 
@@ -120,10 +168,10 @@ async function listStages(q: SqlQuery, pipelineId: string): Promise<CrmStage[]> 
   return rows.map(mapStage);
 }
 
-async function loadCard(q: SqlQuery, dealId: string): Promise<CrmDealCard | null> {
-  const { rows } = await q(`select * from crm_deals where id = $1`, [dealId]);
-  if (!rows[0]) return null;
-  const deal = mapDeal(rows[0]);
+async function loadOpenActivity(
+  q: SqlQuery,
+  dealId: string,
+): Promise<CrmActivity | null> {
   const activity = await q(
     `select * from crm_activities
      where deal_id = $1 and status = 'open'
@@ -131,9 +179,16 @@ async function loadCard(q: SqlQuery, dealId: string): Promise<CrmDealCard | null
      limit 1`,
     [dealId],
   );
+  return activity.rows[0] ? mapActivity(activity.rows[0]) : null;
+}
+
+async function loadCard(q: SqlQuery, dealId: string): Promise<CrmDealCard | null> {
+  const { rows } = await q(`select * from crm_deals where id = $1`, [dealId]);
+  if (!rows[0]) return null;
+  const deal = mapDeal(rows[0]);
   return {
     ...deal,
-    next_activity: activity.rows[0] ? mapActivity(activity.rows[0]) : null,
+    next_activity: await loadOpenActivity(q, dealId),
   };
 }
 
@@ -197,18 +252,20 @@ async function listPipelineRows(userId: string): Promise<CrmPipeline[]> {
 }
 
 async function assembleBoard(pipeline: CrmPipeline): Promise<CrmBoard> {
-  const stages = await listStages(query, pipeline.id);
-  const deals = await query(
-    `select * from crm_deals where pipeline_id = $1 order by position, created_at`,
-    [pipeline.id],
-  );
-  const activities = await query(
-    `select a.*
-     from crm_activities a
-     join crm_deals d on d.id = a.deal_id
-     where d.pipeline_id = $1 and a.status = 'open'`,
-    [pipeline.id],
-  );
+  const [stages, deals, activities] = await Promise.all([
+    listStages(query, pipeline.id),
+    query(
+      `select * from crm_deals where pipeline_id = $1 order by position, created_at`,
+      [pipeline.id],
+    ),
+    query(
+      `select a.*
+       from crm_activities a
+       join crm_deals d on d.id = a.deal_id
+       where d.pipeline_id = $1 and a.status = 'open'`,
+      [pipeline.id],
+    ),
+  ]);
   const openByDeal = new Map<string, CrmActivity>();
   for (const row of activities.rows) {
     const activity = mapActivity(row);
@@ -222,6 +279,30 @@ async function assembleBoard(pipeline: CrmPipeline): Promise<CrmBoard> {
       return { ...deal, next_activity: openByDeal.get(deal.id) ?? null };
     }),
   };
+}
+
+async function insertEvent(
+  q: SqlQuery,
+  dealId: string,
+  kind: CrmEventKind,
+  body: string,
+  meta: CrmEvent["meta"] = {},
+): Promise<CrmEvent> {
+  const inserted = await q(
+    `insert into crm_events (deal_id, kind, body, meta)
+     values ($1, $2, $3, $4::jsonb)
+     returning *`,
+    [dealId, kind, body, JSON.stringify(meta)],
+  );
+  if (body.trim()) {
+    await q(
+      `update crm_deals set notes = $2, updated_at = now() where id = $1`,
+      [dealId, body],
+    );
+  } else {
+    await q(`update crm_deals set updated_at = now() where id = $1`, [dealId]);
+  }
+  return mapEvent(inserted.rows[0]!);
 }
 
 async function closeOpen(q: SqlQuery, dealId: string): Promise<void> {
@@ -247,20 +328,23 @@ async function insertOpen(
 
 export const crmPgMethods = {
   async listCrmPipelines(userId: string): Promise<CrmPipelineSummary[]> {
-    const pipelines = await listPipelineRows(userId);
-    const counts = await query(
-      `select pipeline_id, count(*)::int as n
-       from crm_deals
-       where pipeline_id = any($1::uuid[])
-       group by pipeline_id`,
-      [pipelines.map((row) => row.id)],
+    const { rows } = await query(
+      `select p.*, coalesce(c.n, 0)::int as deal_count
+         from crm_pipelines p
+         left join (
+           select d.pipeline_id, count(*)::int as n
+             from crm_deals d
+             join crm_pipelines owner on owner.id = d.pipeline_id
+            where owner.user_id = $1
+            group by d.pipeline_id
+         ) c on c.pipeline_id = p.id
+        where p.user_id = $1
+        order by p.position, p.created_at`,
+      [userId],
     );
-    const byId = new Map(
-      counts.rows.map((row) => [String(row.pipeline_id), Number(row.n)]),
-    );
-    return pipelines.map((row) => ({
-      ...row,
-      deal_count: byId.get(row.id) ?? 0,
+    return rows.map((row) => ({
+      ...mapPipeline(row),
+      deal_count: Number(row.deal_count ?? 0),
     }));
   },
 
@@ -471,17 +555,24 @@ export const crmPgMethods = {
         `select count(*)::int as n from crm_deals where stage_id = $1`,
         [stageId],
       );
+      const contactName = input.contact_name?.trim() ?? "";
+      const secretaries = asStringList(input.secretaries);
+      const people = peopleFromDeal({
+        contact_name: contactName,
+        secretaries,
+      });
       const inserted = await q(
         `insert into crm_deals (
-           pipeline_id, stage_id, company_name, contact_name, secretaries, phones, notes, cnpj, meta, position
-         ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9::jsonb, $10)
+           pipeline_id, stage_id, company_name, contact_name, secretaries, people, phones, notes, cnpj, meta, position
+         ) values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9, $10::jsonb, $11)
          returning *`,
         [
           input.pipelineId,
           stageId,
           input.company_name.trim(),
-          input.contact_name?.trim() ?? "",
-          JSON.stringify(asStringList(input.secretaries)),
+          contactName,
+          JSON.stringify(secretaries),
+          JSON.stringify(people),
           JSON.stringify(asStringList(input.phones)),
           input.notes?.trim() ?? "",
           cnpj,
@@ -489,7 +580,12 @@ export const crmPgMethods = {
           Number(count.rows[0]?.n ?? 0),
         ],
       );
-      return loadCard(q, String(inserted.rows[0]!.id));
+      const dealId = String(inserted.rows[0]!.id);
+      const notes = input.notes?.trim() ?? "";
+      if (notes) {
+        await insertEvent(q, dealId, "nota", notes);
+      }
+      return loadCard(q, dealId);
     });
   },
 
@@ -562,6 +658,80 @@ export const crmPgMethods = {
     return rows.map((row) => String(row.cnpj));
   },
 
+  async getCrmDeal(
+    userId: string,
+    dealId: string,
+  ): Promise<CrmDealCard | null> {
+    const deal = await ownedDeal(query, userId, dealId);
+    if (!deal) return null;
+    return {
+      ...deal,
+      next_activity: await loadOpenActivity(query, dealId),
+    };
+  },
+
+  async getCrmBriefingLookup(cnpj: string): Promise<CrmBriefingLookup | null> {
+    const padded = digitsCnpj(cnpj);
+    if (padded.replace(/0/g, "").length === 0) return null;
+    const { rows } = await query(
+      `select e.ddd1,
+              e.telefone1,
+              e.ddd2,
+              e.telefone2,
+              m.nome as municipio_nome,
+              le.domain_status,
+              le.socials,
+              le.whatsapp,
+              le.gmb,
+              le.expires_at
+         from establishments e
+         left join ref_municipio m on m.id = e.municipio_id
+         left join lead_enrichment le on le.cnpj = e.cnpj
+        where e.cnpj = $1::char(14)
+        limit 1`,
+      [padded],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const extraPhones = uniquePhones(
+      [
+        formatPhone(
+          row.ddd1 == null ? null : String(row.ddd1),
+          row.telefone1 == null ? null : String(row.telefone1),
+        ),
+        formatPhone(
+          row.ddd2 == null ? null : String(row.ddd2),
+          row.telefone2 == null ? null : String(row.telefone2),
+        ),
+      ].filter((value): value is string => Boolean(value)),
+    );
+    const expiresAt = row.expires_at
+      ? new Date(String(row.expires_at)).getTime()
+      : 0;
+    const enrichmentVisible = expiresAt > Date.now();
+    const socials =
+      row.socials && typeof row.socials === "object" && !Array.isArray(row.socials)
+        ? (row.socials as Record<string, unknown>)
+        : {};
+    const gmb =
+      row.gmb && typeof row.gmb === "object" && !Array.isArray(row.gmb)
+        ? (row.gmb as { matched?: unknown })
+        : null;
+    return {
+      municipioNome: row.municipio_nome ? String(row.municipio_nome) : null,
+      extraPhones,
+      presence: enrichmentVisible
+        ? briefingPresenceFromFields({
+            domainStatus:
+              row.domain_status == null ? null : String(row.domain_status),
+            instagram: socials.instagram,
+            whatsapp: row.whatsapp,
+            gmbMatched: gmb?.matched,
+          })
+        : null,
+    };
+  },
+
   async updateCrmDeal(
     userId: string,
     dealId: string,
@@ -570,20 +740,29 @@ export const crmPgMethods = {
     return withTransaction(async (q) => {
       const deal = await ownedDeal(q, userId, dealId);
       if (!deal) return null;
+      const people = patch.people ? sanitizePeople(patch.people) : null;
+      const contactName = people
+        ? snapshotContactName(people)
+        : (patch.contact_name ?? null);
+      const secretaries = patch.secretaries
+        ? asStringList(patch.secretaries)
+        : null;
       await q(
         `update crm_deals
             set company_name = coalesce($2, company_name),
                 contact_name = coalesce($3, contact_name),
                 secretaries = coalesce($4::jsonb, secretaries),
-                phones = coalesce($5::jsonb, phones),
-                notes = coalesce($6, notes),
+                people = coalesce($5::jsonb, people),
+                phones = coalesce($6::jsonb, phones),
+                notes = coalesce($7, notes),
                 updated_at = now()
           where id = $1`,
         [
           dealId,
           patch.company_name ?? null,
-          patch.contact_name ?? null,
-          patch.secretaries ? JSON.stringify(asStringList(patch.secretaries)) : null,
+          contactName,
+          secretaries ? JSON.stringify(secretaries) : null,
+          people ? JSON.stringify(people) : null,
           patch.phones ? JSON.stringify(asStringList(patch.phones)) : null,
           patch.notes ?? null,
         ],
@@ -652,21 +831,141 @@ export const crmPgMethods = {
     });
   },
 
+  async completeCrmActivity(
+    userId: string,
+    dealId: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
+    return withTransaction(async (q) => {
+      if (!(await ownedDeal(q, userId, dealId))) return null;
+      const open = await q(
+        `select * from crm_activities
+          where deal_id = $1 and status = 'open'
+          order by created_at desc
+          limit 1`,
+        [dealId],
+      );
+      const current = open.rows[0] ? mapActivity(open.rows[0]) : null;
+      if (!current) {
+        const deal = await loadCard(q, dealId);
+        return deal ? { deal, event: null } : null;
+      }
+      await closeOpen(q, dealId);
+      const event = await insertEvent(q, dealId, current.kind, "");
+      const deal = await loadCard(q, dealId);
+      if (!deal) return null;
+      return { deal, event };
+    });
+  },
+
   async logCrmCall(
     userId: string,
     dealId: string,
     notes: string,
     next?: CrmNextAction | null,
-  ): Promise<CrmDealCard | null> {
+    phone?: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    return crmPgMethods.createCrmEvent(userId, dealId, {
+      kind: "ligar",
+      body: notes,
+      next,
+      meta: phone ? { phone } : {},
+    });
+  },
+
+  async listCrmEvents(
+    userId: string,
+    dealId: string,
+  ): Promise<CrmEvent[] | null> {
+    if (!(await ownedDeal(query, userId, dealId))) return null;
+    const { rows } = await query(
+      `select * from crm_events where deal_id = $1 order by created_at desc limit $2`,
+      [dealId, CRM_EVENT_HISTORY_LIMIT],
+    );
+    return rows.map(mapEvent);
+  },
+
+  async createCrmEvent(
+    userId: string,
+    dealId: string,
+    input: CrmEventCreateInput,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
-      await q(
-        `update crm_deals set notes = $2, updated_at = now() where id = $1`,
-        [dealId, notes],
+      const event = await insertEvent(
+        q,
+        dealId,
+        input.kind,
+        input.body?.trim() ?? "",
+        input.meta ?? {},
       );
-      await closeOpen(q, dealId);
-      if (next) await insertOpen(q, dealId, next.kind, next.dueAt);
-      return loadCard(q, dealId);
+      if (input.next) {
+        await insertOpen(q, dealId, input.next.kind, input.next.dueAt);
+      }
+      const deal = await loadCard(q, dealId);
+      if (!deal) return null;
+      return { deal, event };
+    });
+  },
+
+  async updateCrmEvent(
+    userId: string,
+    dealId: string,
+    eventId: string,
+    body: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    return withTransaction(async (q) => {
+      if (!(await ownedDeal(q, userId, dealId))) return null;
+      const updated = await q(
+        `update crm_events
+            set body = $3, updated_at = now()
+          where id = $1 and deal_id = $2
+          returning *`,
+        [eventId, dealId, body],
+      );
+      if (!updated.rows[0]) return null;
+      if (body.trim()) {
+        await q(
+          `update crm_deals set notes = $2, updated_at = now() where id = $1`,
+          [dealId, body],
+        );
+      }
+      const deal = await loadCard(q, dealId);
+      if (!deal) return null;
+      return { deal, event: mapEvent(updated.rows[0]) };
+    });
+  },
+
+  async setCrmDealOutcome(
+    userId: string,
+    dealId: string,
+    outcome: CrmOutcome,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    return withTransaction(async (q) => {
+      const current = await ownedDeal(q, userId, dealId);
+      if (!current) return null;
+      if (current.outcome === outcome) {
+        const deal = await loadCard(q, dealId);
+        if (!deal) return null;
+        const existing = await q(
+          `select * from crm_events
+            where deal_id = $1 and kind = 'outcome'
+            order by created_at desc
+            limit 1`,
+          [dealId],
+        );
+        const event = existing.rows[0]
+          ? mapEvent(existing.rows[0])
+          : await insertEvent(q, dealId, "outcome", "", { outcome });
+        return { deal, event };
+      }
+      await q(
+        `update crm_deals set outcome = $2, updated_at = now() where id = $1`,
+        [dealId, outcome],
+      );
+      const event = await insertEvent(q, dealId, "outcome", "", { outcome });
+      const deal = await loadCard(q, dealId);
+      if (!deal) return null;
+      return { deal, event };
     });
   },
 };

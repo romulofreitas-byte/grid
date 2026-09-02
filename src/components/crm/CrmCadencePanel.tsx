@@ -51,15 +51,15 @@ export function CrmCadencePanel({
         <header className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
           <div>
             <p className={CRM_LABEL}>{COPY.crmCadenceTitle}</p>
-            <h2 className="mt-1 text-lg font-extrabold">{COPY.crmAdjustCadence}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-podium-gray">
+            <h2 className="mt-1 text-base font-semibold">{COPY.crmAdjustCadence}</h2>
+            <p className="mt-2 text-xs leading-relaxed text-podium-gray">
               {COPY.crmCadenceHint}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-podium-muted hover:bg-white/5 hover:text-podium-white"
+            className="rounded-md p-1.5 text-podium-muted hover:bg-white/5 hover:text-podium-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -72,7 +72,7 @@ export function CrmCadencePanel({
             return (
               <div
                 key={stage.id}
-                className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+                className="rounded-md border border-white/10 bg-white/[0.03] p-2.5"
               >
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[10px] text-podium-yellow">
@@ -150,7 +150,7 @@ export function CrmCadencePanel({
                         onClick={() =>
                           onDelete(stage.id, count > 0 ? moveTo : undefined)
                         }
-                        className="rounded-xl bg-podium-alert/20 px-3 py-1.5 text-xs font-semibold text-podium-alert"
+                        className="rounded-md bg-podium-alert/20 px-2.5 py-1 text-[11px] font-medium text-podium-alert"
                       >
                         Excluir
                       </button>
@@ -186,7 +186,7 @@ export function CrmCadencePanel({
           />
           <button
             type="submit"
-            className="inline-flex items-center gap-1 rounded-xl bg-podium-yellow px-3 text-sm font-bold text-podium-navy"
+            className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 text-xs font-medium text-podium-navy"
           >
             <Plus className="h-4 w-4" />
           </button>

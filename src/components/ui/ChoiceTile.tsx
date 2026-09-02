@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 
 const DENSITY = {
   compact:
-    "min-h-10 w-full items-center justify-center px-1 py-2 text-center text-sm font-semibold",
-  chip: "min-h-9 min-w-0 w-full items-center justify-center overflow-hidden px-2 py-2 text-center text-xs font-semibold",
-  row: "w-full items-start gap-3 px-3 py-2.5 text-left text-sm",
-  card: "w-full items-start px-3 py-3 text-left text-sm",
+    "min-h-9 w-full items-center justify-center px-1 py-1.5 text-center text-xs font-medium",
+  chip: "min-h-8 min-w-0 w-full items-center justify-center overflow-hidden px-2 py-1.5 text-center text-[11px] font-medium",
+  row: "w-full items-start gap-3 px-3 py-2 text-left text-sm",
+  card: "w-full items-start px-3 py-2.5 text-left text-sm",
 } as const;
 
 export type ChoiceTileDensity = keyof typeof DENSITY;
@@ -32,7 +32,7 @@ export function ChoiceTile({
       aria-pressed={selected}
       disabled={disabled}
       className={cn(
-        "inline-flex rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40 disabled:cursor-not-allowed disabled:opacity-40",
+        "inline-flex rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40 disabled:cursor-not-allowed disabled:opacity-40",
         DENSITY[density],
         selected
           ? "border-white/25 bg-white/[0.07] text-podium-white"

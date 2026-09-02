@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { activitySignal, formatNextAction } from "./activity";
+import {
+  activitySignal,
+  CRM_NEXT_ACTION_LABELS,
+  formatNextAction,
+  formatPlannedActivity,
+} from "./activity";
 import type { CrmActivity } from "./types";
 
 function open(due: Date): CrmActivity {
@@ -47,5 +52,27 @@ describe("formatNextAction", () => {
     expect(formatNextAction(null, "Sem volta marcada")).toBe(
       "Sem volta marcada",
     );
+  });
+
+  it("formats a dated note as the card volta", () => {
+    const now = new Date("2026-09-02T15:00:00-03:00");
+    const activity = {
+      ...open(now),
+      kind: "nota" as const,
+      due_at: new Date("2026-09-02T17:00:00-03:00").toISOString(),
+    };
+    expect(formatNextAction(activity, "Sem volta marcada")).toMatch(/Nota · /);
+    expect(activitySignal(activity, now)).toBe("today");
+  });
+
+  it("formats an open volta for the history feed", () => {
+    const activity = {
+      ...open(new Date("2026-09-03T17:00:00-03:00")),
+      kind: "email" as const,
+    };
+    expect(formatPlannedActivity(activity)).toMatch(/E-mail · 3\/set/i);
+    expect(formatPlannedActivity({ ...activity, status: "done" })).toBeNull();
+    expect(CRM_NEXT_ACTION_LABELS.ligar).toMatch(/ligação/i);
+    expect(CRM_NEXT_ACTION_LABELS.followup).toMatch(/follow-up/i);
   });
 });
