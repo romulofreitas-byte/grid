@@ -1,30 +1,81 @@
 /** Shared UI copy. Box and Grid stay in nav; action labels stay plain. */
 
 export const COPY = {
+  landingMetaTitle: "GRID — lista, qualificação e CRM",
+  landingHeadline:
+    "Monte a lista, ache quem decide e já ligue — com CRM incluso.",
   landingPromessa:
-    "Escolha o nicho. Saia com a lista na ordem de quem ligar — telefone da empresa e sócio que decide.",
-  landingPrimeiraVez: "Crie a conta. Depois você monta o capacete.",
+    "Nicho + cidade. Sai a lista na ordem de quem ligar, com telefone da empresa e o nome do sócio. Qualifique o digital e a lista salva cai no CRM.",
+  landingPrimeiraVez: "Em minutos você sai com a lista pronta para ligar.",
+  landingCtaStart: "Começar grátis",
+  landingCtaPlans: "Ver planos",
+  landingNavHow: "Como funciona",
+  landingNavQualify: "Qualificação",
+  landingNavCrm: "CRM",
+  landingNavPlans: "Planos",
   landingHowEyebrow: "Como funciona",
-  landingHowTitle: "Três voltas até a ligação",
+  landingHowTitle: "Da busca à lista pronta para ligar",
   landingHowStep1Title: "Escolhe nicho e região",
   landingHowStep1Body:
-    "Você define o mercado e onde ligar. O GRID busca na base da Receita — sem scrapear mapa. MEI fica de fora por padrão.",
-  landingHowStep2Title: "Ordena quem ligar primeiro",
+    "Você define o mercado e a cidade. A busca é na Receita — não em mapa. MEI fica de fora por padrão.",
+  landingHowStep2Title: "Sai a lista na ordem de quem ligar",
   landingHowStep2Body:
-    "A lista sai em ordem de prioridade. P1, P2, P3 — a pista já montada.",
-  landingHowStep3Title: "Telefone e sócio que decide",
+    "Cada linha traz telefone da empresa e o nome do sócio que decide. Ligue de cima para baixo.",
+  landingHowStep3Title: "Salva, qualifica e cai no CRM",
   landingHowStep3Body:
-    "Cada linha traz o contato da empresa e o nome de quem pode fechar.",
+    "Lista salva e qualificada entra sozinha no quadro. Sem copiar lead por lead.",
   landingMeiNote:
     "MEI não entra na busca padrão: faturamento ainda em desenvolvimento e menos espaço para investimentos mais robustos.",
+  landingPainEyebrow: "O que trava a ligação",
+  landingPainTitle: "Três tarefas lentas. A lista resolve as três.",
+  landingPain1Title: "Montar a lista",
+  landingPain1Body:
+    "Buscar empresa por empresa, copiar telefone, jogar na planilha. Horas antes da primeira ligação.",
+  landingPain2Title: "Achar quem decide",
+  landingPain2Body:
+    "O telefone da empresa não basta. Sem o nome do sócio, você cai na recepção ou no contador.",
+  landingPain3Title: "Qualificar o digital",
+  landingPain3Body:
+    "Site, Instagram, Google — saber se a empresa está viva e como ela aparece online dá trabalho. E muda a ligação.",
   landingBenefitsEyebrow: "O que vem na lista",
-  landingBenefitsTitle: "Pole, grid da frente, ordem",
-  landingFinalTitle: "Monte o capacete",
+  landingBenefitsTitle: "Telefone, quem decide, ordem de ligação",
+  landingBenefit1Title: "Telefone da empresa",
+  landingBenefit1Body:
+    "Avisa quando o número é da contabilidade, não de quem decide.",
+  landingBenefit2Title: "Sócio que decide",
+  landingBenefit2Body:
+    "O nome de quem pode fechar já vem na linha, para a primeira ligação.",
+  landingBenefit3Title: "Ordem de quem ligar",
+  landingBenefit3Body:
+    "A lista já vem ranqueada. Você liga de cima para baixo.",
+  landingQualifyEyebrow: "Qualificação",
+  landingQualifyTitle: "Os ativos da empresa, antes de ligar",
+  landingQualifyBody:
+    "Cruzamos site, redes e Google com o cadastro. Telefone mais confiável e o que a empresa mostra online — para você não ligar no escuro.",
+  landingQualifyPreviewLabel: "Assim sai a qualificação",
+  landingCrmEyebrow: "CRM",
+  landingCrmTitle: "A lista qualificada já entra no quadro",
+  landingCrmBody:
+    "Salvou e qualificou: o lote inteiro cai em Entrada. Você liga, anota e segue o contato — sem planilha paralela.",
+  landingCrmPreviewLabel: "Assim entra no CRM",
+  landingPlansEyebrow: "Planos",
+  landingPlansTitle: "Escolha o plano e comece pela lista",
+  landingPlansBody:
+    "Buscar e ver a lista é grátis. Crédito só na exportação e na qualificação.",
+  landingPlansMore: "Recargas e detalhes",
+  landingPlansCtaFree: "Começar grátis",
+  landingPlansCtaPaid: "Assinar",
+  landingPlansFeatured: "Mais escolhido",
+  landingFinalTitle: "Comece pela lista. Ligue no mesmo dia.",
   landingFinalBody:
-    "Crie a conta, escolha o nicho e saia ligando na ordem certa.",
-  landingPreviewLabel: "Assim sai a pista",
-  landingSignedInCta: "Continuar no GRID",
+    "Crie a conta, escolha o nicho e saia com telefone e o nome de quem decide.",
+  landingPreviewLabel: "Assim sai a lista",
+  landingPreviewFilter: "Clínicas · Curitiba",
+  landingPreviewBuilding: "Montando a lista",
+  landingPreviewReady: "Lista pronta",
+  landingSignedInCta: "Abrir o GRID",
   landingSwitchAccount: "Entrar com outra conta",
+  landingFooterNote: "Um produto Mundo Pódium",
   loginConfirm:
     "Enviamos um link de confirmação. Olhe a caixa de entrada e o spam. Se o e-mail estiver errado, volte e crie a conta de novo. Se já tem conta, entre.",
   loginRecover:
@@ -152,6 +203,8 @@ export const COPY = {
   listaDaVolta: "Lista da volta",
   listaDaVoltaFallback: "Esta lista não tem P novo — usando outra.",
   empresaForaDaBase: "Este CNPJ não está nesta base da Receita.",
+  empresasPlaceholder: "Nome, fantasia ou CNPJ",
+  empresasMinChars: "Digite nome, fantasia ou CNPJ.",
   tirarDasListas: "Tirar das listas",
   listasNaoSalvas: "Não salvas",
   listasRascunho: "Rascunho",

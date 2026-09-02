@@ -193,8 +193,12 @@ export default function EmpresasPage() {
               setImmediate(null);
               setDraft(e.target.value);
             }}
-            placeholder="Razão, fantasia ou CNPJ — 3 letras ou 8 dígitos"
+            placeholder={COPY.empresasPlaceholder}
+            inputMode="text"
+            autoComplete="off"
+            spellCheck={false}
             className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+            aria-label="Buscar empresas"
           />
         </div>
         <button
@@ -304,7 +308,7 @@ export default function EmpresasPage() {
         </div>
       ) : draft.trim().length > 0 && !ready ? (
         <p className="mt-6 text-sm text-podium-muted">
-          Digite pelo menos 3 letras ou um CNPJ (8 dígitos).
+          {COPY.empresasMinChars}
         </p>
       ) : null}
 

@@ -27,7 +27,7 @@ import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
   COMPANY_SEARCH_LIMIT,
-  companyNameTokens,
+  companyNameMatchesFields,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
 import { municipioListLimit } from "@/lib/municipios";
@@ -687,11 +687,9 @@ export const mockRepo: GridRepo = {
         cnpjQuery &&
         (est.cnpj.includes(digits) || est.cnpj_basico.includes(digits));
       const prefix = razao.startsWith(nq) || fantasia.startsWith(nq);
-      const tokens = companyNameTokens(q);
       const byName =
         !cnpjQuery &&
-        tokens.length > 0 &&
-        tokens.every((t) => razao.includes(t) || fantasia.includes(t));
+        companyNameMatchesFields(q, company.razao_social, est.nome_fantasia);
       if (!byCnpj && !byName) continue;
       const mun = idx.munById.get(est.municipio_id);
       const cnae = idx.cnaeByCodigo.get(est.cnae_principal);

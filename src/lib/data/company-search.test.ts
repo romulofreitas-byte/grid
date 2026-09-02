@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   canSearchCompanies,
+  CNPJ_EXAMPLE_DIGITS,
+  CNPJ_EXAMPLE_FORMATTED,
+  CNPJ_EXAMPLE_ROOT,
   COMPANY_PREFIX_ENOUGH,
+  companyIlikePrefixPattern,
   companyIlikeTokens,
+  companyNameMatchesFields,
   companyNameTokens,
   companySearchDigits,
   escapeIlike,
@@ -71,5 +76,43 @@ describe("company search helpers", () => {
 
   it("builds a translate() fold for SQL", () => {
     expect(sqlFoldAccent("c.razao_social")).toMatch(/^translate\(lower\(c\.razao_social\)/);
+  });
+
+  it("matches fantasia even when razão social is a different name", () => {
+    expect(
+      companyNameMatchesFields(
+        "produtos marina",
+        "ITAUNA QUIMICA LTDA",
+        "PRODUTOS MARINA",
+      ),
+    ).toBe(true);
+    expect(
+      companyNameMatchesFields(
+        "produtos marina",
+        "ITAUNA QUIMICA LTDA",
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      companyNameMatchesFields(
+        "itauna quimica",
+        "ITAUNA QUIMICA LTDA",
+        "PRODUTOS MARINA",
+      ),
+    ).toBe(true);
+  });
+
+  it("builds a prefix pattern from name tokens", () => {
+    expect(companyIlikePrefixPattern("produtos marina")).toBe("produtos marina%");
+    expect(companyIlikePrefixPattern("a b")).toBeNull();
+  });
+
+  it("keeps CNPJ format examples consistent with digit counts", () => {
+    expect(companySearchDigits(CNPJ_EXAMPLE_FORMATTED)).toBe(CNPJ_EXAMPLE_DIGITS);
+    expect(CNPJ_EXAMPLE_DIGITS).toHaveLength(14);
+    expect(CNPJ_EXAMPLE_ROOT).toHaveLength(8);
+    expect(isCompanyCnpjQuery(CNPJ_EXAMPLE_FORMATTED)).toBe(true);
+    expect(isCompanyCnpjQuery(CNPJ_EXAMPLE_DIGITS)).toBe(true);
+    expect(isCompanyCnpjQuery(CNPJ_EXAMPLE_ROOT)).toBe(true);
   });
 });

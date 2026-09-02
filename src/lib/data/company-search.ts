@@ -60,6 +60,33 @@ export function companyIlikeTokens(q: string): string[] {
     .filter((t) => t.length >= 2);
 }
 
+/** Format examples shown on /empresas — not a real CNPJ. */
+export const CNPJ_EXAMPLE_FORMATTED = "00.000.000/0001-00";
+export const CNPJ_EXAMPLE_DIGITS = "00000000000100";
+export const CNPJ_EXAMPLE_ROOT = "00000000";
+
+/**
+ * True when every query token appears in razão or fantasia.
+ * Fantasia-only brands match even if the legal name is unrelated.
+ */
+export function companyNameMatchesFields(
+  q: string,
+  razaoSocial: string,
+  nomeFantasia: string | null | undefined,
+): boolean {
+  const tokens = companyNameTokens(q);
+  if (!tokens.length) return false;
+  const razao = companyNameTokens(razaoSocial).join(" ");
+  const fantasia = companyNameTokens(nomeFantasia ?? "").join(" ");
+  return tokens.every((t) => razao.includes(t) || fantasia.includes(t));
+}
+
+export function companyIlikePrefixPattern(q: string): string | null {
+  const tokens = companyIlikeTokens(q);
+  if (!tokens.length) return null;
+  return `${escapeIlike(tokens.join(" "))}%`;
+}
+
 export function mergeCompanyNameWaves<T extends { cnpj: string }>(
   prefixHits: T[],
   containHits: T[],

@@ -27,6 +27,7 @@ import {
   COMPANY_NAME_SEARCH_TIMEOUT_MS,
   COMPANY_PREFIX_ENOUGH,
   COMPANY_SEARCH_LIMIT,
+  companyIlikePrefixPattern,
   companyIlikeTokens,
   companyNameTokens,
   escapeIlike,
@@ -2179,41 +2180,56 @@ async function searchCompaniesNameWaveFlat(
   if (!tokens.length) return [];
   const phrase = tokens.join(" ");
   const razao = "es.razao_social";
-  const fantasia = "coalesce(es.nome_fantasia, '')";
+  const fantasia = "es.nome_fantasia";
   const params: unknown[] = [phrase];
-  const tokenSql: string[] = [];
-  for (const token of tokens) {
-    params.push(`%${escapeIlike(token)}%`);
-    const p = `$${params.length}`;
-    tokenSql.push(
-      `(${razao} ilike ${p} escape '\\' or ${fantasia} ilike ${p} escape '\\')`,
-    );
-  }
-  const tokenWhere = tokenSql.join(" and ");
-  let prefixSql = "";
+  let fantasiaWhere: string;
+  let razaoWhere: string;
   if (mode === "prefix") {
-    params.push(`${escapeIlike(phrase)}%`);
+    const pattern = companyIlikePrefixPattern(queryText);
+    if (!pattern) return [];
+    params.push(pattern);
     const p = `$${params.length}`;
-    prefixSql = `and (${razao} ilike ${p} escape '\\' or ${fantasia} ilike ${p} escape '\\')`;
+    fantasiaWhere = `${fantasia} ilike ${p} escape '\\'`;
+    razaoWhere = `${razao} ilike ${p} escape '\\'`;
+  } else {
+    const fantasiaParts: string[] = [];
+    const razaoParts: string[] = [];
+    for (const token of tokens) {
+      params.push(`%${escapeIlike(token)}%`);
+      const p = `$${params.length}`;
+      fantasiaParts.push(`${fantasia} ilike ${p} escape '\\'`);
+      razaoParts.push(`${razao} ilike ${p} escape '\\'`);
+    }
+    fantasiaWhere = fantasiaParts.join(" and ");
+    razaoWhere = razaoParts.join(" and ");
   }
   const extra = companySearchExtraSql(params, ufs, soMatriz, "es");
   params.push(limit);
   const limitRef = `$${params.length}`;
   const { rows } = await querySearchWithTimeout<CompanyHitRow>(
     `with hits as (
-       select es.cnpj
-       from establishments_search es
-       where ${tokenWhere}
-       ${prefixSql}
-       ${extra}
-       limit ${limitRef}
+       (
+         select es.cnpj
+         from establishments_search es
+         where ${fantasiaWhere}
+         ${extra}
+         limit ${limitRef}
+       )
+       union
+       (
+         select es.cnpj
+         from establishments_search es
+         where ${razaoWhere}
+         ${extra}
+         limit ${limitRef}
+       )
      )
      ${COMPANY_HIT_SELECT_FLAT}
      order by
-       (${razao} ilike $1 || '%' escape '\\'
-         or ${fantasia} ilike $1 || '%' escape '\\') desc,
+       (coalesce(${fantasia}, '') ilike $1 || '%' escape '\\') desc,
+       (${razao} ilike $1 || '%' escape '\\') desc,
        es.is_matriz desc,
-       greatest(similarity(${razao}, $1), similarity(${fantasia}, $1)) desc
+       greatest(similarity(${razao}, $1), similarity(coalesce(${fantasia}, ''), $1)) desc
      limit ${limitRef}`,
     params,
     COMPANY_NAME_SEARCH_TIMEOUT_MS,
@@ -2231,31 +2247,27 @@ async function searchCompaniesNameWaveLegacy(
   const tokens = companyNameTokens(queryText);
   if (!tokens.length) return [];
   const foldedRazao = sqlFoldAccent("c.razao_social");
-  const foldedFantasiaEst = sqlFoldAccent("coalesce(e.nome_fantasia, '')");
+  const foldedFantasiaEst = sqlFoldAccent("e.nome_fantasia");
   const foldedQuery = tokens.join(" ");
   const params: unknown[] = [foldedQuery];
-  const tokenSql: string[] = [];
-  for (const token of tokens) {
-    params.push(`%${escapeIlike(token)}%`);
-    const p = `$${params.length}`;
-    tokenSql.push(p);
-  }
-  const companyTokenWhere = tokenSql
-    .map(
-      (p) =>
-        `(${foldedRazao} like ${p} escape '\\' or ${foldedFantasiaEst} like ${p} escape '\\')`,
-    )
-    .join(" and ");
-  const fantasiaTokenWhere = tokenSql
-    .map((p) => `${foldedFantasiaEst} like ${p} escape '\\'`)
-    .join(" and ");
-  let prefixCompany = "";
-  let prefixFantasia = "";
+  let fantasiaWhere: string;
+  let razaoWhere: string;
   if (mode === "prefix") {
     params.push(`${escapeIlike(foldedQuery)}%`);
     const p = `$${params.length}`;
-    prefixCompany = `and (${foldedRazao} like ${p} escape '\\' or ${foldedFantasiaEst} like ${p} escape '\\')`;
-    prefixFantasia = `and ${foldedFantasiaEst} like ${p} escape '\\'`;
+    fantasiaWhere = `${foldedFantasiaEst} like ${p} escape '\\'`;
+    razaoWhere = `${foldedRazao} like ${p} escape '\\'`;
+  } else {
+    const fantasiaParts: string[] = [];
+    const razaoParts: string[] = [];
+    for (const token of tokens) {
+      params.push(`%${escapeIlike(token)}%`);
+      const p = `$${params.length}`;
+      fantasiaParts.push(`${foldedFantasiaEst} like ${p} escape '\\'`);
+      razaoParts.push(`${foldedRazao} like ${p} escape '\\'`);
+    }
+    fantasiaWhere = fantasiaParts.join(" and ");
+    razaoWhere = razaoParts.join(" and ");
   }
   const extra = companySearchExtraSql(params, ufs, soMatriz);
   params.push(limit);
@@ -2264,31 +2276,30 @@ async function searchCompaniesNameWaveLegacy(
     `with hits as (
        (
          select e.cnpj
-         from companies c
-         join establishments e on e.cnpj_basico = c.cnpj_basico
-         where ${companyTokenWhere}
-         ${prefixCompany}
+         from establishments e
+         where e.nome_fantasia is not null
+           and ${fantasiaWhere}
          ${extra}
          limit ${limitRef}
        )
        union
        (
          select e.cnpj
-         from establishments e
-         where ${fantasiaTokenWhere}
-         ${prefixFantasia}
+         from companies c
+         join establishments e on e.cnpj_basico = c.cnpj_basico
+         where ${razaoWhere}
          ${extra}
          limit ${limitRef}
        )
      )
      ${COMPANY_HIT_SELECT}
      order by
-       (${foldedRazao} like $1 || '%' escape '\\'
-         or ${foldedFantasiaEst} like $1 || '%' escape '\\') desc,
+       (${sqlFoldAccent("coalesce(e.nome_fantasia, '')")} like $1 || '%' escape '\\') desc,
+       (${foldedRazao} like $1 || '%' escape '\\') desc,
        e.is_matriz desc,
        greatest(
          similarity(${foldedRazao}, $1),
-         similarity(${foldedFantasiaEst}, $1)
+         similarity(${sqlFoldAccent("coalesce(e.nome_fantasia, '')")}, $1)
        ) desc
      limit ${limitRef}`,
     params,
@@ -2318,8 +2329,9 @@ async function searchCompaniesByName(
         () => wave("prefix", queryText, ufs, soMatriz, limit),
         `searchCompanies.prefix.${source}`,
       );
-      if (prefix.timedOut) return [];
-      if (prefix.hits.length >= COMPANY_PREFIX_ENOUGH) return prefix.hits;
+      if (!prefix.timedOut && prefix.hits.length >= COMPANY_PREFIX_ENOUGH) {
+        return prefix.hits;
+      }
 
       const contain = await runCompanyNameWave(
         () => wave("tokens", queryText, ufs, soMatriz, limit),

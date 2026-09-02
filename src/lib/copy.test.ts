@@ -81,3 +81,44 @@ describe("COPY crm", () => {
     expect(COPY.listaDaVolta).toMatch(/lista/i);
   });
 });
+
+describe("COPY landing", () => {
+  const landingBlob = Object.entries(COPY)
+    .filter(([key]) => key.startsWith("landing"))
+    .map(([, value]) => value)
+    .join(" ")
+    .toLowerCase();
+
+  it("keeps the home in lista, qualificação and CRM — no race jargon", () => {
+    expect(landingBlob).not.toMatch(/capacete/);
+    expect(landingBlob).not.toMatch(/\bpole\b/);
+    expect(landingBlob).not.toMatch(/pista/);
+    expect(landingBlob).not.toMatch(/voltas/);
+    expect(COPY.landingHeadline).toMatch(/lista/i);
+    expect(COPY.landingHeadline).toMatch(/decide/i);
+    expect(COPY.landingHeadline).toMatch(/CRM/i);
+    expect(COPY.landingPromessa).toMatch(/nicho/i);
+    expect(COPY.landingPrimeiraVez).toMatch(/minutos/i);
+    expect(COPY.landingCtaStart).toBe("Começar grátis");
+    expect(COPY.landingSignedInCta).toBe("Abrir o GRID");
+  });
+
+  it("names the three commercial steps in plain language", () => {
+    expect(COPY.landingHowStep1Title.toLowerCase()).toMatch(/nicho/);
+    expect(COPY.landingHowStep2Title.toLowerCase()).toMatch(/lista/);
+    expect(COPY.landingHowStep3Title.toLowerCase()).toMatch(/crm/);
+    expect(COPY.landingPain1Title.toLowerCase()).toMatch(/lista/);
+    expect(COPY.landingPain2Title.toLowerCase()).toMatch(/decide/);
+    expect(COPY.landingPain3Title.toLowerCase()).toMatch(/digital/);
+  });
+});
+
+describe("COPY empresas", () => {
+  it("keeps the search field open without format instructions", () => {
+    expect(COPY.empresasPlaceholder.toLowerCase()).toMatch(/nome/);
+    expect(COPY.empresasPlaceholder.toLowerCase()).toMatch(/fantasia/);
+    expect(COPY.empresasPlaceholder.toLowerCase()).toMatch(/cnpj/);
+    expect(COPY.empresasPlaceholder).not.toMatch(/00\.000/);
+    expect(COPY.empresasMinChars.toLowerCase()).toMatch(/cnpj/);
+  });
+});
