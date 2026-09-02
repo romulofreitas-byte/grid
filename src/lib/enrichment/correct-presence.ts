@@ -179,6 +179,68 @@ function clearDomain(row: LeadEnrichment, collectedAt: string): LeadEnrichment {
   };
 }
 
+export function companyHostsEqual(
+  left: string | null | undefined,
+  right: string,
+): boolean {
+  if (!left) return false;
+  const a = normalizeCompanyDomain(left);
+  const b = normalizeCompanyDomain(right);
+  return Boolean(a && b && a === b);
+}
+
+/** Human said this candidate is the company site — persist before the recrawl. */
+export function applySiteConfirm(
+  row: LeadEnrichment,
+  domain: string,
+  options: { scoreProfile?: ScoreProfile; now?: Date } = {},
+): LeadEnrichment {
+  const host = normalizeCompanyDomain(domain);
+  if (!host) {
+    throw new PresenceCorrectionError("Domínio inválido.");
+  }
+  const collectedAt = (options.now ?? new Date()).toISOString();
+  return finishPatch(
+    {
+      ...row,
+      domain: host,
+      domain_status: "confirmado",
+      fonte: stamp(row, "domain", collectedAt),
+    },
+    options.scoreProfile ?? "b2c_local",
+  );
+}
+
+/** Human said this candidate is wrong — drop it and keep it out of the next search. */
+export function applySiteReject(
+  row: LeadEnrichment,
+  domain: string,
+  options: { scoreProfile?: ScoreProfile; now?: Date } = {},
+): LeadEnrichment {
+  const host = normalizeCompanyDomain(domain);
+  if (!host) {
+    throw new PresenceCorrectionError("Domínio inválido.");
+  }
+  const collectedAt = (options.now ?? new Date()).toISOString();
+  const discarded = new Set(row.discarded_domains ?? []);
+  discarded.add(host);
+  if (row.domain) {
+    const current = normalizeCompanyDomain(row.domain);
+    if (current) discarded.add(current);
+  }
+  const cleared = companyHostsEqual(row.domain, host)
+    ? clearDomain(row, collectedAt)
+    : row;
+  return finishPatch(
+    {
+      ...cleared,
+      discarded_domains: [...discarded],
+      fonte: stamp(cleared, "domain", collectedAt),
+    },
+    options.scoreProfile ?? "b2c_local",
+  );
+}
+
 export function applyPresenceCorrection(
   row: LeadEnrichment,
   correction: PresenceCorrection,

@@ -172,7 +172,10 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       scoreProfile,
       qsaNomes: dossier.socios.map((s) => s.nome),
     };
-    const isRefresh = job.payload?.refresh === true;
+    const isRefresh =
+      job.payload?.refresh === true ||
+      job.payload?.action === "confirm" ||
+      job.payload?.action === "reject";
     const providerHost = receitaProviderDomain(dossier.establishment.email, {
       shared: dossier.emailSeal?.shared === true,
       accountantHint:

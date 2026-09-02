@@ -79,6 +79,7 @@ describe("buildAuditSignals", () => {
     );
     expect(isAuditLive(stillLiveOn404)).toBe(true);
     expect(stillLiveOn404.hint).toMatch(/não abriu agora/i);
+    expect(stillLiveOn404.hint).not.toMatch(/confirme/i);
     expect(stillLiveOn404.note).toMatch(/Não abriu agora/);
 
     const downOn500 = byId(
@@ -95,6 +96,20 @@ describe("buildAuditSignals", () => {
     expect(isAuditGap(gap)).toBe(true);
     expect(gap.value).toBe("NÃO ENCONTRADO");
     expect(gap.hint).toMatch(/Sem site encontrado/i);
+
+    const candidate = byId(
+      enrichment({
+        domain: "granexpo.com.br",
+        domain_status: "nao_confirmado",
+        http_status: 403,
+      }),
+      "site",
+    );
+    expect(candidate.found).toBe(true);
+    expect(candidate.unverified).toBe(true);
+    expect(isAuditLive(candidate)).toBe(false);
+    expect(candidate.hint).toMatch(/confirme se é o site/i);
+    expect(candidate.note).toMatch(/Não abriu agora/);
   });
 
   it("treats pixel and GTM as unverified until the domain is confirmed", () => {

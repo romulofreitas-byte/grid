@@ -10,7 +10,11 @@ import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";
 import {
   applyPresenceCorrection,
+  applySiteConfirm,
+  applySiteReject,
+  companyHostsEqual,
   hasPresenceFields,
+  normalizeCompanyDomain,
   PresenceCorrectionError,
 } from "@/lib/enrichment/correct-presence";
 import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
@@ -118,6 +122,45 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+    const host = normalizeCompanyDomain(parsed.data.domain);
+    if (!host) {
+      return NextResponse.json({ error: "Domínio inválido." }, { status: 400 });
+    }
+    const [enrichment, active] = await Promise.all([
+      repo.getEnrichment(cnpj),
+      repo.getLatestEnrichmentJob(cnpj),
+    ]);
+    if (active && (active.status === "pending" || active.status === "running")) {
+      return NextResponse.json(
+        { error: "Já existe uma qualificação em andamento para esta empresa." },
+        { status: 409 },
+      );
+    }
+    if (!enrichment || !isEnrichmentEverComplete(enrichment)) {
+      return NextResponse.json(
+        { error: "Qualifique a empresa antes de confirmar o site." },
+        { status: 400 },
+      );
+    }
+    const scoreProfile = await resolveJobScoreProfile(repo, searchId);
+    let patched = enrichment;
+    try {
+      patched =
+        parsed.data.action === "confirm"
+          ? applySiteConfirm(enrichment, host, { scoreProfile })
+          : applySiteReject(enrichment, host, { scoreProfile });
+    } catch (err) {
+      if (err instanceof PresenceCorrectionError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+    await repo.upsertEnrichment(patched);
+    if (parsed.data.action === "confirm") {
+      await repo.setDomainCache(cnpj.slice(0, 8), host, "confirmado");
+    } else if (companyHostsEqual(enrichment.domain, host)) {
+      await repo.setDomainCache(cnpj.slice(0, 8), null, "nao_encontrado");
+    }
     const result = await repo.enqueueEnrichment({
       cnpjs: [cnpj],
       userId,
@@ -125,12 +168,13 @@ export async function POST(req: Request) {
       force: true,
       payload: {
         force: true,
+        refresh: true,
         action: parsed.data.action,
-        domain: parsed.data.domain.replace(/^https?:\/\//, "").toLowerCase(),
+        domain: host,
       },
     });
     drainJobsIfMock();
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, enrichment: patched, recrawl: true });
   }
 
   if (

@@ -133,6 +133,8 @@ export default function LeadPage() {
   const [savingPista, setSavingPista] = useState(false);
   const heldCompleteRef = useRef<LeadEnrichment | null>(null);
   const ensuringRef = useRef<string | null>(null);
+  const sawQueuedJobRef = useRef(false);
+  const watchCollectedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
     setQualifyQueued(false);
@@ -141,6 +143,8 @@ export default function LeadPage() {
     setCorrectError(null);
     setCalling(false);
     heldCompleteRef.current = null;
+    sawQueuedJobRef.current = false;
+    watchCollectedAtRef.current = null;
   }, [params.cnpj]);
 
   const dossierQuery = useQuery({
@@ -283,14 +287,69 @@ export default function LeadPage() {
       enrichmentStage(displayEnrichment) === "complete") ||
     heldCompleteRef.current != null;
 
+  function startJobWatch(kind: "first" | "refresh") {
+    sawQueuedJobRef.current = false;
+    watchCollectedAtRef.current =
+      heldCompleteRef.current?.collected_at ??
+      liveEnrichment?.collected_at ??
+      null;
+    if (kind === "refresh") {
+      setRefreshQueued(true);
+      setQualifyQueued(false);
+    } else {
+      setQualifyQueued(true);
+      setRefreshQueued(false);
+    }
+  }
+
+  function applyEnrichmentPatch(
+    enrichment: LeadEnrichment,
+    jobStatus?: EnrichmentJobStatus | null,
+  ) {
+    const cnpj = normalizeLeadCnpj(params.cnpj);
+    qc.setQueryData(leadQueryKey(params.cnpj, searchId), (old) =>
+      old
+        ? {
+            ...old,
+            enrichment,
+            enrichmentJobStatus: jobStatus ?? old.enrichmentJobStatus,
+          }
+        : old,
+    );
+    qc.setQueryData(
+      ["lead-stream", cnpj],
+      (
+        old:
+          | {
+              enrichment: LeadEnrichment | null;
+              jobStatus: EnrichmentJobStatus | null;
+            }
+          | undefined,
+      ) => ({
+        enrichment,
+        jobStatus: jobStatus ?? old?.jobStatus ?? null,
+      }),
+    );
+  }
+
   useEffect(() => {
+    if (!qualifyQueued && !refreshQueued) return;
     const job = liveJobStatus;
     const stage = liveEnrichment ? enrichmentStage(liveEnrichment) : null;
-    const finished =
-      stage === "complete" || job === "failed" || job === "skipped";
-    if (!finished || (!qualifyQueued && !refreshQueued)) return;
+    if (job === "pending" || job === "running") {
+      sawQueuedJobRef.current = true;
+      return;
+    }
+    const collectedChanged =
+      liveEnrichment?.collected_at != null &&
+      liveEnrichment.collected_at !== watchCollectedAtRef.current;
+    const failed = job === "failed" || job === "skipped";
+    const completedNew =
+      stage === "complete" && (sawQueuedJobRef.current || collectedChanged);
+    if (!failed && !completedNew) return;
     setQualifyQueued(false);
     setRefreshQueued(false);
+    sawQueuedJobRef.current = false;
     void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
   }, [
     liveJobStatus,
@@ -393,13 +452,7 @@ export default function LeadPage() {
       return;
     }
     setQualifyError(null);
-    if (refresh) {
-      setRefreshQueued(true);
-      setQualifyQueued(false);
-    } else {
-      setQualifyQueued(true);
-      setRefreshQueued(false);
-    }
+    startJobWatch(refresh ? "refresh" : "first");
     qualifyMutation.mutate(refresh ? { refresh: true } : undefined);
   }
   const confirmSiteMutation = useMutation({
@@ -414,15 +467,26 @@ export default function LeadPage() {
           domain: input.domain,
         }),
       });
-      const json = (await res.json()) as { error?: string };
+      const json = (await res.json()) as {
+        error?: string;
+        queued?: number;
+        recrawl?: boolean;
+        enrichment?: LeadEnrichment;
+      };
       if (!res.ok) throw new Error(json.error ?? "Não foi possível atualizar o site");
       return json;
     },
-    onMutate: () => {
-      setQualifyQueued(true);
+    onMutate: (input) => {
       setQualifyError(null);
+      if (input.action === "reject") startJobWatch("refresh");
     },
-    onSuccess: () => {
+    onSuccess: (json) => {
+      if (json.enrichment) {
+        applyEnrichmentPatch(
+          json.enrichment,
+          json.queued ? "pending" : undefined,
+        );
+      }
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       void qc.invalidateQueries({
         queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
@@ -434,6 +498,7 @@ export default function LeadPage() {
     },
     onError: (err: Error) => {
       setQualifyQueued(false);
+      setRefreshQueued(false);
       setQualifyError(err.message);
     },
   });
@@ -452,6 +517,7 @@ export default function LeadPage() {
       const json = (await res.json()) as {
         error?: string;
         recrawl?: boolean;
+        enrichment?: LeadEnrichment;
       };
       if (!res.ok) {
         throw new Error(json.error ?? "Não foi possível corrigir a qualificação");
@@ -461,10 +527,16 @@ export default function LeadPage() {
     onMutate: (corrections) => {
       setCorrectError(null);
       if (corrections.domain != null && corrections.domain.trim()) {
-        setQualifyQueued(true);
+        startJobWatch("refresh");
       }
     },
     onSuccess: (json) => {
+      if (json.enrichment) {
+        applyEnrichmentPatch(
+          json.enrichment,
+          json.recrawl ? "pending" : undefined,
+        );
+      }
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       void qc.invalidateQueries({
         queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
@@ -473,7 +545,6 @@ export default function LeadPage() {
         void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
         void qc.invalidateQueries({ queryKey: ["grid", searchId] });
       }
-      if (json.recrawl) setQualifyQueued(true);
     },
     onError: (err: Error) => {
       setQualifyQueued(false);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPresenceCorrection,
+  applySiteConfirm,
+  applySiteReject,
   PresenceCorrectionError,
 } from "./correct-presence";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -93,6 +95,36 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.http_status).toBeNull();
     expect(result.row.discarded_domains).toContain("errado.com.br");
     expect(result.row.fonte.domain?.fonte).toBe("human");
+  });
+
+  it("confirms a candidate host without waiting for a recrawl", () => {
+    const result = applySiteConfirm(
+      enrichment({
+        domain: "granexpo.com.br",
+        domain_status: "nao_confirmado",
+        http_status: 403,
+      }),
+      "https://www.granexpo.com.br",
+    );
+    expect(result.domain).toBe("granexpo.com.br");
+    expect(result.domain_status).toBe("confirmado");
+    expect(result.http_status).toBe(403);
+    expect(result.fonte.domain?.fonte).toBe("human");
+  });
+
+  it("rejects a candidate host and keeps it discarded", () => {
+    const result = applySiteReject(
+      enrichment({
+        domain: "errado.com.br",
+        domain_status: "nao_confirmado",
+        http_status: 403,
+      }),
+      "errado.com.br",
+    );
+    expect(result.domain).toBeNull();
+    expect(result.domain_status).toBe("nao_encontrado");
+    expect(result.discarded_domains).toContain("errado.com.br");
+    expect(result.fonte.domain?.fonte).toBe("human");
   });
 
   it("stores a WhatsApp number from wa.me", () => {

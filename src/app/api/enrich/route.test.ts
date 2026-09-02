@@ -202,6 +202,100 @@ describe("POST /api/enrich action=correct", () => {
   });
 });
 
+describe("POST /api/enrich action=confirm|reject", () => {
+  beforeEach(() => {
+    guardApi.mockReset();
+    isCnpjBilled.mockReset();
+    getEnrichment.mockReset();
+    getLatestEnrichmentJob.mockReset();
+    upsertEnrichment.mockReset();
+    enqueueEnrichment.mockReset();
+    setDomainCache.mockReset();
+    getSearch.mockReset();
+    drainJobsIfMock.mockReset();
+    resolveJobScoreProfile.mockReset();
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    isCnpjBilled.mockResolvedValue(true);
+    getSearch.mockResolvedValue(undefined);
+    getLatestEnrichmentJob.mockResolvedValue(null);
+    getEnrichment.mockResolvedValue({
+      ...completeRow(),
+      domain: "granexpo.com.br",
+      domain_status: "nao_confirmado",
+      http_status: 403,
+    });
+    resolveJobScoreProfile.mockResolvedValue("b2c_local");
+    enqueueEnrichment.mockResolvedValue({ queued: 1, skippedOptOut: 0 });
+  });
+
+  it("patches the candidate to confirmado before enqueueing the harvest", async () => {
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "confirm",
+        domain: "granexpo.com.br",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.enrichment.domain_status).toBe("confirmado");
+    expect(json.enrichment.domain).toBe("granexpo.com.br");
+    expect(json.recrawl).toBe(true);
+    expect(upsertEnrichment).toHaveBeenCalledOnce();
+    expect(setDomainCache).toHaveBeenCalledWith(
+      "00000000",
+      "granexpo.com.br",
+      "confirmado",
+    );
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          action: "confirm",
+          domain: "granexpo.com.br",
+          refresh: true,
+        }),
+      }),
+    );
+  });
+
+  it("drops a rejected candidate immediately and recrawls", async () => {
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "reject",
+        domain: "granexpo.com.br",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.enrichment.domain).toBeNull();
+    expect(json.enrichment.domain_status).toBe("nao_encontrado");
+    expect(json.enrichment.discarded_domains).toContain("granexpo.com.br");
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          action: "reject",
+          domain: "granexpo.com.br",
+          refresh: true,
+        }),
+      }),
+    );
+  });
+
+  it("returns 409 when a qualify job is already running", async () => {
+    getLatestEnrichmentJob.mockResolvedValue({ status: "running" });
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "confirm",
+        domain: "granexpo.com.br",
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(upsertEnrichment).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/enrich qualify bridge", () => {
   beforeEach(() => {
     guardApi.mockReset();

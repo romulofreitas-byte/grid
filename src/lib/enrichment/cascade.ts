@@ -444,7 +444,7 @@ export async function enrichCompany(
       ? cachedDomain.domain
       : null;
   let domain_status: DomainStatus = forceHost
-    ? "nao_confirmado"
+    ? "confirmado"
     : domain
       ? ((cachedDomain?.status as DomainStatus) ?? "nao_confirmado")
       : "nao_encontrado";

@@ -489,6 +489,47 @@ describe("enrichCompany crawl", () => {
     expect(row.fonte.domain?.fonte).toBe("human");
   });
 
+  it("confirms a human-approved domain even when the page returns 403", async () => {
+    const domain = "bloqueado.test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.startsWith(OSM_OVERPASS_URL)) {
+          return new Response(JSON.stringify({ elements: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes(domain)) {
+          return htmlResponse("Forbidden", 403);
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const { row } = await enrichCompany(companyInput(domain), null, undefined, {
+      forceConfirmDomain: domain,
+    });
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.domain).toBe(domain);
+    expect(row.http_status).toBe(403);
+  });
+
   it("skips a discarded cached domain and searches with the fantasy name", async () => {
     const serperBodies: string[] = [];
     vi.stubGlobal(

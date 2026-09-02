@@ -506,7 +506,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ? siteDown
         ? "Site confirmado, mas fora do ar agora. Dá para abrir a ligação por isso."
         : siteSoftFail
-          ? "Achei o site, mas a página não abriu agora (bloqueio ou 404). Confirme se é o domínio certo."
+          ? "Site confirmado, mas a página não abriu agora (bloqueio ou 404)."
           : "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
       : e.domain_status === "nao_confirmado"
         ? siteDown
