@@ -13,6 +13,7 @@ import {
   preferTransactionPoolerUrl,
   resolvePoolMax,
   sharesPgPools,
+  searchJobFailureMessage,
   shouldSerializePgQueries,
   userFacingDbBusyMessage,
   withPgRetry,
@@ -145,6 +146,28 @@ describe("resolvePoolMax", () => {
       ),
     ).toMatch(/pista está cheia/i);
     expect(userFacingDbBusyMessage(new Error("boom"))).toMatch(/instantes/i);
+  });
+
+  it("hides search job pool and timeout internals", () => {
+    expect(
+      searchJobFailureMessage(
+        new Error(
+          "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
+        ),
+      ),
+    ).toMatch(/pista está cheia/i);
+    expect(
+      searchJobFailureMessage(
+        new Error("timeout exceeded when trying to connect"),
+      ),
+    ).toMatch(/instantes/i);
+    const timeout = Object.assign(new Error("canceling statement"), {
+      code: "57014",
+    });
+    expect(searchJobFailureMessage(timeout)).toMatch(/recorte menor/i);
+    expect(searchJobFailureMessage(new Error("relation boom"))).toMatch(
+      /montar o grid/i,
+    );
   });
 });
 

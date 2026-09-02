@@ -134,6 +134,16 @@ export async function allQueries<T extends unknown[]>(
   return result as T;
 }
 
+export function searchJobFailureMessage(err: unknown): string {
+  if (isPoolExhaustedError(err) || isPgConnectTimeoutError(err)) {
+    return userFacingDbBusyMessage(err);
+  }
+  if (isStatementTimeoutError(err)) {
+    return "A busca demorou demais. Tente de novo com um recorte menor.";
+  }
+  return "Não foi possível montar o grid. Tente de novo em instantes.";
+}
+
 export function userFacingDbBusyMessage(err: unknown): string {
   return isPoolExhaustedError(err)
     ? "A pista está cheia agora. Tenta de novo em instantes."

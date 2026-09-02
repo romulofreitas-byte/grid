@@ -1,9 +1,3 @@
-import {
-  isPgConnectTimeoutError,
-  isPoolExhaustedError,
-  isStatementTimeoutError,
-  userFacingDbBusyMessage,
-} from "@/lib/data/pg";
 import type { Search, SearchFilters } from "@/lib/types";
 
 export type SearchJobStatus = "pending" | "running" | "done" | "failed";
@@ -67,16 +61,6 @@ export function shouldRunSearchJobsInline(): boolean {
   const live = raw === "supabase" || raw === "postgres" || raw === "live";
   if (!live) return true;
   return !process.env.VERCEL;
-}
-
-export function searchJobFailureMessage(err: unknown): string {
-  if (isPoolExhaustedError(err) || isPgConnectTimeoutError(err)) {
-    return userFacingDbBusyMessage(err);
-  }
-  if (isStatementTimeoutError(err)) {
-    return "A busca demorou demais. Tente de novo com um recorte menor.";
-  }
-  return "Não foi possível montar o grid. Tente de novo em instantes.";
 }
 
 export function searchJobConcurrency(

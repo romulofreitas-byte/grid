@@ -1,8 +1,7 @@
 import { getDataSource, getRepo } from "@/lib/data";
-import { isUndefinedTableError } from "@/lib/data/pg";
+import { isUndefinedTableError, searchJobFailureMessage } from "@/lib/data/pg";
 import {
   searchJobConcurrency,
-  searchJobFailureMessage,
   type SearchJob,
 } from "@/lib/search-jobs";
 import {
