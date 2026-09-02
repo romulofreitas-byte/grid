@@ -121,7 +121,10 @@ function dossierPhones(dossier: LeadDossier): string[] {
 }
 
 export function buildCrmBriefing(
-  deal: Pick<CrmDeal, "company_name" | "contact_name" | "phones" | "people">,
+  deal: Pick<
+    CrmDeal,
+    "company_name" | "contact_name" | "phones" | "people" | "secretaries"
+  >,
   extras: LeadDossier | CrmBriefingLookup | null,
 ): CrmBriefing {
   const lookup = extras && isBriefingLookup(extras) ? extras : null;

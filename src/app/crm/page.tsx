@@ -6,7 +6,6 @@ import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
 import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
-import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
 import { getRepo } from "@/lib/data";

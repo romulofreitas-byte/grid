@@ -36,7 +36,6 @@ import {
   getCachedDealEvents,
   loadDealBriefing,
   loadDealEvents,
-  setCachedDealBriefing,
   setCachedDealEvents,
 } from "@/lib/crm/deal-extras-cache";
 import {

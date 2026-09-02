@@ -3,7 +3,6 @@ import type { CrmBriefing } from "@/lib/crm/briefing";
 import {
   getCachedDealBriefing,
   getCachedDealEvents,
-  loadDealBriefing,
   loadDealEvents,
   setCachedDealBriefing,
   setCachedDealEvents,
