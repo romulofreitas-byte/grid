@@ -14,9 +14,9 @@ import {
   applySiteReject,
   companyHostsEqual,
   hasPresenceFields,
-  normalizeCompanyDomain,
   PresenceCorrectionError,
 } from "@/lib/enrichment/correct-presence";
+import { parseCompanySite } from "@/lib/enrichment/company-site";
 import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { isInteractiveEnrichScope } from "@/lib/enrichment/jobs";
 import {
@@ -77,7 +77,7 @@ const schema = z
 
 function kickOwnedEnrichment(searchId: string | null, userId: string) {
   drainJobsIfMock();
-  if (!searchId || getDataSource() === "mock") return;
+  if (getDataSource() === "mock") return;
   after(() =>
     processOwnedEnrichmentJobs(searchId, userId).catch((err) => {
       console.error(
@@ -140,20 +140,12 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const host = normalizeCompanyDomain(parsed.data.domain);
-    if (!host) {
+    const site = parseCompanySite(parsed.data.domain);
+    if (!site) {
       return NextResponse.json({ error: "Domínio inválido." }, { status: 400 });
     }
-    const [enrichment, active] = await Promise.all([
-      repo.getEnrichment(cnpj),
-      repo.getLatestEnrichmentJob(cnpj),
-    ]);
-    if (active && (active.status === "pending" || active.status === "running")) {
-      return NextResponse.json(
-        { error: "Já existe uma qualificação em andamento para esta empresa." },
-        { status: 409 },
-      );
-    }
+    const enrichment = await repo.getEnrichment(cnpj);
+    await repo.skipActiveEnrichmentJobs(cnpj);
     if (!enrichment || !isEnrichmentEverComplete(enrichment)) {
       return NextResponse.json(
         { error: "Qualifique a empresa antes de confirmar o site." },
@@ -165,8 +157,8 @@ export async function POST(req: Request) {
     try {
       patched =
         parsed.data.action === "confirm"
-          ? applySiteConfirm(enrichment, host, { scoreProfile })
-          : applySiteReject(enrichment, host, { scoreProfile });
+          ? applySiteConfirm(enrichment, parsed.data.domain, { scoreProfile })
+          : applySiteReject(enrichment, parsed.data.domain, { scoreProfile });
     } catch (err) {
       if (err instanceof PresenceCorrectionError) {
         return NextResponse.json({ error: err.message }, { status: 400 });
@@ -175,8 +167,8 @@ export async function POST(req: Request) {
     }
     await repo.upsertEnrichment(patched);
     if (parsed.data.action === "confirm") {
-      await repo.setDomainCache(cnpj.slice(0, 8), host, "confirmado");
-    } else if (companyHostsEqual(enrichment.domain, host)) {
+      await repo.setDomainCache(cnpj.slice(0, 8), site.host, "confirmado");
+    } else if (companyHostsEqual(enrichment.domain, site.host)) {
       await repo.setDomainCache(cnpj.slice(0, 8), null, "nao_encontrado");
     }
     const result = await repo.enqueueEnrichment({
@@ -189,7 +181,8 @@ export async function POST(req: Request) {
         force: true,
         refresh: true,
         action: parsed.data.action,
-        domain: host,
+        domain: site.host,
+        homepagePath: site.homepagePath,
       },
     });
     kickOwnedEnrichment(searchId, userId);
@@ -214,12 +207,6 @@ export async function POST(req: Request) {
       repo.getEnrichment(cnpj),
       repo.getLatestEnrichmentJob(cnpj),
     ]);
-    if (active && (active.status === "pending" || active.status === "running")) {
-      return NextResponse.json(
-        { error: "Já existe uma qualificação em andamento para esta empresa." },
-        { status: 409 },
-      );
-    }
     if (!enrichment || !isEnrichmentEverComplete(enrichment)) {
       return NextResponse.json(
         { error: "Qualifique a empresa antes de corrigir os ativos." },
@@ -239,6 +226,9 @@ export async function POST(req: Request) {
       throw err;
     }
     if (decided.kind === "recrawl") {
+      await repo.skipActiveEnrichmentJobs(cnpj);
+      await repo.upsertEnrichment(decided.row);
+      await repo.setDomainCache(cnpj.slice(0, 8), decided.domain, "confirmado");
       const result = await repo.enqueueEnrichment({
         cnpjs: [cnpj],
         userId,
@@ -247,12 +237,24 @@ export async function POST(req: Request) {
         priority: true,
         payload: {
           force: true,
+          refresh: true,
           action: "confirm",
           domain: decided.domain,
+          homepagePath: decided.homepagePath,
         },
       });
       kickOwnedEnrichment(searchId, userId);
-      return NextResponse.json({ ...result, recrawl: true });
+      return NextResponse.json({
+        ...result,
+        enrichment: decided.row,
+        recrawl: true,
+      });
+    }
+    if (active && (active.status === "pending" || active.status === "running")) {
+      return NextResponse.json(
+        { error: "Já existe uma qualificação em andamento para esta empresa." },
+        { status: 409 },
+      );
     }
     await repo.upsertEnrichment(decided.row);
     if (parsed.data.corrections.domain === null) {

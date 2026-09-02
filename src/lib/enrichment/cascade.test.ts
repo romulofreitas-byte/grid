@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { domainFromEmail, enrichCompany, type CascadeCompany } from "./cascade";
+import {
+  domainFromEmail,
+  enrichCompany,
+  swapWwwOrigin,
+  type CascadeCompany,
+} from "./cascade";
 import { OSM_OVERPASS_URL } from "./osm";
 import type { Company, Establishment } from "@/lib/types";
 
@@ -154,6 +159,22 @@ describe("domainFromEmail", () => {
   });
 });
 
+describe("swapWwwOrigin", () => {
+  it("toggles www on https origins", () => {
+    expect(swapWwwOrigin("https://faseimoveis.com.br")).toBe(
+      "https://www.faseimoveis.com.br",
+    );
+    expect(swapWwwOrigin("https://www.faseimoveis.com.br")).toBe(
+      "https://faseimoveis.com.br",
+    );
+  });
+
+  it("returns null for localhost and IPv4", () => {
+    expect(swapWwwOrigin("https://localhost")).toBeNull();
+    expect(swapWwwOrigin("https://127.0.0.1")).toBeNull();
+  });
+});
+
 describe("enrichCompany crawl", () => {
   it("stops ownership after home confirms, then harvests contact paths", async () => {
     const domain = "sol-home.test";
@@ -178,6 +199,137 @@ describe("enrichCompany crawl", () => {
     expect(sitePaths).toContain("/contato");
     expect(sitePaths).not.toContain("/equipe");
     expect(requested.some((u) => u.startsWith(OSM_OVERPASS_URL))).toBe(false);
+  });
+
+  it("falls back to www when the apex host refuses the home fetch", async () => {
+    const domain = "sol-www.test";
+    const requested: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        requested.push(href);
+        if (href.startsWith(OSM_OVERPASS_URL)) {
+          return new Response(JSON.stringify({ elements: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("google.serper.dev")) {
+          return new Response(JSON.stringify({ organic: [], places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        const url = new URL(href);
+        if (!url.hostname.startsWith("www.")) {
+          throw new Error("apex blocked");
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (url.pathname === "/" || url.pathname === "") {
+          return htmlResponse(`<html><body>Solaris CNPJ ${CNPJ}</body></html>`);
+        }
+        return htmlResponse("ok");
+      }),
+    );
+
+    const { row } = await enrichCompany(companyInput(domain), {
+      domain,
+      status: "nao_confirmado",
+    });
+
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.http_status).toBe(200);
+    expect(requested.some((u) => u.startsWith("https://www.sol-www.test"))).toBe(
+      true,
+    );
+  });
+
+  it("starts at /home from a Serper hit when that is the live storefront", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const requested: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        requested.push(href);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://www.solaris-web.com.br/home/",
+                  title: "Solaris Belo Horizonte",
+                  snippet: "Clínica Solaris",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        const url = new URL(href);
+        if (!url.hostname.includes("solaris-web.com.br")) {
+          return htmlResponse("not found", 404);
+        }
+        if (url.pathname === "/" || url.pathname === "") {
+          return htmlResponse("error", 500);
+        }
+        if (url.pathname === "/home" || url.pathname === "/home/") {
+          return htmlResponse(`<html><body>Solaris CNPJ ${CNPJ}</body></html>`);
+        }
+        return htmlResponse("ok");
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    const { row } = await enrichCompany(input);
+    expect(row.domain).toBe("solaris-web.com.br");
+    expect(row.homepage_path).toBe("/home");
+    expect(row.fonte.domain?.fonte).toBe("serper");
+    expect(row.fonte.domain?.path).toBe("/home");
+    expect(row.domain_status).toBe("confirmado");
+    const sitePaths = requested
+      .filter((u) => u.includes("solaris-web.com.br") && !u.endsWith("/robots.txt"))
+      .map((u) => new URL(u).pathname);
+    expect(sitePaths[0]).toBe("/home");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("keeps http_status null when every host fetch fails", async () => {
+    const domain = "sol-unreachable.test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.startsWith(OSM_OVERPASS_URL) || href.includes("google.serper.dev")) {
+          return new Response(JSON.stringify({ organic: [], places: [], elements: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        throw new Error("unreachable");
+      }),
+    );
+
+    const { row } = await enrichCompany(companyInput(domain), {
+      domain,
+      status: "nao_confirmado",
+    });
+
+    expect(row.domain).toBe(domain);
+    expect(row.domain_status).toBe("nao_confirmado");
+    expect(row.http_status).toBeNull();
   });
 
   it("keeps crawling ownership until an inner page confirms, then harvests", async () => {

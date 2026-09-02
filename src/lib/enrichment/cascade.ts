@@ -22,6 +22,11 @@ import {
   type GmbSearchInput,
   type OrganicHit,
 } from "@/lib/enrichment/presence";
+import {
+  homeFetchCandidates,
+  homepagePathFromUrl,
+  normalizeHomepagePath,
+} from "@/lib/enrichment/company-site";
 import { pathAllowedByRobots } from "@/lib/enrichment/robots";
 import { detectCopyrightYear, detectTech, midiaPagaLabel } from "@/lib/enrichment/tech";
 import {
@@ -50,7 +55,11 @@ import type {
 import { gmbListingCorroborated } from "@/lib/types";
 
 export const GRID_USER_AGENT =
-  "GridBot/1.0 (+https://grid.mundopodium.com.br/bot)";
+  "Mozilla/5.0 (compatible; GridBot/1.0; +https://grid.mundopodium.com.br/bot)";
+
+const FETCH_PAGE_TIMEOUT_MS = 10_000;
+const FETCH_PAGE_MAX_BYTES = 1.5 * 1024 * 1024;
+const FETCH_RETRY_GAP_MS = 300;
 
 const HOME_PATH = "/";
 /** Paths used to prove the domain belongs to the company. */
@@ -128,6 +137,51 @@ export async function allowedByRobots(origin: string, path: string): Promise<boo
   return pathAllowedByRobots(text, path, "GridBot");
 }
 
+/** Apex ↔ www twin. Same host identity; some stacks only answer on one of them. */
+export function swapWwwOrigin(origin: string): string | null {
+  try {
+    const u = new URL(origin.includes("://") ? origin : `https://${origin}`);
+    const host = u.hostname;
+    if (!host || host === "localhost" || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+      return null;
+    }
+    u.hostname = host.startsWith("www.") ? host.slice(4) : `www.${host}`;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+function isAbortOrTimeout(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "AbortError" || err.name === "TimeoutError")
+  );
+}
+
+const PAGE_HEADERS = {
+  "User-Agent": GRID_USER_AGENT,
+  Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+} as const;
+
+async function fetchOnce(
+  url: string,
+): Promise<{ html: string; status: number; finalUrl: string }> {
+  const res = await fetch(url, {
+    headers: PAGE_HEADERS,
+    redirect: "follow",
+    signal: AbortSignal.timeout(FETCH_PAGE_TIMEOUT_MS),
+  });
+  const buf = await res.arrayBuffer();
+  const sliced =
+    buf.byteLength > FETCH_PAGE_MAX_BYTES
+      ? buf.slice(0, FETCH_PAGE_MAX_BYTES)
+      : buf;
+  const html = new TextDecoder("utf-8", { fatal: false }).decode(sliced);
+  return { html, status: res.status, finalUrl: res.url };
+}
+
 async function fetchPage(
   url: string,
   minGapMs = HOME_PAGE_GAP_MS,
@@ -136,17 +190,15 @@ async function fetchPage(
   if (!(await allowedByRobots(u.origin, u.pathname))) return null;
   await respectRateLimit(u.host, minGapMs);
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": GRID_USER_AGENT, Accept: "text/html" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8000),
-    });
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > 1.5 * 1024 * 1024) return null;
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-    return { html, status: res.status, finalUrl: res.url };
-  } catch {
-    return null;
+    return await fetchOnce(url);
+  } catch (err) {
+    if (isAbortOrTimeout(err)) return null;
+    await new Promise((r) => setTimeout(r, FETCH_RETRY_GAP_MS));
+    try {
+      return await fetchOnce(url);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -287,6 +339,8 @@ export type CascadeCompany = {
 export type EnrichOptions = {
   discardedDomains?: string[];
   forceConfirmDomain?: string | null;
+  /** Shallow storefront (`/home`) when `/` is not the live site. */
+  homepagePath?: string | null;
   /** Receita e-mail appears on many CNPJs — never seed domain from it. */
   emailShared?: boolean;
 };
@@ -437,6 +491,7 @@ export async function enrichCompany(
   const forceHost = options.forceConfirmDomain
     ? normalizeHost(options.forceConfirmDomain)
     : null;
+  let homepage_path = normalizeHomepagePath(options.homepagePath);
   const fonte: LeadEnrichment["fonte"] = {};
 
   let domain: string | null = forceHost
@@ -475,7 +530,11 @@ export async function enrichCompany(
       fonte.domain = { fonte: "email_receita", coletado_em: collected_at };
     }
   } else if (forceHost) {
-    fonte.domain = { fonte: "human", coletado_em: collected_at };
+    fonte.domain = {
+      fonte: "human",
+      coletado_em: collected_at,
+      ...(homepage_path ? { path: homepage_path } : {}),
+    };
   }
 
   if (!domain) domain_status = "nao_encontrado";
@@ -515,6 +574,7 @@ export async function enrichCompany(
     const row: LeadEnrichment = {
       cnpj: est.cnpj,
       domain: domain ? domain.replace(/^https?:\/\//, "") : null,
+      homepage_path,
       domain_status,
       http_status,
       phones,
@@ -621,7 +681,12 @@ export async function enrichCompany(
         const host = normalizeHost(new URL(best.link).host);
         if (!discarded.has(host) && !isDirectoryUrl(best.link)) {
           domain = host;
-          fonte.domain = { fonte: "serper", coletado_em: collected_at };
+          homepage_path = homepagePathFromUrl(best.link);
+          fonte.domain = {
+            fonte: "serper",
+            coletado_em: collected_at,
+            ...(homepage_path ? { path: homepage_path } : {}),
+          };
           domain_status = "nao_confirmado";
           await emit(assemble("domain", { people: null }));
         }
@@ -659,16 +724,22 @@ export async function enrichCompany(
   let siteBrand: string | null = null;
 
   if (domain) {
-    const origin = domain.startsWith("http") ? domain : `https://${domain}`;
+    let origin = domain.startsWith("http") ? domain : `https://${domain}`;
     let pages = 0;
     let confirmed = Boolean(forceHost);
     let homeEmitted = false;
     const visited = new Set<string>();
     const crawlStarted = Date.now();
 
+    const pageUsable = (
+      page: { html: string; status: number } | null,
+    ): boolean =>
+      Boolean(page && page.status < 400 && page.html.trim().length > 0);
+
     const fetchAndAccumulate = async (
       path: string,
       minGap: number,
+      mode: "any" | "usable" = "any",
     ): Promise<boolean> => {
       if (visited.has(path) || pages >= MAX_CRAWL_PAGES) return false;
       visited.add(path);
@@ -677,27 +748,46 @@ export async function enrichCompany(
       if (!page) return false;
       http_status = page.status;
       finalUrl = page.finalUrl;
+      if (mode === "usable" && !pageUsable(page)) return false;
       combinedHtml += `\n${page.html}`;
       return true;
     };
 
-    // --- Ownership pass: stop early once we can prove the domain ---
-    for (const path of OWNERSHIP_PATHS) {
-      if (pages >= MAX_CRAWL_PAGES) break;
-      if (confirmed && path !== HOME_PATH && visited.has(HOME_PATH)) break;
-
-      const ok = await fetchAndAccumulate(
-        path,
-        path === HOME_PATH ? HOME_PAGE_GAP_MS : INNER_PAGE_GAP_MS,
-      );
-      if (!ok) {
-        if (path === HOME_PATH && !homeEmitted) {
-          await emit(assemble("home", { people: [] }));
-          homeEmitted = true;
-        }
-        continue;
+    const stampHomePath = (path: string) => {
+      homepage_path = normalizeHomepagePath(path);
+      if (!fonte.domain) {
+        fonte.domain = {
+          fonte: forceHost ? "human" : "crawl",
+          coletado_em: collected_at,
+        };
       }
+      if (homepage_path) {
+        fonte.domain = { ...fonte.domain, path: homepage_path };
+      } else if (fonte.domain.path) {
+        const { path: _dropped, ...rest } = fonte.domain;
+        fonte.domain = rest;
+      }
+    };
 
+    const resolveHome = async (): Promise<boolean> => {
+      const first = homeFetchCandidates(homepage_path)[0] ?? HOME_PATH;
+      let ok = await fetchAndAccumulate(first, HOME_PAGE_GAP_MS, "usable");
+      if (!ok) {
+        const alt = swapWwwOrigin(origin);
+        if (alt) {
+          visited.delete(first);
+          origin = alt;
+          ok = await fetchAndAccumulate(first, HOME_PAGE_GAP_MS, "usable");
+        }
+      }
+      if (!ok) return false;
+      stampHomePath(first);
+      return true;
+    };
+
+    const homeOk = await resolveHome();
+
+    const applyOwnershipHtml = () => {
       if (
         !confirmed &&
         confirmDomainOwnership({
@@ -712,7 +802,6 @@ export async function enrichCompany(
       }
       if (forceHost) confirmed = true;
       domain_status = confirmed ? "confirmado" : "nao_confirmado";
-
       snap = snapshotFromHtml({
         confirmed,
         html: combinedHtml,
@@ -722,33 +811,50 @@ export async function enrichCompany(
         qsaNomes: input.qsaNomes ?? [],
         collectedAt: collected_at,
       });
+    };
 
-      if (!homeEmitted) {
-        await emit(
-          assemble("home", {
-            tech: snap.tech,
-            emails: snap.emails,
-            socials: snap.socials,
-            sitePhones: snap.sitePhones,
-            freshness: snap.freshness,
-            people: snap.people,
-          }),
-        );
-        homeEmitted = true;
+    if (homeOk) {
+      applyOwnershipHtml();
+    }
+    if (!homeEmitted) {
+      await emit(
+        assemble("home", {
+          tech: homeOk ? snap.tech : undefined,
+          emails: homeOk ? snap.emails : undefined,
+          socials: homeOk ? snap.socials : undefined,
+          sitePhones: homeOk ? snap.sitePhones : undefined,
+          freshness: homeOk ? snap.freshness : undefined,
+          people: homeOk ? snap.people : [],
+        }),
+      );
+      homeEmitted = true;
+    }
+    if (homeOk && confirmed) {
+      /* harvest below */
+    } else {
+      for (const path of OWNERSHIP_PATHS) {
+        if (path === HOME_PATH) continue;
+        if (pages >= MAX_CRAWL_PAGES) break;
+        if (confirmed) break;
+
+        const ok = await fetchAndAccumulate(path, INNER_PAGE_GAP_MS);
+        if (!ok) continue;
+        applyOwnershipHtml();
+        if (confirmed) break;
       }
-
-      if (confirmed) break;
     }
 
     // --- Harvest pass: after confirmation, collect contact/social pages ---
     if (confirmed || forceHost) {
       confirmed = true;
       domain_status = "confirmado";
+      const harvestHome = homepage_path ?? HOME_PATH;
       for (const path of HARVEST_PATHS) {
         if (pages >= MAX_CRAWL_PAGES) break;
+        const target = path === HOME_PATH ? harvestHome : path;
         await fetchAndAccumulate(
-          path,
-          path === HOME_PATH ? HOME_PAGE_GAP_MS : INNER_PAGE_GAP_MS,
+          target,
+          target === harvestHome ? HOME_PAGE_GAP_MS : INNER_PAGE_GAP_MS,
         );
       }
     }

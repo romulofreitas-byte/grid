@@ -204,9 +204,30 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
         ],
         forceConfirmDomain:
           job.payload?.action === "confirm" ? (job.payload.domain ?? null) : null,
+        homepagePath:
+          job.payload?.homepagePath ??
+          existing?.homepage_path ??
+          existing?.fonte.domain?.path ??
+          null,
         emailShared: dossier.emailSeal?.shared === true,
       },
     );
+    const latest = await repo.getLatestEnrichmentJob(job.cnpj);
+    if (
+      !latest ||
+      latest.id !== job.id ||
+      latest.status === "skipped"
+    ) {
+      if (latest?.id !== job.id) {
+        await repo.updateJob(job.id, {
+          status: "skipped",
+          last_error: "superseded",
+          finished_at: new Date().toISOString(),
+        });
+      }
+      log({ status: "skipped", reason: "superseded" });
+      return;
+    }
     const upsertStarted = Date.now();
     await repo.upsertEnrichment(row);
     if (row.domain) {
@@ -438,7 +459,7 @@ export async function runEnrichmentWorker(
 
 /** Claim this search's jobs (if pending/stale) and run them. Safe if the Railway worker holds the lock. */
 export async function processOwnedEnrichmentJobs(
-  searchId: string,
+  searchId: string | null,
   userId: string,
   options: { budgetMs?: number; maxJobs?: number } = {},
 ): Promise<number> {
@@ -449,7 +470,7 @@ export async function processOwnedEnrichmentJobs(
   let processed = 0;
   while (processed < maxJobs && Date.now() < deadline) {
     const job = await repo.claimEnrichmentJob({
-      searchId,
+      ...(searchId ? { searchId } : {}),
       requestedBy: userId,
     });
     if (!job) return processed;

@@ -76,11 +76,28 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.fonte.instagram?.fonte).toBe("human");
   });
 
-  it("returns recrawl for a new site instead of patching", () => {
+  it("returns recrawl for a new site and patches the host immediately", () => {
     const result = applyPresenceCorrection(enrichment(), {
       domain: "https://www.novo-site.com.br/contato",
     });
-    expect(result).toEqual({ kind: "recrawl", domain: "novo-site.com.br" });
+    expect(result.kind).toBe("recrawl");
+    if (result.kind !== "recrawl") return;
+    expect(result.domain).toBe("novo-site.com.br");
+    expect(result.homepagePath).toBeNull();
+    expect(result.row.domain).toBe("novo-site.com.br");
+    expect(result.row.domain_status).toBe("confirmado");
+  });
+
+  it("keeps /home on a human site correction", () => {
+    const result = applyPresenceCorrection(enrichment(), {
+      domain: "https://www.produtosmarina.com.br/home/",
+    });
+    expect(result.kind).toBe("recrawl");
+    if (result.kind !== "recrawl") return;
+    expect(result.domain).toBe("produtosmarina.com.br");
+    expect(result.homepagePath).toBe("/home");
+    expect(result.row.homepage_path).toBe("/home");
+    expect(result.row.fonte.domain?.path).toBe("/home");
   });
 
   it("clears the site without recrawling", () => {
@@ -110,6 +127,7 @@ describe("applyPresenceCorrection", () => {
     expect(result.domain_status).toBe("confirmado");
     expect(result.http_status).toBe(403);
     expect(result.fonte.domain?.fonte).toBe("human");
+    expect(result.homepage_path ?? null).toBeNull();
   });
 
   it("rejects a candidate host and keeps it discarded", () => {

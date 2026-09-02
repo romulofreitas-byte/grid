@@ -9,6 +9,7 @@ const getLatestEnrichmentJob = vi.hoisted(() => vi.fn());
 const upsertEnrichment = vi.hoisted(() => vi.fn());
 const enqueueEnrichment = vi.hoisted(() => vi.fn());
 const setDomainCache = vi.hoisted(() => vi.fn());
+const skipActiveEnrichmentJobs = vi.hoisted(() => vi.fn());
 const getSearch = vi.hoisted(() => vi.fn());
 const classifyEnrichmentCnpjs = vi.hoisted(() => vi.fn());
 const listUnauditedCnpjs = vi.hoisted(() => vi.fn());
@@ -48,6 +49,7 @@ vi.mock("@/lib/data", () => ({
     upsertEnrichment,
     enqueueEnrichment,
     setDomainCache,
+    skipActiveEnrichmentJobs,
     getPreset: vi.fn(),
     listUnauditedCnpjs,
     listEnrichmentJobs,
@@ -124,6 +126,8 @@ describe("POST /api/enrich action=correct", () => {
     upsertEnrichment.mockReset();
     enqueueEnrichment.mockReset();
     setDomainCache.mockReset();
+    skipActiveEnrichmentJobs.mockReset();
+    skipActiveEnrichmentJobs.mockResolvedValue(0);
     getSearch.mockReset();
     classifyEnrichmentCnpjs.mockReset();
     drainJobsIfMock.mockReset();
@@ -207,16 +211,45 @@ describe("POST /api/enrich action=correct", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ recrawl: true, queued: 1 });
+    const json = await res.json();
+    expect(json).toMatchObject({ recrawl: true, queued: 1 });
+    expect(json.enrichment.domain).toBe("novo.com.br");
+    expect(json.enrichment.domain_status).toBe("confirmado");
+    expect(upsertEnrichment).toHaveBeenCalledOnce();
     expect(enqueueEnrichment).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
           action: "confirm",
           domain: "novo.com.br",
+          refresh: true,
+          homepagePath: null,
         }),
       }),
     );
-    expect(upsertEnrichment).not.toHaveBeenCalled();
+  });
+
+  it("keeps /home on a domain correction and supersedes a running job", async () => {
+    getLatestEnrichmentJob.mockResolvedValue({ status: "running" });
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "correct",
+        corrections: { domain: "https://www.produtosmarina.com.br/home/" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.enrichment.domain).toBe("produtosmarina.com.br");
+    expect(json.enrichment.homepage_path).toBe("/home");
+    expect(skipActiveEnrichmentJobs).toHaveBeenCalledWith("00000000000000");
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          domain: "produtosmarina.com.br",
+          homepagePath: "/home",
+        }),
+      }),
+    );
   });
 });
 
@@ -229,6 +262,8 @@ describe("POST /api/enrich action=confirm|reject", () => {
     upsertEnrichment.mockReset();
     enqueueEnrichment.mockReset();
     setDomainCache.mockReset();
+    skipActiveEnrichmentJobs.mockReset();
+    skipActiveEnrichmentJobs.mockResolvedValue(0);
     getSearch.mockReset();
     drainJobsIfMock.mockReset();
     resolveJobScoreProfile.mockReset();
@@ -300,7 +335,7 @@ describe("POST /api/enrich action=confirm|reject", () => {
     );
   });
 
-  it("returns 409 when a qualify job is already running", async () => {
+  it("supersedes a running job instead of returning 409", async () => {
     getLatestEnrichmentJob.mockResolvedValue({ status: "running" });
     const res = await POST(
       correctRequest({
@@ -309,8 +344,10 @@ describe("POST /api/enrich action=confirm|reject", () => {
         domain: "granexpo.com.br",
       }),
     );
-    expect(res.status).toBe(409);
-    expect(upsertEnrichment).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(skipActiveEnrichmentJobs).toHaveBeenCalledWith("00000000000000");
+    expect(upsertEnrichment).toHaveBeenCalledOnce();
+    expect(enqueueEnrichment).toHaveBeenCalled();
   });
 });
 

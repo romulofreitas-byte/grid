@@ -1,6 +1,11 @@
 import { formatPhone } from "@/lib/format";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { mapsListingHref } from "@/lib/enrichment/company-name";
+import {
+  companySiteHref,
+  companySiteLabel,
+  homepagePathOf,
+} from "@/lib/enrichment/company-site";
 import type { LeadEnrichment } from "@/lib/types";
 import { gmbListingCorroborated } from "@/lib/types";
 
@@ -246,9 +251,12 @@ function absUrl(raw: string | undefined, host: string): string | null {
   return `https://${host}/${trimmed.replace(/^\/+/, "")}`;
 }
 
-function siteHref(domain: string | null): string | null {
-  if (!domain) return null;
-  return `https://${domain.replace(/^https?:\/\//, "")}`;
+function siteHref(e: LeadEnrichment): string | null {
+  return companySiteHref(e.domain, homepagePathOf(e));
+}
+
+function siteValue(e: LeadEnrichment): string {
+  return companySiteLabel(e.domain, homepagePathOf(e)) ?? "NÃO ENCONTRADO";
 }
 
 function adsLibraryUrl(raw: string | undefined): string | null {
@@ -338,22 +346,29 @@ function socialBlockedHint(asset: string): string {
   return `Sem site confirmado e sem marca distintiva — confirme o site para cruzar o ${asset}.`;
 }
 
-function siteOffline(e: LeadEnrichment): boolean {
+/** Server 5xx — the host answered and is actually down. */
+export function isSiteOffline(e: LeadEnrichment): boolean {
   if (!e.domain || e.domain_status === "nao_encontrado") return false;
-  if (e.http_status != null) return e.http_status >= 500;
-  return e.stage == null || e.stage === "complete";
+  return e.http_status != null && e.http_status >= 500;
 }
 
-function siteClientError(e: LeadEnrichment): boolean {
+/**
+ * Bot could not read the page (4xx, timeout, WAF, robots). Not the same as
+ * the site being down — the browser may still open it.
+ */
+export function isSiteFetchFailed(e: LeadEnrichment): boolean {
   if (!e.domain || e.domain_status === "nao_encontrado") return false;
-  return e.http_status != null && e.http_status >= 400 && e.http_status < 500;
+  if (e.http_status != null) {
+    return e.http_status >= 400 && e.http_status < 500;
+  }
+  return e.stage == null || e.stage === "complete";
 }
 
 function siteNote(e: LeadEnrichment): string | undefined {
   const bits: string[] = [];
-  if (siteOffline(e)) {
+  if (isSiteOffline(e)) {
     bits.push("Site fora do ar");
-  } else if (siteClientError(e)) {
+  } else if (isSiteFetchFailed(e)) {
     bits.push("Não abriu agora");
   }
   if (e.osm?.matched === true) {
@@ -499,8 +514,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
     (e.tech.plataforma && PLATFORM_MARK[e.tech.plataforma]) || GENERIC_PLATFORM;
   const chat = (e.tech.chat && CHAT_MARK[e.tech.chat]) || GENERIC_CHAT;
 
-  const siteDown = siteOffline(e);
-  const siteSoftFail = siteClientError(e);
+  const siteDown = isSiteOffline(e);
+  const siteSoftFail = isSiteFetchFailed(e);
   const siteHint =
     e.domain_status === "confirmado"
       ? siteDown
@@ -554,9 +569,9 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.site,
       found: e.domain_status !== "nao_encontrado",
       unverified: e.domain_status === "nao_confirmado",
-      href: siteHref(e.domain),
+      href: siteHref(e),
       openLabel: e.domain ? "Abrir site" : null,
-      value: e.domain ?? "NÃO ENCONTRADO",
+      value: siteValue(e),
       hint: siteHint,
       note: siteNote(e),
     }),
@@ -691,7 +706,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ...MARK.atualizacao,
       found: atualizacao.found,
       unverified: atualizacao.unverified,
-      href: siteHref(e.domain),
+      href: siteHref(e),
       openLabel: e.domain ? "Abrir site" : null,
       value: atualizacao.value,
       hint: atualizacao.hint,
@@ -883,7 +898,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       accent: platform.accent,
       found: confirmed && Boolean(e.tech.plataforma),
       unverified: !confirmed || !e.tech.plataforma,
-      href: siteHref(e.domain),
+      href: siteHref(e),
       openLabel: e.domain && e.tech.plataforma ? "Abrir site" : null,
       value: !confirmed
         ? "NÃO VERIFICADO"

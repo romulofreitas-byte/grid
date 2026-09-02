@@ -1502,8 +1502,26 @@ export const mockRepo: GridRepo = {
   async getLatestEnrichmentJob(cnpj: string) {
     const jobs = getMockStore()
       .enrichment_jobs.filter((j) => j.cnpj === cnpj)
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
     return jobs[0] ?? null;
+  },
+
+  async skipActiveEnrichmentJobs(cnpj: string) {
+    const store = getMockStore();
+    const now = new Date().toISOString();
+    let skipped = 0;
+    for (const job of store.enrichment_jobs) {
+      if (
+        job.cnpj === cnpj &&
+        (job.status === "pending" || job.status === "running")
+      ) {
+        job.status = "skipped";
+        job.last_error = "superseded";
+        job.finished_at = now;
+        skipped += 1;
+      }
+    }
+    return skipped;
   },
 
   async getDomainCache(cnpjBasico: string) {

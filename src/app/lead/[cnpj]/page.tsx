@@ -39,6 +39,7 @@ import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { displayCompanyName, leadMapsHref } from "@/lib/enrichment/company-name";
 import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
+import { ENRICH_QUEUE_STUCK_MS } from "@/lib/enrichment/jobs";
 import {
   fetchLeadDossier,
   leadPreviewKey,
@@ -362,6 +363,17 @@ export default function LeadPage() {
     searchId,
   ]);
 
+  useEffect(() => {
+    if (!qualifyQueued && !refreshQueued) return;
+    const timer = window.setTimeout(() => {
+      if (sawQueuedJobRef.current) return;
+      setQualifyQueued(false);
+      setRefreshQueued(false);
+      setQualifyError("A atualização não iniciou. Tente de novo.");
+    }, ENRICH_QUEUE_STUCK_MS);
+    return () => window.clearTimeout(timer);
+  }, [qualifyQueued, refreshQueued]);
+
   const saveMutation = useMutation({
     mutationFn: async (patch: {
       status?: LeadStatus;
@@ -477,9 +489,8 @@ export default function LeadPage() {
       if (!res.ok) throw new Error(json.error ?? "Não foi possível atualizar o site");
       return json;
     },
-    onMutate: (input) => {
+    onMutate: () => {
       setQualifyError(null);
-      if (input.action === "reject") startJobWatch("refresh");
     },
     onSuccess: (json) => {
       if (json.enrichment) {
@@ -488,6 +499,7 @@ export default function LeadPage() {
           json.queued ? "pending" : undefined,
         );
       }
+      if (json.queued) startJobWatch("refresh");
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       void qc.invalidateQueries({
         queryKey: ["lead-stream", normalizeLeadCnpj(params.cnpj)],
@@ -518,6 +530,7 @@ export default function LeadPage() {
       const json = (await res.json()) as {
         error?: string;
         recrawl?: boolean;
+        queued?: number;
         enrichment?: LeadEnrichment;
       };
       if (!res.ok) {
@@ -525,18 +538,20 @@ export default function LeadPage() {
       }
       return json;
     },
-    onMutate: (corrections) => {
+    onMutate: () => {
       setCorrectError(null);
-      if (corrections.domain != null && corrections.domain.trim()) {
-        startJobWatch("refresh");
-      }
     },
     onSuccess: (json) => {
       if (json.enrichment) {
         applyEnrichmentPatch(
           json.enrichment,
-          json.recrawl ? "pending" : undefined,
+          json.recrawl && json.queued ? "pending" : undefined,
         );
+      }
+      if (json.recrawl && json.queued) {
+        startJobWatch("refresh");
+      } else {
+        setRefreshQueued(false);
       }
       void qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
       void qc.invalidateQueries({
@@ -549,6 +564,7 @@ export default function LeadPage() {
     },
     onError: (err: Error) => {
       setQualifyQueued(false);
+      setRefreshQueued(false);
       setCorrectError(err.message);
     },
   });

@@ -1,4 +1,4 @@
-import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
+import { parseCompanySite } from "@/lib/enrichment/company-site";
 import { normalizeSocialUrl } from "@/lib/enrichment/extract";
 import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import { parseInstagramHandle } from "@/lib/instagram";
@@ -17,7 +17,12 @@ export type PresenceCorrection = {
 };
 
 export type PresenceCorrectionResult =
-  | { kind: "recrawl"; domain: string }
+  | {
+      kind: "recrawl";
+      domain: string;
+      homepagePath: string | null;
+      row: LeadEnrichment;
+    }
   | { kind: "patch"; row: LeadEnrichment };
 
 export class PresenceCorrectionError extends Error {
@@ -51,29 +56,18 @@ export function hasPresenceFields(correction: PresenceCorrection): boolean {
 }
 
 export function normalizeCompanyDomain(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  try {
-    const withProto = /^https?:\/\//i.test(trimmed)
-      ? trimmed
-      : `https://${trimmed.replace(/^\/\//, "")}`;
-    const u = new URL(withProto);
-    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
-    if (!host.includes(".") || isDirectoryUrl(host)) return null;
-    return host;
-  } catch {
-    return null;
-  }
+  return parseCompanySite(raw)?.host ?? null;
 }
 
 function stamp(
   row: LeadEnrichment,
   key: string,
   collectedAt: string,
+  extra: { path?: string } = {},
 ): LeadEnrichment["fonte"] {
   return {
     ...row.fonte,
-    [key]: { fonte: "human", coletado_em: collectedAt },
+    [key]: { fonte: "human", coletado_em: collectedAt, ...extra },
   };
 }
 
@@ -172,6 +166,7 @@ function clearDomain(row: LeadEnrichment, collectedAt: string): LeadEnrichment {
   return {
     ...row,
     domain: null,
+    homepage_path: null,
     domain_status: "nao_encontrado",
     http_status: null,
     discarded_domains: [...discarded],
@@ -195,17 +190,23 @@ export function applySiteConfirm(
   domain: string,
   options: { scoreProfile?: ScoreProfile; now?: Date } = {},
 ): LeadEnrichment {
-  const host = normalizeCompanyDomain(domain);
-  if (!host) {
+  const site = parseCompanySite(domain);
+  if (!site) {
     throw new PresenceCorrectionError("Domínio inválido.");
   }
   const collectedAt = (options.now ?? new Date()).toISOString();
   return finishPatch(
     {
       ...row,
-      domain: host,
+      domain: site.host,
+      homepage_path: site.homepagePath,
       domain_status: "confirmado",
-      fonte: stamp(row, "domain", collectedAt),
+      fonte: stamp(
+        row,
+        "domain",
+        collectedAt,
+        site.homepagePath ? { path: site.homepagePath } : {},
+      ),
     },
     options.scoreProfile ?? "b2c_local",
   );
@@ -264,11 +265,16 @@ export function applyPresenceCorrection(
         row: finishPatch(clearDomain(row, collectedAt), scoreProfile),
       };
     }
-    const host = normalizeCompanyDomain(correction.domain);
-    if (!host) {
-      throw new PresenceCorrectionError("Domínio inválido.");
-    }
-    return { kind: "recrawl", domain: host };
+    const patched = applySiteConfirm(row, correction.domain, {
+      scoreProfile,
+      now: options.now,
+    });
+    return {
+      kind: "recrawl",
+      domain: patched.domain!,
+      homepagePath: patched.homepage_path ?? null,
+      row: patched,
+    };
   }
 
   const next: LeadEnrichment = { ...row, socials: { ...row.socials } };

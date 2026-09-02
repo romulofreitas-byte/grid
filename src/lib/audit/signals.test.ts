@@ -6,6 +6,8 @@ import {
   emptyAuditSignals,
   isAuditGap,
   isAuditLive,
+  isSiteFetchFailed,
+  isSiteOffline,
   scanningSignalIds,
 } from "./signals";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -69,6 +71,25 @@ describe("buildAuditSignals", () => {
     expect(live.href).toBe("https://exemplo.com.br");
     expect(live.openLabel).toBe("Abrir site");
 
+    const storefront = byId(
+      enrichment({
+        domain: "produtosmarina.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        homepage_path: "/home",
+        fonte: {
+          domain: {
+            fonte: "human",
+            coletado_em: "2026-09-02T12:00:00.000Z",
+            path: "/home",
+          },
+        },
+      }),
+      "site",
+    );
+    expect(storefront.value).toBe("produtosmarina.com.br/home");
+    expect(storefront.href).toBe("https://produtosmarina.com.br/home");
+
     const stillLiveOn404 = byId(
       enrichment({
         domain: "mc-bauchemie.com.br",
@@ -110,6 +131,46 @@ describe("buildAuditSignals", () => {
     expect(isAuditLive(candidate)).toBe(false);
     expect(candidate.hint).toMatch(/confirme se é o site/i);
     expect(candidate.note).toMatch(/Não abriu agora/);
+
+    const botMissed = byId(
+      enrichment({
+        domain: "faseimoveis.com.br",
+        domain_status: "nao_confirmado",
+        http_status: null,
+        stage: "complete",
+      }),
+      "site",
+    );
+    expect(botMissed.found).toBe(true);
+    expect(botMissed.unverified).toBe(true);
+    expect(botMissed.note).toMatch(/Não abriu agora/);
+    expect(botMissed.note).not.toMatch(/fora do ar/i);
+    expect(botMissed.hint).toMatch(/não abriu agora/i);
+    expect(botMissed.hint).toMatch(/confirme/i);
+    expect(isSiteOffline(enrichment({
+      domain: "faseimoveis.com.br",
+      domain_status: "nao_confirmado",
+      http_status: null,
+      stage: "complete",
+    }))).toBe(false);
+    expect(isSiteFetchFailed(enrichment({
+      domain: "faseimoveis.com.br",
+      domain_status: "nao_confirmado",
+      http_status: null,
+      stage: "complete",
+    }))).toBe(true);
+
+    const stillScanning = byId(
+      enrichment({
+        domain: "faseimoveis.com.br",
+        domain_status: "nao_confirmado",
+        http_status: null,
+        stage: "home",
+      }),
+      "site",
+    );
+    expect(stillScanning.note ?? "").not.toMatch(/fora do ar/i);
+    expect(stillScanning.note ?? "").not.toMatch(/Não abriu agora/);
   });
 
   it("treats pixel and GTM as unverified until the domain is confirmed", () => {

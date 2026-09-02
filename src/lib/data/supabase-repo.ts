@@ -8,6 +8,7 @@ import { pickDecisor, qualificacaoLabel, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { buildGoldenMinute } from "@/lib/golden-minute";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import { homepagePathOf } from "@/lib/enrichment/company-site";
 import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import {
   resolveMarketBrief,
@@ -427,6 +428,9 @@ function mapEnrichment(r: Record<string, unknown>): LeadEnrichment {
     dor_digital: Number(r.dor_digital ?? 0),
     contexto: Array.isArray(r.contexto) ? (r.contexto as string[]) : [],
     fonte: (r.fonte ?? {}) as LeadEnrichment["fonte"],
+    homepage_path: homepagePathOf({
+      fonte: (r.fonte ?? {}) as LeadEnrichment["fonte"],
+    } as LeadEnrichment),
     midiaPaga: midiaPagaLabel(
       {
         metaPixel: Boolean(tech.metaPixel),
@@ -3452,6 +3456,20 @@ export const supabaseRepo: GridRepo = {
       [cnpj],
     );
     return rows[0] ? mapJob(rows[0]) : null;
+  },
+
+  async skipActiveEnrichmentJobs(cnpj) {
+    const { rowCount } = await query(
+      `update enrichment_jobs
+          set status = 'skipped',
+              last_error = 'superseded',
+              finished_at = now(),
+              locked_at = null
+        where cnpj = $1
+          and status in ('pending', 'running')`,
+      [cnpj],
+    );
+    return rowCount ?? 0;
   },
 
   async enqueueEnrichment(input) {

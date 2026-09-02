@@ -204,6 +204,7 @@ export type GridRepo = {
     skippedOptOut: number;
   }>;
   getLatestEnrichmentJob(cnpj: string): Promise<EnrichmentJob | null>;
+  skipActiveEnrichmentJobs(cnpj: string): Promise<number>;
   getDomainCache(
     cnpjBasico: string,
   ): Promise<{ domain: string | null; status: string } | null>;

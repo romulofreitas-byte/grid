@@ -14,12 +14,14 @@ import {
   emptyAuditSignals,
   isAuditGap,
   isAuditLive,
+  isSiteOffline,
   scanningSignalIds,
   type AuditSignal,
 } from "@/lib/audit/signals";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
 import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
+import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
 import type { LeadDossier, LeadEnrichment } from "@/lib/types";
@@ -205,7 +207,11 @@ function presenceSeed(
   enrichment: LeadEnrichment | null,
 ): string {
   if (!enrichment) return "";
-  if (id === "site") return enrichment.domain ?? "";
+  if (id === "site") {
+    return (
+      companySiteLabel(enrichment.domain, homepagePathOf(enrichment)) ?? ""
+    );
+  }
   if (id === "instagram") return enrichment.socials.instagram ?? "";
   if (id === "facebook") return enrichment.socials.facebook ?? "";
   if (id === "linkedin") return enrichment.socials.linkedin ?? "";
@@ -637,13 +643,7 @@ export function DigitalAuditPanel({
   const showBoard =
     (previewPresence || auditActive) && (!compact || logosOpen);
   const showTools = auditActive;
-  const siteDown =
-    enrichment != null &&
-    Boolean(enrichment.domain) &&
-    enrichment.domain_status !== "nao_encontrado" &&
-    (enrichment.http_status != null
-      ? enrichment.http_status >= 500
-      : enrichment.stage == null || enrichment.stage === "complete");
+  const siteDown = enrichment != null && isSiteOffline(enrichment);
   const canConfirmSite =
     Boolean(onConfirmSite && onRejectSite && enrichment?.domain) &&
     complete &&

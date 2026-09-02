@@ -59,11 +59,19 @@ export function gmbListingCorroborated(
   return by.includes("address") && by.includes("title");
 }
 
+export type EnrichmentFonteRef = {
+  fonte: string;
+  coletado_em: string;
+  /** Shallow storefront path (`/home`) when the site is not at `/`. */
+  path?: string;
+};
+
 export type EnrichmentJobPayload = {
   force?: boolean;
   refresh?: boolean;
   action?: "confirm" | "reject";
   domain?: string;
+  homepagePath?: string | null;
   discarded_domains?: string[];
 };
 
@@ -126,6 +134,8 @@ export type SitePerson = {
 export type LeadEnrichment = {
   cnpj: string;
   domain: string | null;
+  /** Shallow storefront (`/home`). Persisted on `fonte.domain.path`. */
+  homepage_path?: string | null;
   domain_status: DomainStatus;
   http_status: number | null;
   phones: PhoneEvidence[];
@@ -147,7 +157,7 @@ export type LeadEnrichment = {
   discarded_domains?: string[];
   dor_digital: number;
   contexto: string[];
-  fonte: Record<string, { fonte: string; coletado_em: string }>;
+  fonte: Record<string, EnrichmentFonteRef>;
   midiaPaga: {
     label: string;
     /** True when domain is confirmed and pixel/ads heuristics fired on HTML. */
