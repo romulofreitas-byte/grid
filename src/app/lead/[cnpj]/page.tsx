@@ -28,6 +28,7 @@ import { formatPhone, toE164, yearsSince } from "@/lib/format";
 import type {
   ContactInfo,
   EnrichmentJobStatus,
+  LeadDossier,
   LeadEnrichment,
   LeadStatus,
   PilotStats,
@@ -307,7 +308,7 @@ export default function LeadPage() {
     jobStatus?: EnrichmentJobStatus | null,
   ) {
     const cnpj = normalizeLeadCnpj(params.cnpj);
-    qc.setQueryData(leadQueryKey(params.cnpj, searchId), (old) =>
+    qc.setQueryData(leadQueryKey(params.cnpj, searchId), (old: LeadDossier | undefined) =>
       old
         ? {
             ...old,
