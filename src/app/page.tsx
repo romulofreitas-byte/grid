@@ -1,10 +1,15 @@
 "use client";
 
-import { BrandLogo } from "@/components/BrandLogo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { LandingBenefits } from "@/components/landing/LandingBenefits";
+import { LandingCrm } from "@/components/landing/LandingCrm";
 import { LandingFinalCta } from "@/components/landing/LandingFinalCta";
 import { LandingListPreview } from "@/components/landing/LandingListPreview";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { LandingPain } from "@/components/landing/LandingPain";
+import { LandingPlans } from "@/components/landing/LandingPlans";
+import { LandingQualify } from "@/components/landing/LandingQualify";
+import { BrandLogo } from "@/components/BrandLogo";
 import { RaceAtmosphere } from "@/components/RaceAtmosphere";
 import { COPY } from "@/lib/copy";
 import { motion, useReducedMotion } from "framer-motion";
@@ -39,8 +44,9 @@ export default function LandingPage() {
   return (
     <div className="relative">
       <RaceAtmosphere />
+      <LandingNav signedIn={signedIn} />
 
-      <section className="relative flex min-h-svh flex-col justify-center overflow-hidden px-4 pb-16 pt-10 md:pb-20 md:pt-14">
+      <section className="relative flex min-h-[calc(100svh-3.5rem)] flex-col justify-center overflow-hidden px-4 pb-16 pt-10 md:pb-20 md:pt-14">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-podium-yellow/50 to-transparent"
@@ -52,27 +58,23 @@ export default function LandingPage() {
 
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
           <div>
-            <motion.div
-              className="w-fit"
+            <motion.h1
+              className="max-w-xl text-3xl font-extrabold leading-tight tracking-tight text-podium-white md:text-5xl md:leading-tight"
               initial={reduce ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease }}
             >
-              <BrandLogo
-                variant="endorsed"
-                className="h-[4.5rem] w-auto text-[4.5rem] md:h-[5.5rem] md:text-[5.5rem]"
-                priority
-              />
-            </motion.div>
+              {COPY.landingHeadline}
+            </motion.h1>
 
-            <motion.h1
-              className="mt-7 max-w-xl text-lg font-medium leading-snug text-podium-gray md:mt-9 md:text-2xl md:leading-snug"
+            <motion.p
+              className="mt-5 max-w-xl text-base leading-relaxed text-podium-gray md:text-lg"
               initial={reduce ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: reduce ? 0 : 0.08, ease }}
             >
               {COPY.landingPromessa}
-            </motion.h1>
+            </motion.p>
 
             {!signedIn ? (
               <motion.p
@@ -95,22 +97,20 @@ export default function LandingPage() {
                 href={signedIn ? "/box" : "/entrar"}
                 className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
               >
-                {signedIn ? COPY.landingSignedInCta : "Começar"}
+                {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
               </Link>
               <Link
                 href="/entrar?modo=entrar"
                 className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
               >
-                {signedIn
-                  ? COPY.landingSwitchAccount
-                  : COPY.entrarLoginLane}
+                {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}
               </Link>
-              <Link
-                href="/planos"
+              <a
+                href="#planos"
                 className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
               >
-                Ver planos
-              </Link>
+                {COPY.landingCtaPlans}
+              </a>
             </motion.div>
           </div>
 
@@ -123,40 +123,33 @@ export default function LandingPage() {
             <LandingListPreview />
           </motion.div>
         </div>
-
-        <motion.div
-          className="absolute inset-x-0 bottom-6 flex justify-center md:bottom-8"
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: reduce ? 0 : 0.7, duration: 0.5 }}
-          aria-hidden
-        >
-          <span className="flex flex-col items-center gap-2 text-[9px] font-bold uppercase tracking-[0.28em] text-podium-muted/80">
-            Scroll
-            <span className="h-8 w-px bg-gradient-to-b from-podium-yellow/70 to-transparent" />
-          </span>
-        </motion.div>
       </section>
 
+      <LandingPain />
       <HowItWorks />
       <LandingBenefits />
+      <LandingQualify />
+      <LandingCrm />
+      <LandingPlans signedIn={signedIn} />
       <LandingFinalCta signedIn={signedIn} />
 
       <footer className="border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8">
-          <BrandLogo
-            variant="endorsed"
-            className="h-8 w-auto text-2xl opacity-80"
-          />
+          <div>
+            <BrandLogo variant="solo" className="h-8 w-auto text-2xl opacity-80" />
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
+              {COPY.landingFooterNote}
+            </p>
+          </div>
           <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-podium-muted">
+            <a href="#planos" className="hover:text-podium-white">
+              {COPY.landingNavPlans}
+            </a>
             <Link href="/planos" className="hover:text-podium-white">
-              Planos
+              {COPY.landingPlansMore}
             </Link>
             <Link href="/duvidas" className="hover:text-podium-white">
               Dúvidas
-            </Link>
-            <Link href="/bot" className="hover:text-podium-white">
-              GridBot
             </Link>
             <Link href="/privacidade" className="hover:text-podium-white">
               Privacidade

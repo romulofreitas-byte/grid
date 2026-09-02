@@ -27,7 +27,7 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
             href={signedIn ? "/box" : "/entrar"}
             className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
           >
-            {signedIn ? COPY.landingSignedInCta : "Começar"}
+            {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>
           {signedIn ? (
             <Link
@@ -36,13 +36,20 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
             >
               {COPY.landingSwitchAccount}
             </Link>
-          ) : null}
-          <Link
-            href="/planos"
+          ) : (
+            <Link
+              href="/entrar?modo=entrar"
+              className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
+            >
+              {COPY.entrarLoginLane}
+            </Link>
+          )}
+          <a
+            href="#planos"
             className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
           >
-            Ver planos
-          </Link>
+            {COPY.landingCtaPlans}
+          </a>
         </div>
       </motion.div>
     </section>

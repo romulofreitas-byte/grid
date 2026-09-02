@@ -8,21 +8,18 @@ import { useState } from "react";
 const SLOTS = [
   {
     pos: 1,
-    label: "POLE",
-    t: "Telefone da empresa",
-    d: "Avisa quando o número é da contabilidade, não de quem decide.",
+    t: COPY.landingBenefit1Title,
+    d: COPY.landingBenefit1Body,
   },
   {
     pos: 2,
-    label: "GRID DA FRENTE",
-    t: "Sócio que decide",
-    d: "O nome de quem pode fechar já vem na lista, para a primeira ligação.",
+    t: COPY.landingBenefit2Title,
+    d: COPY.landingBenefit2Body,
   },
   {
     pos: 3,
-    label: "ORDEM",
-    t: "Ligue de cima para baixo",
-    d: "P1, P2, P3… o GRID já escolheu quem ligar primeiro.",
+    t: COPY.landingBenefit3Title,
+    d: COPY.landingBenefit3Body,
   },
 ] as const;
 
@@ -74,24 +71,14 @@ export function LandingBenefits() {
                 {on ? (
                   <span className="absolute inset-x-5 top-0 h-0.5 bg-podium-yellow md:inset-x-0 md:left-0 md:top-auto md:h-auto md:w-1 md:inset-y-0" />
                 ) : null}
-                <div className="flex items-baseline gap-3">
-                  <span
-                    className={cn(
-                      "font-extrabold text-3xl tracking-tight md:text-4xl",
-                      on ? "text-podium-yellow" : "text-podium-muted",
-                    )}
-                  >
-                    P{slot.pos}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-[0.18em]",
-                      on ? "text-podium-yellow" : "text-podium-muted",
-                    )}
-                  >
-                    {slot.label}
-                  </span>
-                </div>
+                <span
+                  className={cn(
+                    "font-extrabold text-3xl tracking-tight tabular-nums md:text-4xl",
+                    on ? "text-podium-yellow" : "text-podium-muted",
+                  )}
+                >
+                  0{slot.pos}
+                </span>
                 <h3 className="mt-4 font-bold text-podium-white md:text-lg">
                   {slot.t}
                 </h3>

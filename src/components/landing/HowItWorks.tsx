@@ -25,7 +25,10 @@ export function HowItWorks() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
+    <section
+      id="como-funciona"
+      className="relative mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:py-28"
+    >
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
