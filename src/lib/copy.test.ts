@@ -111,6 +111,14 @@ describe("COPY landing", () => {
     expect(COPY.landingPain2Title.toLowerCase()).toMatch(/decide/);
     expect(COPY.landingPain3Title.toLowerCase()).toMatch(/digital/);
   });
+
+  it("sells missing digital assets as an approach hook", () => {
+    expect(COPY.landingQualifyBody.toLowerCase()).toMatch(/falta/);
+    expect(COPY.landingQualifyBody.toLowerCase()).toMatch(/abordagem/);
+    expect(COPY.landingQualifyBody.toLowerCase()).toMatch(/oportunidade/);
+    expect(COPY.landingQualifyOpportunity).toBe("Oportunidade");
+    expect(COPY.landingQualifyMissingSeal).toBe("Não possui");
+  });
 });
 
 describe("COPY empresas", () => {

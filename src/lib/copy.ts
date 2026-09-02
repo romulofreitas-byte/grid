@@ -51,8 +51,10 @@ export const COPY = {
   landingQualifyEyebrow: "Qualificação",
   landingQualifyTitle: "Os ativos da empresa, antes de ligar",
   landingQualifyBody:
-    "Cruzamos site, redes e Google com o cadastro. Telefone mais confiável e o que a empresa mostra online — para você não ligar no escuro.",
+    "Cruzamos site, redes e Google com o cadastro. O que a empresa mostra — e o que falta — muda a abordagem. Sem site ou Instagram é oportunidade para quem vende marketing.",
   landingQualifyPreviewLabel: "Assim sai a qualificação",
+  landingQualifyOpportunity: "Oportunidade",
+  landingQualifyMissingSeal: "Não possui",
   landingCrmEyebrow: "CRM",
   landingCrmTitle: "A lista qualificada já entra no quadro",
   landingCrmBody:
