@@ -993,7 +993,7 @@ export function CrmDealModal({
               onClick={() => void remove()}
               className="mt-auto text-[11px] text-zinc-400 hover:text-red-600"
             >
-              Tirar da pista
+              Tirar do CRM
             </button>
           </aside>
         </div>

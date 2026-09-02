@@ -63,7 +63,7 @@ export function BoxDayCta({
   }
 
   const fichaHref = leadHref(next.cnpj, next.searchId, "box");
-  const idleLabel = hoje === 0 ? `Ligar o P${next.gridPosition}` : "Continuar a volta";
+  const idleLabel = hoje === 0 ? `Ligar o P${next.gridPosition}` : "Continuar as ligações";
 
   if (callConnection) {
     return (

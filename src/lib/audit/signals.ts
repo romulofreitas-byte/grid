@@ -36,12 +36,12 @@ export const AUDIT_GROUPS: Array<{
   {
     id: "presenca",
     label: "Presença",
-    hint: "Onde a empresa aparece — site, redes, Google Meu Negócio e WhatsApp.",
+    hint: "Onde a empresa aparece — site, redes, Google e WhatsApp.",
   },
   {
     id: "ferramentas",
     label: "Ferramentas",
-    hint: "O que o site usa. Qualifica o lead — não abre a ligação.",
+    hint: "Pixels e tags que o site tem instalados.",
   },
 ];
 
@@ -326,7 +326,7 @@ function socialLiveHint(
     return "Correlacionado na busca e no Maps.";
   }
   if (isSerperSocialFonte(fonte) && !confirmed) {
-    return "Candidato na busca — confirme o site para validar.";
+    return "A confirmar na busca — confirme o site para validar.";
   }
   if (isSerperSocialFonte(fonte)) {
     return "Perfil correlacionado à marca na busca (título/handle).";
@@ -343,7 +343,7 @@ function serperCandidate(
 }
 
 function socialBlockedHint(asset: string): string {
-  return `Sem site confirmado e sem marca distintiva — confirme o site para cruzar o ${asset}.`;
+  return `Sem site confirmado e sem marca distintiva — confirme o site para ver o ${asset}.`;
 }
 
 /** Server 5xx — the host answered and is actually down. */
@@ -388,8 +388,8 @@ function siteNote(e: LeadEnrichment): string | undefined {
 
 function paidMediaHint(found: boolean): string {
   return found
-    ? "Sinal de tag de anúncio no HTML — não é prova de verba ativa."
-    : "Sem sinal de tag de anúncio no HTML.";
+    ? "Tag de anúncio no HTML — não é prova de verba ativa."
+    : "Nenhuma tag de anúncio no HTML.";
 }
 
 export function isAuditGap(signal: AuditSignal): boolean {
@@ -398,6 +398,25 @@ export function isAuditGap(signal: AuditSignal): boolean {
 
 export function isAuditLive(signal: AuditSignal): boolean {
   return signal.found && !signal.unverified;
+}
+
+/** Site, Instagram and Google drive Qualificada / Oportunidade — same three as the public home. */
+export const QUALIFY_SUMMARY_IDS = ["site", "instagram", "gmb"] as const;
+
+export type QualifyChipKind = "qualificando" | "qualificada" | "oportunidade";
+
+export function qualifyChipKind(
+  signals: AuditSignal[],
+  opts: { scanning: boolean; complete: boolean },
+): QualifyChipKind | null {
+  if (opts.scanning) return "qualificando";
+  if (!opts.complete) return null;
+  const core = QUALIFY_SUMMARY_IDS.map((id) =>
+    signals.find((signal) => signal.id === id),
+  );
+  if (core.some((signal) => signal && isAuditGap(signal))) return "oportunidade";
+  if (core.every((signal) => signal && isAuditLive(signal))) return "qualificada";
+  return null;
 }
 
 export function auditSummary(signals: AuditSignal[]): {
@@ -426,7 +445,7 @@ export function defaultAuditSelection(signals: AuditSignal[]): string {
 }
 
 const PENDING_VALUE = "—";
-const PENDING_HINT = "Qualifique para cruzar este ativo.";
+const PENDING_HINT = "Qualifique para ver este ativo.";
 
 const SCAN_TOOLS_IDS = [
   "atualizacao",
@@ -675,7 +694,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         ? e.fonte.gmb?.fonte === "human"
           ? "Ficha inserida por você — não veio da Receita."
           : corroborated
-            ? "Cruzado com a Receita (endereço/telefone)."
+            ? "Conferido com a Receita (endereço/telefone)."
             : "Ficha do Google Meu Negócio encontrada na busca."
         : e.gmb
           ? e.fonte.gmb?.fonte === "human"

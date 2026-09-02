@@ -150,7 +150,7 @@ describe("resolvePoolMax", () => {
           "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
         ),
       ),
-    ).toMatch(/pista está cheia/i);
+    ).toMatch(/sistema está ocupado/i);
     expect(userFacingDbBusyMessage(new Error("boom"))).toMatch(/instantes/i);
   });
 
@@ -161,7 +161,7 @@ describe("resolvePoolMax", () => {
           "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
         ),
       ),
-    ).toMatch(/pista está cheia/i);
+    ).toMatch(/sistema está ocupado/i);
     expect(
       searchJobFailureMessage(
         new Error("timeout exceeded when trying to connect"),

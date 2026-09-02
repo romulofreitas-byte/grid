@@ -60,13 +60,18 @@ describe("COPY listas", () => {
   });
 });
 
+const AUTHENTICATED_COPY = Object.entries(COPY)
+  .filter(([key]) => !key.startsWith("landing"))
+  .map(([, value]) => value)
+  .join(" ");
+
 describe("COPY crm", () => {
-  it("keeps the board in pista language, not generic SaaS jargon", () => {
+  it("keeps the board in plain CRM language, not race jargon", () => {
     expect(COPY.crmNav).toBe("CRM");
-    expect(COPY.crmTitle).toMatch(/pista/i);
-    expect(COPY.crmHint).toMatch(/faixa/i);
-    expect(COPY.crmNoActivity).toMatch(/volta/i);
-    expect(COPY.crmNextAction).toMatch(/volta/i);
+    expect(COPY.crmTitle).toBe("CRM");
+    expect(COPY.crmHint.toLowerCase()).not.toMatch(/pista|\bvolta\b/);
+    expect(COPY.crmNoActivity).toBe("Sem próxima ação");
+    expect(COPY.crmNextAction).toBe("Próxima ação");
     expect(COPY.crmDeadlineLabel).toBe("Prazo");
     expect(COPY.crmTimeLabel).toBe("Horário");
     expect(COPY.crmWeekLater).toMatch(/semana/i);
@@ -75,10 +80,24 @@ describe("COPY crm", () => {
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
-    expect(COPY.crmOpening).toMatch(/pista/i);
+    expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.crmSaveListToEnter).toMatch(/lista salva/i);
-    expect(COPY.salvarNaPista).toBe("Salvar na pista");
+    expect(COPY.salvarNaPista).toBe("Salvar no CRM");
     expect(COPY.listaDaVolta).toMatch(/lista/i);
+  });
+});
+
+describe("COPY authenticated app", () => {
+  it("drops race jargon from body copy", () => {
+    expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/pista/);
+    expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/capacete/);
+    expect(COPY.crmNextAction.toLowerCase()).not.toMatch(/volta/);
+    expect(COPY.crmNoActivity.toLowerCase()).not.toMatch(/volta/);
+    expect(COPY.boxSemLista.toLowerCase()).not.toMatch(/volta/);
+    expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/score seco/);
+    expect(COPY.boxPistaFechada).toBe("Sem lista salva");
+    expect(COPY.qualificarFichaLead.toLowerCase()).toMatch(/site/);
+    expect(COPY.qualificarFichaLead.toLowerCase()).not.toMatch(/cruzar/);
   });
 });
 

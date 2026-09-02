@@ -164,13 +164,13 @@ export default function EmpresasPage() {
       });
       const json = (await res.json()) as { searchId?: string; error?: string };
       if (!res.ok || !json.searchId) {
-        throw new Error(json.error ?? "Não foi possível salvar na pista");
+        throw new Error(json.error ?? "Não foi possível salvar no CRM");
       }
       router.push(gridHref(json.searchId, "empresas"));
     } catch (err) {
       setSavingCnpj(null);
       setSaveError(
-        err instanceof Error ? err.message : "Não foi possível salvar na pista",
+        err instanceof Error ? err.message : "Não foi possível salvar no CRM",
       );
     }
   }

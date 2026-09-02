@@ -49,8 +49,8 @@ describe("activitySignal", () => {
 
 describe("formatNextAction", () => {
   it("uses the empty label when there is no open volta", () => {
-    expect(formatNextAction(null, "Sem volta marcada")).toBe(
-      "Sem volta marcada",
+    expect(formatNextAction(null, "Sem próxima ação")).toBe(
+      "Sem próxima ação",
     );
   });
 
@@ -61,7 +61,7 @@ describe("formatNextAction", () => {
       kind: "nota" as const,
       due_at: new Date("2026-09-02T17:00:00-03:00").toISOString(),
     };
-    expect(formatNextAction(activity, "Sem volta marcada")).toMatch(/Nota · /);
+    expect(formatNextAction(activity, "Sem próxima ação")).toMatch(/Nota · /);
     expect(activitySignal(activity, now)).toBe("today");
   });
 

@@ -90,7 +90,7 @@ describe("paywallCopy", () => {
   it("points plan crm to /planos", () => {
     const copy = paywallCopy({ kind: "plan", feature: "crm" });
     expect(copy.title).toMatch(/CRM/);
-    expect(copy.body).toMatch(/pista/);
+    expect(copy.body).toMatch(/CRM/);
     expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
     expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
   });

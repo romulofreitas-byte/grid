@@ -139,9 +139,9 @@ export default function SetupPage() {
     <AppShell title="Capacete" back={BACK.box}>
       <div className="mx-auto max-w-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-          Volta de formação {step + 1}/{STEPS.length}
+          Passo {step + 1}/{STEPS.length}
         </p>
-        <SectionTitle className="mt-2">Monte o capacete</SectionTitle>
+        <SectionTitle className="mt-2">Como você se apresenta</SectionTitle>
         <Hint className="mt-2">
           Esses dados entram como quem você é na ligação. Pular deixa a identidade genérica.
         </Hint>
@@ -313,7 +313,7 @@ export default function SetupPage() {
                 ))}
               </div>
               <p className="text-sm text-podium-white">
-                Roteiro pronto. O Box passa a cobrar a volta — ligar, não só
+                Roteiro pronto. O Box passa a cobrar as ligações — ligar, não só
                 montar lista.
               </p>
             </>

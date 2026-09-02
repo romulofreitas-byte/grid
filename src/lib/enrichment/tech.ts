@@ -65,9 +65,9 @@ export function midiaPagaLabel(tech: TechSignals, domainConfirmed: boolean): {
     tech.metaPixel || tech.googleAds || tech.tiktokPixel;
   if (hasPaidSignal) {
     return {
-      label: "sinal de tag de anúncio no HTML (não prova verba)",
+      label: "tag de anúncio no HTML (não prova verba)",
       verificado_automaticamente: true,
     };
   }
-  return { label: "sem sinal de tag de anúncio no HTML", verificado_automaticamente: true };
+  return { label: "nenhuma tag de anúncio no HTML", verificado_automaticamente: true };
 }

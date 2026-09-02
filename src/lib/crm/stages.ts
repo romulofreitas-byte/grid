@@ -22,7 +22,7 @@ export function planDeleteStage(input: {
     };
   }
   if (stages.length <= 1) {
-    return { ok: false, error: "A pista precisa de pelo menos uma faixa." };
+    return { ok: false, error: "O CRM precisa de pelo menos uma faixa." };
   }
   if (dealCount <= 0) {
     return { ok: true, moveToStageId: null };

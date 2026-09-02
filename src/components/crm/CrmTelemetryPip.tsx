@@ -9,10 +9,10 @@ const SIGNAL_CLASS: Record<ActivitySignal, string> = {
 };
 
 const SIGNAL_LABEL: Record<ActivitySignal, string> = {
-  none: "Sem volta marcada",
-  scheduled: "Volta agendada",
-  today: "Volta de hoje",
-  overdue: "Volta atrasada",
+  none: "Sem próxima ação",
+  scheduled: "Ação agendada",
+  today: "Ação de hoje",
+  overdue: "Ação atrasada",
 };
 
 export function CrmTelemetryPip({

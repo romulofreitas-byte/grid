@@ -146,7 +146,7 @@ export function searchJobFailureMessage(err: unknown): string {
 
 export function userFacingDbBusyMessage(err: unknown): string {
   return isPoolExhaustedError(err)
-    ? "A pista está cheia agora. Tenta de novo em instantes."
+    ? "O sistema está ocupado agora. Tenta de novo em instantes."
     : "Tente de novo em instantes.";
 }
 

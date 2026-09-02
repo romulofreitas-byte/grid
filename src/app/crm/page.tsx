@@ -97,7 +97,7 @@ async function CrmPageInner({
     console.error("crm_page_error", err);
     return (
       <GlassCard className="p-8">
-        <p className="text-base font-semibold">Não deu para abrir a pista.</p>
+        <p className="text-base font-semibold">Não deu para abrir o CRM.</p>
         <p className="mt-3 text-sm text-podium-gray">
           {userFacingDbBusyMessage(err)}
         </p>

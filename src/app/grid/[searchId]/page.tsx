@@ -1246,7 +1246,7 @@ export default function GridPage() {
                 </>
               ) : (
                 <>
-                  Selecione quem cruzar com o site
+                  Selecione quem qualificar
                   {" · "}
                   {ENRICH_CREDIT_COST} créditos cada
                 </>

@@ -174,7 +174,7 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
       return {
         eyebrow: "Plano Piloto",
         title: "CRM só a partir do Plano Piloto",
-        body: "Buscar e ver a lista continua grátis. A pista do nicho entra no Piloto.",
+        body: "Buscar e ver a lista continua grátis. O CRM do nicho entra no Piloto.",
         primary: { href: PLANOS_URL, label: "Ver planos" },
         secondary: { action: "close", label: "Fechar" },
       };
@@ -182,7 +182,7 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     return {
       eyebrow: "Plano Piloto",
       title: "Qualificação só a partir do Plano Piloto",
-      body: "Buscar e ver a lista continua grátis. Cruzar site, redes e mapas entra no Piloto.",
+      body: "Buscar e ver a lista continua grátis. Ver site, redes e Google entra no Piloto.",
       primary: { href: PLANOS_URL, label: "Ver planos" },
       secondary: { action: "close", label: "Fechar" },
     };

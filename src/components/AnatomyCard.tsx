@@ -34,7 +34,7 @@ const SEASON_BANNER: Record<
     className: "border-podium-info/35 bg-podium-info/10 text-podium-info",
   },
   fora: {
-    title: "Fora do pico — use ângulo de calendário com cuidado",
+    title: "Fora do pico — use o calendário com cuidado",
     className: "border-white/10 bg-white/[0.03] text-podium-muted",
   },
   nenhuma: null,
@@ -242,7 +242,7 @@ export function AnatomyCard({
   const place = [market.cidade, uf].filter(Boolean).join(" · ");
   const seasonTitle =
     status === "nenhuma"
-      ? "Sem pico curado"
+      ? "Sem mês de pico neste nicho"
       : (market.sazonalidadeChip ?? "Janela");
   const tip = market.dorPrincipal.trim();
   const angulo = market.perguntaConsideracao.trim();
@@ -296,7 +296,7 @@ export function AnatomyCard({
         {angulo ? (
           <div className="mt-4 border-t border-white/10 pt-3">
             <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
-              Ângulo
+              Pergunta
             </p>
             <p className="mt-1 text-xs font-medium leading-snug text-podium-white/80">
               {angulo}

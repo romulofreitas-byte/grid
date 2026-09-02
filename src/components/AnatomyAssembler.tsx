@@ -219,7 +219,7 @@ export function AnatomyAssembler({
             <LockedBeat
               key="beat-3-locked"
               index={2}
-              hint="A oferta fecha a volta"
+              hint="A oferta entra no convite da reunião"
             />
           )}
         </AnimatePresence>

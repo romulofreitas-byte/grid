@@ -149,12 +149,12 @@ export function BoxCockpit({
     : next
       ? hoje === 0
         ? `Ligar o P${next.gridPosition}`
-        : "Continuar a volta"
+        : "Continuar as ligações"
       : "Criar e qualificar lista";
   const missionBody = !pistaAberta
     ? COPY.boxSemLista
     : next
-      ? `${next.nome}. Ligar conta a volta.`
+      ? `${next.nome}. Ligar conta a meta.`
       : "A lista salva não tem P novo. Monte outra ou volte no grid.";
 
   return (

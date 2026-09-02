@@ -47,14 +47,14 @@ export function PositionBadge({
         title={
           hasAudit
             ? bandTitle
-            : `${bandTitle} · score seco (só Receita — sem auditoria digital)`
+            : `${bandTitle} · só o cadastro da Receita — ainda sem site e redes`
         }
       >
         P{position}
       </span>
       {!hasAudit ? (
         <span className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
-          Score seco
+          Score — só cadastro
         </span>
       ) : null}
     </span>

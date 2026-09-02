@@ -30,7 +30,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é Box, Nova lista e Grid?",
     answer:
-      "Box é a home. A pista do dia só abre com uma lista salva. Nova lista é onde você escolhe nicho e região. Grid é o resultado na ordem de quem ligar primeiro. No grid, marque as empresas e clique em Qualificar.",
+      "Box é a home. O dia de ligações começa com uma lista salva. Nova lista é onde você escolhe nicho e região. Grid é o resultado na ordem de quem ligar primeiro. No grid, marque as empresas e clique em Qualificar.",
     links: [
       { href: "/box", label: "Abrir o Box" },
       { href: largadaNovaHref, label: "Nova lista" },
@@ -50,28 +50,28 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: "O que é o Capacete?",
     answer:
       "Nome, empresa, cidade e a promessa. Quem você é e o que entrega. A especialidade não vira prosa na ligação.",
-    links: [{ href: "/setup", label: "Completar o capacete" }],
+    links: [{ href: "/setup", label: "Completar o Capacete" }],
   },
   {
     id: "minuto-de-ouro",
     category: "Começar",
     question: "O que é o Minuto de Ouro?",
     answer:
-      "Na ficha, a Anatomia é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — cruza site, redes e Google Meu Negócio e mostra os cards dos ativos digitais. Isso qualifica o lead; não monta um roteiro.",
+      "Na ficha, a Anatomia é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — mostra site, redes e Google, e o que falta. Isso muda a abordagem; não monta um roteiro.",
   },
   {
     id: "anatomia-da-ligacao",
     category: "Começar",
     question: "O que é a Anatomia da Ligação?",
     answer:
-      "Na ficha, um briefing do nicho: quem atender, a dor do ramo, o calendário e um ângulo para ter na cabeça. Não é um texto para ler na ligação. Ferramenta não abre a chamada.",
+      "Na ficha, um briefing do nicho: quem atender, a dor do ramo, o calendário e uma pergunta para ter na cabeça. Não é um texto para ler na ligação.",
   },
   {
     id: "listas-salvas",
     category: "Lista e contato",
     question: "Qual a diferença entre Minhas listas e Não salvas?",
     answer:
-      "Minhas listas são as que você guardou para ligar de novo — e são elas que abrem a pista no Box. Não salvas são rascunhos: no máximo 3, só dá para abrir. Salve para guardar ou excluir. Fazer outra tira a mais antiga. Tirar daqui não apaga a lista.",
+      "Minhas listas são as que você guardou para ligar de novo — e são elas que o Box usa no dia. Não salvas são rascunhos: no máximo 3, só dá para abrir. Salve para guardar ou excluir. Fazer outra tira a mais antiga. Tirar daqui não apaga a lista.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -79,15 +79,15 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar cruza o site, as redes e os mapas com o cadastro da Receita (2 créditos). Telefone e nome saem com mais veracidade, e os cards dos ativos digitais mostram o que o lead tem — ou falta — no digital. Isso é qualificação de lead, não o briefing da Anatomia. A auditoria é da sua conta: outra conta não herda o cruzamento. Em lista salva, cada CNPJ que você qualificar entra sozinho na pista do nicho no CRM — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar na pista. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (2 créditos). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da Anatomia. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar no CRM. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
     id: "crm-nativo",
     category: "Lista e contato",
-    question: "Como o CRM entra na volta?",
+    question: "Como o CRM entra no GRID?",
     answer:
-      "O CRM do GRID é a pista do nicho. A pista entra a partir do Plano Piloto. Só lista salva manda qualificado à pista — inclusive a busca avulsa, que vira lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem pista, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no board. Descartado também sai da ficha.",
+      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Só lista salva manda qualificado ao CRM — inclusive a busca avulsa, que vira lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },
@@ -118,7 +118,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O GRID usa Google Maps?",
     answer:
-      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca a ficha do Google Meu Negócio via busca e cruza endereço e telefone com a Receita — não usa a API do Google Places e não grava avaliação nem coordenadas.",
+      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca a ficha do Google Meu Negócio e confere endereço e telefone com a Receita — não usa a API do Google Places e não grava avaliação nem coordenadas.",
   },
   {
     id: "quando-credito",
@@ -172,7 +172,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Privacidade",
     question: "De onde vêm os dados?",
     answer:
-      "Dados Abertos do CNPJ da Receita Federal. Prospecção B2B. O crawl do site da empresa só confirma telefone, WhatsApp, redes e sinais públicos.",
+      "Dados Abertos do CNPJ da Receita Federal. Prospecção B2B. A busca no site da empresa só confirma telefone, WhatsApp, redes e o que está público.",
     links: [{ href: "/privacidade", label: "Aviso de privacidade" }],
   },
   {

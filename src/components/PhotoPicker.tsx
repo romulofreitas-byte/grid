@@ -75,7 +75,7 @@ export function PhotoPicker({
         </span>
       </button>
       <div>
-        <p className="text-sm font-bold">Foto do capacete</p>
+        <p className="text-sm font-bold">Sua foto</p>
         {busy ? (
           <p className="mt-1 text-xs text-podium-muted">Enviando…</p>
         ) : null}

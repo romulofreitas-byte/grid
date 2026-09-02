@@ -15,8 +15,10 @@ import {
   isAuditGap,
   isAuditLive,
   isSiteOffline,
+  qualifyChipKind,
   scanningSignalIds,
   type AuditSignal,
+  type QualifyChipKind,
 } from "@/lib/audit/signals";
 import { ENRICH_CREDIT_COST } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
@@ -24,31 +26,57 @@ import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
-import type { LeadDossier, LeadEnrichment } from "@/lib/types";
+import type { LeadEnrichment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type GoldenMinute = LeadDossier["goldenMinute"];
+function qualifyChipCopy(kind: QualifyChipKind): { text: string; className: string } {
+  if (kind === "qualificando") {
+    return { text: COPY.fichaQualifyScanning, className: "text-podium-yellow" };
+  }
+  if (kind === "oportunidade") {
+    return {
+      text: COPY.landingQualifyOpportunity,
+      className: "text-amber-300",
+    };
+  }
+  return { text: COPY.fichaQualifyQualified, className: "text-podium-success" };
+}
 
 function QualifyHeader({
   mapsUrl,
   showRefresh,
   refreshing,
   onRefresh,
+  chip,
 }: {
   mapsUrl?: string | null;
   showRefresh?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  chip?: QualifyChipKind | null;
 }) {
+  const chipCopy = chip ? qualifyChipCopy(chip) : null;
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Qualificação
         </p>
-        <SectionTitle className="mt-1 text-base md:text-base">
-          Ativos digitais
-        </SectionTitle>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <SectionTitle className="text-base md:text-base">
+            Ativos digitais
+          </SectionTitle>
+          {chipCopy ? (
+            <span
+              className={cn(
+                "text-[10px] font-bold uppercase tracking-[0.14em]",
+                chipCopy.className,
+              )}
+            >
+              {chipCopy.text}
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         {showRefresh && onRefresh ? (
@@ -97,39 +125,59 @@ function CompactTrail({
   );
 }
 
-function GoldenFacts({ goldenMinute }: { goldenMinute: GoldenMinute | null }) {
-  if (!goldenMinute || goldenMinute.facts.length === 0) return null;
-  return (
-    <div className="mt-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-        O site mostrou
-      </p>
-      <ul className="mt-2 space-y-1 text-sm text-podium-gray">
-        {goldenMinute.facts.slice(0, 3).map((f) => (
-          <li key={f.phrase}>{f.phrase}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+type SealKind = "live" | "gap" | "pending" | "scanning" | "unverified";
 
-function statusLabel(
+function assetSeal(
   signal: AuditSignal,
   scanning: boolean,
-): { text: string; className: string } {
+): { text: string; kind: SealKind } {
   if (scanning) {
-    return { text: "Lendo", className: "text-podium-yellow" };
+    return { text: COPY.fichaSealScanning, kind: "scanning" };
   }
+  const tools = signal.group === "ferramentas";
   if (isAuditLive(signal)) {
-    return { text: "Encontrado", className: "text-podium-success" };
+    if (tools) return { text: COPY.fichaSealToolLive, kind: "live" };
+    if (signal.id === "site") return { text: COPY.fichaSealLiveSite, kind: "live" };
+    if (signal.id === "gmb" || signal.id === "atualizacao") {
+      return { text: COPY.fichaSealLiveGoogle, kind: "live" };
+    }
+    return { text: COPY.fichaSealLiveSocial, kind: "live" };
   }
   if (signal.found && signal.unverified) {
-    return { text: "Candidato", className: "text-podium-yellow" };
+    return { text: COPY.fichaSealUnverified, kind: "unverified" };
   }
   if (isAuditGap(signal)) {
-    return { text: "Falta", className: "text-amber-300" };
+    if (tools) return { text: COPY.fichaSealToolMissing, kind: "gap" };
+    return { text: COPY.landingQualifyMissingSeal, kind: "gap" };
   }
-  return { text: "Sem sinal", className: "text-podium-muted" };
+  return { text: COPY.fichaSealPending, kind: "pending" };
+}
+
+function SealPill({
+  signal,
+  scanning,
+  compact = false,
+}: {
+  signal: AuditSignal;
+  scanning: boolean;
+  compact?: boolean;
+}) {
+  const seal = assetSeal(signal, scanning);
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full font-bold uppercase tracking-[0.1em]",
+        compact ? "max-w-full truncate px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]",
+        seal.kind === "live" && "bg-podium-success/15 text-podium-success",
+        seal.kind === "gap" && "bg-amber-400/15 text-amber-300",
+        (seal.kind === "scanning" || seal.kind === "unverified") &&
+          "bg-podium-yellow/15 text-podium-yellow",
+        seal.kind === "pending" && "bg-white/10 text-podium-muted",
+      )}
+    >
+      {seal.text}
+    </span>
+  );
 }
 
 function OpenLinks({
@@ -257,7 +305,6 @@ function SelectedSignalCard({
   editSeed?: string;
   onCorrect?: (corrections: PresenceCorrection) => void;
 }) {
-  const status = statusLabel(signal, scanning);
   const field =
     canCorrect && onCorrect && isEditablePresence(signal.id) ? signal.id : null;
   const [editing, setEditing] = useState(false);
@@ -290,14 +337,7 @@ function SelectedSignalCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold">{signal.name}</p>
-            <span
-              className={cn(
-                "text-[11px] font-medium uppercase tracking-wide",
-                status.className,
-              )}
-            >
-              {status.text}
-            </span>
+            <SealPill signal={signal} scanning={scanning} />
           </div>
           {signal.href ? (
             <a
@@ -318,9 +358,11 @@ function SelectedSignalCard({
               Site fora do ar
             </p>
           ) : null}
-          <p className="mt-2 text-xs leading-snug text-podium-muted">
-            {scanning ? "Cruzando este ativo agora." : signal.hint}
-          </p>
+          {signal.id === "atualizacao" && signal.hint ? (
+            <p className="mt-2 text-xs leading-snug text-podium-muted">
+              {signal.hint}
+            </p>
+          ) : null}
           {signal.note ? (
             <p className="mt-2 text-xs leading-snug text-podium-muted">
               {signal.note}
@@ -329,7 +371,7 @@ function SelectedSignalCard({
           <OpenLinks signal={signal} primary />
           {canConfirmSite && onConfirmSite && onRejectSite ? (
             <p className="mt-2 text-[11px] leading-snug text-podium-muted">
-              Ainda sem cruzamento.
+              Site ainda não confirmado.
               <button
                 type="button"
                 disabled={confirmPending}
@@ -438,8 +480,7 @@ function SignalTile({
   reduce: boolean;
 }) {
   const live = isAuditLive(signal);
-  const gap = isAuditGap(signal);
-  const status = statusLabel(signal, scanning);
+  const presenceGap = isAuditGap(signal) && signal.group === "presenca";
   return (
     <button
       type="button"
@@ -447,18 +488,18 @@ function SignalTile({
       aria-busy={scanning || undefined}
       onClick={onSelect}
       className={cn(
-        "group box-border flex h-[7.25rem] w-full min-w-0 flex-col items-center justify-between rounded-lg border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
+        "group box-border flex h-[7.5rem] w-full min-w-0 flex-col items-center justify-between rounded-lg border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
         selected
           ? "border-podium-yellow/50 bg-podium-yellow/10 shadow-[inset_0_0_0_1px_rgba(245,179,1,0.15)]"
           : scanning
             ? "border-podium-yellow/40 bg-podium-yellow/[0.06]"
             : live
               ? "border-podium-success/45 bg-podium-success/10 hover:border-podium-success/60"
-              : gap
+              : presenceGap
                 ? "border-amber-400/50 bg-amber-400/10 hover:border-amber-400/70"
                 : "border-dashed border-white/15 bg-transparent hover:border-white/25",
         scanning && !selected && !reduce && "audit-scan-pulse",
-        gap && !scanning && !selected && !reduce && "audit-gap-pulse",
+        presenceGap && !scanning && !selected && !reduce && "audit-gap-pulse",
       )}
     >
       <AuditLogo
@@ -475,22 +516,14 @@ function SignalTile({
             ? "text-podium-yellow"
             : live
               ? "text-podium-white"
-              : gap
+              : presenceGap
                 ? "text-amber-200"
                 : "text-podium-muted",
         )}
       >
         {signal.name}
       </span>
-      <span
-        className={cn(
-          "h-3.5 shrink-0 text-[9px] font-bold uppercase leading-none tracking-wide",
-          status.className,
-        )}
-      >
-        {live && !scanning ? "● " : gap && !scanning ? "○ " : ""}
-        {status.text}
-      </span>
+      <SealPill signal={signal} scanning={scanning} compact />
     </button>
   );
 }
@@ -550,7 +583,6 @@ export function DigitalAuditPanel({
   onQualify,
   onRefresh,
   mapsUrl = null,
-  goldenMinute = null,
   confirmPending = false,
   onConfirmSite,
   onRejectSite,
@@ -569,7 +601,6 @@ export function DigitalAuditPanel({
   onQualify?: () => void;
   onRefresh?: () => void;
   mapsUrl?: string | null;
-  goldenMinute?: GoldenMinute | null;
   confirmPending?: boolean;
   onConfirmSite?: (domain: string) => void;
   onRejectSite?: (domain: string) => void;
@@ -655,6 +686,10 @@ export function DigitalAuditPanel({
     complete &&
     !firstRunStreaming &&
     !refreshing;
+  const chip = qualifyChipKind(signals, {
+    scanning: firstRunStreaming && !complete,
+    complete,
+  });
 
   return (
     <GlassCard className={cn("p-5 hover:translate-y-0", className)}>
@@ -663,6 +698,7 @@ export function DigitalAuditPanel({
         showRefresh={showRefresh}
         refreshing={refreshing || (Boolean(onRefresh) && qualifyPending)}
         onRefresh={onRefresh}
+        chip={chip}
       />
       {showQualifyCta ? (
         <>
@@ -692,13 +728,13 @@ export function DigitalAuditPanel({
       {refreshing ? (
         <p className="mt-3 flex items-center gap-2 text-sm font-medium text-podium-yellow">
           <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-podium-yellow" />
-          {COPY.atualizandoQualificacao} Mantendo a auditoria atual até terminar.
+          {COPY.atualizandoQualificacao} Mantendo o resultado atual até terminar.
         </p>
       ) : null}
       {awaitingAudit ? (
         <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-podium-gray">
-          Auditoria digital ainda não rodou nesta empresa. O ranking e o Minuto
-          de Ouro usam só a Receita até você qualificar.
+          Site, redes e Google desta empresa ainda não foram buscados. A ordem da
+          lista usa só o cadastro da Receita até você qualificar.
         </p>
       ) : null}
       {(firstRunStreaming || (enrichment && !complete && !refreshing)) && (
@@ -707,7 +743,6 @@ export function DigitalAuditPanel({
           qualifying={firstRunStreaming || !complete}
         />
       )}
-      {complete ? <GoldenFacts goldenMinute={goldenMinute} /> : null}
 
       {selected && showBoard && !previewPresence ? (
         <div className="mt-4">
@@ -828,7 +863,7 @@ export function DigitalAuditPanel({
                     <span className="text-xs font-medium">
                       {toolsMissingOpen
                         ? "Recolher"
-                        : `Ver ${missing.length} ferramenta${missing.length === 1 ? "" : "s"} sem sinal`}
+                        : `Ver ${missing.length} ferramenta${missing.length === 1 ? "" : "s"} não encontrada${missing.length === 1 ? "" : "s"}`}
                     </span>
                     <ChevronDown
                       className={cn(

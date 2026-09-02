@@ -13,7 +13,7 @@ describe("planDeleteStage", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "A pista precisa de pelo menos uma faixa.",
+      error: "O CRM precisa de pelo menos uma faixa.",
     });
   });
 

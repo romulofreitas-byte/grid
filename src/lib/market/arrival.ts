@@ -76,10 +76,10 @@ function siteLabel(enrichment: LeadEnrichment | null): string {
 
 function completeLabel(enrichment: LeadEnrichment | null): string {
   if (!enrichment || enrichmentStage(enrichment) !== "complete") {
-    return "cruzando telefone e mapa";
+    return "conferindo telefone e mapa";
   }
-  if (enrichment.osm?.matched) return "telefone cruzado com o mapa";
-  return "cruzamento concluído";
+  if (enrichment.osm?.matched) return "telefone conferido com o mapa";
+  return "qualificação concluída";
 }
 
 function statusFor(

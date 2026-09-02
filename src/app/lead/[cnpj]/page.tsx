@@ -882,7 +882,6 @@ export default function LeadPage() {
               hasCompleteAudit ? () => runQualify(true) : undefined
             }
             mapsUrl={mapsUrl}
-            goldenMinute={d.goldenMinute}
             confirmPending={confirmSiteMutation.isPending}
             onConfirmSite={(domain) =>
               confirmSiteMutation.mutate({ action: "confirm", domain })
@@ -904,7 +903,7 @@ export default function LeadPage() {
           decisorNome={d.decisor?.nome}
           volta={
             statsQuery.data
-              ? `volta ${statsQuery.data.hoje}/${statsQuery.data.meta}`
+              ? `${statsQuery.data.hoje}/${statsQuery.data.meta} ligações`
               : null
           }
         />

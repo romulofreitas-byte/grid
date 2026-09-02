@@ -33,7 +33,7 @@ export async function POST(
       (Number.isNaN(Date.parse(next.dueAt))
         ? null
         : new Date(next.dueAt).toISOString());
-    if (!dueAt) return jsonError("Horário da próxima volta inválido.");
+    if (!dueAt) return jsonError("Horário da próxima ação inválido.");
     next = { kind: next.kind, dueAt };
   }
   const result = await getRepo().createCrmEvent(gated.userId, dealId, {

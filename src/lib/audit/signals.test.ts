@@ -8,6 +8,7 @@ import {
   isAuditLive,
   isSiteFetchFailed,
   isSiteOffline,
+  qualifyChipKind,
   scanningSignalIds,
 } from "./signals";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -262,7 +263,7 @@ describe("buildAuditSignals", () => {
     expect(candidate.found).toBe(true);
     expect(candidate.unverified).toBe(true);
     expect(isAuditLive(candidate)).toBe(false);
-    expect(candidate.hint).toMatch(/candidato/i);
+    expect(candidate.hint).toMatch(/a confirmar/i);
   });
 
   it("promotes Serper Instagram to live when Maps matches Receita address or phone", () => {
@@ -448,5 +449,63 @@ describe("buildAuditSignals", () => {
     expect(scanningSignalIds("site", true)).toContain("gtm");
     expect(scanningSignalIds("complete", true)).toEqual([]);
     expect(scanningSignalIds("home", false)).toEqual([]);
+  });
+});
+
+describe("qualifyChipKind", () => {
+  it("is Qualificada when site, Instagram and Google are live", () => {
+    const signals = buildAuditSignals(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        socials: { instagram: "https://instagram.com/exemplo" },
+        gmb: {
+          name: "Exemplo",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["phone"],
+        },
+      }),
+    );
+    expect(qualifyChipKind(signals, { scanning: false, complete: true })).toBe(
+      "qualificada",
+    );
+  });
+
+  it("is Oportunidade when site or Instagram is missing", () => {
+    const signals = buildAuditSignals(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        gmb: {
+          name: "Exemplo",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["phone"],
+        },
+      }),
+    );
+    expect(qualifyChipKind(signals, { scanning: false, complete: true })).toBe(
+      "oportunidade",
+    );
+  });
+
+  it("is Qualificando while the first read is in progress", () => {
+    expect(
+      qualifyChipKind(emptyAuditSignals(), {
+        scanning: true,
+        complete: false,
+      }),
+    ).toBe("qualificando");
+  });
+
+  it("hides the chip before a completed read", () => {
+    expect(
+      qualifyChipKind(emptyAuditSignals(), {
+        scanning: false,
+        complete: false,
+      }),
+    ).toBeNull();
   });
 });
