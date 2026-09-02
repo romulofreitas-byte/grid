@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { AnimatePresence } from "framer-motion";
 import { Plus, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CrmAddDealDialog } from "@/components/crm/CrmAddDealDialog";
@@ -579,30 +580,33 @@ export function CrmBoard({
           )}
         </div>
       </div>
-      {openDeal && board ? (
-        <CrmDealModal
-          deal={openDeal}
-          stages={board.stages}
-          onClose={() => openDealCard(null)}
-          onChange={replaceDeal}
-          onMoveStage={(stageId) => {
-            moveDealToStage(openDeal.id, stageId);
-          }}
-          onDeleted={(dealId) => {
-            const pipelineId = board.pipeline.id;
-            setBoard((current) =>
-              current
-                ? {
-                    ...current,
-                    deals: current.deals.filter((deal) => deal.id !== dealId),
-                  }
-                : current,
-            );
-            if (pipelineId) bumpCount(pipelineId, -1);
-            openDealCard(null);
-          }}
-        />
-      ) : null}
+      <AnimatePresence>
+        {openDeal && board ? (
+          <CrmDealModal
+            key="crm-deal-modal"
+            deal={openDeal}
+            stages={board.stages}
+            onClose={() => openDealCard(null)}
+            onChange={replaceDeal}
+            onMoveStage={(stageId) => {
+              moveDealToStage(openDeal.id, stageId);
+            }}
+            onDeleted={(dealId) => {
+              const pipelineId = board.pipeline.id;
+              setBoard((current) =>
+                current
+                  ? {
+                      ...current,
+                      deals: current.deals.filter((deal) => deal.id !== dealId),
+                    }
+                  : current,
+              );
+              if (pipelineId) bumpCount(pipelineId, -1);
+              openDealCard(null);
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
       {cadenceOpen && board ? (
         <CrmCadencePanel
           stages={board.stages}

@@ -12,6 +12,7 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
@@ -76,6 +77,8 @@ const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
   followup: Repeat,
   proposta: FileText,
 };
+
+const DEAL_MODAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 const COMPOSER_TAB_LABELS: Record<CrmComposerKind, string> = {
   nota: "Nota",
@@ -150,6 +153,11 @@ export function CrmDealModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reduce = useReducedMotion();
+  const presence = {
+    duration: reduce ? 0 : 0.2,
+    ease: DEAL_MODAL_EASE,
+  };
   const phonesRef = useRef(phones);
   phonesRef.current = phones;
   const peopleRef = useRef(people);
@@ -492,18 +500,28 @@ export function CrmDealModal({
   const extraPeople = people.slice(1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5"
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={presence}
+    >
       <button
         type="button"
         aria-label="Fechar"
         className="absolute inset-0 bg-black/55 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div
+      <motion.div
         role="dialog"
         aria-modal="true"
         aria-labelledby="crm-deal-title"
         className="relative flex h-[min(92vh,56rem)] w-[min(96vw,88rem)] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-900 shadow-2xl"
+        initial={reduce ? false : { scale: 0.98 }}
+        animate={{ scale: 1 }}
+        exit={reduce ? undefined : { scale: 0.98 }}
+        transition={presence}
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3">
           <div className="min-w-0 flex-1">
@@ -979,7 +997,7 @@ export function CrmDealModal({
             </button>
           </aside>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
