@@ -47,6 +47,7 @@ import {
 import {
   SEARCH_JOB_DONE_REUSE_MINUTES,
   SEARCH_JOB_LIVE_REUSE_MINUTES,
+  SEARCH_JOB_STALE_RUNNING_SECONDS,
   type SearchJob,
   type SearchJobStatus,
 } from "@/lib/search-jobs";
@@ -2799,6 +2800,25 @@ export const supabaseRepo: GridRepo = {
          for update skip locked
        )
        returning *`,
+    );
+    return rows[0] ? mapSearchJob(rows[0]) : null;
+  },
+
+  async claimOwnedSearchJob(id, userId) {
+    const { rows } = await query(
+      `update search_jobs
+       set status = 'running', locked_at = now(), attempts = attempts + 1
+       where id = $1
+         and user_id = $2
+         and (
+           status = 'pending'
+           or (
+             status = 'running'
+             and locked_at < now() - ($3::int * interval '1 second')
+           )
+         )
+       returning *`,
+      [id, userId, SEARCH_JOB_STALE_RUNNING_SECONDS],
     );
     return rows[0] ? mapSearchJob(rows[0]) : null;
   },

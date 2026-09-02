@@ -1,18 +1,45 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { checkDailyRunSearch, recordDailyRunSearch } from "@/lib/auth/abuse-limits";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
 import { dbUnavailableResponse } from "@/lib/data/db-api";
 import { isUndefinedTableError } from "@/lib/data/pg";
-import { drainSearchJobs } from "@/lib/enrichment/process-job";
+import {
+  drainSearchJobs,
+  processOwnedSearchJob,
+} from "@/lib/enrichment/process-job";
 import {
   shouldRunSearchJobsInline,
   toSearchJobPublic,
+  type SearchJob,
 } from "@/lib/search-jobs";
-import { DEFAULT_FILTERS, type SearchFilters } from "@/lib/types";
+import { DEFAULT_FILTERS, type Search, type SearchFilters } from "@/lib/types";
 import { z } from "zod";
 
 export const maxDuration = 60;
+
+function kickSearchJob(jobId: string, userId: string) {
+  after(() =>
+    processOwnedSearchJob(jobId, userId).catch((err) => {
+      console.error(
+        JSON.stringify({
+          event: "search_job_after_error",
+          id: jobId,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    }),
+  );
+}
+
+async function jobResponse(job: SearchJob, search: Search | null, ahead: number) {
+  if (job.status !== "done" && job.status !== "failed") {
+    kickSearchJob(job.id, job.user_id);
+  }
+  return NextResponse.json(toSearchJobPublic(job, ahead, search), {
+    status: job.status === "done" ? 200 : 202,
+  });
+}
 
 const schema = z.object({
   nome: z.string().min(1),
@@ -45,9 +72,7 @@ export async function POST(req: Request) {
       const search = latest.search_id
         ? ((await repo.getSearch(latest.search_id)) ?? null)
         : null;
-      return NextResponse.json(toSearchJobPublic(latest, ahead, search), {
-        status: latest.status === "done" ? 200 : 202,
-      });
+      return jobResponse(latest, search, ahead);
     }
 
     const daily = await checkDailyRunSearch(userId);
@@ -73,9 +98,7 @@ export async function POST(req: Request) {
     const search = latest.search_id
       ? ((await repo.getSearch(latest.search_id)) ?? null)
       : null;
-    return NextResponse.json(toSearchJobPublic(latest, ahead, search), {
-      status: latest.status === "done" ? 200 : 202,
-    });
+    return jobResponse(latest, search, ahead);
   } catch (err) {
     if (isUndefinedTableError(err)) {
       try {

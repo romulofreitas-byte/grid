@@ -78,6 +78,19 @@ describe("mock search jobs", () => {
     expect(await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters)).toBeNull();
   });
 
+  it("claims a specific pending job so the poll can finish the grid", async () => {
+    const store = getMockStore();
+    store.search_jobs = [];
+    const filters = { ...DEFAULT_FILTERS, ufs: ["PE"] };
+    const job = await mockRepo.enqueueSearchJob(LOCAL_USER_ID, "Lista · PE", filters);
+    const { processOwnedSearchJob } = await import("@/lib/enrichment/process-job");
+    const done = await processOwnedSearchJob(job.id, LOCAL_USER_ID);
+    expect(done?.status).toBe("done");
+    expect(done?.search_id).toBeTruthy();
+    const search = await mockRepo.getSearch(done!.search_id!);
+    expect(search?.user_id).toBe(LOCAL_USER_ID);
+  });
+
   it("stores CNPJs on a small full count", async () => {
     const filters = { ...DEFAULT_FILTERS, ufs: ["MG"] };
     const result = await mockRepo.count(filters, "full");

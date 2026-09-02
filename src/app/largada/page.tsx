@@ -38,6 +38,7 @@ import {
 } from "@/lib/types";
 import {
   SEARCH_JOB_POLL_MS,
+  SEARCH_JOB_POLL_TIMEOUT_MS,
   SEARCH_JOB_POST_TIMEOUT_MS,
   type SearchJobPublic,
 } from "@/lib/search-jobs";
@@ -66,7 +67,7 @@ async function waitForSearchJob(
 ): Promise<GridSearch> {
   for (let attempt = 0; attempt < 180; attempt += 1) {
     const res = await fetch(`/api/search/jobs/${encodeURIComponent(jobId)}`, {
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(SEARCH_JOB_POLL_TIMEOUT_MS),
     });
     const body = (await res.json()) as SearchJobPublic & { error?: string };
     if (!res.ok) {

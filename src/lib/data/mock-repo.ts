@@ -41,7 +41,7 @@ import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
 import type { SearchJob } from "@/lib/search-jobs";
-import { SEARCH_JOB_DONE_REUSE_MINUTES, SEARCH_JOB_LIVE_REUSE_MINUTES } from "@/lib/search-jobs";
+import { SEARCH_JOB_DONE_REUSE_MINUTES, SEARCH_JOB_LIVE_REUSE_MINUTES, SEARCH_JOB_STALE_RUNNING_SECONDS } from "@/lib/search-jobs";
 import type {
   CompanySearchHit,
   ContactInfo,
@@ -940,6 +940,22 @@ export const mockRepo: GridRepo = {
           new Date(j.locked_at).getTime() < stale),
     );
     if (!job) return null;
+    job.status = "running";
+    job.locked_at = new Date().toISOString();
+    job.attempts += 1;
+    return job;
+  },
+
+  async claimOwnedSearchJob(id, userId) {
+    const store = getMockStore();
+    const stale = Date.now() - SEARCH_JOB_STALE_RUNNING_SECONDS * 1000;
+    const job = store.search_jobs.find((j) => j.id === id && j.user_id === userId);
+    if (!job) return null;
+    const staleRunning =
+      job.status === "running" &&
+      job.locked_at &&
+      new Date(job.locked_at).getTime() < stale;
+    if (job.status !== "pending" && !staleRunning) return null;
     job.status = "running";
     job.locked_at = new Date().toISOString();
     job.attempts += 1;

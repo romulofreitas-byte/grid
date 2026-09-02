@@ -307,6 +307,17 @@ export async function processSearchJob(job: SearchJob): Promise<void> {
   }
 }
 
+/** Claim this user's job (if pending/stale) and run it. Safe if another worker holds the lock. */
+export async function processOwnedSearchJob(
+  jobId: string,
+  userId: string,
+): Promise<SearchJob | null> {
+  const repo = getRepo();
+  const claimed = await repo.claimOwnedSearchJob(jobId, userId);
+  if (claimed) await processSearchJob(claimed);
+  return repo.getSearchJob(jobId, userId);
+}
+
 export async function drainSearchJobs(
   concurrency = searchJobConcurrency(),
 ): Promise<number> {

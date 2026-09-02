@@ -103,6 +103,7 @@ export type GridRepo = {
   getSearchJob(id: string, userId: string): Promise<SearchJob | null>;
   countSearchJobsAhead(job: SearchJob): Promise<number>;
   claimSearchJob(): Promise<SearchJob | null>;
+  claimOwnedSearchJob(id: string, userId: string): Promise<SearchJob | null>;
   finishSearchJob(
     id: string,
     patch: {

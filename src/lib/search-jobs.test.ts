@@ -3,6 +3,7 @@ import {
   SEARCH_JOB_DONE_REUSE_MINUTES,
   SEARCH_JOB_LIVE_REUSE_MINUTES,
   SEARCH_JOB_POLL_MS,
+  SEARCH_JOB_POLL_TIMEOUT_MS,
   searchJobConcurrency,
   searchJobQueuePosition,
   shouldRunSearchJobsInline,
@@ -78,6 +79,7 @@ describe("searchJobConcurrency", () => {
 describe("search job timing", () => {
   it("polls and reuses done jobs on a short window", () => {
     expect(SEARCH_JOB_POLL_MS).toBe(400);
+    expect(SEARCH_JOB_POLL_TIMEOUT_MS).toBe(55_000);
     expect(SEARCH_JOB_LIVE_REUSE_MINUTES).toBe(2);
     expect(SEARCH_JOB_DONE_REUSE_MINUTES).toBe(10);
   });
