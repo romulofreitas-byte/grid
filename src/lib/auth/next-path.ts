@@ -7,10 +7,12 @@ export function safeInternalPath(
 ): string {
   if (!raw) return fallback;
   let value = raw.trim();
-  try {
-    value = decodeURIComponent(value);
-  } catch {
-    return fallback;
+  if (!value.startsWith("/")) {
+    try {
+      value = decodeURIComponent(value);
+    } catch {
+      return fallback;
+    }
   }
   if (!value.startsWith("/")) return fallback;
   if (value.startsWith("//")) return fallback;

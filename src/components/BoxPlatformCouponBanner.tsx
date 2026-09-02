@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { pagarHref, planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 
 export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) {
@@ -36,13 +37,13 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
       {ended ? (
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
-            href="/planos#recarga"
+            href={planosHref("/box", true)}
             className="inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
           >
             Recarregar
           </Link>
           <Link
-            href="/planos"
+            href={planosHref("/box")}
             className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
           >
             Assinar o Piloto
@@ -50,7 +51,7 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
         </div>
       ) : (
         <Link
-          href="/pagar?sku=membro_plataforma"
+          href={pagarHref("membro_plataforma", "/box")}
           className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
         >
           Ativar Piloto

@@ -1,4 +1,5 @@
 import { conexoesHref, largadaNovaHref } from "@/lib/back";
+import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 import {
   pickCallConnection,
@@ -137,7 +138,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       done: creditosReady,
       title: "Ative o plano",
       body: "Qualificar e exportar gastam crédito. Sem saldo a volta trava no meio.",
-      href: "/planos",
+      href: planosHref("/box"),
       cta: "Ver planos",
     },
   ];

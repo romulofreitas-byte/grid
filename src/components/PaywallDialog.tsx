@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -10,13 +11,15 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { StartingLights } from "@/components/StartingLights";
+import { pathWithSearch, withFrom } from "@/lib/billing/href";
 import {
   paywallCopy,
+  type PaywallCopy,
   type PaywallOpen,
 } from "@/lib/billing/paywall";
 
@@ -45,9 +48,22 @@ export function PaywallProvider({ children }: { children: React.ReactNode }) {
   return (
     <PaywallContext.Provider value={{ openPaywall }}>
       {children}
-      <PaywallDialog state={state} onClose={close} />
+      <Suspense fallback={null}>
+        <PaywallDialog state={state} onClose={close} />
+      </Suspense>
     </PaywallContext.Provider>
   );
+}
+
+function withOrigin(copy: PaywallCopy, from: string): PaywallCopy {
+  return {
+    ...copy,
+    primary: { ...copy.primary, href: withFrom(copy.primary.href, from) },
+    secondary:
+      "href" in copy.secondary
+        ? { ...copy.secondary, href: withFrom(copy.secondary.href, from) }
+        : copy.secondary,
+  };
 }
 
 function PaywallDialog({
@@ -60,7 +76,10 @@ function PaywallDialog({
   const titleId = useId();
   const primaryRef = useRef<HTMLAnchorElement>(null);
   const reduce = useReducedMotion();
-  const copy = state ? paywallCopy(state) : null;
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const from = pathWithSearch(pathname, searchParams.toString());
+  const copy = state ? withOrigin(paywallCopy(state), from) : null;
 
   useEffect(() => {
     if (!state) return;

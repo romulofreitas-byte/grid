@@ -5,6 +5,15 @@ describe("safeInternalPath", () => {
   it("allows internal paths with query", () => {
     expect(safeInternalPath("/pagar?sku=piloto")).toBe("/pagar?sku=piloto");
     expect(safeInternalPath("/box")).toBe("/box");
+    expect(safeInternalPath("%2Fpagar%3Fsku%3Dpiloto")).toBe(
+      "/pagar?sku=piloto",
+    );
+  });
+
+  it("does not decode an already-path next that contains encoded from", () => {
+    expect(
+      safeInternalPath("/pagar?sku=piloto&from=%2Flead%2F1%3FsearchId%3Dabc"),
+    ).toBe("/pagar?sku=piloto&from=%2Flead%2F1%3FsearchId%3Dabc");
   });
 
   it("rejects open redirects", () => {

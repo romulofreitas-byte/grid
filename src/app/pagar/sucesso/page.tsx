@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { StartingLights } from "@/components/StartingLights";
 import { getCatalogItem } from "@/lib/billing/catalog";
+import { billingSuccessReturn } from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
 
 function CreditCount({ value }: { value: number }) {
@@ -57,7 +58,9 @@ function ConfirmCheck() {
 }
 
 function SucessoInner() {
-  const orderId = useSearchParams().get("order");
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("order");
+  const next = billingSuccessReturn(searchParams.get("from"));
   const reduce = useReducedMotion();
   const [order, setOrder] = useState<BillingOrder | null>(null);
   const item = order ? getCatalogItem(order.sku) : undefined;
@@ -73,7 +76,7 @@ function SucessoInner() {
   }, [orderId]);
 
   return (
-    <AppShell fill title="Pago" back={{ href: "/box", label: "Ir ao Box" }}>
+    <AppShell fill title="Pago" back={next}>
       <motion.div
         className="flex min-h-0 flex-1 flex-col"
         initial={reduce ? false : { opacity: 0, y: 8 }}
@@ -132,10 +135,10 @@ function SucessoInner() {
                 }}
               >
                 <Link
-                  href="/box"
+                  href={next.href}
                   className="recommend-pulse-once rounded-xl bg-podium-yellow px-6 py-3.5 text-sm font-extrabold text-podium-navy"
                 >
-                  Ir ao Box
+                  {next.label}
                 </Link>
                 <Link
                   href="/conta"

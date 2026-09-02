@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { pathWithSearch, planosHref } from "@/lib/billing/href";
 import { Cable, LogOut, Settings, UserRound, Wallet } from "lucide-react";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { AnchorPopover } from "@/components/AnchorPopover";
@@ -77,6 +79,9 @@ export function PilotHeaderAvatar() {
     };
   }, [open]);
 
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const from = pathWithSearch(pathname, searchParams.toString());
   const p = query.data;
   if (!p) return null;
   return (
@@ -103,10 +108,12 @@ export function PilotHeaderAvatar() {
             .filter((item) => !("adminOnly" in item && item.adminOnly) || p.isAdmin)
             .map((item) => {
             const Icon = item.icon;
+            const href =
+              item.href === "/planos" ? planosHref(from) : item.href;
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
                 className={itemClass}

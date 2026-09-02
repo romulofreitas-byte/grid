@@ -10,6 +10,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { VoltaRing } from "@/components/VoltaRing";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
+import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { NextCallLead, Profile, Search } from "@/lib/types";
@@ -267,7 +268,7 @@ export function BoxCockpit({
                     value={String(billing.total)}
                     hint={acessoHint(billing.total)}
                     icon={Wallet}
-                    href="/planos"
+                    href={planosHref("/box")}
                     hrefLabel={
                       billing.trialDaysLeft != null && billing.trialDaysLeft > 0
                         ? `${billing.trialDaysLeft} dias de trial`

@@ -4,6 +4,7 @@ import { CrmBoard } from "@/components/crm/CrmBoard";
 import { CrmBoardSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
+import { withFrom } from "@/lib/billing/href";
 import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
@@ -37,14 +38,14 @@ function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
       <p className="mt-3 text-base font-semibold">{copy.title}</p>
       <p className="mt-3 text-sm text-podium-gray">{copy.body}</p>
       <Link
-        href={copy.primary.href}
+        href={withFrom(copy.primary.href, "/crm")}
         className="mt-6 inline-flex rounded-md bg-podium-yellow px-4 py-2 text-xs font-medium text-podium-navy"
       >
         {copy.primary.label}
       </Link>
       {"href" in copy.secondary ? (
         <Link
-          href={copy.secondary.href}
+          href={withFrom(copy.secondary.href, "/crm")}
           className="mt-3 ml-3 inline-flex rounded-md border border-white/15 px-4 py-2 text-xs font-medium text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
         >
           {copy.secondary.label}

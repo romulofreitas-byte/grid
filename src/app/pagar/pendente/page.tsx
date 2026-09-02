@@ -9,6 +9,7 @@ import { CopyFeedback } from "@/components/CopyFeedback";
 import { GlassCard } from "@/components/GlassCard";
 import { StartingLights } from "@/components/StartingLights";
 import { usePodiumWait } from "@/hooks/usePodiumWait";
+import { planosHref } from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
@@ -59,11 +60,13 @@ function BoletoTimeline({ complete }: { complete: boolean }) {
 }
 
 function PendenteInner() {
-  const id = useSearchParams().get("order");
+  const searchParams = useSearchParams();
+  const id = searchParams.get("order");
+  const from = searchParams.get("from");
   const reduce = useReducedMotion();
   const [order, setOrder] = useState<BillingOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { phase, litCount, goToSuccess } = usePodiumWait(false);
+  const { phase, litCount, goToSuccess } = usePodiumWait(false, from);
   const complete = phase === "go";
 
   useEffect(() => {
@@ -104,7 +107,7 @@ function PendenteInner() {
   }
 
   return (
-    <AppShell fill title="Boleto" back={{ href: "/planos", label: "Voltar aos planos" }}>
+    <AppShell fill title="Boleto" back={{ href: planosHref(from), label: "Voltar aos planos" }}>
       <motion.div
         className="flex min-h-0 flex-1 flex-col"
         initial={reduce ? false : { opacity: 0, y: 8 }}

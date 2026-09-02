@@ -2,6 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Columns3,
@@ -158,7 +159,9 @@ export function AppShell({
                 {title}
               </p>
             ) : null}
-            <PilotHeaderAvatar />
+            <Suspense fallback={<span className="inline-block h-8 w-8" />}>
+              <PilotHeaderAvatar />
+            </Suspense>
           </div>
         </div>
       </header>

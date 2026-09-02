@@ -13,6 +13,7 @@ import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { COPY } from "@/lib/copy";
 import { BACK } from "@/lib/back";
 import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
+import { planosHref } from "@/lib/billing/href";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import {
   CALL_GOAL_OPTIONS,
@@ -118,7 +119,7 @@ export default function ContaPage() {
                 Conexões
               </Link>
               <Link
-                href="/planos"
+                href={planosHref("/conta")}
                 className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
               >
                 Planos
@@ -281,7 +282,7 @@ export default function ContaPage() {
               ) : null}
               <div className="mt-5 flex flex-wrap gap-2">
                 <Link
-                  href="/planos"
+                  href={planosHref("/conta")}
                   className="rounded-xl bg-podium-yellow px-4 py-2.5 text-xs font-extrabold text-podium-navy"
                 >
                   Trocar plano / Recarregar

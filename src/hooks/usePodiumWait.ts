@@ -2,6 +2,7 @@
 
 import type { LightsPhase } from "@/components/StartingLights";
 import { useReducedMotion } from "framer-motion";
+import { pagarSucessoHref } from "@/lib/billing/href";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -24,7 +25,7 @@ export function useHoldLights(active: boolean, cycle: boolean) {
   return { reduce: Boolean(reduce), litCount };
 }
 
-export function usePodiumWait(cycle: boolean) {
+export function usePodiumWait(cycle: boolean, from?: string | null) {
   const reduce = useReducedMotion();
   const router = useRouter();
   const [phase, setPhase] = useState<LightsPhase>("hold");
@@ -51,17 +52,18 @@ export function usePodiumWait(cycle: boolean) {
     (orderId: string) => {
       if (going.current) return;
       going.current = true;
+      const href = pagarSucessoHref(orderId, from);
       if (reduce) {
-        router.push(`/pagar/sucesso?order=${orderId}`);
+        router.push(href);
         return;
       }
       setPhase("go");
       setLitCount(5);
       window.setTimeout(() => {
-        router.push(`/pagar/sucesso?order=${orderId}`);
+        router.push(href);
       }, 300);
     },
-    [reduce, router],
+    [reduce, router, from],
   );
 
   return { reduce: Boolean(reduce), phase, litCount, goToSuccess };

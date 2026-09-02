@@ -18,6 +18,11 @@ import {
   type PaymentMethod,
 } from "@/lib/billing/catalog";
 import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
+import {
+  pagarPendenteHref,
+  pagarSucessoHref,
+  planosHref,
+} from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +42,11 @@ function PagarInner() {
   const searchParams = useSearchParams();
   const reduce = useReducedMotion();
   const sku = searchParams.get("sku") ?? "piloto";
+  const from = searchParams.get("from");
+  const planosBack = {
+    href: planosHref(from),
+    label: "Voltar aos planos",
+  };
   const item = getCatalogItem(sku);
   const [method, setMethod] = useState<PaymentMethod>("pix");
   const [documento, setDocumento] = useState("");
@@ -48,7 +58,7 @@ function PagarInner() {
   const [order, setOrder] = useState<BillingOrder | null>(null);
   const pixWaiting = Boolean(order?.status === "pending" && order.method === "pix");
   const { litCount: busyLit } = useHoldLights(busy && !pixWaiting, true);
-  const { phase, litCount, goToSuccess } = usePodiumWait(pixWaiting);
+  const { phase, litCount, goToSuccess } = usePodiumWait(pixWaiting, from);
 
   const needsDoc = method !== "card_intl" && sku !== "membro_plataforma";
   const isPlatform = sku === "membro_plataforma";
@@ -112,11 +122,11 @@ function PagarInner() {
       return;
     }
     if (json.order.status === "paid") {
-      router.push(`/pagar/sucesso?order=${json.order.id}`);
+      router.push(pagarSucessoHref(json.order.id, from));
       return;
     }
     if (json.order.method === "boleto") {
-      router.push(`/pagar/pendente?order=${json.order.id}`);
+      router.push(pagarPendenteHref(json.order.id, from));
       return;
     }
     setOrder(json.order);
@@ -141,9 +151,9 @@ function PagarInner() {
 
   if (!item) {
     return (
-      <AppShell title="Pagar" back={{ href: "/planos", label: "Voltar aos planos" }}>
+      <AppShell title="Pagar" back={planosBack}>
         <p className="mt-6 text-sm text-podium-muted">SKU inválido.</p>
-        <Link href="/planos" className="mt-4 inline-block text-podium-yellow">
+        <Link href={planosBack.href} className="mt-4 inline-block text-podium-yellow">
           Ver planos
         </Link>
       </AppShell>
@@ -151,7 +161,7 @@ function PagarInner() {
   }
 
   return (
-    <AppShell fill title="Pagar" back={{ href: "/planos", label: "Voltar aos planos" }}>
+    <AppShell fill title="Pagar" back={planosBack}>
       <div className="shrink-0">
         <SectionTitle>Pagamento</SectionTitle>
         <p className="mt-2 text-sm text-podium-muted">

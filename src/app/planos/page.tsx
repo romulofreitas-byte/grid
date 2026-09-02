@@ -5,18 +5,21 @@ import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { formatBrl, PACKS, PLANS } from "@/lib/billing/catalog";
+import { billingReturn, pagarHref } from "@/lib/billing/href";
 import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 import { cn } from "@/lib/utils";
 
-function checkoutHref(sku: string): string {
-  return `/pagar?sku=${encodeURIComponent(sku)}`;
-}
-
-export default function PlanosPage() {
+export default async function PlanosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
+  const { from } = await searchParams;
+  const back = billingReturn(from);
   const billed = PLANS.filter((p) => p.sku !== "membro_plataforma");
 
   return (
-    <PublicPage className="max-w-6xl">
+    <PublicPage className="max-w-6xl" back={back}>
       <SectionTitle className="mt-8">Planos e créditos</SectionTitle>
       <p className="mt-3 max-w-2xl text-sm text-podium-gray">
         Buscar e ver a lista é grátis. Crédito só na exportação (1) e na
@@ -59,7 +62,7 @@ export default function PlanosPage() {
                 ))}
               </ul>
               <Link
-                href={plan.sku === "free" ? "/box" : checkoutHref(plan.sku)}
+                href={plan.sku === "free" ? "/box" : pagarHref(plan.sku, from)}
                 className={cn(
                   "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
                   featured
@@ -97,7 +100,7 @@ export default function PlanosPage() {
                 ))}
               </ul>
               <Link
-                href={checkoutHref(pack.sku)}
+                href={pagarHref(pack.sku, from)}
                 className="mt-6 inline-flex justify-center rounded-xl border border-white/15 py-3 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
               >
                 Recarregar
@@ -115,7 +118,7 @@ export default function PlanosPage() {
           recarregue ou assine o Piloto.
         </p>
         <Link
-          href="/pagar?sku=membro_plataforma"
+          href={pagarHref("membro_plataforma", from)}
           className="mt-4 inline-block text-sm font-bold text-podium-yellow hover:underline"
         >
           Ativar com cupom →
