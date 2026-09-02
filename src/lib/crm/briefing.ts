@@ -128,7 +128,8 @@ export function buildCrmBriefing(
   extras: LeadDossier | CrmBriefingLookup | null,
 ): CrmBriefing {
   const lookup = extras && isBriefingLookup(extras) ? extras : null;
-  const dossier = extras && !lookup ? extras : null;
+  const dossier: LeadDossier | null =
+    extras && !isBriefingLookup(extras) ? extras : null;
   const people = peopleFromDeal(deal);
   const primary = people[0];
   const phones = uniquePhones([
