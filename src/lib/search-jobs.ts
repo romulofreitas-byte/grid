@@ -49,6 +49,8 @@ export function toSearchJobPublic(
 }
 
 export const SEARCH_JOB_POLL_MS = 400;
+export const SEARCH_JOB_POST_TIMEOUT_MS = 20_000;
+export const SEARCH_JOB_LIVE_REUSE_MINUTES = 2;
 export const SEARCH_JOB_DONE_REUSE_MINUTES = 10;
 
 /** Vercel never runs runSearch inline — Railway/local/mock do. */

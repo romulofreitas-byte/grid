@@ -41,7 +41,7 @@ import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
 import type { SearchJob } from "@/lib/search-jobs";
-import { SEARCH_JOB_DONE_REUSE_MINUTES } from "@/lib/search-jobs";
+import { SEARCH_JOB_DONE_REUSE_MINUTES, SEARCH_JOB_LIVE_REUSE_MINUTES } from "@/lib/search-jobs";
 import type {
   CompanySearchHit,
   ContactInfo,
@@ -893,13 +893,16 @@ export const mockRepo: GridRepo = {
   async findReusableSearchJob(userId, filters) {
     const key = JSON.stringify(filters);
     const store = getMockStore();
-    const reuseAfter = Date.now() - SEARCH_JOB_DONE_REUSE_MINUTES * 60 * 1000;
+    const liveAfter = Date.now() - SEARCH_JOB_LIVE_REUSE_MINUTES * 60 * 1000;
+    const doneAfter = Date.now() - SEARCH_JOB_DONE_REUSE_MINUTES * 60 * 1000;
     const ranked = [...store.search_jobs]
       .filter((j) => j.user_id === userId && JSON.stringify(j.filtros) === key)
       .filter((j) => {
-        if (j.status === "pending" || j.status === "running") return true;
+        if (j.status === "pending" || j.status === "running") {
+          return Date.parse(j.created_at) > liveAfter;
+        }
         if (j.status !== "done" || !j.search_id || !j.finished_at) return false;
-        return Date.parse(j.finished_at) > reuseAfter;
+        return Date.parse(j.finished_at) > doneAfter;
       })
       .sort((a, b) => {
         const liveA = a.status === "pending" || a.status === "running" ? 0 : 1;

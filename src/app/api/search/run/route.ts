@@ -63,32 +63,6 @@ export async function POST(req: Request) {
       );
     }
 
-    if (await repo.hasCachedSearchCandidates(filters)) {
-      await recordDailyRunSearch(userId);
-      const search = await repo.runSearch(userId, parsed.data.nome, filters);
-      try {
-        const done = await repo.recordDoneSearchJob(
-          userId,
-          parsed.data.nome,
-          filters,
-          search.id,
-        );
-        return NextResponse.json(toSearchJobPublic(done, 0, search), {
-          status: 200,
-        });
-      } catch (err) {
-        if (!isUndefinedTableError(err)) throw err;
-        return NextResponse.json({
-          jobId: search.id,
-          status: "done",
-          queuePosition: 0,
-          searchId: search.id,
-          error: null,
-          search,
-        });
-      }
-    }
-
     const job = await repo.enqueueSearchJob(userId, parsed.data.nome, filters);
     await recordDailyRunSearch(userId);
     if (shouldRunSearchJobsInline()) {

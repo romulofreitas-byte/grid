@@ -46,6 +46,7 @@ import {
 } from "@/lib/cache/count-slots";
 import {
   SEARCH_JOB_DONE_REUSE_MINUTES,
+  SEARCH_JOB_LIVE_REUSE_MINUTES,
   type SearchJob,
   type SearchJobStatus,
 } from "@/lib/search-jobs";
@@ -2743,18 +2744,26 @@ export const supabaseRepo: GridRepo = {
        where user_id = $1
          and filtros = $2::jsonb
          and (
-           status in ('pending', 'running')
+           (
+             status in ('pending', 'running')
+             and created_at > now() - ($3::int * interval '1 minute')
+           )
            or (
              status = 'done'
              and search_id is not null
-             and finished_at > now() - ($3::int * interval '1 minute')
+             and finished_at > now() - ($4::int * interval '1 minute')
            )
          )
        order by
          case when status in ('pending', 'running') then 0 else 1 end,
          created_at desc
        limit 1`,
-      [userId, JSON.stringify(filters), SEARCH_JOB_DONE_REUSE_MINUTES],
+      [
+        userId,
+        JSON.stringify(filters),
+        SEARCH_JOB_LIVE_REUSE_MINUTES,
+        SEARCH_JOB_DONE_REUSE_MINUTES,
+      ],
     );
     return rows[0] ? mapSearchJob(rows[0]) : null;
   },

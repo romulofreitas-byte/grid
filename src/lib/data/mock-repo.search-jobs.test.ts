@@ -65,6 +65,19 @@ describe("mock search jobs", () => {
     expect(await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters)).toBeNull();
   });
 
+  it("does not reuse a stale pending job", async () => {
+    const store = getMockStore();
+    store.search_jobs = [];
+    const filters = { ...DEFAULT_FILTERS, ufs: ["BA"] };
+    const pending = await mockRepo.enqueueSearchJob(
+      LOCAL_USER_ID,
+      "Lista · BA",
+      filters,
+    );
+    pending.created_at = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    expect(await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters)).toBeNull();
+  });
+
   it("stores CNPJs on a small full count", async () => {
     const filters = { ...DEFAULT_FILTERS, ufs: ["MG"] };
     const result = await mockRepo.count(filters, "full");
