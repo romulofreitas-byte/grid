@@ -79,6 +79,13 @@ export type GridRepo = {
     ufs: string[],
   ): Promise<Record<string, number>>;
   count(filters: SearchFilters, mode?: CountMode): Promise<CountResult>;
+  hasCachedSearchCandidates(filters: SearchFilters): Promise<boolean>;
+  recordDoneSearchJob(
+    userId: string,
+    nome: string,
+    filters: SearchFilters,
+    searchId: string,
+  ): Promise<SearchJob>;
   runSearch(
     userId: string,
     nome: string,

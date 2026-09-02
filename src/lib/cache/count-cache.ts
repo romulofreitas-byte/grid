@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { upstashCommand } from "@/lib/cache/redis-rest";
 import type { CountMode, CountResult, SearchFilters } from "@/lib/types";
 
 const COUNT_CACHE_TTL_SEC = 600; // 10 min
@@ -29,10 +30,26 @@ export function countCacheKey(
 ): string {
   const payload = JSON.stringify({ filters, mode, allowed: stableAllowed(allowed) });
   const hash = createHash("sha256").update(payload).digest("hex");
-  return `count:v1:${hash}`;
+  return `count:v2:${hash}`;
 }
 
-import { upstashCommand } from "@/lib/cache/redis-rest";
+/** CNPJs a full Qualidade count already scanned — skip ranked SQL in runSearch. */
+export function cachedCandidateCnpjs(
+  result: CountResult | null | undefined,
+  cap: number,
+): string[] | null {
+  if (!result || result.capped) return null;
+  const list = result.cnpjs;
+  if (!list?.length || result.total > cap || list.length > cap) return null;
+  if (list.length !== result.total) return null;
+  return list;
+}
+
+export function countResultForClient(result: CountResult): CountResult {
+  if (!result.cnpjs) return result;
+  const { cnpjs: _cnpjs, ...rest } = result;
+  return rest;
+}
 
 export async function getCountCache(key: string): Promise<CountResult | null> {
   const raw = await upstashCommand<string>(["GET", key]);

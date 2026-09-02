@@ -4,6 +4,14 @@
 export const CNAE_ANY_SQL = "any(?::char(7)[])";
 export const UF_ANY_SQL = "any(?::char(2)[])";
 
+/** Ranked candidate cap — also the max CNPJ list stored on a full count. */
+export const SEARCH_CANDIDATE_CAP = 1500;
+
+/** Skinny columns enough to score + snapshot a grid row. */
+export const FLAT_CANDIDATE_COLUMNS = `es.cnpj, es.cnpj_basico, es.is_matriz, es.nome_fantasia,
+       es.data_inicio, es.cnae_principal, es.uf, es.municipio_id,
+       es.ddd1, es.telefone1, es.email`;
+
 export function cnaeChar7Params(codes: string[]): string[] {
   return [
     ...new Set(
@@ -39,6 +47,7 @@ export function scoreProxyOrderSql(alias = "es"): string {
 export type FlatCountSqlOpts = {
   includeStats?: boolean;
   cap?: number;
+  includeCnpjs?: boolean;
 };
 
 /** Single-pass count + optional contact stats + top municípios (cap via limitParam). */
@@ -49,10 +58,15 @@ export function flatCountSql(
   opts: FlatCountSqlOpts = {},
 ): string {
   const includeStats = opts.includeStats ?? true;
+  const includeCnpjs = opts.includeCnpjs ?? includeStats;
   const cap = opts.cap ?? FLAT_COUNT_CAP;
-  const matchedCols = includeStats
-    ? "es.telefone1, es.email, es.tem_decisor, es.municipio_id"
-    : "es.municipio_id";
+  const matchedCols = [
+    includeCnpjs ? "es.cnpj" : null,
+    includeStats ? "es.telefone1, es.email, es.tem_decisor" : null,
+    "es.municipio_id",
+  ]
+    .filter(Boolean)
+    .join(", ");
   const statsSelect = includeStats
     ? `(select count(*)::int from matched) as total_probe,
          count(*) filter (where telefone1 is not null)::int as com_telefone,
@@ -62,6 +76,17 @@ export function flatCountSql(
          0 as com_telefone,
          0 as com_email,
          0 as com_decisor`;
+  const cnpjsSelect = includeCnpjs
+    ? `,
+       case
+         when s.total_probe <= ${SEARCH_CANDIDATE_CAP} then coalesce(
+           (select json_agg(c.cnpj) from capped_matched c),
+           '[]'::json
+         )
+         else null
+       end as cnpjs`
+    : `,
+       null::json as cnpjs`;
 
   return `with matched as (
        select ${matchedCols}
@@ -103,30 +128,28 @@ export function flatCountSql(
            'total', t.total
          ) order by t.total desc) from top_mun t),
          '[]'::json
-       ) as por_municipio
+       ) as por_municipio${cnpjsSelect}
      from stats s`;
 }
 
-/**
- * Rank on the skinny search table first, then PK-join establishments
- * for the capped candidate set only.
- */
+/** Rank on the skinny search table; no join to fat establishments. */
 export function flatRankedEstablishmentsSql(
   filterSql: string,
   joinSql: string,
   limitParam: number,
 ): string {
-  return `with ranked as (
-       select es.cnpj
-       from establishments_search es
-       ${joinSql}
-       where ${filterSql}
-       order by ${scoreProxyOrderSql("es")}
-       limit $${limitParam}
-     )
-     select e.*
-     from ranked r
-     join establishments e on e.cnpj = r.cnpj`;
+  return `select ${FLAT_CANDIDATE_COLUMNS}
+     from establishments_search es
+     ${joinSql}
+     where ${filterSql}
+     order by ${scoreProxyOrderSql("es")}
+     limit $${limitParam}`;
+}
+
+export function flatEstablishmentsByCnpjsSql(): string {
+  return `select ${FLAT_CANDIDATE_COLUMNS}
+     from establishments_search es
+     where es.cnpj = any($1::char(14)[])`;
 }
 
 export const FLAT_COUNT_CAP = 10000;

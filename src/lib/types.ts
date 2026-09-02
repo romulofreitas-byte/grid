@@ -503,6 +503,8 @@ export type CountResult = {
     uf: string;
     total: number;
   }>;
+  /** Present on a full count when total ≤ SEARCH_CANDIDATE_CAP — not sent to the client. */
+  cnpjs?: string[];
 };
 
 export const DEFAULT_FILTERS: SearchFilters = {

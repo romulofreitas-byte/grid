@@ -41,6 +41,7 @@ import type { GridRepo } from "@/lib/data/repo";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
 import type { SearchJob } from "@/lib/search-jobs";
+import { SEARCH_JOB_DONE_REUSE_MINUTES } from "@/lib/search-jobs";
 import type {
   CompanySearchHit,
   ContactInfo,
@@ -58,6 +59,8 @@ import type {
   SharedPhoneVerdict,
 } from "@/lib/types";
 import { DEFAULT_FILTERS } from "@/lib/types";
+import { SEARCH_CANDIDATE_CAP } from "@/lib/data/establishments-search-sql";
+import { cachedCandidateCnpjs } from "@/lib/cache/count-cache";
 
 const COUNT_CAP = 10000;
 const RESULT_CAP = 1000;
@@ -797,7 +800,36 @@ export const mockRepo: GridRepo = {
       comEmail: mode === "full" ? comEmail : 0,
       comDecisor: mode === "full" ? comDecisor : 0,
       porMunicipio,
+      ...(mode === "full" &&
+      !capped &&
+      matched.length <= SEARCH_CANDIDATE_CAP
+        ? { cnpjs: slice.map((est) => est.cnpj) }
+        : {}),
     };
+  },
+
+  async hasCachedSearchCandidates(filters) {
+    const result = await this.count(filters, "full");
+    return cachedCandidateCnpjs(result, SEARCH_CANDIDATE_CAP) != null;
+  },
+
+  async recordDoneSearchJob(userId, nome, filters, searchId) {
+    const store = getMockStore();
+    const job: SearchJob = {
+      id: randomId(),
+      user_id: userId,
+      nome,
+      filtros: filters,
+      status: "done",
+      search_id: searchId,
+      error: null,
+      attempts: 0,
+      locked_at: null,
+      created_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+    };
+    store.search_jobs.push(job);
+    return job;
   },
 
   async runSearch(userId: string, nome: string, filters: SearchFilters) {
@@ -861,16 +893,21 @@ export const mockRepo: GridRepo = {
   async findReusableSearchJob(userId, filters) {
     const key = JSON.stringify(filters);
     const store = getMockStore();
-    return (
-      [...store.search_jobs]
-        .reverse()
-        .find(
-          (j) =>
-            j.user_id === userId &&
-            (j.status === "pending" || j.status === "running") &&
-            JSON.stringify(j.filtros) === key,
-        ) ?? null
-    );
+    const reuseAfter = Date.now() - SEARCH_JOB_DONE_REUSE_MINUTES * 60 * 1000;
+    const ranked = [...store.search_jobs]
+      .filter((j) => j.user_id === userId && JSON.stringify(j.filtros) === key)
+      .filter((j) => {
+        if (j.status === "pending" || j.status === "running") return true;
+        if (j.status !== "done" || !j.search_id || !j.finished_at) return false;
+        return Date.parse(j.finished_at) > reuseAfter;
+      })
+      .sort((a, b) => {
+        const liveA = a.status === "pending" || a.status === "running" ? 0 : 1;
+        const liveB = b.status === "pending" || b.status === "running" ? 0 : 1;
+        if (liveA !== liveB) return liveA - liveB;
+        return b.created_at.localeCompare(a.created_at);
+      });
+    return ranked[0] ?? null;
   },
 
   async getSearchJob(id, userId) {

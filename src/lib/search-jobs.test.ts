@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  SEARCH_JOB_DONE_REUSE_MINUTES,
+  SEARCH_JOB_POLL_MS,
   searchJobConcurrency,
   searchJobQueuePosition,
   shouldRunSearchJobsInline,
@@ -69,5 +71,12 @@ describe("searchJobConcurrency", () => {
     expect(searchJobConcurrency("0")).toBe(2);
     expect(searchJobConcurrency("3")).toBe(3);
     expect(searchJobConcurrency("99")).toBe(8);
+  });
+});
+
+describe("search job timing", () => {
+  it("polls and reuses done jobs on a short window", () => {
+    expect(SEARCH_JOB_POLL_MS).toBe(400);
+    expect(SEARCH_JOB_DONE_REUSE_MINUTES).toBe(10);
   });
 });

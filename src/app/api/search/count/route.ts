@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { countResultForClient } from "@/lib/cache/count-cache";
 import { getRepo } from "@/lib/data";
 import { dbUnavailableResponse } from "@/lib/data/db-api";
 import type { CountMode, SearchFilters } from "@/lib/types";
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
   const filters = parsed.data as SearchFilters;
   try {
     const result = await getRepo().count(filters, mode);
-    return NextResponse.json(result);
+    return NextResponse.json(countResultForClient(result));
   } catch (err) {
     return dbUnavailableResponse(err, "search_count");
   }

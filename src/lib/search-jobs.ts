@@ -48,6 +48,9 @@ export function toSearchJobPublic(
   };
 }
 
+export const SEARCH_JOB_POLL_MS = 400;
+export const SEARCH_JOB_DONE_REUSE_MINUTES = 10;
+
 /** Vercel never runs runSearch inline — Railway/local/mock do. */
 export function shouldRunSearchJobsInline(): boolean {
   const raw = process.env.DATA_SOURCE ?? "mock";

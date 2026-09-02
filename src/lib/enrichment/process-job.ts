@@ -16,7 +16,7 @@ import type { GridRepo } from "@/lib/data/repo";
 import type { EnrichmentJob, ScoreProfile } from "@/lib/types";
 
 export const DEFAULT_ENRICH_CONCURRENCY = 8;
-export const DEFAULT_WORKER_IDLE_MS = 1500;
+export const DEFAULT_WORKER_IDLE_MS = 400;
 
 export function enrichConcurrency(
   raw: string | undefined = process.env.ENRICH_CONCURRENCY,

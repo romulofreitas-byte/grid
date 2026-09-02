@@ -36,7 +36,7 @@ import {
   type Search as GridSearch,
   type SearchFilters,
 } from "@/lib/types";
-import type { SearchJobPublic } from "@/lib/search-jobs";
+import { SEARCH_JOB_POLL_MS, type SearchJobPublic } from "@/lib/search-jobs";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/niches";
 import {
@@ -64,7 +64,7 @@ async function waitForSearchJob(
     if (body.status === "failed") {
       throw new Error(body.error ?? "Não foi possível montar o grid");
     }
-    await sleep(2000);
+    await sleep(SEARCH_JOB_POLL_MS);
   }
   throw new Error("A fila está demorando. Abra Minhas listas em instantes.");
 }

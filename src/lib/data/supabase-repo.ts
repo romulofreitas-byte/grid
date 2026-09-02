@@ -34,19 +34,30 @@ import {
   mergeCompanyNameWaves,
   sqlFoldAccent,
 } from "@/lib/data/company-search";
-import { countCacheKey, getCountCache, setCountCache } from "@/lib/cache/count-cache";
+import {
+  cachedCandidateCnpjs,
+  countCacheKey,
+  getCountCache,
+  setCountCache,
+} from "@/lib/cache/count-cache";
 import {
   withCountSingleFlight,
   withCountSlot,
 } from "@/lib/cache/count-slots";
-import type { SearchJob, SearchJobStatus } from "@/lib/search-jobs";
+import {
+  SEARCH_JOB_DONE_REUSE_MINUTES,
+  type SearchJob,
+  type SearchJobStatus,
+} from "@/lib/search-jobs";
 import {
   CNAE_ANY_SQL,
   FLAT_COUNT_CAP,
   FLAT_COUNT_PREVIEW_CAP,
+  SEARCH_CANDIDATE_CAP,
   UF_ANY_SQL,
   cnaeChar7Params,
   flatCountSql,
+  flatEstablishmentsByCnpjsSql,
   flatRankedEstablishmentsSql,
   ufChar2Params,
 } from "@/lib/data/establishments-search-sql";
@@ -116,7 +127,7 @@ import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
 
 const COUNT_CAP = FLAT_COUNT_CAP;
 const RESULT_CAP = 1000;
-const CANDIDATE_CAP = 1500;
+const CANDIDATE_CAP = SEARCH_CANDIDATE_CAP;
 
 const CAPITALS: Record<string, string> = {
   AC: "Rio Branco",
@@ -793,16 +804,19 @@ async function countViaFlatTable(
   const { sql, params } = buildFlatFilterSql(filters, allowed);
   const joinSql = buildFlatMatchFrom(filters);
   const limitParam = params.length + 1;
+  const includeCnpjs = opts.includeStats;
   const { rows } = await querySearch<{
     total_probe: number;
     com_telefone: number;
     com_email: number;
     com_decisor: number;
     por_municipio: MunicipioCountRow[] | null;
+    cnpjs: unknown;
   }>(
     flatCountSql(sql, joinSql, limitParam, {
       includeStats: opts.includeStats,
       cap: opts.cap,
+      includeCnpjs,
     }),
     [...params, opts.cap + 1],
   );
@@ -810,7 +824,7 @@ async function countViaFlatTable(
   const raw = Number(row?.total_probe ?? 0);
   const capped = raw > opts.cap;
   const munRows = Array.isArray(row?.por_municipio) ? row.por_municipio : [];
-  return {
+  const result: CountResult = {
     total: capped ? opts.cap : raw,
     capped,
     comTelefone: Number(row?.com_telefone ?? 0),
@@ -818,6 +832,24 @@ async function countViaFlatTable(
     comDecisor: Number(row?.com_decisor ?? 0),
     porMunicipio: mapMunicipioCountRows(munRows),
   };
+  if (includeCnpjs && !capped) {
+    const cnpjs = parseCountCnpjs(row?.cnpjs, CANDIDATE_CAP);
+    if (cnpjs) result.cnpjs = cnpjs;
+  }
+  return result;
+}
+
+function parseCountCnpjs(raw: unknown, cap: number): string[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > cap) return undefined;
+  const list = [
+    ...new Set(
+      raw
+        .map((value) => String(value ?? "").replace(/\D/g, "").padStart(14, "0"))
+        .filter((cnpj) => cnpj.length === 14),
+    ),
+  ];
+  if (!list.length || list.length > cap) return undefined;
+  return list;
 }
 
 function canFastCountStructural(
@@ -2529,13 +2561,45 @@ export const supabaseRepo: GridRepo = {
     return countCached(filters, mode, allowed);
   },
 
+  async hasCachedSearchCandidates(filters) {
+    const allowed = await resolveAllowedCnaes(filters);
+    const cached = await getCountCache(countCacheKey(filters, "full", allowed));
+    return cachedCandidateCnpjs(cached, CANDIDATE_CAP) != null;
+  },
+
+  async recordDoneSearchJob(userId, nome, filters, searchId) {
+    const { rows } = await query(
+      `insert into search_jobs (user_id, nome, filtros, status, search_id, finished_at)
+       values ($1, $2, $3::jsonb, 'done', $4, now())
+       returning *`,
+      [userId, nome, JSON.stringify(filters), searchId],
+    );
+    return mapSearchJob(rows[0]);
+  },
+
   async runSearch(userId, nome, filters) {
     const allowed = await resolveAllowedCnaes(filters);
     const profile = await scoreProfileForFilters(filters);
     const useFlat = await hasEstablishmentsSearch();
     let rows: Record<string, unknown>[];
     const started = Date.now();
-    if (useFlat) {
+    const cachedCnpjs = useFlat
+      ? cachedCandidateCnpjs(
+          await getCountCache(countCacheKey(filters, "full", allowed)),
+          CANDIDATE_CAP,
+        )
+      : null;
+    if (cachedCnpjs) {
+      const result = await querySearch(flatEstablishmentsByCnpjsSql(), [
+        cnpjChar14Params(cachedCnpjs),
+      ]);
+      rows = result.rows;
+      logSearchDuration("runSearch.candidates", started, {
+        flat: true,
+        cache: true,
+        n: rows.length,
+      });
+    } else if (useFlat) {
       const { sql, params } = buildFlatFilterSql(filters, allowed);
       const joinSql = buildFlatMatchFrom(filters);
       const limitParam = params.length + 1;
@@ -2544,6 +2608,10 @@ export const supabaseRepo: GridRepo = {
         [...params, CANDIDATE_CAP],
       );
       rows = result.rows;
+      logSearchDuration("runSearch.candidates", started, {
+        flat: true,
+        n: rows.length,
+      });
     } else {
       const { sql, params } = buildFilterSql(filters, allowed);
       const fromSql = buildMatchFrom(filters);
@@ -2556,11 +2624,11 @@ export const supabaseRepo: GridRepo = {
         [...params, CANDIDATE_CAP],
       );
       rows = result.rows;
+      logSearchDuration("runSearch.candidates", started, {
+        flat: false,
+        n: rows.length,
+      });
     }
-    logSearchDuration("runSearch.candidates", started, {
-      flat: useFlat,
-      n: rows.length,
-    });
     const hydrateStarted = Date.now();
     const ests = rows.map(mapEstablishment);
     const packed = await fetchByCnpjs(
@@ -2673,11 +2741,20 @@ export const supabaseRepo: GridRepo = {
     const { rows } = await query(
       `select * from search_jobs
        where user_id = $1
-         and status in ('pending', 'running')
          and filtros = $2::jsonb
-       order by created_at desc
+         and (
+           status in ('pending', 'running')
+           or (
+             status = 'done'
+             and search_id is not null
+             and finished_at > now() - ($3::int * interval '1 minute')
+           )
+         )
+       order by
+         case when status in ('pending', 'running') then 0 else 1 end,
+         created_at desc
        limit 1`,
-      [userId, JSON.stringify(filters)],
+      [userId, JSON.stringify(filters), SEARCH_JOB_DONE_REUSE_MINUTES],
     );
     return rows[0] ? mapSearchJob(rows[0]) : null;
   },

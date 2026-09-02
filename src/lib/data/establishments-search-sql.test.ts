@@ -3,9 +3,11 @@ import {
   CNAE_ANY_SQL,
   FLAT_COUNT_CAP,
   FLAT_COUNT_PREVIEW_CAP,
+  SEARCH_CANDIDATE_CAP,
   UF_ANY_SQL,
   cnaeChar7Params,
   flatCountSql,
+  flatEstablishmentsByCnpjsSql,
   flatRankedEstablishmentsSql,
   ufChar2Params,
 } from "./establishments-search-sql";
@@ -40,6 +42,13 @@ describe("flatCountSql", () => {
     expect(sql).toContain("limit $2");
   });
 
+  it("includes CNPJs only when the probe is within the candidate cap", () => {
+    const sql = flatCountSql(FILTER, "", 2, { includeStats: true, includeCnpjs: true });
+    expect(sql).toContain("es.cnpj");
+    expect(sql).toContain("json_agg(c.cnpj)");
+    expect(sql).toContain(`when s.total_probe <= ${SEARCH_CANDIDATE_CAP}`);
+  });
+
   it("skips contact stats in total mode and uses the preview cap", () => {
     const sql = flatCountSql(FILTER, "", 2, {
       includeStats: false,
@@ -49,17 +58,27 @@ describe("flatCountSql", () => {
     expect(sql).not.toContain("filter (where telefone1 is not null)");
     expect(sql).toContain(`limit ${FLAT_COUNT_PREVIEW_CAP}`);
     expect(sql).toContain("top_mun");
+    expect(sql).toContain("null::json as cnpjs");
+    expect(sql).not.toContain("json_agg(c.cnpj)");
   });
 });
 
 describe("flatRankedEstablishmentsSql", () => {
-  it("limits on the search table before joining establishments", () => {
+  it("ranks on the search table without joining establishments", () => {
     const sql = flatRankedEstablishmentsSql(FILTER, "", 3);
-    const rankedBlock = sql.slice(0, sql.indexOf("select e.*"));
-    expect(rankedBlock).toContain("from establishments_search es");
-    expect(rankedBlock).toContain("limit $3");
-    expect(rankedBlock).not.toContain("join establishments");
-    expect(sql).toContain("from ranked r");
-    expect(sql).toContain("join establishments e on e.cnpj = r.cnpj");
+    expect(sql).toContain("from establishments_search es");
+    expect(sql).toContain("limit $3");
+    expect(sql).not.toContain("join establishments");
+    expect(sql).toContain("es.cnpj");
+    expect(sql).toContain("es.cnpj_basico");
+  });
+});
+
+describe("flatEstablishmentsByCnpjsSql", () => {
+  it("looks up skinny rows by typed CNPJ array", () => {
+    const sql = flatEstablishmentsByCnpjsSql();
+    expect(sql).toContain("from establishments_search es");
+    expect(sql).toContain("es.cnpj = any($1::char(14)[])");
+    expect(sql).not.toContain("join establishments");
   });
 });

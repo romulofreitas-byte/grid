@@ -23,4 +23,57 @@ describe("mock search jobs", () => {
     const search = await mockRepo.getSearch(done!.search_id!);
     expect(search?.user_id).toBe(LOCAL_USER_ID);
   });
+
+  it("reuses a recent done job with the same filters and prefers pending", async () => {
+    const store = getMockStore();
+    store.search_jobs = [];
+    const filters = { ...DEFAULT_FILTERS, ufs: ["PA"] };
+    const search = await mockRepo.runSearch(LOCAL_USER_ID, "Lista · PA", filters);
+    const done = await mockRepo.recordDoneSearchJob(
+      LOCAL_USER_ID,
+      "Lista · PA",
+      filters,
+      search.id,
+    );
+    const reused = await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters);
+    expect(reused?.id).toBe(done.id);
+    expect(reused?.status).toBe("done");
+    expect(reused?.search_id).toBe(search.id);
+
+    const pending = await mockRepo.enqueueSearchJob(
+      LOCAL_USER_ID,
+      "Lista · PA de novo",
+      filters,
+    );
+    const live = await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters);
+    expect(live?.id).toBe(pending.id);
+    expect(live?.status).toBe("pending");
+  });
+
+  it("does not reuse a done job older than the reuse window", async () => {
+    const store = getMockStore();
+    store.search_jobs = [];
+    const filters = { ...DEFAULT_FILTERS, ufs: ["CE"] };
+    const search = await mockRepo.runSearch(LOCAL_USER_ID, "Lista · CE", filters);
+    const done = await mockRepo.recordDoneSearchJob(
+      LOCAL_USER_ID,
+      "Lista · CE",
+      filters,
+      search.id,
+    );
+    done.finished_at = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+    expect(await mockRepo.findReusableSearchJob(LOCAL_USER_ID, filters)).toBeNull();
+  });
+
+  it("stores CNPJs on a small full count", async () => {
+    const filters = { ...DEFAULT_FILTERS, ufs: ["MG"] };
+    const result = await mockRepo.count(filters, "full");
+    expect(result.capped).toBe(false);
+    if (result.total > 0) {
+      expect(result.cnpjs).toHaveLength(result.total);
+      expect(await mockRepo.hasCachedSearchCandidates(filters)).toBe(true);
+    } else {
+      expect(await mockRepo.hasCachedSearchCandidates(filters)).toBe(false);
+    }
+  });
 });
