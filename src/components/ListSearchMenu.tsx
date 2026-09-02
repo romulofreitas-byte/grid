@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal, SlidersHorizontal, Trash2 } from "lucide-react";
-import { ExportDownload } from "@/components/ExportDownload";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { COPY } from "@/lib/copy";
 import { largadaEditHref } from "@/lib/back";
@@ -133,16 +132,6 @@ export function ListSearchMenu({
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 {COPY.ajustar}
               </Link>
-              <ExportDownload
-                searchId={search.id}
-                format="xlsx"
-                label="Excel"
-                wrapperClassName="w-full items-stretch"
-                className={cn(
-                  menuItemClass,
-                  "border-0 hover:border-transparent",
-                )}
-              />
               <button
                 type="button"
                 role="menuitem"

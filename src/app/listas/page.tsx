@@ -5,9 +5,8 @@ import { BACK } from "@/lib/back";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
+import { UNSAVED_LIST_CAP } from "@/lib/searches";
 import { redirect, unstable_rethrow } from "next/navigation";
-
-const LISTAS_LIMIT = 50;
 
 export default async function ListasPage() {
   try {
@@ -33,21 +32,26 @@ async function ListasPageInner() {
   if (!session) redirect("/entrar");
   const repo = getRepo();
   const profile = await repo.getProfile(session.id);
-  const searches = await repo.listRecentSearches(profile.id, {
-    limit: LISTAS_LIMIT,
-  });
-  let pipelineNomes: string[] = [];
-  try {
-    const pipelines = await repo.listCrmPipelines(session.id);
-    pipelineNomes = pipelines.map((pipeline) => pipeline.nome);
-  } catch (err) {
-    console.error("listas_pipelines_error", err);
-  }
+  await repo.pruneUnsavedSearches(profile.id);
+  const [saved, unsaved, pipelineNomes] = await Promise.all([
+    repo.listSearches(profile.id),
+    repo.listRecentSearches(profile.id, {
+      saved: false,
+      limit: UNSAVED_LIST_CAP,
+    }),
+    repo
+      .listCrmPipelines(session.id)
+      .then((pipelines) => pipelines.map((pipeline) => pipeline.nome))
+      .catch((err) => {
+        console.error("listas_pipelines_error", err);
+        return [] as string[];
+      }),
+  ]);
 
   return (
     <AppShell title="Listas" back={BACK.box}>
       <ListsBoard
-        initial={searches}
+        initial={[...saved, ...unsaved]}
         pipelineNomes={pipelineNomes}
       />
     </AppShell>

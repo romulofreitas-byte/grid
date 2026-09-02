@@ -14,6 +14,8 @@ describe("filterFaq", () => {
   it("matches saved vs unsaved lists", () => {
     const hits = filterFaq(FAQ_ITEMS, "nao salvas");
     expect(hits.some((item) => item.id === "listas-salvas")).toBe(true);
+    const item = FAQ_ITEMS.find((entry) => entry.id === "listas-salvas");
+    expect(item?.answer).toMatch(/no máximo 3/);
   });
 });
 

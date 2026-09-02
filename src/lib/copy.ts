@@ -154,6 +154,14 @@ export const COPY = {
   empresaForaDaBase: "Este CNPJ não está nesta base da Receita.",
   tirarDasListas: "Tirar das listas",
   listasNaoSalvas: "Não salvas",
+  listasRascunho: "Rascunho",
+  listasSalvasHint:
+    "As que você guardou para ligar de novo. Tirar daqui não apaga a lista.",
+  listasNaoSalvasHint:
+    "Até 3 rascunhos. Só dá para abrir — salve para guardar ou excluir.",
+  listasMostrarMais: "Mostrar mais · {n}",
+  listasLeadOne: "lead",
+  listasLeadMany: "leads",
   crmNav: "CRM",
   crmTitle: "Pista de negócios",
   crmHint:
@@ -259,6 +267,7 @@ export const COPY = {
   filaPodeFechar: "Pode sair: a lista aparece em Minhas listas.",
   filaContando: "Contando — fila curta.",
   filaQualificando: "Na fila — qualificando",
+  filaWorkerOcupado: "Na fila — worker ocupado",
 } as const;
 
 export const PORTE_LABELS: Record<string, string> = {

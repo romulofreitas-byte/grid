@@ -90,6 +90,7 @@ import {
 import { crmPgMethods } from "@/lib/data/crm-pg";
 import { catchupPgMethods } from "@/lib/data/catchup-pg";
 import type { GridRepo } from "@/lib/data/repo";
+import { unsavedIdsToPrune } from "@/lib/searches";
 import type {
   IntegrationConnectionRecord,
   IntegrationJobRecord,
@@ -385,6 +386,7 @@ function mapJob(r: Record<string, unknown>): EnrichmentJob {
     created_at: isoStr(r.created_at),
     finished_at: r.finished_at == null ? null : isoStr(r.finished_at),
     payload: (r.payload ?? null) as EnrichmentJob["payload"],
+    priority: Number(r.priority ?? 0),
   };
 }
 
@@ -2706,6 +2708,7 @@ export const supabaseRepo: GridRepo = {
       .sort((a, b) => b.score - a.score)
       .slice(0, RESULT_CAP);
 
+    await this.pruneUnsavedSearches(userId, { incoming: 1 });
     const inserted = await query(
       `insert into searches (user_id, nome, filtros, total_found, saved)
        values ($1, $2, $3::jsonb, $4, false)
@@ -2872,13 +2875,18 @@ export const supabaseRepo: GridRepo = {
   async listRecentSearches(userId, opts) {
     try {
       const params: unknown[] = [userId];
+      let where = "user_id = $1";
+      if (opts?.saved != null) {
+        params.push(opts.saved);
+        where += ` and saved = $${params.length}`;
+      }
       let limitSql = "";
       if (opts?.limit != null) {
         params.push(opts.limit);
         limitSql = ` limit $${params.length}`;
       }
       const { rows } = await query(
-        `select * from searches where user_id = $1 order by created_at desc${limitSql}`,
+        `select * from searches where ${where} order by created_at desc${limitSql}`,
         params,
       );
       return rows.map(mapSearch);
@@ -2897,7 +2905,20 @@ export const supabaseRepo: GridRepo = {
       "update searches set nome = $2, saved = $3 where id = $1 returning *",
       [searchId, nome, saved],
     );
-    return rows[0] ? mapSearch(rows[0]) : undefined;
+    const search = rows[0] ? mapSearch(rows[0]) : undefined;
+    if (search && patch.saved === false) {
+      await this.pruneUnsavedSearches(search.user_id, { keepId: searchId });
+    }
+    return search;
+  },
+
+  async pruneUnsavedSearches(userId, opts) {
+    const unsaved = await this.listRecentSearches(userId, { saved: false });
+    const ids = unsavedIdsToPrune(unsaved, opts);
+    for (const id of ids) {
+      await this.deleteSearch(id);
+    }
+    return ids;
   },
 
   async deleteSearch(searchId) {
@@ -3094,9 +3115,15 @@ export const supabaseRepo: GridRepo = {
     return { rows, nextCursor, total, unaudited };
   },
 
-  async listUnauditedCnpjs(searchId) {
+  async listUnauditedCnpjs(searchId, opts) {
     const search = await this.getSearch(searchId);
     if (!search) return [];
+    const limit =
+      opts?.limit != null && Number.isFinite(opts.limit) && opts.limit > 0
+        ? Math.floor(opts.limit)
+        : null;
+    const params: unknown[] = [searchId, search.user_id];
+    const limitSql = limit != null ? ` limit $${params.push(limit)}` : "";
     const { rows } = await query<{ cnpj: string }>(
       `select sl.cnpj
        from saved_leads sl
@@ -3105,16 +3132,16 @@ export const supabaseRepo: GridRepo = {
            select 1 from billed_cnpjs b
             where b.profile_id = $2
               and b.kind = 'enrich'
-              and rtrim(b.cnpj) = rtrim(sl.cnpj)
+              and b.cnpj = sl.cnpj
          )
          and not exists (
            select 1 from enrichment_jobs j
             where j.search_id = sl.search_id
-              and rtrim(j.cnpj) = rtrim(sl.cnpj)
+              and j.cnpj = sl.cnpj
               and j.status in ('done', 'skipped')
          )
-       order by sl.grid_position`,
-      [searchId, search.user_id],
+       order by sl.grid_position${limitSql}`,
+      params,
     );
     return rows.map((r) => trimChar(r.cnpj));
   },
@@ -3456,27 +3483,29 @@ export const supabaseRepo: GridRepo = {
       ? []
       : remaining.filter((c) => freshSet.has(c) && !activeSet.has(c));
 
+    const priority = input.priority ? 1 : 0;
     if (pending.length) {
       await query(
         `insert into enrichment_jobs
-           (cnpj, requested_by, search_id, status, attempts, finished_at, payload)
-         select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb
+           (cnpj, requested_by, search_id, status, attempts, finished_at, payload, priority)
+         select x.cnpj, $2, $3, 'pending', 0, null, $4::jsonb, $5
          from unnest($1::text[]) as x(cnpj)`,
         [
           pending,
           input.userId,
           input.searchId,
           input.payload ? JSON.stringify(input.payload) : null,
+          priority,
         ],
       );
     }
     if (skippedFresh.length) {
       await query(
         `insert into enrichment_jobs
-           (cnpj, requested_by, search_id, status, attempts, finished_at)
-         select x.cnpj, $2, $3, 'skipped', 0, now()
+           (cnpj, requested_by, search_id, status, attempts, finished_at, priority)
+         select x.cnpj, $2, $3, 'skipped', 0, now(), $4
          from unnest($1::text[]) as x(cnpj)`,
-        [skippedFresh, input.userId, input.searchId],
+        [skippedFresh, input.userId, input.searchId, priority],
       );
     }
     return { queued: pending.length, skippedOptOut: optedSet.size };
@@ -3484,7 +3513,10 @@ export const supabaseRepo: GridRepo = {
 
   async listEnrichmentJobs(searchId) {
     const { rows } = await query(
-      "select * from enrichment_jobs where search_id = $1 order by created_at",
+      `select distinct on (cnpj) *
+         from enrichment_jobs
+        where search_id = $1
+        order by cnpj, created_at desc, id desc`,
       [searchId],
     );
     return rows.map(mapJob);
@@ -3571,7 +3603,7 @@ export const supabaseRepo: GridRepo = {
          select id from enrichment_jobs
          where status = 'pending'
             or (status = 'running' and locked_at < now() - interval '10 minutes')
-         order by created_at
+         order by priority desc, created_at, id
          limit 1
          for update skip locked
        )

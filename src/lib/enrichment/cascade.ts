@@ -71,7 +71,8 @@ const HARVEST_PATHS = [
   "/sobre",
   "/quem-somos",
 ];
-const INNER_PAGE_GAP_MS = 500;
+export const HOME_PAGE_GAP_MS = 500;
+export const INNER_PAGE_GAP_MS = 150;
 const MAX_CRAWL_PAGES = 8;
 
 const lastHitByHost = new Map<string, number>();
@@ -94,7 +95,7 @@ function elapsed(started: number): number {
 
 export async function respectRateLimit(
   host: string,
-  minGapMs = 2000,
+  minGapMs = HOME_PAGE_GAP_MS,
 ): Promise<void> {
   const last = lastHitByHost.get(host) ?? 0;
   const wait = minGapMs - (Date.now() - last);
@@ -129,7 +130,7 @@ export async function allowedByRobots(origin: string, path: string): Promise<boo
 
 async function fetchPage(
   url: string,
-  minGapMs = 2000,
+  minGapMs = HOME_PAGE_GAP_MS,
 ): Promise<{ html: string; status: number; finalUrl: string } | null> {
   const u = new URL(url);
   if (!(await allowedByRobots(u.origin, u.pathname))) return null;
@@ -460,6 +461,7 @@ export async function enrichCompany(
     osm_ms: 0,
     progress_ms: 0,
   };
+  let persistTail = Promise.resolve();
 
   if (!domain) {
     const fromEmail = domainFromEmail(est.email, {
@@ -546,9 +548,21 @@ export async function enrichCompany(
   };
 
   const emit = async (row: LeadEnrichment): Promise<LeadEnrichment> => {
-    const t = Date.now();
-    await onProgress?.(row);
-    timings.progress_ms += elapsed(t);
+    persistTail = persistTail.then(async () => {
+      const t = Date.now();
+      try {
+        await onProgress?.(row);
+      } catch {
+        /* final upsert in processJob is authoritative */
+      }
+      timings.progress_ms += elapsed(t);
+    });
+    return row;
+  };
+
+  const flushProgress = async (row: LeadEnrichment): Promise<LeadEnrichment> => {
+    await emit(row);
+    await persistTail;
     return row;
   };
 
@@ -580,8 +594,11 @@ export async function enrichCompany(
     const strongBrand =
       presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
         .length > 0;
-    for (const q of queries) {
-      const hits = await serperOrganic(q);
+    const [hitSets, gmbSeed] = await Promise.all([
+      Promise.all(queries.map((q) => serperOrganic(q))),
+      searchGmb(gmbInput),
+    ]);
+    for (const hits of hitSets) {
       socialsFromSearch = absorbSearchSocials(
         hits,
         brand,
@@ -591,41 +608,39 @@ export async function enrichCompany(
         fonte,
         collected_at,
       );
-      const best = pickBestDomainHit(
-        hits,
-        brand.razaoSocial,
-        brand.nomeFantasia,
-        brand.municipio,
-        exclude,
-      );
-      if (!best) continue;
+    }
+    const best = pickBestDomainHit(
+      hitSets.flat(),
+      brand.razaoSocial,
+      brand.nomeFantasia,
+      brand.municipio,
+      exclude,
+    );
+    if (best) {
       try {
         const host = normalizeHost(new URL(best.link).host);
-        if (discarded.has(host) || isDirectoryUrl(best.link)) continue;
-        domain = host;
-        fonte.domain = { fonte: "serper", coletado_em: collected_at };
-        domain_status = "nao_confirmado";
-        await emit(assemble("domain", { people: null }));
-        break;
-      } catch {
-        continue;
-      }
-    }
-
-    if (!domain) {
-      const gmbSeed = await searchGmb(gmbInput);
-      if (gmbSeed) {
-        gmb = gmbSeed;
-        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-      }
-      if (gmbSeed?.matched) {
-        const fromMaps = domainFromGmb(gmbSeed);
-        if (fromMaps && !discarded.has(normalizeHost(fromMaps))) {
-          domain = fromMaps;
-          fonte.domain = { fonte: "gmb", coletado_em: collected_at };
+        if (!discarded.has(host) && !isDirectoryUrl(best.link)) {
+          domain = host;
+          fonte.domain = { fonte: "serper", coletado_em: collected_at };
           domain_status = "nao_confirmado";
           await emit(assemble("domain", { people: null }));
         }
+      } catch {
+        /* invalid URL */
+      }
+    }
+
+    if (gmbSeed) {
+      gmb = gmbSeed;
+      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+    }
+    if (!domain && gmbSeed?.matched) {
+      const fromMaps = domainFromGmb(gmbSeed);
+      if (fromMaps && !discarded.has(normalizeHost(fromMaps))) {
+        domain = fromMaps;
+        fonte.domain = { fonte: "gmb", coletado_em: collected_at };
+        domain_status = "nao_confirmado";
+        await emit(assemble("domain", { people: null }));
       }
     }
     timings.serper_ms = elapsed(serperStarted);
@@ -673,7 +688,7 @@ export async function enrichCompany(
 
       const ok = await fetchAndAccumulate(
         path,
-        path === HOME_PATH ? 2000 : INNER_PAGE_GAP_MS,
+        path === HOME_PATH ? HOME_PAGE_GAP_MS : INNER_PAGE_GAP_MS,
       );
       if (!ok) {
         if (path === HOME_PATH && !homeEmitted) {
@@ -733,7 +748,7 @@ export async function enrichCompany(
         if (pages >= MAX_CRAWL_PAGES) break;
         await fetchAndAccumulate(
           path,
-          path === HOME_PATH ? 2000 : INNER_PAGE_GAP_MS,
+          path === HOME_PATH ? HOME_PAGE_GAP_MS : INNER_PAGE_GAP_MS,
         );
       }
     }
@@ -791,10 +806,9 @@ export async function enrichCompany(
   });
 
   const presenceStarted = Date.now();
-  const socialSteps = [
+  const socialPlatforms = [
     "instagram",
     "facebook",
-    "gmb",
     "linkedin",
     "youtube",
   ] as const;
@@ -820,23 +834,20 @@ export async function enrichCompany(
   const canSearchSocialWithoutSite =
     strongBrandTokens.length > 0 || gmbCorroborated;
 
-  for (const step of socialSteps) {
-    fonte.presence_scan = { fonte: step, coletado_em: collected_at };
-    await emit(assemble("presence", snapExtras()));
-    if (step === "gmb") {
-      if (gmb == null) {
-        const listing = await searchGmb(gmbInput);
-        gmb =
-          listing && listing.matched
-            ? listing
-            : { name: "", url: "", matched: false };
-        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+  fonte.presence_scan = { fonte: "presence", coletado_em: collected_at };
+  await emit(assemble("presence", snapExtras()));
+
+  const foundSocials = await Promise.all(
+    socialPlatforms.map(async (step) => {
+      if (snap.socials[step]) {
+        return { step, kind: "site" as const, url: undefined };
       }
-    } else if (snap.socials[step]) {
-      fonte[step] = { fonte: "site", coletado_em: collected_at };
-    } else if (!siteConfirmed && !canSearchSocialWithoutSite) {
-      fonte[step] = { fonte: "skipped_weak_brand", coletado_em: collected_at };
-    } else if (!socialsFromSearch[step]) {
+      if (!siteConfirmed && !canSearchSocialWithoutSite) {
+        return { step, kind: "skipped_weak_brand" as const, url: undefined };
+      }
+      if (socialsFromSearch[step]) {
+        return { step, kind: null, url: undefined };
+      }
       let found = await searchSocialProfile({
         platform: step,
         ...presencePlace,
@@ -854,11 +865,20 @@ export async function enrichCompany(
           webQuery: true,
         });
       }
-      if (found) socialsFromSearch = { ...socialsFromSearch, [step]: found };
-      fonte[step] = {
-        fonte: found ? "serper" : "serper_miss",
-        coletado_em: collected_at,
+      return {
+        step,
+        kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
+        url: found ?? undefined,
       };
+    }),
+  );
+
+  for (const item of foundSocials) {
+    if (item.url) {
+      socialsFromSearch = { ...socialsFromSearch, [item.step]: item.url };
+    }
+    if (item.kind) {
+      fonte[item.step] = { fonte: item.kind, coletado_em: collected_at };
     }
   }
   timings.serper_ms += elapsed(presenceStarted);
@@ -866,6 +886,6 @@ export async function enrichCompany(
 
   await emit(assemble("site", snapExtras()));
 
-  const row = await emit(assemble("complete", snapExtras()));
+  const row = await flushProgress(assemble("complete", snapExtras()));
   return { row, timings };
 }

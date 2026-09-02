@@ -11,9 +11,20 @@ const enqueueEnrichment = vi.hoisted(() => vi.fn());
 const setDomainCache = vi.hoisted(() => vi.fn());
 const getSearch = vi.hoisted(() => vi.fn());
 const classifyEnrichmentCnpjs = vi.hoisted(() => vi.fn());
+const listUnauditedCnpjs = vi.hoisted(() => vi.fn());
 const drainJobsIfMock = vi.hoisted(() => vi.fn());
 const resolveJobScoreProfile = vi.hoisted(() => vi.fn());
 const bridgeQualifiedLeadsToCrm = vi.hoisted(() => vi.fn());
+const after = vi.hoisted(() =>
+  vi.fn((cb: () => unknown) => {
+    void cb();
+  }),
+);
+
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return { ...actual, after };
+});
 
 vi.mock("@/lib/auth/api-guard", () => ({
   guardApi: (...args: unknown[]) => guardApi(...args),
@@ -35,7 +46,7 @@ vi.mock("@/lib/data", () => ({
     enqueueEnrichment,
     setDomainCache,
     getPreset: vi.fn(),
-    listUnauditedCnpjs: vi.fn(),
+    listUnauditedCnpjs,
     classifyEnrichmentCnpjs,
   }),
 }));
@@ -301,6 +312,7 @@ describe("POST /api/enrich qualify bridge", () => {
     guardApi.mockReset();
     getSearch.mockReset();
     classifyEnrichmentCnpjs.mockReset();
+    listUnauditedCnpjs.mockReset();
     enqueueEnrichment.mockReset();
     drainJobsIfMock.mockReset();
     bridgeQualifiedLeadsToCrm.mockReset();
@@ -312,7 +324,7 @@ describe("POST /api/enrich qualify bridge", () => {
     enqueueEnrichment.mockResolvedValue({ queued: 1, skippedOptOut: 0 });
   });
 
-  it("awaits the CRM bridge and returns the real pipelineId", async () => {
+  it("does not wait for the CRM bridge before responding", async () => {
     getSearch.mockResolvedValue({
       id: "s1",
       user_id: "u1",
@@ -320,12 +332,18 @@ describe("POST /api/enrich qualify bridge", () => {
       nome: "Padaria do Zé",
       filtros: { cnpjs: ["00000000000000"], segmentIds: [] },
     });
-    bridgeQualifiedLeadsToCrm.mockResolvedValue({
-      created: 1,
-      skipped: 0,
-      pipelineId: "pipe-1",
-      pipelineNome: "Meu nicho",
-    });
+    let resolveBridge!: (value: {
+      created: number;
+      skipped: number;
+      pipelineId: string;
+      pipelineNome: string;
+    }) => void;
+    bridgeQualifiedLeadsToCrm.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveBridge = resolve;
+        }),
+    );
     const res = await POST(
       correctRequest({
         searchId: "s1",
@@ -335,19 +353,65 @@ describe("POST /api/enrich qualify bridge", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
       queued: 1,
-      crmBridge: {
-        created: 1,
-        pipelineId: "pipe-1",
-        pipelineNome: "Meu nicho",
-      },
+      crmBridge: null,
       crmPending: true,
     });
-    expect(bridgeQualifiedLeadsToCrm).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        userId: "u1",
-        cnpjs: ["00000000000000"],
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({ priority: true }),
+    );
+    expect(bridgeQualifiedLeadsToCrm).toHaveBeenCalled();
+    resolveBridge({
+      created: 1,
+      skipped: 0,
+      pipelineId: "pipe-1",
+      pipelineNome: "Meu nicho",
+    });
+  });
+
+  it("passes limit into listUnauditedCnpjs for Qualificar 10", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: false,
+      nome: "Lista",
+      filtros: {},
+    });
+    listUnauditedCnpjs.mockResolvedValue(["00000000000001", "00000000000002"]);
+    const res = await POST(
+      correctRequest({
+        searchId: "s1",
+        scope: "first_unaudited",
+        limit: 10,
       }),
+    );
+    expect(res.status).toBe(200);
+    expect(listUnauditedCnpjs).toHaveBeenCalledWith("s1", { limit: 10 });
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        priority: true,
+        cnpjs: ["00000000000001", "00000000000002"],
+      }),
+    );
+  });
+
+  it("enqueues the full list without interactive priority", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: false,
+      nome: "Lista",
+      filtros: {},
+    });
+    listUnauditedCnpjs.mockResolvedValue(["00000000000001"]);
+    await POST(
+      correctRequest({
+        searchId: "s1",
+        scope: "all_unaudited",
+      }),
+    );
+    expect(listUnauditedCnpjs).toHaveBeenCalledWith("s1", undefined);
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({ priority: false }),
     );
   });
 });

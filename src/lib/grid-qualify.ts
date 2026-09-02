@@ -1,4 +1,32 @@
-import type { EnrichmentJobStatus } from "@/lib/types";
+import type { EnrichmentJob, EnrichmentJobStatus } from "@/lib/types";
+import {
+  ENRICH_JOB_POLL_PENDING_MS,
+  ENRICH_JOB_POLL_RUNNING_MS,
+  ENRICH_QUEUE_STUCK_MS,
+} from "@/lib/enrichment/jobs";
+
+export {
+  ENRICH_JOB_POLL_PENDING_MS,
+  ENRICH_JOB_POLL_RUNNING_MS,
+  ENRICH_QUEUE_STUCK_MS,
+};
+
+export function enrichJobsPollInterval(jobs: EnrichmentJob[]): number | false {
+  if (jobs.some((j) => j.status === "running")) return ENRICH_JOB_POLL_RUNNING_MS;
+  if (jobs.some((j) => j.status === "pending")) return ENRICH_JOB_POLL_PENDING_MS;
+  return false;
+}
+
+export function enrichQueueStuck(
+  jobs: EnrichmentJob[],
+  pendingOnlySince: number | null,
+  now = Date.now(),
+): boolean {
+  if (pendingOnlySince == null) return false;
+  const pending = jobs.some((j) => j.status === "pending");
+  const running = jobs.some((j) => j.status === "running");
+  return pending && !running && now - pendingOnlySince >= ENRICH_QUEUE_STUCK_MS;
+}
 
 export function isGridRowAuditComplete(
   status: EnrichmentJobStatus | null | undefined,

@@ -462,7 +462,16 @@ export async function serperOrganic(
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num }),
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    console.warn(
+      JSON.stringify({
+        event: "serper_error",
+        kind: "search",
+        status: res.status,
+      }),
+    );
+    return [];
+  }
   const json = (await res.json()) as Parameters<typeof hitsFromSerperJson>[0];
   return hitsFromSerperJson(json);
 }
@@ -475,7 +484,16 @@ export async function serperMaps(query: string): Promise<MapsPlace[]> {
     headers: { "X-API-KEY": key, "Content-Type": "application/json" },
     body: JSON.stringify({ q: query, gl: "br", hl: "pt-br" }),
   });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    console.warn(
+      JSON.stringify({
+        event: "serper_error",
+        kind: "maps",
+        status: res.status,
+      }),
+    );
+    return [];
+  }
   const json = (await res.json()) as {
     places?: Array<{
       title?: string;

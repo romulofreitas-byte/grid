@@ -51,6 +51,15 @@ describe("COPY box cluster", () => {
   });
 });
 
+describe("COPY listas", () => {
+  it("keeps list hints short and without grid jargon", () => {
+    expect(COPY.listasSalvasHint.toLowerCase()).not.toMatch(/grid/);
+    expect(COPY.listasNaoSalvasHint.toLowerCase()).not.toMatch(/grid|gerar/);
+    expect(COPY.listasNaoSalvasHint).toMatch(/até 3 rascunhos/i);
+    expect(COPY.listasMostrarMais.replace("{n}", "8")).toBe("Mostrar mais · 8");
+  });
+});
+
 describe("COPY crm", () => {
   it("keeps the board in pista language, not generic SaaS jargon", () => {
     expect(COPY.crmNav).toBe("CRM");

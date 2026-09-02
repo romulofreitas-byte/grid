@@ -34,6 +34,9 @@ import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
 import type { EnrichmentJob, GridRow, Search } from "@/lib/types";
 import {
+  ENRICH_QUEUE_STUCK_MS,
+  enrichJobsPollInterval,
+  enrichQueueStuck,
   isGridRowQualified,
   isGridRowQualifying,
 } from "@/lib/grid-qualify";
@@ -282,7 +285,9 @@ export default function GridPage() {
   const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
   const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
+  const [queueStuck, setQueueStuck] = useState(false);
   const rowsRef = useRef<GridRow[]>([]);
+  const pendingOnlySinceRef = useRef<number | null>(null);
 
   const searchQuery = useQuery({
     queryKey: ["search", searchId],
@@ -409,12 +414,7 @@ export default function GridPage() {
       const res = await fetch(`/api/enrich?searchId=${searchId}`);
       return (await res.json()) as { jobs: EnrichmentJob[] };
     },
-    refetchInterval: (q) => {
-      const list = q.state.data?.jobs ?? [];
-      return list.some((j) => j.status === "pending" || j.status === "running")
-        ? 3000
-        : false;
-    },
+    refetchInterval: (q) => enrichJobsPollInterval(q.state.data?.jobs ?? []),
   });
 
   const enrichMutation = useMutation({
@@ -547,6 +547,29 @@ export default function GridPage() {
   const activeJobs = jobs.filter(
     (j) => j.status === "pending" || j.status === "running",
   ).length;
+  const pendingJobs = jobs.filter((j) => j.status === "pending").length;
+
+  useEffect(() => {
+    const pending = jobs.some((j) => j.status === "pending");
+    const running = jobs.some((j) => j.status === "running");
+    if (pending && !running) {
+      if (pendingOnlySinceRef.current == null) {
+        pendingOnlySinceRef.current = Date.now();
+      }
+      setQueueStuck(
+        enrichQueueStuck(jobs, pendingOnlySinceRef.current),
+      );
+      const elapsed = Date.now() - pendingOnlySinceRef.current;
+      const wait = Math.max(0, ENRICH_QUEUE_STUCK_MS - elapsed);
+      const id = window.setTimeout(
+        () => setQueueStuck(true),
+        wait,
+      );
+      return () => window.clearTimeout(id);
+    }
+    pendingOnlySinceRef.current = null;
+    setQueueStuck(false);
+  }, [jobs]);
 
   const jobByCnpj = useMemo(() => {
     const map = new Map<string, EnrichmentJob>();
@@ -775,10 +798,12 @@ export default function GridPage() {
 
         {jobs.length > 0 ? (
           <p className="text-xs text-podium-gray">
-            {activeJobs > 0 &&
-            !jobs.some((j) => j.status === "running")
-              ? `${COPY.filaQualificando} ${doneJobs}/${jobs.length}`
-              : `Qualificando ${doneJobs}/${jobs.length}`}
+            {queueStuck
+              ? `${COPY.filaWorkerOcupado} · ${pendingJobs} na frente`
+              : activeJobs > 0 &&
+                  !jobs.some((j) => j.status === "running")
+                ? `${COPY.filaQualificando} ${doneJobs}/${jobs.length}`
+                : `Qualificando ${doneJobs}/${jobs.length}`}
             {failedJobs ? ` · ${failedJobs} falhas` : ""}
             {activeJobs && jobs.some((j) => j.status === "running")
               ? " · em andamento"

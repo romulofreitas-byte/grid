@@ -15,6 +15,7 @@ import {
   phonesForOsm,
 } from "@/lib/enrichment/osm";
 import type { GridRepo } from "@/lib/data/repo";
+import { isEnrichmentComplete } from "@/lib/enrichment/fresh";
 import type { EnrichmentJob, ScoreProfile } from "@/lib/types";
 
 export const DEFAULT_ENRICH_CONCURRENCY = 8;
@@ -118,6 +119,8 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     );
   };
 
+  log({ event: "enrich_start", attempts: job.attempts });
+
   if (await repo.isOptedOut(job.cnpj)) {
     await repo.updateJob(job.id, {
       status: "skipped",
@@ -128,16 +131,13 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     return;
   }
   const existing = await repo.getEnrichment(job.cnpj);
-  if (existing && !job.payload?.force) {
-    const fresh = await repo.findFreshEnrichment(job.cnpj);
-    if (fresh) {
-      await repo.updateJob(job.id, {
-        status: "skipped",
-        finished_at: new Date().toISOString(),
-      });
-      log({ status: "skipped", reason: "fresh" });
-      return;
-    }
+  if (existing && !job.payload?.force && isEnrichmentComplete(existing)) {
+    await repo.updateJob(job.id, {
+      status: "skipped",
+      finished_at: new Date().toISOString(),
+    });
+    log({ status: "skipped", reason: "fresh" });
+    return;
   }
   if (job.attempts > 3) {
     await repo.updateJob(job.id, {

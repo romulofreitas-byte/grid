@@ -173,6 +173,8 @@ export type EnrichmentJob = {
   created_at: string;
   finished_at: string | null;
   payload?: EnrichmentJobPayload | null;
+  /** 1 = interactive (batch 10/20/50, seleção, ficha); 0 = lista inteira. */
+  priority?: number;
 };
 
 export type LeadStatus = "novo" | "ligando" | "reuniao" | "descartado";

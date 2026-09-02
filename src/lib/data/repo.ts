@@ -114,11 +114,18 @@ export type GridRepo = {
   ): Promise<void>;
   getSearch(searchId: string): Promise<Search | undefined>;
   listSearches(userId: string, opts?: { limit?: number }): Promise<Search[]>;
-  listRecentSearches(userId: string, opts?: { limit?: number }): Promise<Search[]>;
+  listRecentSearches(
+    userId: string,
+    opts?: { limit?: number; saved?: boolean },
+  ): Promise<Search[]>;
   saveSearch(
     searchId: string,
     patch: { nome?: string; saved?: boolean },
   ): Promise<Search | undefined>;
+  pruneUnsavedSearches(
+    userId: string,
+    opts?: { keepId?: string; incoming?: number },
+  ): Promise<string[]>;
   deleteSearch(searchId: string): Promise<boolean>;
   deleteSavedLead(searchId: string, cnpj: string): Promise<boolean>;
   createSavedCnpjSearch(
@@ -131,7 +138,10 @@ export type GridRepo = {
     cursor?: number,
     limit?: number,
   ): Promise<{ rows: GridRow[]; nextCursor: number | null; total: number; unaudited: number }>;
-  listUnauditedCnpjs(searchId: string): Promise<string[]>;
+  listUnauditedCnpjs(
+    searchId: string,
+    opts?: { limit?: number },
+  ): Promise<string[]>;
   getDossier(cnpj: string, searchId?: string): Promise<LeadDossier | null>;
   updateLead(
     savedLeadId: string,

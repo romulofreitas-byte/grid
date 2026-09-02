@@ -137,10 +137,15 @@ create table if not exists enrichment_jobs (
   last_error   text,
   locked_at    timestamptz,
   created_at   timestamptz not null default now(),
-  finished_at  timestamptz
+  finished_at  timestamptz,
+  priority     smallint not null default 0
 );
+alter table enrichment_jobs add column if not exists priority smallint not null default 0;
 create index if not exists enrichment_jobs_status_idx on enrichment_jobs (status, created_at);
 create index if not exists enrichment_jobs_search_idx on enrichment_jobs (search_id);
+create index if not exists enrichment_jobs_claim_idx
+  on enrichment_jobs (priority desc, created_at)
+  where status in ('pending', 'running');
 create unique index if not exists enrichment_jobs_active_cnpj
   on enrichment_jobs (cnpj) where status in ('pending', 'running');
 

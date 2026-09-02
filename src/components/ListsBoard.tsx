@@ -3,19 +3,21 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { BookmarkMinus, BookmarkPlus } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { ListSearchMenu } from "@/components/ListSearchMenu";
-import { SearchListCard } from "@/components/SearchListCard";
+import { ListTile } from "@/components/ListTile";
 import { SectionTitle } from "@/components/SectionTitle";
+import { Button } from "@/components/ui/Button";
 import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
-import { gridHref, largadaNovaHref } from "@/lib/back";
+import { largadaNovaHref } from "@/lib/back";
 import {
+  applySearchSaved,
+  nextSavedVisibleCount,
   partitionSearches,
   removeSearch,
-  setSearchSaved,
+  SAVED_LISTS_PAGE_SIZE,
+  UNSAVED_LIST_CAP,
 } from "@/lib/searches";
 import type { Search } from "@/lib/types";
 
@@ -30,7 +32,10 @@ export function ListsBoard({
   const [searches, setSearches] = useState(initial);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [savedVisible, setSavedVisible] = useState(SAVED_LISTS_PAGE_SIZE);
   const { saved, unsaved } = partitionSearches(searches);
+  const shownSaved = saved.slice(0, savedVisible);
+  const remainingSaved = Math.max(0, saved.length - shownSaved.length);
 
   function clearError(searchId: string) {
     setErrors((current) => {
@@ -41,22 +46,23 @@ export function ListsBoard({
     });
   }
 
-  async function toggleSaved(search: Search, saved: boolean) {
+  async function toggleSaved(search: Search, savedNext: boolean) {
     setPendingId(search.id);
     clearError(search.id);
-    setSearches((current) => setSearchSaved(current, search.id, saved));
+    const previous = searches;
+    setSearches((current) => applySearchSaved(current, search.id, savedNext));
     try {
       const res = await fetch(`/api/search/${search.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ saved }),
+        body: JSON.stringify({ saved: savedNext }),
       });
       if (!res.ok) throw new Error("Não foi possível mover");
     } catch {
-      setSearches((current) => setSearchSaved(current, search.id, !saved));
+      setSearches(previous);
       setErrors((current) => ({
         ...current,
-        [search.id]: saved
+        [search.id]: savedNext
           ? "Não foi possível salvar. Tente de novo."
           : "Não foi possível tirar. Tente de novo.",
       }));
@@ -74,13 +80,11 @@ export function ListsBoard({
     <div className="flex flex-col gap-10">
       <section>
         <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
-        <Hint className="mt-2 max-w-xl text-sm">
-          Listas para ligar de novo. Salvar ou tirar não apaga o grid — só
-          decide se ela aparece aqui. Ajustar nicho e qualidade gera um grid
-          novo; a lista original não some.
+        <Hint className="mt-2 max-w-xl">
+          {COPY.listasSalvasHint}
         </Hint>
-        <SearchLane
-          items={saved}
+        <SearchGrid
+          items={shownSaved}
           empty={
             <GlassCard className="p-5 text-sm text-podium-muted">
               Nenhuma lista salva ainda.{" "}
@@ -99,48 +103,43 @@ export function ListsBoard({
             </GlassCard>
           }
           reduce={Boolean(reduce)}
-          renderCard={(search) => (
-            <SearchListCard
-              search={search}
+          renderCard={(item) => (
+            <ListTile
+              search={item}
               from="listas"
-              pistaNome={pistaNomeForSearch(search, pipelineNomes)}
-              error={errors[search.id]}
-              actions={
-                <>
-                  <Link
-                    href={gridHref(search.id, "listas")}
-                    className="rounded-xl bg-podium-yellow px-3 py-2 text-xs font-bold text-podium-navy"
-                  >
-                    Abrir grid
-                  </Link>
-                  <button
-                    type="button"
-                    disabled={pendingId === search.id}
-                    onClick={() => void toggleSaved(search, false)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow disabled:opacity-40"
-                  >
-                    <BookmarkMinus className="h-3.5 w-3.5" />
-                    {pendingId === search.id
-                      ? "Movendo…"
-                      : COPY.tirarDasListas}
-                  </button>
-                  <ListSearchMenu search={search} onDeleted={onDeleted} />
-                </>
-              }
+              pistaNome={pistaNomeForSearch(item, pipelineNomes)}
+              error={errors[item.id]}
+              pending={pendingId === item.id}
+              onToggleSaved={(next) => void toggleSaved(item, next)}
+              onDeleted={onDeleted}
             />
           )}
         />
+        {remainingSaved > 0 ? (
+          <div className="mt-4 flex justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setSavedVisible((current) =>
+                  nextSavedVisibleCount(current, saved.length),
+                )
+              }
+            >
+              {COPY.listasMostrarMais.replace("{n}", String(remainingSaved))}
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <section>
         <SectionTitle>
-          {COPY.listasNaoSalvas} · {unsaved.length}
+          {COPY.listasNaoSalvas} · {unsaved.length} de {UNSAVED_LIST_CAP}
         </SectionTitle>
-        <Hint className="mt-2 max-w-xl text-sm">
-          Buscas recentes que ainda não estão em Minhas listas. Salvar não
-          apaga o grid; tirar devolve para cá.
+        <Hint className="mt-2 max-w-xl">
+          {COPY.listasNaoSalvasHint}
         </Hint>
-        <SearchLane
+        <SearchGrid
           items={unsaved}
           empty={
             <GlassCard className="p-5 text-sm text-podium-muted">
@@ -158,32 +157,16 @@ export function ListsBoard({
             </GlassCard>
           }
           reduce={Boolean(reduce)}
-          renderCard={(search) => (
-            <SearchListCard
-              search={search}
+          compact
+          renderCard={(item) => (
+            <ListTile
+              search={item}
               from="listas"
               unsaved
-              error={errors[search.id]}
-              actions={
-                <>
-                  <button
-                    type="button"
-                    disabled={pendingId === search.id}
-                    onClick={() => void toggleSaved(search, true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-podium-yellow px-3 py-2 text-xs font-extrabold text-podium-navy hover:brightness-110 disabled:opacity-40"
-                  >
-                    <BookmarkPlus className="h-3.5 w-3.5" />
-                    {pendingId === search.id ? "Movendo…" : COPY.salvarLista}
-                  </button>
-                  <Link
-                    href={gridHref(search.id, "listas")}
-                    className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
-                  >
-                    Abrir grid
-                  </Link>
-                  <ListSearchMenu search={search} onDeleted={onDeleted} />
-                </>
-              }
+              error={errors[item.id]}
+              pending={pendingId === item.id}
+              onToggleSaved={(next) => void toggleSaved(item, next)}
+              onDeleted={onDeleted}
             />
           )}
         />
@@ -192,20 +175,31 @@ export function ListsBoard({
   );
 }
 
-function SearchLane({
+function SearchGrid({
   items,
   empty,
   reduce,
+  compact,
   renderCard,
 }: {
   items: Search[];
   empty: ReactNode;
   reduce: boolean;
+  compact?: boolean;
   renderCard: (search: Search) => ReactNode;
 }) {
+  if (items.length === 0) {
+    return <div className="mt-6">{empty}</div>;
+  }
+
   return (
-    <div className="mt-6 space-y-3">
-      {items.length === 0 ? empty : null}
+    <div
+      className={
+        compact
+          ? "mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          : "mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      }
+    >
       {items.map((search) => (
         <motion.div
           key={search.id}

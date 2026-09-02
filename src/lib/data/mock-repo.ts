@@ -35,9 +35,15 @@ import { crmMockMethods } from "@/lib/data/crm-mock";
 import { catchupMockMethods } from "@/lib/data/catchup-mock";
 import { listMemoryBilledCnpjs } from "@/lib/billing/memory-store";
 import { digitsCnpj } from "@/lib/crm/bridge";
+import {
+  compareEnrichmentClaimOrder,
+  enrichJobPriority,
+  latestEnrichmentJobPerCnpj,
+} from "@/lib/enrichment/jobs";
 import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import type { GridRepo } from "@/lib/data/repo";
+import { unsavedIdsToPrune } from "@/lib/searches";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
 import type { SearchJob } from "@/lib/search-jobs";
@@ -833,6 +839,7 @@ export const mockRepo: GridRepo = {
   },
 
   async runSearch(userId: string, nome: string, filters: SearchFilters) {
+    await this.pruneUnsavedSearches(userId, { incoming: 1 });
     const store = getMockStore();
     const matched = matchesFilters(store, filters).slice(0, RESULT_CAP);
     const scored = matched
@@ -987,7 +994,11 @@ export const mockRepo: GridRepo = {
 
   async listRecentSearches(userId, opts) {
     const rows = getMockStore()
-      .searches.filter((s) => s.user_id === userId)
+      .searches.filter((s) => {
+        if (s.user_id !== userId) return false;
+        if (opts?.saved != null) return s.saved === opts.saved;
+        return true;
+      })
       .sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -1007,7 +1018,19 @@ export const mockRepo: GridRepo = {
     if (patch.saved != null) {
       search.saved = patch.saved;
     }
+    if (patch.saved === false) {
+      await this.pruneUnsavedSearches(search.user_id, { keepId: searchId });
+    }
     return search;
+  },
+
+  async pruneUnsavedSearches(userId, opts) {
+    const unsaved = await this.listRecentSearches(userId, { saved: false });
+    const ids = unsavedIdsToPrune(unsaved, opts);
+    for (const id of ids) {
+      await this.deleteSearch(id);
+    }
+    return ids;
   },
 
   async deleteSearch(searchId: string) {
@@ -1179,15 +1202,17 @@ export const mockRepo: GridRepo = {
     return { rows, nextCursor: next, total: leads.length, unaudited };
   },
 
-  async listUnauditedCnpjs(searchId: string) {
+  async listUnauditedCnpjs(searchId: string, opts?: { limit?: number }) {
     const store = getMockStore();
     const search = store.searches.find((s) => s.id === searchId);
     if (!search) return [];
-    return store.saved_leads
+    const cnpjs = store.saved_leads
       .filter((l) => l.search_id === searchId)
       .sort((a, b) => a.grid_position - b.grid_position)
       .filter((l) => !userOwnsAudit(store, search.user_id, l.cnpj, searchId))
       .map((l) => l.cnpj);
+    if (opts?.limit != null && opts.limit > 0) return cnpjs.slice(0, opts.limit);
+    return cnpjs;
   },
 
   async getDossier(cnpj: string, searchId?: string) {
@@ -1371,6 +1396,7 @@ export const mockRepo: GridRepo = {
         created_at: new Date().toISOString(),
         finished_at: skipFresh ? new Date().toISOString() : null,
         payload: input.payload ?? null,
+        priority: enrichJobPriority(input.priority === true),
       });
       if (!skipFresh) queued += 1;
     }
@@ -1378,7 +1404,9 @@ export const mockRepo: GridRepo = {
   },
 
   async listEnrichmentJobs(searchId: string) {
-    return getMockStore().enrichment_jobs.filter((j) => j.search_id === searchId);
+    return latestEnrichmentJobPerCnpj(
+      getMockStore().enrichment_jobs.filter((j) => j.search_id === searchId),
+    );
   },
 
   async getEnrichment(cnpj: string) {
@@ -1402,13 +1430,15 @@ export const mockRepo: GridRepo = {
   async claimEnrichmentJob() {
     const store = getMockStore();
     const stale = Date.now() - 10 * 60 * 1000;
-    const job = store.enrichment_jobs.find(
-      (j) =>
-        j.status === "pending" ||
-        (j.status === "running" &&
-          j.locked_at &&
-          new Date(j.locked_at).getTime() < stale),
-    );
+    const job = store.enrichment_jobs
+      .filter(
+        (j) =>
+          j.status === "pending" ||
+          (j.status === "running" &&
+            j.locked_at &&
+            new Date(j.locked_at).getTime() < stale),
+      )
+      .sort(compareEnrichmentClaimOrder)[0];
     if (!job) return null;
     job.status = "running";
     job.locked_at = new Date().toISOString();

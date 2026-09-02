@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { debitEnrich, getBalance, getBillingStore } from "@/lib/billing/service";
 import {
@@ -18,6 +18,7 @@ import {
   PresenceCorrectionError,
 } from "@/lib/enrichment/correct-presence";
 import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import { isInteractiveEnrichScope } from "@/lib/enrichment/jobs";
 import {
   drainJobsIfMock,
   resolveJobScoreProfile,
@@ -166,6 +167,7 @@ export async function POST(req: Request) {
       userId,
       searchId,
       force: true,
+      priority: true,
       payload: {
         force: true,
         refresh: true,
@@ -225,6 +227,7 @@ export async function POST(req: Request) {
         userId,
         searchId,
         force: true,
+        priority: true,
         payload: {
           force: true,
           action: "confirm",
@@ -265,6 +268,7 @@ export async function POST(req: Request) {
       userId,
       searchId,
       force: true,
+      priority: true,
       payload: { force: true, refresh: true },
     });
     drainJobsIfMock();
@@ -273,11 +277,12 @@ export async function POST(req: Request) {
 
   let cnpjs = parsed.data.cnpjs ?? [];
   if (parsed.data.scope && searchId) {
-    const unaudited = await repo.listUnauditedCnpjs(searchId);
-    cnpjs =
+    cnpjs = await repo.listUnauditedCnpjs(
+      searchId,
       parsed.data.scope === "first_unaudited"
-        ? unaudited.slice(0, parsed.data.limit ?? 50)
-        : unaudited;
+        ? { limit: parsed.data.limit ?? 50 }
+        : undefined,
+    );
   }
   if (!cnpjs.length) {
     return NextResponse.json({ queued: 0, skippedOptOut: 0 });
@@ -298,41 +303,27 @@ export async function POST(req: Request) {
     cnpjs,
     userId,
     searchId,
+    priority: isInteractiveEnrichScope(parsed.data.scope),
   });
   drainJobsIfMock();
 
-  let crmBridge: Awaited<ReturnType<typeof bridgeQualifiedLeadsToCrm>> | null =
-    null;
   if (search?.saved) {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      crmBridge = await Promise.race([
-        bridgeQualifiedLeadsToCrm(repo, {
-          userId,
-          search,
-          cnpjs,
-        }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () => reject(new Error("crm_qualify_bridge_timeout")),
-            5_000,
-          );
-        }),
-      ]);
-    } catch (err) {
-      console.error("crm_qualify_bridge_error", err);
-      crmBridge = {
-        created: 0,
-        skipped: 0,
-        pipelineId: null,
-        pipelineNome: null,
-      };
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
+    after(() =>
+      bridgeQualifiedLeadsToCrm(repo, {
+        userId,
+        search,
+        cnpjs,
+      }).catch((err) => {
+        console.error("crm_qualify_bridge_error", err);
+      }),
+    );
   }
 
-  return NextResponse.json({ ...result, crmBridge, crmPending: Boolean(search?.saved) });
+  return NextResponse.json({
+    ...result,
+    crmBridge: null,
+    crmPending: Boolean(search?.saved),
+  });
 }
 
 export async function GET(req: Request) {

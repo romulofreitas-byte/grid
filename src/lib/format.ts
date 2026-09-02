@@ -53,6 +53,24 @@ export function formatDateBr(iso: string | null): string | null {
   return d.toLocaleDateString("pt-BR");
 }
 
+export function formatRelativeShort(iso: string, now = new Date()): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "";
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startThen = new Date(
+    then.getFullYear(),
+    then.getMonth(),
+    then.getDate(),
+  );
+  const days = Math.round(
+    (startToday.getTime() - startThen.getTime()) / 86_400_000,
+  );
+  if (days === 0) return "hoje";
+  if (days === 1) return "ontem";
+  if (days > 1 && days < 30) return `há ${days} dias`;
+  return formatDateBr(iso) ?? then.toLocaleDateString("pt-BR");
+}
+
 export function yearsSince(dateIso: string | null): number | null {
   if (!dateIso) return null;
   const d = new Date(dateIso);

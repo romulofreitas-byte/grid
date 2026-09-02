@@ -797,4 +797,31 @@ describe("enrichCompany crawl", () => {
     expect(row.socials.instagram).toBeUndefined();
     delete process.env.SERPER_API_KEY;
   });
+
+  it("flushes progress so a slow home upsert cannot land after complete", async () => {
+    const domain = "sol-progress.test";
+    mockSiteFetch({
+      "/": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
+      "/contato": "<html><body>contato</body></html>",
+    });
+    const stages: Array<string | undefined> = [];
+    let releaseHome!: () => void;
+    const homeHold = new Promise<void>((resolve) => {
+      releaseHome = resolve;
+    });
+    const done = enrichCompany(
+      companyInput(domain),
+      { domain, status: "nao_confirmado" },
+      async (row) => {
+        stages.push(row.stage);
+        if (row.stage === "home") await homeHold;
+      },
+    );
+    await vi.waitFor(() => expect(stages).toContain("home"));
+    expect(stages.at(-1)).not.toBe("complete");
+    releaseHome();
+    const { row } = await done;
+    expect(row.stage).toBe("complete");
+    expect(stages.at(-1)).toBe("complete");
+  });
 });
