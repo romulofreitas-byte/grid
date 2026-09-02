@@ -1,7 +1,10 @@
 import { getDataSource, getRepo } from "@/lib/data";
 import { isUndefinedTableError } from "@/lib/data/pg";
-import type { SearchJob } from "@/lib/search-jobs";
-import { searchJobConcurrency } from "@/lib/search-jobs";
+import {
+  searchJobConcurrency,
+  searchJobFailureMessage,
+  type SearchJob,
+} from "@/lib/search-jobs";
 import {
   hasAccountantDomainHint,
   receitaProviderDomain,
@@ -295,13 +298,13 @@ export async function processSearchJob(job: SearchJob): Promise<void> {
       }),
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = searchJobFailureMessage(err);
     await repo.finishSearchJob(job.id, { status: "failed", error: message });
     console.error(
       JSON.stringify({
         event: "search_job_failed",
         id: job.id,
-        error: message,
+        error: err instanceof Error ? err.message : String(err),
       }),
     );
   }

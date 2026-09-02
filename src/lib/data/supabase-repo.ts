@@ -66,6 +66,7 @@ import {
 import { municipioListLimit } from "@/lib/municipios";
 import {
   LOCAL_USER_ID,
+  allQueries,
   isMissingOrUnpopulatedRelationError,
   isStatementTimeoutError,
   isUndefinedTableError,
@@ -1560,19 +1561,25 @@ async function loadRefsForEstablishments(ests: Establishment[]): Promise<{
 }> {
   const munIds = [...new Set(ests.map((e) => e.municipio_id))];
   const codes = cnaeChar7Params(ests.map((e) => e.cnae_principal));
-  const [munRes, cnaeRes] = await Promise.all([
-    munIds.length
-      ? query<{ id: number; nome: string; uf: string }>(
-          "select id, nome, uf from ref_municipio where id = any($1::int[])",
-          [munIds],
-        )
-      : Promise.resolve({ rows: [] as Array<{ id: number; nome: string; uf: string }> }),
-    codes.length
-      ? query<{ codigo: string; descricao: string }>(
-          "select codigo, descricao from ref_cnae where codigo = any($1::char(7)[])",
-          [codes],
-        )
-      : Promise.resolve({ rows: [] as Array<{ codigo: string; descricao: string }> }),
+  const [munRes, cnaeRes] = await allQueries([
+    () =>
+      munIds.length
+        ? query<{ id: number; nome: string; uf: string }>(
+            "select id, nome, uf from ref_municipio where id = any($1::int[])",
+            [munIds],
+          )
+        : Promise.resolve({
+            rows: [] as Array<{ id: number; nome: string; uf: string }>,
+          }),
+    () =>
+      codes.length
+        ? query<{ codigo: string; descricao: string }>(
+            "select codigo, descricao from ref_cnae where codigo = any($1::char(7)[])",
+            [codes],
+          )
+        : Promise.resolve({
+            rows: [] as Array<{ codigo: string; descricao: string }>,
+          }),
   ]);
   return {
     mun: new Map(
@@ -1614,32 +1621,32 @@ async function fetchByCnpjs(
         .map((b) => b.replace(/\D/g, "").padStart(8, "0")),
     ),
   ];
-  const estsP = preloadedEsts
-    ? Promise.resolve(preloadedEsts)
-    : query(
-        `select * from establishments where cnpj = any($1::char(14)[])`,
+  const [ests, companyRes, partRes, quals, enrRes] = await allQueries([
+    () =>
+      preloadedEsts
+        ? Promise.resolve(preloadedEsts)
+        : query(
+            `select * from establishments where cnpj = any($1::char(14)[])`,
+            [padded],
+          ).then((r) => r.rows.map(mapEstablishment)),
+    () =>
+      query(
+        `select * from companies where cnpj_basico = any($1::char(8)[])`,
+        [basicos],
+      ),
+    () =>
+      query(
+        `select * from partners where cnpj_basico = any($1::char(8)[])`,
+        [basicos],
+      ),
+    () => loadQuals(),
+    () =>
+      query(
+        `select * from lead_enrichment where cnpj = any($1::char(14)[])`,
         [padded],
-      ).then((r) => r.rows.map(mapEstablishment));
-  const refsP = preloadedEsts
-    ? loadRefsForEstablishments(preloadedEsts)
-    : estsP.then(loadRefsForEstablishments);
-  const [ests, companyRes, partRes, quals, enrRes, refs] = await Promise.all([
-    estsP,
-    query(
-      `select * from companies where cnpj_basico = any($1::char(8)[])`,
-      [basicos],
-    ),
-    query(
-      `select * from partners where cnpj_basico = any($1::char(8)[])`,
-      [basicos],
-    ),
-    loadQuals(),
-    query(
-      `select * from lead_enrichment where cnpj = any($1::char(14)[])`,
-      [padded],
-    ),
-    refsP,
+      ),
   ]);
+  const refs = await loadRefsForEstablishments(ests);
   const companies = new Map<string, Company>();
   for (const r of companyRes.rows) {
     const company = mapCompany(r);
@@ -1701,25 +1708,28 @@ async function overlayGridRows(
 ): Promise<GridRow[]> {
   if (!rows.length) return rows;
   const paddedCnpjs = cnpjChar14Params(rows.map((r) => r.cnpj));
-  const [jobRes, auditRes, billedRes] = await Promise.all([
-    query(
-      `select distinct on (cnpj) *
-       from enrichment_jobs
-       where search_id = $1 and cnpj = any($2::char(14)[])
-       order by cnpj, created_at desc`,
-      [searchId, paddedCnpjs],
-    ),
-    query(
-      `select * from lead_enrichment
-       where cnpj = any($1::char(14)[]) and expires_at > now()
-         and (stage is null or stage = 'complete')`,
-      [paddedCnpjs],
-    ),
-    query<{ cnpj: string }>(
-      `select cnpj from billed_cnpjs
-        where profile_id = $1 and kind = 'enrich' and cnpj = any($2::char(14)[])`,
-      [userId, paddedCnpjs],
-    ).catch(() => ({ rows: [] as Array<{ cnpj: string }> })),
+  const [jobRes, auditRes, billedRes] = await allQueries([
+    () =>
+      query(
+        `select distinct on (cnpj) *
+         from enrichment_jobs
+         where search_id = $1 and cnpj = any($2::char(14)[])
+         order by cnpj, created_at desc`,
+        [searchId, paddedCnpjs],
+      ),
+    () =>
+      query(
+        `select * from lead_enrichment
+         where cnpj = any($1::char(14)[]) and expires_at > now()
+           and (stage is null or stage = 'complete')`,
+        [paddedCnpjs],
+      ),
+    () =>
+      query<{ cnpj: string }>(
+        `select cnpj from billed_cnpjs
+          where profile_id = $1 and kind = 'enrich' and cnpj = any($2::char(14)[])`,
+        [userId, paddedCnpjs],
+      ).catch(() => ({ rows: [] as Array<{ cnpj: string }> })),
   ]);
   const jobs = new Map(jobRes.rows.map((j) => [trimChar(j.cnpj), mapJob(j)]));
   const enrichmentByCnpj = new Map(

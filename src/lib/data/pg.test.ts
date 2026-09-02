@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  allQueries,
   isMissingOrUnpopulatedRelationError,
+  isPgConnectTimeoutError,
   isPoolExhaustedError,
   isPoolerUrl,
   isSessionPoolerUrl,
@@ -11,6 +13,7 @@ import {
   preferTransactionPoolerUrl,
   resolvePoolMax,
   sharesPgPools,
+  shouldSerializePgQueries,
   userFacingDbBusyMessage,
   withPgRetry,
 } from "./pg";
@@ -50,6 +53,12 @@ describe("pg error helpers", () => {
       ),
     ).toBe(true);
     expect(isPoolExhaustedError(new Error("connection terminated"))).toBe(false);
+    expect(
+      isPgConnectTimeoutError(
+        new Error("timeout exceeded when trying to connect"),
+      ),
+    ).toBe(true);
+    expect(isPgConnectTimeoutError(new Error("syntax error"))).toBe(false);
   });
 });
 
@@ -170,5 +179,69 @@ describe("withPgRetry", () => {
       ),
     ).rejects.toThrow("syntax error");
     expect(n).toBe(1);
+  });
+});
+
+describe("allQueries", () => {
+  it("runs factories together off Vercel", async () => {
+    const prev = process.env.VERCEL;
+    delete process.env.VERCEL;
+    try {
+      expect(shouldSerializePgQueries()).toBe(false);
+      let concurrent = 0;
+      let maxConcurrent = 0;
+      await allQueries([
+        async () => {
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          concurrent -= 1;
+          return "a";
+        },
+        async () => {
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          concurrent -= 1;
+          return "b";
+        },
+      ]);
+      expect(maxConcurrent).toBe(2);
+    } finally {
+      if (prev == null) delete process.env.VERCEL;
+      else process.env.VERCEL = prev;
+    }
+  });
+
+  it("runs factories one at a time on Vercel", async () => {
+    const prev = process.env.VERCEL;
+    process.env.VERCEL = "1";
+    try {
+      expect(shouldSerializePgQueries()).toBe(true);
+      let concurrent = 0;
+      let maxConcurrent = 0;
+      const [first, second] = await allQueries([
+        async () => {
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          concurrent -= 1;
+          return "a";
+        },
+        async () => {
+          concurrent += 1;
+          maxConcurrent = Math.max(maxConcurrent, concurrent);
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          concurrent -= 1;
+          return "b";
+        },
+      ]);
+      expect(first).toBe("a");
+      expect(second).toBe("b");
+      expect(maxConcurrent).toBe(1);
+    } finally {
+      if (prev == null) delete process.env.VERCEL;
+      else process.env.VERCEL = prev;
+    }
   });
 });

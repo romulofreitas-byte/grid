@@ -5,6 +5,7 @@ import {
   SEARCH_JOB_POLL_MS,
   SEARCH_JOB_POLL_TIMEOUT_MS,
   searchJobConcurrency,
+  searchJobFailureMessage,
   searchJobQueuePosition,
   shouldRunSearchJobsInline,
   toSearchJobPublic,
@@ -82,5 +83,29 @@ describe("search job timing", () => {
     expect(SEARCH_JOB_POLL_TIMEOUT_MS).toBe(55_000);
     expect(SEARCH_JOB_LIVE_REUSE_MINUTES).toBe(2);
     expect(SEARCH_JOB_DONE_REUSE_MINUTES).toBe(10);
+  });
+});
+
+describe("searchJobFailureMessage", () => {
+  it("hides pool and timeout internals", () => {
+    expect(
+      searchJobFailureMessage(
+        new Error(
+          "(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15",
+        ),
+      ),
+    ).toMatch(/pista está cheia/i);
+    expect(
+      searchJobFailureMessage(
+        new Error("timeout exceeded when trying to connect"),
+      ),
+    ).toMatch(/instantes/i);
+    const timeout = Object.assign(new Error("canceling statement"), {
+      code: "57014",
+    });
+    expect(searchJobFailureMessage(timeout)).toMatch(/recorte menor/i);
+    expect(searchJobFailureMessage(new Error("relation boom"))).toMatch(
+      /montar o grid/i,
+    );
   });
 });

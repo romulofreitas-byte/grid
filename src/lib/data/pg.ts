@@ -111,6 +111,29 @@ export function isPoolExhaustedError(err: unknown): boolean {
   return /EMAXCONNSESSION|max clients reached/i.test(message);
 }
 
+export function isPgConnectTimeoutError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /timeout exceeded when trying to connect/i.test(message);
+}
+
+/** Vercel pool max is 1 — starting queries together waits on a client and times out. */
+export function shouldSerializePgQueries(): boolean {
+  return Boolean(process.env.VERCEL);
+}
+
+export async function allQueries<T extends unknown[]>(
+  factories: { [K in keyof T]: () => Promise<T[K]> },
+): Promise<T> {
+  if (!shouldSerializePgQueries()) {
+    return Promise.all(factories.map((factory) => factory())) as Promise<T>;
+  }
+  const result: unknown[] = [];
+  for (const factory of factories) {
+    result.push(await factory());
+  }
+  return result as T;
+}
+
 export function userFacingDbBusyMessage(err: unknown): string {
   return isPoolExhaustedError(err)
     ? "A pista está cheia agora. Tenta de novo em instantes."

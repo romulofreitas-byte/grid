@@ -1,13 +1,10 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { checkDailyRunSearch, recordDailyRunSearch } from "@/lib/auth/abuse-limits";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
 import { dbUnavailableResponse } from "@/lib/data/db-api";
 import { isUndefinedTableError } from "@/lib/data/pg";
-import {
-  drainSearchJobs,
-  processOwnedSearchJob,
-} from "@/lib/enrichment/process-job";
+import { drainSearchJobs } from "@/lib/enrichment/process-job";
 import {
   shouldRunSearchJobsInline,
   toSearchJobPublic,
@@ -18,27 +15,32 @@ import { z } from "zod";
 
 export const maxDuration = 60;
 
-function kickSearchJob(jobId: string, userId: string) {
-  after(() =>
-    processOwnedSearchJob(jobId, userId).catch((err) => {
-      console.error(
-        JSON.stringify({
-          event: "search_job_after_error",
-          id: jobId,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    }),
-  );
-}
-
-async function jobResponse(job: SearchJob, search: Search | null, ahead: number) {
-  if (job.status !== "done" && job.status !== "failed") {
-    kickSearchJob(job.id, job.user_id);
-  }
+function jobResponse(job: SearchJob, search: Search | null, ahead: number) {
   return NextResponse.json(toSearchJobPublic(job, ahead, search), {
     status: job.status === "done" ? 200 : 202,
+    headers: { "Cache-Control": "no-store" },
   });
+}
+
+async function queuedJobResponse(job: SearchJob, userId: string) {
+  try {
+    const repo = getRepo();
+    const latest = (await repo.getSearchJob(job.id, userId)) ?? job;
+    const ahead = await repo.countSearchJobsAhead(latest);
+    const search = latest.search_id
+      ? ((await repo.getSearch(latest.search_id)) ?? null)
+      : null;
+    return jobResponse(latest, search, ahead);
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        event: "search_run_queued_lookup",
+        id: job.id,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+    return jobResponse(job, null, 1);
+  }
 }
 
 const schema = z.object({
@@ -64,15 +66,20 @@ export async function POST(req: Request) {
   try {
     const reusable = await repo.findReusableSearchJob(userId, filters);
     if (reusable) {
-      if (shouldRunSearchJobsInline() && reusable.status !== "done") {
-        await drainSearchJobs(1);
+      try {
+        if (shouldRunSearchJobsInline() && reusable.status !== "done") {
+          await drainSearchJobs(1);
+        }
+      } catch (err) {
+        console.error(
+          JSON.stringify({
+            event: "search_run_reuse_drain",
+            id: reusable.id,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
       }
-      const latest = (await repo.getSearchJob(reusable.id, userId)) ?? reusable;
-      const ahead = await repo.countSearchJobsAhead(latest);
-      const search = latest.search_id
-        ? ((await repo.getSearch(latest.search_id)) ?? null)
-        : null;
-      return jobResponse(latest, search, ahead);
+      return queuedJobResponse(reusable, userId);
     }
 
     const daily = await checkDailyRunSearch(userId);
@@ -89,16 +96,21 @@ export async function POST(req: Request) {
     }
 
     const job = await repo.enqueueSearchJob(userId, parsed.data.nome, filters);
-    await recordDailyRunSearch(userId);
-    if (shouldRunSearchJobsInline()) {
-      await drainSearchJobs(1);
+    try {
+      await recordDailyRunSearch(userId);
+      if (shouldRunSearchJobsInline()) {
+        await drainSearchJobs(1);
+      }
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "search_run_after_enqueue",
+          id: job.id,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     }
-    const latest = (await repo.getSearchJob(job.id, userId)) ?? job;
-    const ahead = await repo.countSearchJobsAhead(latest);
-    const search = latest.search_id
-      ? ((await repo.getSearch(latest.search_id)) ?? null)
-      : null;
-    return jobResponse(latest, search, ahead);
+    return queuedJobResponse(job, userId);
   } catch (err) {
     if (isUndefinedTableError(err)) {
       try {
