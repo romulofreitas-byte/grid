@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
 import { BILLING_ME_QUERY_KEY } from "@/hooks/useBillingMe";
@@ -32,6 +32,7 @@ const ENRICH_POLL_INTERVAL_MS = 1000;
 const ENRICH_POLL_TIMEOUT_MS = 25_000;
 const EMPTY_STAGES: CrmStage[] = [];
 const EMPTY_DEALS: Array<{ id: string; cnpj: string | null }> = [];
+const CREATE_PIPELINE_VALUE = "__new__";
 
 export type CrmAddDealInput = {
   pipelineId: string;
@@ -77,6 +78,7 @@ export function CrmAddDealDialog({
   onClose,
   onCreate,
   onOpenExisting,
+  onPipelineCreated,
   pipelines,
   currentPipelineId,
   currentStages,
@@ -85,6 +87,7 @@ export function CrmAddDealDialog({
   onClose: () => void;
   onCreate: (input: CrmAddDealInput) => Promise<void>;
   onOpenExisting: (dealId: string, pipelineId: string) => void;
+  onPipelineCreated: (pipeline: CrmPipelineSummary, board: CrmBoard) => void;
   pipelines: CrmPipelineSummary[];
   currentPipelineId: string;
   currentStages: CrmStage[];
@@ -108,8 +111,21 @@ export function CrmAddDealDialog({
   const [stageId, setStageId] = useState(
     () => pickEntradaStage(currentStages)?.id ?? "",
   );
+  const [createdPipelines, setCreatedPipelines] = useState<CrmPipelineSummary[]>(
+    [],
+  );
+  const [creatingPipeline, setCreatingPipeline] = useState(false);
+  const [pipelineDraft, setPipelineDraft] = useState("");
+  const [creatingPipelineBusy, setCreatingPipelineBusy] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const pullGen = useRef(0);
+  const createPipelineLock = useRef(false);
+
+  const pipelineOptions = useMemo(() => {
+    const byId = new Map(pipelines.map((pipeline) => [pipeline.id, pipeline]));
+    for (const pipeline of createdPipelines) byId.set(pipeline.id, pipeline);
+    return [...byId.values()];
+  }, [createdPipelines, pipelines]);
 
   const debounced = useDebounced(company, 300);
   const search = useCompanySearch(debounced.trim(), !selected);
@@ -143,6 +159,54 @@ export function CrmAddDealDialog({
       stages.some((stage) => stage.id === current) ? current : next,
     );
   }, [stages]);
+
+  function startCreatePipeline() {
+    setCreatingPipeline(true);
+    setPipelineDraft("");
+    setError(null);
+  }
+
+  function cancelCreatePipeline() {
+    createPipelineLock.current = false;
+    setCreatingPipeline(false);
+    setPipelineDraft("");
+    setCreatingPipelineBusy(false);
+  }
+
+  async function submitNewPipeline() {
+    if (createPipelineLock.current) return;
+    const nome = pipelineDraft.trim();
+    if (!nome) {
+      cancelCreatePipeline();
+      return;
+    }
+    createPipelineLock.current = true;
+    setCreatingPipelineBusy(true);
+    setError(null);
+    try {
+      const res = await crmFetch<{
+        pipeline: CrmPipelineSummary;
+        board: CrmBoard;
+      }>("/api/crm/pipelines", {
+        method: "POST",
+        body: JSON.stringify({ nome }),
+      });
+      const created = { ...res.pipeline, deal_count: 0 };
+      setCreatedPipelines((current) =>
+        current.some((row) => row.id === created.id)
+          ? current
+          : [...current, created],
+      );
+      qc.setQueryData(["crm-add-deal-board", created.id], res.board);
+      setPipelineId(created.id);
+      cancelCreatePipeline();
+      onPipelineCreated(created, res.board);
+    } catch (err) {
+      createPipelineLock.current = false;
+      setError(err instanceof Error ? err.message : "Não criou o nicho.");
+      setCreatingPipelineBusy(false);
+    }
+  }
 
   const chipLabel = useMemo(() => {
     if (!selected) return null;
@@ -285,8 +349,9 @@ export function CrmAddDealDialog({
   }
 
   const canSubmit =
-    Boolean(existing) ||
-    (Boolean(selected) && pulled && Boolean(pipelineId) && Boolean(stageId));
+    !creatingPipeline &&
+    (Boolean(existing) ||
+      (Boolean(selected) && pulled && Boolean(pipelineId) && Boolean(stageId)));
 
   const placeLabel = review
     ? [review.municipio, review.uf].filter(Boolean).join("/")
@@ -318,24 +383,69 @@ export function CrmAddDealDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className={CRM_LABEL}>{COPY.crmPipelineSelectLabel}</span>
-              <select
-                className={cn(CRM_FIELD, "mt-1.5")}
-                value={pipelineId}
-                onChange={(event) => setPipelineId(event.target.value)}
-              >
-                {pipelines.map((pipeline) => (
-                  <option key={pipeline.id} value={pipeline.id}>
-                    {pipeline.nome}
-                  </option>
-                ))}
-              </select>
+              {creatingPipeline ? (
+                <input
+                  className={cn(CRM_FIELD, "mt-1.5")}
+                  value={pipelineDraft}
+                  placeholder={COPY.crmNewPipeline}
+                  autoComplete="off"
+                  spellCheck={false}
+                  autoFocus
+                  disabled={creatingPipelineBusy}
+                  onChange={(event) => setPipelineDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void submitNewPipeline();
+                    }
+                    if (event.key === "Escape") {
+                      event.stopPropagation();
+                      cancelCreatePipeline();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!creatingPipelineBusy) void submitNewPipeline();
+                  }}
+                />
+              ) : (
+                <span className="mt-1.5 flex gap-1.5">
+                  <select
+                    className={cn(CRM_FIELD, "min-w-0 flex-1")}
+                    value={pipelineId}
+                    onChange={(event) => {
+                      if (event.target.value === CREATE_PIPELINE_VALUE) {
+                        startCreatePipeline();
+                        return;
+                      }
+                      setPipelineId(event.target.value);
+                    }}
+                  >
+                    <option value={CREATE_PIPELINE_VALUE}>
+                      + {COPY.crmNewPipeline}
+                    </option>
+                    {pipelineOptions.map((pipeline) => (
+                      <option key={pipeline.id} value={pipeline.id}>
+                        {pipeline.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    aria-label={COPY.crmNewPipeline}
+                    onClick={startCreatePipeline}
+                    className="inline-flex shrink-0 items-center justify-center rounded-md border border-white/10 px-2 text-podium-muted hover:border-podium-yellow/40 hover:text-podium-yellow"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              )}
             </label>
             <label className="block">
               <span className={CRM_LABEL}>{COPY.crmStageSelectLabel}</span>
               <select
                 className={cn(CRM_FIELD, "mt-1.5")}
                 value={stageId}
-                disabled={stages.length === 0}
+                disabled={creatingPipeline || stages.length === 0}
                 onChange={(event) => setStageId(event.target.value)}
               >
                 {stages.map((stage) => (
@@ -537,7 +647,7 @@ export function CrmAddDealDialog({
         </div>
         <button
           type="button"
-          disabled={saving || !canSubmit}
+          disabled={saving || creatingPipelineBusy || !canSubmit}
           onClick={() => void submit()}
           className="mt-4 w-full shrink-0 rounded-md bg-podium-yellow py-1.5 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
         >

@@ -690,6 +690,15 @@ export function CrmBoard({
           currentStages={board.stages}
           currentDeals={board.deals}
           onClose={() => setAddOpen(false)}
+          onPipelineCreated={(pipeline, nextBoard) => {
+            setPipelines((current) =>
+              current.some((row) => row.id === pipeline.id)
+                ? current
+                : [...current, { ...pipeline, deal_count: 0 }],
+            );
+            cacheRef.current.set(nextBoard.pipeline.id, nextBoard);
+            fetchedAtRef.current.set(nextBoard.pipeline.id, Date.now());
+          }}
           onOpenExisting={(dealId, pipelineId) => {
             void (async () => {
               setAddOpen(false);
