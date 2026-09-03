@@ -304,6 +304,8 @@ export const COPY = {
   crmOutcomeOpen: "Em andamento",
   crmOutcomeWon: "Ganho",
   crmOutcomeLost: "Perdido",
+  crmWinChegada: "Chegada",
+  crmWinP1: "P1",
   crmShowClosed: "Ganhos / perdidos",
   crmHideClosed: "Só em andamento",
   crmPhonesLabel: "Telefones",

@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
+import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { COPY } from "@/lib/copy";
 import { leadHrefForCnpj } from "@/lib/back";
 import {
@@ -153,6 +154,9 @@ export function CrmDealModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [celebrateCompany, setCelebrateCompany] = useState<string | null>(
+    null,
+  );
   const reduce = useReducedMotion();
   const presence = {
     duration: reduce ? 0 : 0.2,
@@ -238,11 +242,13 @@ export function CrmDealModal({
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (celebrateCompany) return;
+      onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, celebrateCompany]);
 
   async function patch(payload: Record<string, unknown>) {
     const res = await crmFetch<{ deal: CrmDealCard }>(
@@ -439,6 +445,7 @@ export function CrmDealModal({
   async function setOutcome(outcome: CrmOutcome) {
     setSaving(true);
     setError(null);
+    const wasWon = deal.outcome === "won";
     try {
       const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
         `/api/crm/deals/${deal.id}/outcome`,
@@ -446,6 +453,9 @@ export function CrmDealModal({
       );
       onChange(res.deal);
       prependEvent(res.event);
+      if (outcome === "won" && !wasWon) {
+        setCelebrateCompany(res.deal.company_name);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não atualizou o status.");
     } finally {
@@ -500,13 +510,18 @@ export function CrmDealModal({
   const extraPeople = people.slice(1);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5"
-      initial={reduce ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={presence}
-    >
+    <>
+      <CrmWinCelebration
+        companyName={celebrateCompany}
+        onDone={() => setCelebrateCompany(null)}
+      />
+      <motion.div
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5"
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={presence}
+      >
       <button
         type="button"
         aria-label="Fechar"
@@ -999,5 +1014,6 @@ export function CrmDealModal({
         </div>
       </motion.div>
     </motion.div>
+    </>
   );
 }
