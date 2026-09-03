@@ -179,6 +179,35 @@ describe("crm qualify catch-up", () => {
     expect(await mockRepo.listCrmDealCnpjs(USER, [est.cnpj])).toEqual([est.cnpj]);
   });
 
+  it("bridges a saved list when catch-up is scoped by searchId only", async () => {
+    const store = getMockStore();
+    const est = store.establishments[2]!;
+    const other = store.establishments[3]!;
+    store.searches.push(
+      searchRow("save-later-scoped", false),
+      searchRow("other-saved", true),
+    );
+    store.saved_leads.push(
+      leadRow("lead-scoped", "save-later-scoped", est.cnpj),
+      leadRow("lead-other", "other-saved", other.cnpj),
+    );
+    store.billed_cnpjs.push(
+      { profile_id: USER, cnpj: est.cnpj, kind: "enrich" },
+      { profile_id: USER, cnpj: other.cnpj, kind: "enrich" },
+    );
+
+    const saved = await mockRepo.saveSearch("save-later-scoped", { saved: true });
+    expect(saved?.saved).toBe(true);
+
+    const out = await runCrmQualifyBridge(mockRepo, USER, {
+      searchId: "save-later-scoped",
+    });
+    expect(out.created).toBe(1);
+    expect(await mockRepo.listCrmDealCnpjs(USER, [est.cnpj, other.cnpj])).toEqual([
+      est.cnpj,
+    ]);
+  });
+
   it("does not create deals on Treino livre", async () => {
     crmAllowed.mockResolvedValue(false);
     const store = getMockStore();

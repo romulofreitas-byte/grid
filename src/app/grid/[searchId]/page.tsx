@@ -296,6 +296,9 @@ export default function GridPage() {
   const [markingAll, setMarkingAll] = useState(false);
   const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
   const [queueStuck, setQueueStuck] = useState(false);
+  const [creditHint, setCreditHint] = useState<string | null>(null);
+  const [crmHint, setCrmHint] = useState<string | null>(null);
+  const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
   const rowsRef = useRef<GridRow[]>([]);
   const pendingOnlySinceRef = useRef<number | null>(null);
 
@@ -330,6 +333,44 @@ export default function GridPage() {
       if (variables.saved == null) {
         setRenamed(true);
         setTimeout(() => setRenamed(false), 1800);
+      }
+      if (variables.saved === true) {
+        setCrmHint(COPY.crmEnteringPista);
+        setCrmPipelineId(null);
+        void fetch("/api/session/catch-up", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ searchId }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then(
+            (
+              catchUp: {
+                created?: number;
+                pipelineId?: string | null;
+              } | null,
+            ) => {
+              if (catchUp?.pipelineId) setCrmPipelineId(catchUp.pipelineId);
+              if (catchUp?.created) {
+                setCrmHint(
+                  catchUp.created === 1
+                    ? COPY.crmCatchUpToastOne
+                    : COPY.crmCatchUpToastMany.replace(
+                        "{n}",
+                        String(catchUp.created),
+                      ),
+                );
+              } else if (catchUp?.pipelineId) {
+                setCrmHint(COPY.crmOnGrid);
+              }
+            },
+          )
+          .catch(() => undefined)
+          .finally(() => {
+            void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+            void qc.invalidateQueries({ queryKey: ["lead"] });
+            router.refresh();
+          });
       }
     },
   });
@@ -376,10 +417,6 @@ export default function GridPage() {
         : false;
     },
   });
-
-  const [creditHint, setCreditHint] = useState<string | null>(null);
-  const [crmHint, setCrmHint] = useState<string | null>(null);
-  const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
 
   const pushMutation = useMutation({
     mutationFn: async (id: string) => {

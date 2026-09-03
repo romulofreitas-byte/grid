@@ -31,14 +31,14 @@ export async function POST(req: Request) {
   const repo = getRepo();
   const searchId = parsed.data.searchId;
   const cnpjs = parsed.data.cnpjs ?? [];
-  if (searchId && cnpjs.length) {
+  if (searchId) {
     const search = await getSearchForUser(gated.userId, searchId);
     if (!search) {
       return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
     }
     const result = await runCrmQualifyBridge(repo, gated.userId, {
       searchId,
-      cnpjs,
+      ...(cnpjs.length ? { cnpjs } : {}),
     });
     return NextResponse.json(result);
   }
