@@ -35,6 +35,15 @@ describe("conexoes FAQ", () => {
   });
 });
 
+describe("maps FAQ", () => {
+  it("says qualification searches Maps by name and city without storing Places content", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "maps");
+    expect(item?.answer).toMatch(/nome e pela cidade/i);
+    expect(item?.answer).toMatch(/não grava telefone/i);
+    expect(item?.answer).toMatch(/não usa a API do Google Places/i);
+  });
+});
+
 describe("acesso FAQ", () => {
   it("describes password signup and recovery for old magic-link users", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "acesso");

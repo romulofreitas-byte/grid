@@ -37,7 +37,7 @@ export type EnrichmentStage =
   | "site"
   | "complete";
 
-export type GmbMatchBy = "title" | "address" | "phone";
+export type GmbMatchBy = "title" | "address" | "city" | "phone";
 
 /** Public Maps-card fields we can audit without storing address/review text. */
 export const GMB_CARD_CHECKS = [
@@ -71,14 +71,15 @@ export type GmbListing = {
   card?: GmbCard | null;
 };
 
-/** Phone, or address together with a brand title — never address-only. */
+/** Phone, street+title, or strong title+city — never address-only. */
 export function gmbListingCorroborated(
   listing: GmbListing | null | undefined,
 ): boolean {
   if (!listing?.matched) return false;
   const by = listing.match_by ?? [];
   if (by.includes("phone")) return true;
-  return by.includes("address") && by.includes("title");
+  if (!by.includes("title")) return false;
+  return by.includes("address") || by.includes("city");
 }
 
 /** Matched listing whose public card is missing most of the basics. */

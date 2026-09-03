@@ -4,14 +4,17 @@ import { presenceBrandTokens } from "./confirm-domain";
 import {
   gmbCardFromPlace,
   gmbSearchQuery,
+  gmbSearchQueryList,
   hitsFromSerperJson,
   mapsAddressMatchesReceita,
+  mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
   pickBestDomainHit,
   pickBestMapsPlace,
   pickSocialHit,
   presenceQuery,
   scoreDomainHit,
+  scoreMapsPlace,
   socialHitMatchesBrand,
   socialHitMatchesLoose,
   titleMatchesCompany,
@@ -323,13 +326,28 @@ describe("Maps × Receita matching", () => {
     expect(best?.match_by).toEqual(expect.arrayContaining(["phone", "address"]));
   });
 
-  it("builds a GMB query with street", () => {
-    expect(gmbSearchQuery(silva)).toBe(
+  it("builds a GMB query with city first; street is opt-in", () => {
+    expect(gmbSearchQuery(silva)).toBe('"DISTRIBUIDORA SILVA" Contagem MG');
+    expect(gmbSearchQuery(silva, { includeStreet: true })).toBe(
       '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
     );
     expect(gmbSearchQuery(silva, { quoted: false })).toBe(
-      "DISTRIBUIDORA SILVA Rua das Palmeiras, 100 Contagem MG",
+      "DISTRIBUIDORA SILVA Contagem MG",
     );
+  });
+
+  it("omits the Receita street when the phone is the accountant's", () => {
+    expect(
+      gmbSearchQueryList({ ...silva, sharedVerdict: "contabilidade" }),
+    ).toEqual([
+      '"DISTRIBUIDORA SILVA" Contagem MG',
+      "DISTRIBUIDORA SILVA Contagem MG",
+    ]);
+    expect(gmbSearchQueryList(silva)).toEqual([
+      '"DISTRIBUIDORA SILVA" Contagem MG',
+      '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
+      "DISTRIBUIDORA SILVA Contagem MG",
+    ]);
   });
 
   it("rejects a neighbor listing that only shares the street address", () => {
@@ -355,10 +373,113 @@ describe("Maps × Receita matching", () => {
       ),
     ).toBeNull();
   });
+
+  it("matches a strong brand on title + city when the Receita phone is the office", () => {
+    const delpra = {
+      nomeFantasia: "Delpra Pré-Moldados",
+      razaoSocial: "DELPRA PRE MOLDADOS LTDA",
+      municipio: "Uberaba",
+      uf: "MG",
+      logradouro: "Rua do Contador",
+      numero: "10",
+      phones: [{ ddd: "34", telefone: "33123659" }],
+      sharedVerdict: "contabilidade" as const,
+    };
+    const best = pickBestMapsPlace(
+      [
+        {
+          title: "Escritório Contábil Centro",
+          address: "Rua do Contador, 10 - Uberaba - MG",
+          phoneNumber: "(34) 3312-3659",
+        },
+        {
+          title: "Delpra Pré-Moldados",
+          address:
+            "R. Clara Alves de Mello, 461 - Laranjeiras, Uberaba - MG",
+          website: "https://delpra.net.br",
+          phoneNumber: "(34) 99912-2128",
+          rating: 5,
+          ratingCount: 49,
+        },
+      ],
+      delpra,
+    );
+    expect(best?.place.website).toBe("https://delpra.net.br");
+    expect(best?.match_by).toEqual(expect.arrayContaining(["title", "city"]));
+    expect(best?.match_by).not.toContain("phone");
+    expect(best?.match_by).not.toContain("address");
+  });
+
+  it("does not accept a weak brand on title + city without street or phone", () => {
+    expect(
+      pickBestMapsPlace(
+        [
+          {
+            title: "Distribuidora Silva Contagem",
+            address: "Av. João César, 1 - Contagem - MG",
+            website: "https://silva-errada.com.br",
+          },
+        ],
+        silva,
+      ),
+    ).toBeNull();
+    expect(
+      scoreMapsPlace(
+        {
+          title: "Distribuidora Silva Contagem",
+          address: "Av. João César, 1 - Contagem - MG",
+        },
+        silva,
+      ).matched,
+    ).toBe(false);
+  });
+
+  it("prefers the listing with more reviews when identity scores tie", () => {
+    const input = {
+      nomeFantasia: "Delpra Pré-Moldados",
+      razaoSocial: "DELPRA PRE MOLDADOS LTDA",
+      municipio: "Uberaba",
+      uf: "MG",
+    };
+    const best = pickBestMapsPlace(
+      [
+        {
+          title: "Delpra Pré-Moldados",
+          address: "Uberaba - MG",
+          website: "https://delpra-velho.net.br",
+          ratingCount: 2,
+        },
+        {
+          title: "Delpra Pré-Moldados",
+          address: "Uberaba - MG",
+          website: "https://delpra.net.br",
+          rating: 5,
+          ratingCount: 49,
+        },
+      ],
+      input,
+    );
+    expect(best?.place.website).toBe("https://delpra.net.br");
+  });
+
+  it("treats municipality in the Maps title as a city match", () => {
+    expect(
+      mapsCityMatchesReceita("Solaris Belo Horizonte", {
+        municipio: "Belo Horizonte",
+        uf: "MG",
+      }),
+    ).toBe(true);
+    expect(
+      mapsCityMatchesReceita("Contagem - MG", {
+        municipio: "Uberaba",
+        uf: "MG",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("gmbListingCorroborated", () => {
-  it("accepts phone, or address together with title — never address-only", () => {
+  it("accepts phone, street+title, or title+city — never address-only", () => {
     expect(
       gmbListingCorroborated({
         name: "X",
@@ -381,6 +502,14 @@ describe("gmbListingCorroborated", () => {
         url: "https://maps.google.com/?cid=1",
         matched: true,
         match_by: ["title", "address"],
+      }),
+    ).toBe(true);
+    expect(
+      gmbListingCorroborated({
+        name: "Delpra",
+        url: "https://delpra.net.br",
+        matched: true,
+        match_by: ["title", "city"],
       }),
     ).toBe(true);
   });

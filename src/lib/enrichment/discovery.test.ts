@@ -47,6 +47,18 @@ function row(partial: Partial<LeadEnrichment> = {}): LeadEnrichment {
 
 describe("needsDiscoveryRetry", () => {
   it("retries a complete miss from the previous discovery rules", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          fonte: {
+            discovery: {
+              fonte: "3",
+              coletado_em: "2026-09-01T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
     expect(needsDiscoveryRetry(row())).toBe(true);
   });
 

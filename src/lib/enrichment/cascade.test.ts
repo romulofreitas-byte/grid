@@ -907,6 +907,94 @@ describe("enrichCompany crawl", () => {
     delete process.env.SERPER_API_KEY;
   });
 
+  it("seeds Delpra from Maps when the Receita phone is the accountant's", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const mapsQueries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          try {
+            mapsQueries.push(
+              ((JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? ""),
+            );
+          } catch {
+            mapsQueries.push("");
+          }
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Escritório Contábil Centro",
+                  address: "Rua do Contador, 10 - Uberaba - MG",
+                  phoneNumber: "(34) 3312-3659",
+                },
+                {
+                  title: "Delpra Pré-Moldados",
+                  address:
+                    "R. Clara Alves de Mello, 461 - Laranjeiras, Uberaba - MG",
+                  website: "https://delpra.net.br",
+                  phoneNumber: "(34) 99912-2128",
+                  rating: 5,
+                  ratingCount: 49,
+                  thumbnailUrl: "https://example.com/photo.jpg",
+                  openingHours: ["Thursday: 8AM-6PM"],
+                  category: "Fornecedor de Pré-Moldados",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("delpra.net.br")) {
+          return htmlResponse(
+            `<html><body>Delpra Pré-Moldados Tel: (34) 99912-2128 CNPJ ${CNPJ}</body></html>`,
+          );
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "Delpra Pré-Moldados";
+    input.company.razao_social = "DELPRA PRE MOLDADOS LTDA";
+    input.municipioNome = "Uberaba";
+    input.establishment.uf = "MG";
+    input.establishment.logradouro = "Rua do Contador";
+    input.establishment.numero = "10";
+    input.establishment.ddd1 = "34";
+    input.establishment.telefone1 = "33123659";
+    input.sharedVerdict = "contabilidade";
+    input.sharedCount = 150;
+
+    const { row } = await enrichCompany(input);
+    expect(mapsQueries[0]).toBe('"Delpra Pré-Moldados" Uberaba MG');
+    expect(mapsQueries.every((q) => !/contador/i.test(q))).toBe(true);
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.gmb?.match_by).toEqual(expect.arrayContaining(["title", "city"]));
+    expect(row.gmb?.card?.ratingCount).toBe(49);
+    expect(row.domain).toBe("delpra.net.br");
+    expect(row.fonte.domain?.fonte).toBe("gmb");
+    expect(row.domain_status).toBe("confirmado");
+    const mobile = row.phones.find((p) => p.e164.includes("999122128"));
+    expect(mobile?.seal).toBe("ATUALIZADO");
+    expect(mobile?.sources.some((s) => s.startsWith("site"))).toBe(true);
+    expect(row.phones.every((p) => !p.sources.includes("gmb" as never))).toBe(
+      true,
+    );
+    delete process.env.SERPER_API_KEY;
+  });
+
   it("prefers an organic brand hit over a GMB website", async () => {
     process.env.SERPER_API_KEY = "test";
     vi.stubGlobal(

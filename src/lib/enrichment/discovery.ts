@@ -3,7 +3,7 @@ import { isEnrichmentComplete } from "@/lib/enrichment/fresh";
 import type { LeadEnrichment } from "@/lib/types";
 
 /** Bump when organic/Maps discovery rules change — stale misses re-run once. */
-export const DOMAIN_DISCOVERY_VERSION = "3";
+export const DOMAIN_DISCOVERY_VERSION = "4";
 
 export function discoveryVersionOf(
   row: LeadEnrichment | null | undefined,

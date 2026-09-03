@@ -448,6 +448,32 @@ describe("buildAuditSignals", () => {
     expect(full.note).toMatch(/210/);
   });
 
+  it("treats title + city as a Receita conferral, not a pending Maps guess", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Delpra Pré-Moldados",
+          url: "https://delpra.net.br",
+          matched: true,
+          match_by: ["title", "city"],
+          card: {
+            filled: ["phone", "website", "hours", "photo", "reviews"],
+            score: 5,
+            rating: 5,
+            ratingCount: 49,
+            category: "Fornecedor de Pré-Moldados",
+          },
+        },
+      }),
+      "gmb",
+    );
+    expect(isAuditLive(gmb)).toBe(true);
+    expect(gmb.unverified).toBe(false);
+    expect(gmb.hint).toMatch(/nome e cidade/i);
+    expect(gmb.note).toMatch(/5 ★/);
+    expect(gmb.note).toMatch(/49/);
+  });
+
   it("attaches the OSM mismatch note to the site signal", () => {
     const site = byId(
       enrichment({

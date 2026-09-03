@@ -282,6 +282,7 @@ function receitaGmbInput(
   est: Establishment,
   company: Company,
   municipioNome: string,
+  sharedVerdict?: SharedPhoneVerdict,
 ): GmbSearchInput {
   return {
     nomeFantasia: est.nome_fantasia,
@@ -294,6 +295,7 @@ function receitaGmbInput(
       { ddd: est.ddd1, telefone: est.telefone1 },
       { ddd: est.ddd2, telefone: est.telefone2 },
     ],
+    sharedVerdict,
   };
 }
 
@@ -667,7 +669,12 @@ export async function enrichCompany(
     nomeFantasia: est.nome_fantasia,
     municipio: input.municipioNome,
   };
-  const gmbInput = receitaGmbInput(est, input.company, input.municipioNome);
+  const gmbInput = receitaGmbInput(
+    est,
+    input.company,
+    input.municipioNome,
+    input.sharedVerdict,
+  );
   const presencePlace = {
     nomeFantasia: est.nome_fantasia,
     razaoSocial: input.company.razao_social,

@@ -762,7 +762,11 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         ? e.fonte.gmb?.fonte === "human"
           ? "Ficha inserida por você — não veio da Receita."
           : corroborated
-            ? "Conferido com a Receita (endereço/telefone)."
+            ? e.gmb.match_by?.includes("city") &&
+              !e.gmb.match_by?.includes("address") &&
+              !e.gmb.match_by?.includes("phone")
+              ? "Conferido com a Receita (nome e cidade)."
+              : "Conferido com a Receita (endereço/telefone)."
             : "Ficha do Google Meu Negócio encontrada na busca."
         : e.gmb
           ? e.fonte.gmb?.fonte === "human"
