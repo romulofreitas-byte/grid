@@ -666,7 +666,7 @@ export default function LeadPage() {
   }
 
   function openSaveList() {
-    setSaveListName((d.searchNome ?? "").trim() || companyTitle);
+    setSaveListName((d?.searchNome ?? "").trim() || companyTitle);
     setSaveListError(null);
     setSaveListOpen(true);
   }
