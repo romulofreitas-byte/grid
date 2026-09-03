@@ -76,7 +76,31 @@ export function CrmStageChevronBar({
     "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:pointer-events-none disabled:opacity-30";
 
   return (
-    <div className="flex shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-2 py-1.5">
+    <>
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-2 py-1.5 md:hidden">
+        {stages.map((stage) => {
+          const active = stage.id === activeId;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              title={stage.nome}
+              onClick={() => {
+                if (!active) onSelect(stage.id);
+              }}
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium leading-tight",
+                active
+                  ? "bg-podium-yellow text-podium-navy"
+                  : "bg-zinc-100 text-zinc-500",
+              )}
+            >
+              {stage.nome}
+            </button>
+          );
+        })}
+      </div>
+      <div className="hidden shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-2 py-1.5 md:flex">
       {overflowing ? (
         <button
           type="button"
@@ -135,6 +159,7 @@ export function CrmStageChevronBar({
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

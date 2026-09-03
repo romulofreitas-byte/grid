@@ -48,7 +48,8 @@ import {
   leadQueryKey,
   normalizeLeadCnpj,
 } from "@/lib/lead-query";
-import { ExportDownload } from "@/components/ExportDownload";
+import { ExportMenu } from "@/components/ExportDownload";
+import { GridMoreMenu } from "@/components/GridMoreMenu";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
@@ -654,6 +655,66 @@ export default function GridPage() {
     visibleUnaudited.every((r) => selected.has(r.cnpj));
   const selectedCost = selectedCount * ENRICH_CREDIT_COST;
   const allCost = unaudited * ENRICH_CREDIT_COST;
+  const exportCostHint = `${EXPORT_CREDIT_COST} créditos por empresa`;
+  const extraBatchSizes = QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal);
+  const destinations = (connectionsQuery.data?.connections ?? []).filter(
+    (c) => c.status === "active" && c.provider === "webhook",
+  );
+  const lastPush = (pushJobsQuery.data?.jobs ?? [])[0];
+  function renderSendControls() {
+    if (destinations.length === 0) {
+      if (CONNECTIONS_STANDBY) return null;
+      return (
+        <Link
+          href="/conexoes"
+          className={buttonClassName({
+            variant: "secondary",
+            size: "sm",
+          })}
+        >
+          <Send className="h-3.5 w-3.5" />
+          Conectar envio
+        </Link>
+      );
+    }
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={connectionId || destinations[0]?.id || ""}
+          onChange={(e) => setConnectionId(e.target.value)}
+          className="h-7 min-w-0 rounded-md border border-white/15 bg-podium-panel px-2.5 text-xs text-podium-white"
+        >
+          {destinations.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.display_name ?? c.provider}
+            </option>
+          ))}
+        </select>
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={pushMutation.isPending || rows.length === 0 || !canExport}
+          onClick={() =>
+            pushMutation.mutate(connectionId || destinations[0]!.id)
+          }
+          className="gap-1.5"
+          title={canExport ? exportCostHint : COPY.exportNeedsQualify}
+        >
+          <Send className="h-3.5 w-3.5" />
+          Enviar
+        </Button>
+        {lastPush ? (
+          <span className="text-[11px] text-podium-muted">
+            {lastPush.status === "done"
+              ? "enviado"
+              : lastPush.status === "failed"
+                ? lastPush.last_error ?? "falhou"
+                : "enviando"}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   const prevDoneJobs = useRef<number | null>(null);
   const prevDoneCnpjs = useRef<Set<string>>(new Set());
@@ -861,7 +922,37 @@ export default function GridPage() {
           </p>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 md:hidden">
+          <Button
+            size="sm"
+            variant="primary"
+            title={creditsEach(ENRICH_CREDIT_COST)}
+            disabled={enrichMutation.isPending || unaudited === 0}
+            onClick={() =>
+              requestQualify({ scope: "first_unaudited", limit: callGoal })
+            }
+            className="min-w-0 flex-1"
+          >
+            {COPY.qualificar} ({callGoal})
+          </Button>
+          <GridMoreMenu
+            qualifyPending={enrichMutation.isPending}
+            unaudited={unaudited}
+            allCost={allCost}
+            confirmAll={confirmAll}
+            batchSizes={extraBatchSizes}
+            onQualifyBatch={(limit) =>
+              requestQualify({ scope: "first_unaudited", limit })
+            }
+            onQualifyAll={() => requestQualify({ scope: "all_unaudited" })}
+            onAskConfirmAll={() => setConfirmAll(true)}
+            searchId={searchId}
+            canExport={canExport}
+            exportCostHint={exportCostHint}
+            sendSection={renderSendControls()}
+          />
+        </div>
+        <div className="hidden flex-wrap gap-2 md:flex">
           <Button
             size="sm"
             variant="primary"
@@ -873,7 +964,7 @@ export default function GridPage() {
           >
             {COPY.qualificarMetaHoje} ({callGoal})
           </Button>
-          {QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal).map((size) => (
+          {extraBatchSizes.map((size) => (
             <Button
               key={size}
               size="sm"
@@ -907,87 +998,15 @@ export default function GridPage() {
               Qualificar a lista inteira ({unaudited})
             </Button>
           )}
-          {(() => {
-            const destinations = (connectionsQuery.data?.connections ?? []).filter(
-              (c) => c.status === "active" && c.provider === "webhook",
-            );
-            const pushJobs = pushJobsQuery.data?.jobs ?? [];
-            const lastPush = pushJobs[0];
-            if (destinations.length === 0) {
-              if (CONNECTIONS_STANDBY) return null;
-              return (
-                <Link
-                  href="/conexoes"
-                  className={buttonClassName({
-                    variant: "secondary",
-                    size: "sm",
-                  })}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Conectar envio
-                </Link>
-              );
-            }
-            return (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={connectionId || destinations[0]?.id || ""}
-                  onChange={(e) => setConnectionId(e.target.value)}
-                  className="h-7 rounded-md border border-white/15 bg-podium-panel px-2.5 text-xs text-podium-white"
-                >
-                  {destinations.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.display_name ?? c.provider}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={
-                    pushMutation.isPending || rows.length === 0 || !canExport
-                  }
-                  onClick={() =>
-                    pushMutation.mutate(connectionId || destinations[0]!.id)
-                  }
-                  className="gap-1.5"
-                  title={
-                    canExport
-                      ? `${EXPORT_CREDIT_COST} créditos por empresa`
-                      : COPY.exportNeedsQualify
-                  }
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  Enviar
-                </Button>
-                {lastPush ? (
-                  <span className="text-[11px] text-podium-muted">
-                    {lastPush.status === "done"
-                      ? "enviado"
-                      : lastPush.status === "failed"
-                        ? lastPush.last_error ?? "falhou"
-                        : "enviando"}
-                  </span>
-                ) : null}
-              </div>
-            );
-          })()}
-          {(["xlsx", "csv", "pdf"] as const).map((fmt) => (
-            <ExportDownload
-              key={fmt}
-              searchId={searchId}
-              format={fmt}
-              label={fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}
-              costHint={`${EXPORT_CREDIT_COST} créditos por empresa`}
-              className={
-                fmt === "xlsx" ? "font-semibold text-podium-yellow" : undefined
-              }
-              disabled={!canExport}
-              disabledHint={COPY.exportNeedsQualify}
-            />
-          ))}
+          {renderSendControls()}
+          <ExportMenu
+            searchId={searchId}
+            disabled={!canExport}
+            disabledHint={COPY.exportNeedsQualify}
+            costHint={exportCostHint}
+          />
         </div>
-        <p className="text-[11px] text-podium-muted">
+        <p className="hidden text-[11px] text-podium-muted md:block">
           Exportar a planilha custa {EXPORT_CREDIT_COST} créditos por empresa já
           qualificada. {COPY.exportCrmIncluso}
         </p>

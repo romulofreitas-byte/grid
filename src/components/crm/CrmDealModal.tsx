@@ -19,6 +19,7 @@ import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { COPY } from "@/lib/copy";
+import { formatNichoCidade } from "@/lib/nicho-cidade";
 import { leadHrefForCnpj } from "@/lib/back";
 import {
   activitySignal,
@@ -118,6 +119,7 @@ function personPlaceholder(field: "name" | "phone" | "email"): string {
 export function CrmDealModal({
   deal,
   stages,
+  pipelineNome,
   onClose,
   onChange,
   onDeleted,
@@ -125,6 +127,7 @@ export function CrmDealModal({
 }: {
   deal: CrmDealCard;
   stages: CrmStage[];
+  pipelineNome: string;
   onClose: () => void;
   onChange: (deal: CrmDealCard) => void;
   onDeleted: (dealId: string) => void;
@@ -508,6 +511,7 @@ export function CrmDealModal({
   const plannedTitle = formatPlannedActivity(deal.next_activity);
   const plannedSignal = activitySignal(deal.next_activity);
   const extraPeople = people.slice(1);
+  const nichoCidade = formatNichoCidade(pipelineNome, briefing.municipio);
 
   return (
     <>
@@ -538,30 +542,41 @@ export function CrmDealModal({
         exit={reduce ? undefined : { scale: 0.98 }}
         transition={presence}
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3">
+        <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-3 py-3 md:flex-row md:items-start md:justify-between md:gap-3 md:px-4">
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2
-                id="crm-deal-title"
-                className="truncate text-sm font-semibold leading-tight"
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2
+                    id="crm-deal-title"
+                    className="truncate text-sm font-semibold leading-tight"
+                  >
+                    {deal.company_name}
+                  </h2>
+                  {deal.cnpj ? (
+                    <Link
+                      href={leadHrefForCnpj(deal.cnpj, deal.meta.searchId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-medium text-amber-700 hover:underline"
+                    >
+                      {COPY.crmOpenFicha}
+                    </Link>
+                  ) : null}
+                </div>
+                {nichoCidade ? (
+                  <p className="mt-0.5 truncate text-[10px] text-zinc-400">
+                    {nichoCidade}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="shrink-0 rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
               >
-                {deal.company_name}
-              </h2>
-              {deal.cnpj ? (
-                <Link
-                  href={leadHrefForCnpj(deal.cnpj, deal.meta.searchId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] font-medium text-amber-700 hover:underline"
-                >
-                  {COPY.crmOpenFicha}
-                </Link>
-              ) : null}
-              {briefing.municipio ? (
-                <span className="text-[10px] text-zinc-400">
-                  {briefing.municipio}
-                </span>
-              ) : null}
+                <X className="h-4 w-4" />
+              </button>
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               {headerPhone ? (
@@ -573,27 +588,31 @@ export function CrmDealModal({
                 <span className="text-[11px] text-zinc-400">{COPY.crmNoPhone}</span>
               )}
               {headerContact ? (
-                <span className="text-xs text-zinc-600">{headerContact}</span>
+                <span className="truncate text-xs text-zinc-600">
+                  {headerContact}
+                </span>
               ) : null}
-              {deal.cnpj
-                ? briefing.badges.map((badge) => (
-                    <span
-                      key={badge.id}
-                      className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                        badge.found
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-zinc-100 text-zinc-500",
-                      )}
-                    >
-                      {badge.label} · {badge.found ? "ok" : "falta"}
-                    </span>
-                  ))
-                : null}
             </div>
+            {deal.cnpj && briefing.badges.length > 0 ? (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {briefing.badges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                      badge.found
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-zinc-100 text-zinc-500",
+                    )}
+                  >
+                    {badge.label} · {badge.found ? "ok" : "falta"}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <div className="flex rounded-md border border-zinc-200 p-0.5">
+          <div className="flex items-center gap-1.5">
+            <div className="flex w-full rounded-md border border-zinc-200 p-0.5 md:w-auto">
               {outcomes.map((id) => (
                 <button
                   key={id}
@@ -601,7 +620,7 @@ export function CrmDealModal({
                   disabled={saving}
                   onClick={() => void setOutcome(id)}
                   className={cn(
-                    "rounded px-2 py-0.5 text-[10px] font-medium transition",
+                    "flex-1 rounded px-2 py-1 text-[10px] font-medium transition md:flex-none md:py-0.5",
                     deal.outcome === id
                       ? id === "won"
                         ? "text-emerald-700"
@@ -622,7 +641,7 @@ export function CrmDealModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800"
+              className="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 md:inline-flex"
             >
               <X className="h-4 w-4" />
             </button>

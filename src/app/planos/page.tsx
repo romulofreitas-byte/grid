@@ -6,6 +6,8 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { formatBrl, EXPORT_CREDIT_COST, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
+import { getBalance } from "@/lib/billing/service";
+import { requireSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 export default async function PlanosPage({
@@ -16,6 +18,10 @@ export default async function PlanosPage({
   const { from } = await searchParams;
   const back = billingReturn(from);
   const billed = PLANS.filter((p) => p.sku !== "membro_plataforma");
+  const session = await requireSession();
+  const couponActivated = session
+    ? (await getBalance(session.id)).plano === "membro_plataforma"
+    : false;
 
   return (
     <PublicPage className="max-w-6xl" back={back}>
@@ -55,14 +61,18 @@ export default async function PlanosPage({
                   <span className="text-sm font-medium text-podium-muted">/mês</span>
                 ) : null}
               </p>
-              <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
-                {plan.highlights.map((h) => (
-                  <li key={h} className="flex gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
+              {plan.sku === "piloto_pro" || plan.sku === "escuderia" ? (
+                <div className="mt-4 flex-1" />
+              ) : (
+                <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
+                  {plan.highlights.map((h) => (
+                    <li key={h} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {plan.sku === "free" || isSkuOnSale(plan.sku) ? (
                 <Link
                   href={plan.sku === "free" ? "/box" : pagarHref(plan.sku, from)}
@@ -122,6 +132,7 @@ export default async function PlanosPage({
         </div>
       </div>
 
+      {couponActivated ? null : (
       <GlassCard className="mt-10 p-5">
         <p className="text-sm font-bold text-podium-white">Membro da Plataforma</p>
         <p className="mt-2 text-sm text-podium-gray">
@@ -138,6 +149,7 @@ export default async function PlanosPage({
           Ativar com cupom
         </Link>
       </GlassCard>
+      )}
 
       <GlassCard className="mt-6 p-5" highlight>
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">

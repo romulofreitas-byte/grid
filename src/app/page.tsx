@@ -115,7 +115,7 @@ export default function LandingPage() {
           </div>
 
           <motion.div
-            className="min-w-0 justify-self-stretch lg:justify-self-end"
+            className="hidden min-w-0 justify-self-stretch lg:block lg:justify-self-end"
             initial={reduce ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: reduce ? 0 : 0.22, ease }}
@@ -123,6 +123,26 @@ export default function LandingPage() {
             <LandingListPreview />
           </motion.div>
         </div>
+      </section>
+
+      <section className="relative lg:hidden">
+        <div className="sticky top-14 z-30 border-b border-podium-yellow/25 bg-podium-navy/95 px-4 py-3 backdrop-blur-xl">
+          <h2 className="text-lg font-extrabold tracking-tight text-podium-white">
+            {COPY.landingPreviewLabel}
+          </h2>
+        </div>
+        <motion.div
+          className="mx-auto max-w-lg px-4 py-8"
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.45, ease }}
+        >
+          <LandingListPreview
+            hideEyebrow
+            className="mx-auto ring-1 ring-podium-yellow/30"
+          />
+        </motion.div>
       </section>
 
       <LandingPain />

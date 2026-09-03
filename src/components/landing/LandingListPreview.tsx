@@ -6,7 +6,13 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-export function LandingListPreview({ className }: { className?: string }) {
+export function LandingListPreview({
+  className,
+  hideEyebrow = false,
+}: {
+  className?: string;
+  hideEyebrow?: boolean;
+}) {
   const reduce = useReducedMotion();
   const [visibleCount, setVisibleCount] = useState(reduce ? LANDING_LEADS.length : 0);
   const [ready, setReady] = useState(Boolean(reduce));
@@ -51,10 +57,17 @@ export function LandingListPreview({ className }: { className?: string }) {
         className="pointer-events-none absolute -inset-6 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(245,179,1,0.14),transparent_68%)]"
       />
 
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
-          {COPY.landingPreviewLabel}
-        </p>
+      <div
+        className={cn(
+          "mb-3 flex items-center gap-3",
+          hideEyebrow ? "justify-end" : "justify-between",
+        )}
+      >
+        {hideEyebrow ? null : (
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
+            {COPY.landingPreviewLabel}
+          </p>
+        )}
         <span
           className={cn(
             "text-[10px] font-bold uppercase tracking-[0.14em]",

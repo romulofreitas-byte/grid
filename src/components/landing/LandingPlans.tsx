@@ -89,14 +89,18 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                     </span>
                   ) : null}
                 </p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
-                  {plan.highlights.map((h) => (
-                    <li key={h} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
+                {plan.sku === "piloto_pro" || plan.sku === "escuderia" ? (
+                  <div className="mt-4 flex-1" />
+                ) : (
+                  <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
+                    {plan.highlights.map((h) => (
+                      <li key={h} className="flex gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
+                        {h}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {onSale ? (
                   <Link
                     href={href}
