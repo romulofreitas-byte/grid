@@ -137,6 +137,7 @@ function EntrarInner() {
   }, [searchParams]);
 
   async function lightsOutThenGo(dest = next) {
+    void router.prefetch(dest);
     if (reduce) {
       router.push(dest);
       return;
@@ -144,14 +145,13 @@ function EntrarInner() {
     setPhase("lighting");
     for (let i = 1; i <= 5; i++) {
       setLitCount(i);
-      await sleep(95);
+      await sleep(80);
     }
-    await sleep(200);
+    await sleep(120);
     setPhase("out");
     setLitCount(0);
-    await sleep(140);
+    await sleep(90);
     setPhase("go");
-    await sleep(320);
     router.push(dest);
   }
 
@@ -378,21 +378,27 @@ function EntrarInner() {
           <motion.div
             key="go-flash"
             className="pointer-events-none fixed inset-0 z-50 bg-podium-yellow"
-            initial={{ opacity: 0.8 }}
+            initial={{ opacity: 0.85 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
           />
         ) : null}
       </AnimatePresence>
 
       {phase !== "idle" && phase !== "go" ? (
-        <div className="pointer-events-none fixed inset-x-0 top-8 z-40 flex justify-center">
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-podium-navy/92 backdrop-blur-md">
           <StartingLights litCount={litCount} phase={phase} />
         </div>
       ) : null}
 
-      <div className="relative z-10 w-full max-w-md">
+      <div
+        className={cn(
+          "relative z-10 w-full max-w-md",
+          phase !== "idle" && "invisible",
+        )}
+        aria-hidden={phase !== "idle"}
+      >
         <div className="mb-8 flex justify-center">
           <BrandLogo variant="endorsed" className="h-9 w-auto text-[2.25rem]" priority />
         </div>
