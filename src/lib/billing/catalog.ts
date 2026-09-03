@@ -149,6 +149,21 @@ const BY_SKU: Record<string, CatalogItem> = Object.fromEntries(
   [...PLANS, ...PACKS].map((item) => [item.sku, item]),
 );
 
+/** SKUs currently for sale. Treino livre is free and never goes through checkout. */
+export const SKUS_ON_SALE: ReadonlySet<string> = new Set([
+  "piloto",
+  "pack_100",
+  "pack_500",
+  "pack_2000",
+]);
+
+export const SKU_OFF_SALE_MESSAGE =
+  "Este plano não está à venda neste momento";
+
+export function isSkuOnSale(sku: string): boolean {
+  return SKUS_ON_SALE.has(sku);
+}
+
 export function getCatalogItem(sku: string): CatalogItem | undefined {
   return BY_SKU[sku];
 }

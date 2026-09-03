@@ -1,3 +1,4 @@
+import { isSkuOnSale } from "@/lib/billing/catalog";
 import { hasLiveDatabase } from "@/lib/data";
 import { isUndefinedTableError, query } from "@/lib/data/pg";
 
@@ -30,6 +31,7 @@ export function shouldShowPlatformCouponBanner(
   plano: string,
   options?: { trialExpired?: boolean },
 ): boolean {
+  if (!isSkuOnSale("membro_plataforma")) return false;
   if (!isSubscriber) return false;
   if (options?.trialExpired) return false;
   return plano !== "membro_plataforma";

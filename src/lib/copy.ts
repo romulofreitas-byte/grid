@@ -67,6 +67,7 @@ export const COPY = {
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
+  landingPlansCtaSoon: "Em breve",
   landingPlansFeatured: "Mais escolhido",
   landingFinalTitle: "Comece pela lista. Ligue no mesmo dia.",
   landingFinalBody:
@@ -90,7 +91,7 @@ export const COPY = {
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
   boxPlatformCoupon:
-    "Você assina o Mundo Pódium. Ative 30 dias de Piloto com o cupom no checkout.",
+    "Você assina o Mundo Pódium. A ativação por cupom está pausada neste momento — assine o Piloto.",
   boxPlatformTrialEnded:
     "Os 30 dias do Piloto acabaram. Assine o Piloto para continuar. Recarga só soma crédito — não reabre o CRM.",
   cnae: "Código da atividade da empresa na Receita.",

@@ -4,9 +4,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
-import { formatBrl, EXPORT_CREDIT_COST, PACKS, PLANS } from "@/lib/billing/catalog";
+import { formatBrl, EXPORT_CREDIT_COST, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
-import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 import { cn } from "@/lib/utils";
 
 export default async function PlanosPage({
@@ -64,17 +63,26 @@ export default async function PlanosPage({
                   </li>
                 ))}
               </ul>
-              <Link
-                href={plan.sku === "free" ? "/box" : pagarHref(plan.sku, from)}
-                className={cn(
-                  "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
-                  featured
-                    ? "bg-podium-yellow text-podium-navy hover:brightness-110"
-                    : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
-                )}
-              >
-                {plan.sku === "free" ? "Continuar no treino" : "Pagar com Pix"}
-              </Link>
+              {plan.sku === "free" || isSkuOnSale(plan.sku) ? (
+                <Link
+                  href={plan.sku === "free" ? "/box" : pagarHref(plan.sku, from)}
+                  className={cn(
+                    "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
+                    featured
+                      ? "bg-podium-yellow text-podium-navy hover:brightness-110"
+                      : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
+                  )}
+                >
+                  {plan.sku === "free" ? "Continuar no treino" : "Pagar com Pix"}
+                </Link>
+              ) : (
+                <span
+                  aria-disabled="true"
+                  className="mt-6 inline-flex cursor-not-allowed justify-center rounded-xl border border-white/10 py-3 text-sm font-extrabold text-podium-muted"
+                >
+                  Em breve
+                </span>
+              )}
             </GlassCard>
           );
         })}
@@ -118,15 +126,15 @@ export default async function PlanosPage({
         <p className="text-sm font-bold text-podium-white">Membro da Plataforma</p>
         <p className="mt-2 text-sm text-podium-gray">
           Quem já assina o Mundo Pódium entra no nível Piloto por 30 dias, sem
-          pagar de novo no GRID. No checkout, use o cupom {DEFAULT_PLATFORM_COUPON}. Depois,
-          assine o Piloto. Recarga só soma crédito.
+          pagar de novo no GRID. A ativação por cupom está pausada neste
+          momento. Assine o Piloto. Recarga só soma crédito.
         </p>
-        <Link
-          href={pagarHref("membro_plataforma", from)}
-          className="mt-4 inline-block text-sm font-bold text-podium-yellow hover:underline"
+        <span
+          aria-disabled="true"
+          className="mt-4 inline-block text-sm font-bold text-podium-muted"
         >
-          Ativar com cupom →
-        </Link>
+          Em breve
+        </span>
       </GlassCard>
 
       <GlassCard className="mt-6 p-5" highlight>

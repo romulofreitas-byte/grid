@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_USER_ID } from "@/lib/data/pg";
-import { resetBillingMemory } from "@/lib/billing/memory-store";
+import { SKU_OFF_SALE_MESSAGE } from "@/lib/billing/catalog";
+import { memoryBillingStore, resetBillingMemory } from "@/lib/billing/memory-store";
 import {
+  applyPaymentPaid,
   assertCrmAccess,
   createCheckout,
   crmAllowed,
@@ -17,6 +19,7 @@ import {
   CrmNotAllowedError,
   EnrichmentNotAllowedError,
   InsufficientCreditsError,
+  type BillingOrder,
 } from "@/lib/billing/types";
 
 vi.mock("@/lib/platform/subscribers", () => ({
@@ -29,6 +32,31 @@ vi.mock("@/lib/platform/subscribers", () => ({
 }));
 
 const profileId = LOCAL_USER_ID;
+
+async function seedPaidPlatformPlan(): Promise<void> {
+  const order: BillingOrder = {
+    id: crypto.randomUUID(),
+    profileId,
+    sku: "membro_plataforma",
+    kind: "platform",
+    provider: "platform",
+    method: "platform",
+    status: "pending",
+    amountCents: 0,
+    currency: "BRL",
+    providerPaymentId: `plat_${crypto.randomUUID()}`,
+    providerSubId: null,
+    pixQr: null,
+    pixCopy: null,
+    boletoUrl: null,
+    boletoLine: null,
+    checkoutUrl: null,
+    paidAt: null,
+    createdAt: new Date().toISOString(),
+  };
+  await memoryBillingStore.insertOrder(order);
+  await applyPaymentPaid(order.id);
+}
 
 beforeEach(() => {
   process.env.DATA_SOURCE = "mock";
@@ -220,97 +248,25 @@ describe("billing service", () => {
     );
   });
 
-  it("activates platform plan with coupon for subscribers", async () => {
-    const order = await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
-    expect(order.status).toBe("paid");
-    const bal = await getBalance(profileId);
-    expect(bal.plano).toBe("membro_plataforma");
-    expect(bal.total).toBe(900);
-    expect(bal.enrichAllowed).toBe(true);
-    expect(bal.trialDaysLeft).toBeGreaterThanOrEqual(29);
-    expect(bal.trialDaysLeft).toBeLessThanOrEqual(30);
-    const me = await getBillingMe(profileId);
-    expect(me.subscription?.status).toBe("trialing");
-  });
-
-  it("accepts PILOTOPODIUM when env still has the old PODIUM code", async () => {
-    process.env.BILLING_PLATFORM_COUPON = "PODIUM";
-    const order = await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "pilotopodium",
-    });
-    expect(order.status).toBe("paid");
-  });
-
-  it("activates the platform plan when the coupon env is unset", async () => {
-    delete process.env.BILLING_PLATFORM_COUPON;
-    const order = await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
-    expect(order.status).toBe("paid");
-  });
-
-  it("rejects platform coupon for non-subscribers", async () => {
-    await expect(
-      createCheckout({
-        profileId,
-        email: "intruso@example.com",
-        nome: "Intruso",
-        sku: "membro_plataforma",
-        method: "pix",
-        coupon: "PILOTOPODIUM",
-      }),
-    ).rejects.toMatchObject({ status: 403 });
-  });
-
-  it("rejects a second platform coupon after the trial was used", async () => {
-    await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
-    await expect(
-      createCheckout({
-        profileId,
-        email: "piloto@mundopodium.com.br",
-        nome: "Rômulo",
-        sku: "membro_plataforma",
-        method: "pix",
-        coupon: "PILOTOPODIUM",
-      }),
-    ).rejects.toMatchObject({ status: 403 });
+  it("rejects checkout for plans that are not on sale", async () => {
+    for (const sku of ["piloto_pro", "escuderia", "membro_plataforma"] as const) {
+      await expect(
+        createCheckout({
+          profileId,
+          email: "piloto@mundopodium.com.br",
+          nome: "Rômulo",
+          sku,
+          method: "pix",
+          coupon: "PILOTOPODIUM",
+        }),
+      ).rejects.toMatchObject({ message: SKU_OFF_SALE_MESSAGE });
+    }
   });
 
   it("locks qualify and redacts the grid after 31 days without payment", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
-    await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
+    await seedPaidPlatformPlan();
     vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
     const bal = await getBalance(profileId);
     expect(bal.plano).toBe("free");
@@ -325,14 +281,7 @@ describe("billing service", () => {
   it("does not restore qualify or CRM when a pack is paid after the trial ends", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
-    await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
+    await seedPaidPlatformPlan();
     vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
     await createCheckout({
       profileId,
@@ -355,14 +304,7 @@ describe("billing service", () => {
   it("turns a paid piloto checkout into an active monthly plan after the trial", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-01T12:00:00.000Z"));
-    await createCheckout({
-      profileId,
-      email: "piloto@mundopodium.com.br",
-      nome: "Rômulo",
-      sku: "membro_plataforma",
-      method: "pix",
-      coupon: "PILOTOPODIUM",
-    });
+    await seedPaidPlatformPlan();
     vi.setSystemTime(new Date("2026-09-02T12:00:00.000Z"));
     await createCheckout({
       profileId,

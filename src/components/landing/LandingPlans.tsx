@@ -1,7 +1,7 @@
 "use client";
 
 import { COPY } from "@/lib/copy";
-import { formatBrl, PLANS } from "@/lib/billing/catalog";
+import { formatBrl, isSkuOnSale, PLANS } from "@/lib/billing/catalog";
 import { pagarHref } from "@/lib/billing/href";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
@@ -36,6 +36,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
         <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {BILLED.map((plan, i) => {
             const featured = plan.sku === "piloto";
+            const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
             const href =
               plan.sku === "free"
                 ? signedIn
@@ -47,7 +48,9 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                 ? signedIn
                   ? COPY.landingSignedInCta
                   : COPY.landingPlansCtaFree
-                : COPY.landingPlansCtaPaid;
+                : onSale
+                  ? COPY.landingPlansCtaPaid
+                  : COPY.landingPlansCtaSoon;
 
             return (
               <motion.article
@@ -94,17 +97,26 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={href}
-                  className={cn(
-                    "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
-                    featured
-                      ? "bg-podium-yellow text-podium-navy hover:brightness-110"
-                      : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
-                  )}
-                >
-                  {cta}
-                </Link>
+                {onSale ? (
+                  <Link
+                    href={href}
+                    className={cn(
+                      "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
+                      featured
+                        ? "bg-podium-yellow text-podium-navy hover:brightness-110"
+                        : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
+                    )}
+                  >
+                    {cta}
+                  </Link>
+                ) : (
+                  <span
+                    aria-disabled="true"
+                    className="mt-6 inline-flex cursor-not-allowed justify-center rounded-xl border border-white/10 py-3 text-sm font-extrabold text-podium-muted"
+                  >
+                    {cta}
+                  </span>
+                )}
               </motion.article>
             );
           })}

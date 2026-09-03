@@ -14,7 +14,9 @@ import {
   getCatalogItem,
   isPackSku,
   isPlanSku,
+  isSkuOnSale,
   orderKindFor,
+  SKU_OFF_SALE_MESSAGE,
   type BillingSku,
   type PaymentMethod,
   type PlanDefinition,
@@ -255,6 +257,9 @@ export async function createCheckout(input: {
   if (!item) throw new BillingError("SKU inválido");
   if (item.kind === "plan" && item.sku === "free") {
     throw new BillingError("Treino livre não precisa de pagamento");
+  }
+  if (!isSkuOnSale(item.sku)) {
+    throw new BillingError(SKU_OFF_SALE_MESSAGE);
   }
 
   const store = await getBillingStore();

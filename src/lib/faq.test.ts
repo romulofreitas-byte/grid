@@ -52,6 +52,14 @@ describe("acesso FAQ", () => {
   });
 });
 
+describe("membro-plataforma FAQ", () => {
+  it("does not send people to checkout while the coupon is paused", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "membro-plataforma");
+    expect(item?.links).toEqual([{ href: "/planos", label: "Ver planos" }]);
+    expect(item?.answer).not.toMatch(/\/pagar/);
+  });
+});
+
 describe("faqGrouped", () => {
   it("keeps category order and drops empty groups", () => {
     const selos = FAQ_ITEMS.filter((item) => item.id === "selos");

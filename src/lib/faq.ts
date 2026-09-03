@@ -1,6 +1,5 @@
 import { largadaNovaHref } from "@/lib/back";
 import { EXPORT_CREDIT_COST } from "@/lib/billing/catalog";
-import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 
 export const FAQ_CATEGORIES = [
   "Começar",
@@ -150,8 +149,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      `Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Use o mesmo e-mail do cadastro e o cupom ${DEFAULT_PLATFORM_COUPON}. Depois, assine o Piloto. Recarga só soma crédito.`,
-    links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
+      "Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. A ativação por cupom está pausada neste momento — assine o Piloto. Recarga só soma crédito.",
+    links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
     id: "exportar",

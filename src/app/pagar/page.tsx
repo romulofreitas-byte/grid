@@ -15,6 +15,8 @@ import { useHoldLights, usePodiumWait } from "@/hooks/usePodiumWait";
 import {
   formatBrl,
   getCatalogItem,
+  isSkuOnSale,
+  SKU_OFF_SALE_MESSAGE,
   type PaymentMethod,
 } from "@/lib/billing/catalog";
 import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
@@ -160,6 +162,8 @@ function PagarInner() {
     );
   }
 
+  const offSale = !isSkuOnSale(sku);
+
   return (
     <AppShell fill title="Pagar" back={planosBack}>
       <div className="shrink-0">
@@ -207,7 +211,21 @@ function PagarInner() {
           transition={{ duration: 0.25, ease: enterEase, delay: reduce ? 0 : 0.08 }}
         >
           <GlassCard className={fillCard}>
-            {pixWaiting ? (
+            {offSale ? (
+              <div className="flex min-h-0 flex-1 flex-col justify-center gap-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                  Em breve
+                </p>
+                <h3 className="text-xl font-extrabold">Fora de venda</h3>
+                <p className="text-sm text-podium-gray">{SKU_OFF_SALE_MESSAGE}</p>
+                <Link
+                  href={planosBack.href}
+                  className="mt-2 inline-flex justify-center rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy hover:brightness-110"
+                >
+                  Ver planos
+                </Link>
+              </div>
+            ) : pixWaiting ? (
               <div className="flex min-h-0 flex-1 flex-col justify-center gap-5">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <StartingLights litCount={litCount} phase={phase} />
