@@ -23,7 +23,7 @@ import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/box", label: "Box", icon: LayoutGrid },
+  { href: "/box", label: "Início", icon: LayoutGrid },
   { href: "/largada", label: "Nova lista", icon: Flag },
   { href: "/empresas", label: "Empresas", icon: Search },
   { href: "/listas", label: "Listas", icon: List },

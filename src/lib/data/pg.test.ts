@@ -172,7 +172,7 @@ describe("resolvePoolMax", () => {
     });
     expect(searchJobFailureMessage(timeout)).toMatch(/recorte menor/i);
     expect(searchJobFailureMessage(new Error("relation boom"))).toMatch(
-      /montar o grid/i,
+      /montar a lista/i,
     );
   });
 });

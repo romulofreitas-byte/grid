@@ -22,7 +22,7 @@ export default function OptOutPage() {
 
   return (
     <PublicPage className="max-w-lg">
-      <SectionTitle className="mt-8">Canal de oposição (opt-out)</SectionTitle>
+      <SectionTitle className="mt-8">Pedir para uma empresa sair da base</SectionTitle>
       <GlassCard className="mt-6 p-6">
         {done ? (
           <p className="text-sm text-podium-gray">

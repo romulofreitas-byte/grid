@@ -242,7 +242,7 @@ export function CrmAddDealDialog({
     } catch (err) {
       if (token !== pullGen.current) return;
       if (isBillingGateError(err)) return;
-      setError(err instanceof Error ? err.message : "Não puxou a ficha.");
+      setError(err instanceof Error ? err.message : "Não foi possível buscar a ficha.");
     } finally {
       if (token === pullGen.current) setPulling(false);
     }

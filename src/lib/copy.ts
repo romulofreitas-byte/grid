@@ -1,11 +1,11 @@
-/** Shared UI copy. Box and Grid stay in nav; action labels stay plain. */
+/** Shared UI copy. Nav uses Início; GRID is the product name. */
 
 export const COPY = {
   landingMetaTitle: "GRID — lista, qualificação e CRM",
   landingHeadline:
-    "Monte a lista, ache quem decide e já ligue — com CRM incluso.",
+    "Monte a lista, encontre quem decide e ligue — com CRM incluído.",
   landingPromessa:
-    "Nicho + cidade. Sai a lista na ordem de quem ligar, com telefone da empresa e o nome do sócio. Qualifique o digital e a lista salva cai no CRM.",
+    "Você escolhe o nicho e a cidade. Sai a lista na ordem de quem ligar, com telefone da empresa e o nome do sócio. Salve a lista, qualifique, e os leads entram no CRM.",
   landingPrimeiraVez: "Em minutos você sai com a lista pronta para ligar.",
   landingCtaStart: "Começar grátis",
   landingCtaPlans: "Ver planos",
@@ -14,18 +14,18 @@ export const COPY = {
   landingNavCrm: "CRM",
   landingNavPlans: "Planos",
   landingHowEyebrow: "Como funciona",
-  landingHowTitle: "Da busca à lista pronta para ligar",
-  landingHowStep1Title: "Escolhe nicho e região",
+  landingHowTitle: "Busque, monte a lista e ligue no mesmo dia",
+  landingHowStep1Title: "Escolha o nicho e a região",
   landingHowStep1Body:
     "Você define o mercado e a cidade. A busca é na Receita — não em mapa. MEI fica de fora por padrão.",
-  landingHowStep2Title: "Sai a lista na ordem de quem ligar",
+  landingHowStep2Title: "A lista sai na ordem de quem ligar",
   landingHowStep2Body:
     "Cada linha traz telefone da empresa e o nome do sócio que decide. Ligue de cima para baixo.",
-  landingHowStep3Title: "Salva, qualifica e cai no CRM",
+  landingHowStep3Title: "Salve, qualifique e envie ao CRM",
   landingHowStep3Body:
-    "Lista salva e qualificada entra sozinha no quadro. Sem copiar lead por lead.",
+    "Você salva a lista e qualifica. O lote entra sozinho no quadro, sem copiar lead por lead.",
   landingMeiNote:
-    "MEI não entra na busca padrão: faturamento ainda em desenvolvimento e menos espaço para investimentos mais robustos.",
+    "MEI fica de fora da busca padrão: o faturamento ainda não entra no filtro, e em geral há menos espaço para investir.",
   landingPainEyebrow: "O que trava a ligação",
   landingPainTitle: "Três tarefas lentas. A lista resolve as três.",
   landingPain1Title: "Montar a lista",
@@ -63,7 +63,7 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano e comece pela lista",
   landingPlansBody:
-    "A mensalidade abre o CRM e a qualificação. Crédito paga a ficha que você liga; exportar a lista custa mais.",
+    "A mensalidade libera o CRM e a qualificação. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
@@ -79,7 +79,7 @@ export const COPY = {
   landingSwitchAccount: "Entrar com outra conta",
   landingFooterNote: "Um produto Mundo Pódium",
   loginConfirm:
-    "Enviamos um link de confirmação. Olhe a caixa de entrada e o spam. Se o e-mail estiver errado, volte e crie a conta de novo. Se já tem conta, entre.",
+    "Enviamos um link de confirmação. Veja a caixa de entrada e o spam. Se o e-mail estiver errado, volte e cadastre de novo. Se você já tem conta, entre.",
   loginRecover:
     "Se houver conta neste e-mail, você recebe o link para definir a senha.",
   entrarSignupLane: "Criar conta",
@@ -87,8 +87,8 @@ export const COPY = {
   entrarTrialBadge: "Treino livre",
   entrarTrialHint: "Sem cartão",
   entrarSignupHook: "Buscar e ver a lista é grátis. Sem cartão.",
-  entrarLoginHook: "A lista de hoje espera. Entre e continue ligando.",
-  entrarLoginCta: "Entrar no Box",
+  entrarLoginHook: "Entre para continuar a lista de hoje.",
+  entrarLoginCta: "Entrar no GRID",
   boxPlatformCoupon:
     "Você assina o Mundo Pódium. Ative 30 dias de Piloto com o cupom no checkout.",
   boxPlatformTrialEnded:
@@ -107,29 +107,29 @@ export const COPY = {
   simples: "Regime Simples Nacional.",
   matriz: "Sede da empresa, não filial.",
   minutoDeOuro:
-    "O mercado dele na hora: dor, meses de pico e o melhor horário. O digital fica na Qualificação.",
+    "Briefing do mercado na hora da ligação: dor do ramo, meses de pico e o melhor horário. Site e redes ficam na Qualificação.",
   clarezaDeMercado:
-    "Na ficha, a Anatomia já leva o briefing: dor do ramo, meses de pico e o melhor horário.",
+    "Na ficha, o briefing da ligação já traz a dor do ramo, os meses de pico e o melhor horário.",
   anatomiaDaLigacao:
-    "No perfil, nome, empresa, cidade e a promessa montam quem você é na ligação. Na ficha, o briefing do nicho — dor, calendário e pergunta — não é texto para recitar.",
+    "O perfil monta quem você é na ligação (nome, empresa, cidade e promessa). Na ficha, o briefing do nicho — dor, calendário e uma pergunta — é para ter em mente, não para ler no telefone.",
   qualificacaoFicha:
-    "Site, redes e Google desta empresa — o que tem e o que falta. Isso muda a abordagem; não é o briefing da Anatomia.",
+    "Site, redes e Google desta empresa — o que tem e o que falta. Isso muda a abordagem; não é o briefing da ligação.",
   b2c: "Vende para o consumidor final na cidade.",
   b2b: "Vende para outras empresas — indústria, serviços, logística e atacado.",
   emailGratuito: "Gmail, Hotmail e outros provedores pessoais.",
   emailSharedTitle: "E-mail compartilhado",
   emailSharedBody:
-    "Aparece em várias empresas na Receita — costuma ser do contador ou do grupo, não o contato direto desta loja.",
+    "Aparece em várias empresas na Receita — costuma ser do contador ou do grupo, não o contato direto desta empresa.",
   emailAccountantTitle: "Domínio de contabilidade",
   emailAccountantBody:
     "O endereço parece de escritório contábil. Não use como e-mail ou site da marca.",
   emailSharedAccountantTitle: "E-mail compartilhado (possível contabilidade)",
   emailSharedAccountantBody:
-    "Este endereço está em mais de uma empresa e o domínio parece de escritório contábil — provavelmente não é o contato direto desta loja.",
+    "Este endereço está em mais de uma empresa e o domínio parece de escritório contábil — provavelmente não é o contato direto desta empresa.",
   emailFreeTitle: "Provedor gratuito",
   emailFreeBody:
     "Gmail, Hotmail e similares — confiança menor para contato comercial.",
-  dominioProprio: "E-mail @daempresa, não Gmail.",
+  dominioProprio: "E-mail no domínio da empresa, não Gmail ou Hotmail.",
   especialidade: "No que você é especialista.",
   area: "Em qual parte do negócio você atua.",
   comoChama: "Como você se apresenta na ligação.",
@@ -141,11 +141,11 @@ export const COPY = {
   continuarLista: "Continuar lista",
   qualificar: "Qualificar",
   qualificarMetaHoje: "Qualificar a meta de hoje",
-  exportCrmIncluso: "No CRM do GRID isso é incluso.",
+  exportCrmIncluso: "No CRM do GRID isso já está incluído.",
   exportNeedsQualify:
-    "Qualifique pelo menos uma empresa para exportar. No CRM do GRID isso é incluso.",
+    "Qualifique pelo menos uma empresa para exportar. No CRM do GRID isso já está incluído.",
   qualificarMarque:
-    "Selecione para ver site, redes e Google — telefone e nome mais confiáveis. 1 crédito cada. A ordem pode mudar depois.",
+    "Selecione as empresas para buscar site, redes e Google. Custa 1 crédito cada. Telefone e nome saem mais confiáveis, e a ordem da lista pode se ajustar.",
   qualificarEstaEmpresa: "Qualificar esta empresa",
   atualizarQualificacao: "Atualizar",
   atualizarQualificacaoHint:
@@ -159,7 +159,7 @@ export const COPY = {
   corrigirQualificacaoHint: "Correção sua — não veio da Receita.",
   qualificarFichaLead: "Ver site, redes e Google desta empresa.",
   qualificarFichaLeadHint:
-    "Sem essa busca, site e redes ficam em branco — isso não significa que a empresa não tem presença.",
+    "Se você ainda não qualificou, site e redes aparecem em branco. Isso não quer dizer que a empresa não tenha presença online.",
   qualificarBeneficioTelefone:
     "Telefone conferido (site × Receita) e selo de conferência",
   qualificarBeneficioContato:
@@ -180,7 +180,7 @@ export const COPY = {
   fichaSealToolLive: "No site",
   fichaSealToolMissing: "Não encontrada",
   boxSemLista:
-    "Salve a lista para começar a ligar. Qualificar vem depois — salvar não substitui ligar.",
+    "Salve uma lista para começar o dia. Depois você qualifica e liga — salvar a lista não substitui a ligação.",
   boxPistaFechada: "Sem lista salva",
   boxSequenciaHintZero:
     "Nenhuma sequência ainda. Ligue hoje para começar.",
@@ -189,7 +189,7 @@ export const COPY = {
   boxSequenciaHintMany:
     "Você está numa sequência de {n} dias fazendo ligações.",
   boxAcessoHint:
-    "Ainda dá {days} {dayWord} de meta ({goal} fichas/dia). {credits} créditos · {cost} por ficha.",
+    "Seu saldo cobre {days} {dayWord} de meta ({goal} fichas por dia). {credits} créditos · {cost} por ficha.",
   boxAcessoHintZero:
     "Saldo insuficiente para um dia de meta ({goal} fichas). {credits} créditos · {cost} por ficha.",
   boxAcessoHintLocked:
@@ -202,7 +202,7 @@ export const COPY = {
   ajustarBusca: "Ajustar busca",
   ajustar: "Ajustar",
   ajustarNichoQualidade: "Ajustar nicho e qualidade",
-  verNovoGrid: "Ver novo grid",
+  verNovoGrid: "Ver nova lista",
   verResultados: "Ver resultados",
   listaOriginalNaoSome: "A lista original não some",
   largadaNovaHint:
@@ -210,7 +210,7 @@ export const COPY = {
   largadaContinuarHint:
     "As escolhas desta sessão ainda estão aqui. Continue nos 3 passos — nada foi apagado.",
   largadaAjustarHint:
-    "As escolhas desta lista já estão preenchidas. Mude nicho, região ou qualidade e gere um grid novo — a lista original não some.",
+    "As escolhas desta lista já estão preenchidas. Mude nicho, região ou qualidade e gere uma lista nova — a lista original não some.",
   gridEmptyAdjust:
     "Nenhum lead nesta busca. Ajuste nicho, região ou qualidade — as escolhas atuais já vêm preenchidas.",
   gridLigarOrdem: "ligar nesta ordem",
@@ -221,7 +221,7 @@ export const COPY = {
   listaSalva: "Salva",
   salvarMotivoListas: "Fica em Minhas listas para abrir de novo",
   salvarMotivoOrdem: "A ordem P1, P2, P3 continua",
-  salvarMotivoCrm: "Qualificados entram sozinhos no CRM",
+  salvarMotivoCrm: "Depois de salvar, os qualificados entram sozinhos no CRM",
   tirarDaLista: "Tirar da lista",
   tirarDaListaConfirm: "Tirar esta empresa da lista? O negócio no CRM fica.",
   listaDaVolta: "Lista do dia",
@@ -233,9 +233,9 @@ export const COPY = {
   listasNaoSalvas: "Não salvas",
   listasRascunho: "Rascunho",
   listasSalvasHint:
-    "As que você guardou para ligar de novo. Tirar daqui não apaga a lista.",
+    "Listas que você guardou para ligar de novo. Tirar da tela não exclui a lista salva.",
   listasNaoSalvasHint:
-    "Até 3 rascunhos. Só dá para abrir — salve para guardar ou excluir.",
+    "Até 3 rascunhos: você só abre de novo. Para guardar de verdade ou excluir, salve a lista.",
   listasMostrarMais: "Mostrar mais · {n}",
   listasLeadOne: "lead",
   listasLeadMany: "leads",
@@ -319,9 +319,9 @@ export const COPY = {
   crmAddSecretary: "Adicionar secretária",
   crmCadenceTitle: "Cadência",
   crmCadenceHint:
-    "Renomeie ou reordene. As faixas da ficha e Descartado ficam — dá para mudar o nome, não apagar.",
-  crmAddStage: "Nova faixa",
-  crmDeleteStage: "Excluir faixa",
+    "Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não apagar.",
+  crmAddStage: "Nova etapa",
+  crmDeleteStage: "Excluir etapa",
   crmMoveDealsTo: "Mover negócios para",
   crmCompanyLabel: "Empresa",
   crmNichoLabel: "Nicho",
@@ -334,34 +334,34 @@ export const COPY = {
   crmOnGrid: "No CRM",
   crmOpenDeal: "Abrir no CRM",
   crmOpenFicha: "Abrir ficha",
-  crmQualifyToEnter: "Qualifique para entrar no CRM.",
+  crmQualifyToEnter: "Qualifique esta empresa para ela entrar no CRM.",
   crmSaveListToEnter:
-    "Só lista salva manda qualificado ao CRM. Sem salvar, o CRM não recebe.",
+    "Salve a lista para os leads qualificados entrarem no CRM.",
   crmEnteringPista: "Colocando no CRM…",
   crmCatchUpToastOne: "1 lead das suas listas salvas entrou no CRM.",
   crmCatchUpToastMany: "{n} leads das suas listas salvas entraram no CRM.",
-  crmPastFirstMile: "A partir daqui o restante fica no CRM.",
-  crmFirstMileLocked: "Faixa da ficha — dá para renomear, não apagar.",
+  crmPastFirstMile: "Daqui em diante você acompanha só no quadro, não na ficha.",
+  crmFirstMileLocked: "Etapa da ficha — dá para renomear, não apagar.",
   crmBoxTitle: "Abra o CRM",
   crmBoxBody:
-    "Leads qualificados entram sozinhos no CRM do nicho. A ficha movimenta até a reunião; o restante fica no quadro.",
+    "Com a lista salva, os leads que você qualificar entram sozinhos no CRM do nicho. Na ficha você avança até a reunião; o restante das etapas fica no quadro.",
   crmBoxCta: "Abrir CRM",
   crmPistaPrefix: "CRM",
   conexoesStandbyBanner:
-    "Conexões em stand-by nesta primeira onda. Ligar usa o telefone do aparelho. VoIP nativo volta em seguida.",
+    "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do aparelho.",
   conexoesStandbyEmpty:
-    "Nenhuma conexão nesta conta. A montagem fica para a próxima onda.",
+    "Nenhuma conexão nesta conta. A montagem fica para a próxima versão.",
   conexoesStandbyForm:
-    "A montagem de VoIP está pausada nesta onda. O botão Ligar abre o telefone do aparelho.",
+    "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do aparelho.",
   boxLigarStandbyTitle: "Ligar pelo aparelho",
   boxLigarStandbyBody:
-    "VoIP nativo volta na próxima onda. Por agora o botão Ligar abre o telefone do aparelho.",
+    "A ligação pela internet volta na próxima versão. Por agora o botão Ligar abre o telefone do aparelho.",
   boxLigarStandbyCta: "Em breve",
   filaMontando: "Na fila — montando sua lista",
   filaPodeFechar: "Pode sair: a lista aparece em Minhas listas.",
   filaContando: "Contando — fila curta.",
   filaQualificando: "Na fila — qualificando",
-  filaWorkerOcupado: "Na fila — worker ocupado",
+  filaWorkerOcupado: "Na fila — o servidor está ocupado",
 } as const;
 
 export const PORTE_LABELS: Record<string, string> = {

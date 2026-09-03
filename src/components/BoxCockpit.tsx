@@ -164,7 +164,7 @@ export function BoxCockpit({
     ? COPY.boxSemLista
     : next
       ? `${next.nome}. Ligar conta a meta.`
-      : "A lista salva não tem P novo. Monte outra ou volte no grid.";
+      : "A lista salva não tem P novo. Monte outra ou volte na lista.";
 
   return (
     <GlassCard hover={false} highlight={pistaAberta} className="overflow-hidden p-0">

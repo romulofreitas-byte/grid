@@ -1,7 +1,7 @@
 export const BACK = {
   inicio: { href: "/", label: "Voltar ao início" },
-  box: { href: "/box", label: "Voltar ao Box" },
-  setup: { href: "/setup", label: "Voltar ao capacete" },
+  box: { href: "/box", label: "Voltar ao Início" },
+  setup: { href: "/setup", label: "Voltar ao perfil" },
   largada: { href: "/largada", label: "Voltar à nova lista" },
   listas: { href: "/listas", label: "Voltar às Listas" },
   empresas: { href: "/empresas", label: "Voltar às empresas" },
@@ -49,7 +49,7 @@ export function leadBack(searchId: string | null | undefined, from: string | nul
     const origin = parseGridFrom(from);
     return {
       href: `/grid/${searchId}?from=${origin}`,
-      label: "Voltar ao Grid",
+      label: "Voltar à lista",
     };
   }
   if (from === "empresas") return BACK.empresas;

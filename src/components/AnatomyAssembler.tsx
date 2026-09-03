@@ -105,7 +105,7 @@ export function AnatomyAssembler({
   return (
     <div className="rounded-xl border border-white/10 bg-podium-navy/60 px-4 py-4">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
-        Anatomia da Ligação
+        Briefing da ligação
       </p>
 
       <motion.button

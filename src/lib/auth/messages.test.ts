@@ -102,7 +102,7 @@ describe("entrarNoticeForError", () => {
   it("explains expired used config and generic session errors", () => {
     expect(entrarNoticeForError("expired")).toMatch(/expirou/);
     expect(entrarNoticeForError("used")).toMatch(/já foi usado/);
-    expect(entrarNoticeForError("config")).toMatch(/não configurado/i);
+    expect(entrarNoticeForError("config")).toMatch(/não está configurado/i);
     expect(entrarNoticeForError("session")).toMatch(/Não foi possível concluir/);
     expect(entrarNoticeForError(null)).toBeNull();
   });

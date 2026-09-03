@@ -9,7 +9,7 @@ import {
 } from "@/hooks/useDataPullState";
 
 const LONG_OP_LABEL: Record<Exclude<DataPullLongOp, null>, string> = {
-  grid: "Montando grid…",
+  grid: "Montando a lista…",
   audit: "Qualificando…",
 };
 

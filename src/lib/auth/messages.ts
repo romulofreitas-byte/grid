@@ -12,7 +12,7 @@ export function isDuplicateSignupUser(
 export function loginConfirmNotice(email: string): string {
   const trimmed = email.trim();
   if (!trimmed) return COPY.loginConfirm;
-  return `Enviamos um link para ${trimmed}. Olhe a caixa de entrada e o spam. Se o endereço estiver errado, volte e crie a conta de novo. Se já tem conta, entre.`;
+  return `Enviamos um link para ${trimmed}. Veja a caixa de entrada e o spam. Se o endereço estiver errado, volte e cadastre de novo. Se você já tem conta, entre.`;
 }
 
 function isRateLimited(msg: string): boolean {
@@ -109,7 +109,7 @@ export function entrarNoticeForError(code: string | null): string | null {
   if (code === "used") {
     return "Este link já foi usado ou não é mais válido.";
   }
-  if (code === "config") return "Auth não configurado.";
+  if (code === "config") return "O acesso não está configurado. Tente de novo em instantes.";
   if (code) return "Não foi possível concluir o acesso. Tente de novo.";
   return null;
 }

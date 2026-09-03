@@ -48,7 +48,7 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "25 créditos / mês",
-      "Exportação cara (50 / CNPJ)",
+      "Exportar: 50 créditos por empresa já qualificada",
       "Sem qualificação nem CRM",
     ],
   },
@@ -65,7 +65,7 @@ export const PLANS: PlanDefinition[] = [
       "900 créditos / mês",
       "~20 fichas por dia no mês",
       "CRM nativo",
-      "Exportar: 50 / CNPJ, só qualificado",
+      "Exportar: 50 créditos por empresa já qualificada",
     ],
   },
   {
@@ -102,7 +102,7 @@ export const PLANS: PlanDefinition[] = [
     sku: "membro_plataforma",
     kind: "plan",
     nome: "Membro da Plataforma",
-    tagline: "Nível Piloto incluso por 30 dias na assinatura Mundo Pódium.",
+    tagline: "Nível Piloto incluído por 30 dias na assinatura Mundo Pódium.",
     priceCents: 0,
     credits: 900,
     enrichAllowed: true,
@@ -129,7 +129,7 @@ export const PACKS: PackDefinition[] = [
     sku: "pack_500",
     kind: "pack",
     nome: "Recarga 500",
-    tagline: "Boost no meio do mês.",
+    tagline: "Créditos extras no meio do mês.",
     priceCents: 16_700,
     credits: 500,
     highlights: ["500 créditos", "Não reabre o CRM", "Usa depois do saldo do plano"],
@@ -141,7 +141,7 @@ export const PACKS: PackDefinition[] = [
     tagline: "Campanha pesada, sem upgrade.",
     priceCents: 49_700,
     credits: 2_000,
-    highlights: ["2.000 créditos", "Não reabre o CRM", "Pior custo que a assinatura"],
+    highlights: ["2.000 créditos", "Não reabre o CRM", "Custo por crédito maior que o da assinatura"],
   },
 ];
 

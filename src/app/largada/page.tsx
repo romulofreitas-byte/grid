@@ -71,15 +71,15 @@ async function waitForSearchJob(
     });
     const body = (await res.json()) as SearchJobPublic & { error?: string };
     if (!res.ok) {
-      throw new Error(body.error ?? "Não foi possível montar o grid");
+      throw new Error(body.error ?? "Não foi possível montar a lista");
     }
     onQueue(body.queuePosition);
     if (body.status === "done" && body.search) return body.search;
     if (body.status === "done") {
-      throw new Error("Não foi possível montar o grid");
+      throw new Error("Não foi possível montar a lista");
     }
     if (body.status === "failed") {
-      throw new Error(body.error ?? "Não foi possível montar o grid");
+      throw new Error(body.error ?? "Não foi possível montar a lista");
     }
     await sleep(SEARCH_JOB_POLL_MS);
   }
@@ -728,10 +728,10 @@ function LargadaWizard() {
         });
         const body = (await res.json()) as SearchJobPublic & { error?: string };
         if (!res.ok) {
-          throw new Error(body.error ?? "Não foi possível montar o grid");
+          throw new Error(body.error ?? "Não foi possível montar a lista");
         }
         if (body.search?.id) return body.search;
-        if (!body.jobId) throw new Error("Não foi possível montar o grid");
+        if (!body.jobId) throw new Error("Não foi possível montar a lista");
         setQueuePosition(body.queuePosition);
         return await waitForSearchJob(body.jobId, setQueuePosition);
       } catch (err) {
@@ -765,7 +765,7 @@ function LargadaWizard() {
     mode === "ajustar" && (sourceSearchId || fromSearchParam)
       ? {
           href: gridHref(sourceSearchId || fromSearchParam!, fromParam),
-          label: "Voltar ao Grid",
+          label: "Voltar à lista",
         }
       : BACK.box;
 
@@ -1355,7 +1355,7 @@ function LargadaWizard() {
                   checked={filters.ocultarTelefonesCompartilhados}
                   onChange={(v) => patch({ ocultarTelefonesCompartilhados: v })}
                   title="Excluir números de escritório contábil"
-                  hint="Número em várias empresas, sem serem do mesmo grupo. Desligue para vê-los na lista, com a tag Contabilidade. Grupo econômico continua na lista."
+                  hint="Ligado: a lista esconde números de escritório contábil. Desligado: eles aparecem com a tag Contabilidade. Empresas do mesmo grupo continuam na lista."
                   recommended
                 />
                 <ToggleRow

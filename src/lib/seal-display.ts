@@ -44,10 +44,10 @@ export function sealCsvLabel(seal: ContactSeal): string {
     case "ATUALIZADO":
       return "Atualizado";
     case "COMPARTILHADO":
-      return "Contabilidade - provavel escritorio";
+      return "Contabilidade — provável escritório";
     case "GRUPO":
-      return "Grupo economico";
+      return "Grupo econômico";
     case "NAO_CONFIRMADO":
-      return "Nao confirmado";
+      return "Não confirmado";
   }
 }

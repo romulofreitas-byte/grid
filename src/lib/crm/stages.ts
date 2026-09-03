@@ -13,16 +13,16 @@ export function planDeleteStage(input: {
   const { stages, stageId, dealCount, moveToStageId } = input;
   const target = stages.find((stage) => stage.id === stageId);
   if (!target) {
-    return { ok: false, error: "Faixa não encontrada." };
+    return { ok: false, error: "Etapa não encontrada." };
   }
   if (isLockedStageKey(target.canonical_key)) {
     return {
       ok: false,
-      error: "Esta faixa faz parte da ficha. Dá para renomear, não apagar.",
+      error: "Esta etapa faz parte da ficha. Dá para renomear, não apagar.",
     };
   }
   if (stages.length <= 1) {
-    return { ok: false, error: "O CRM precisa de pelo menos uma faixa." };
+    return { ok: false, error: "O CRM precisa de pelo menos uma etapa." };
   }
   if (dealCount <= 0) {
     return { ok: true, moveToStageId: null };
@@ -30,7 +30,7 @@ export function planDeleteStage(input: {
   if (!moveToStageId) {
     return {
       ok: false,
-      error: "Escolha para onde vão os negócios desta faixa.",
+      error: "Escolha para onde vão os negócios desta etapa.",
     };
   }
   if (
@@ -39,7 +39,7 @@ export function planDeleteStage(input: {
   ) {
     return {
       ok: false,
-      error: "Escolha outra faixa para receber os negócios.",
+      error: "Escolha outra etapa para receber os negócios.",
     };
   }
   return { ok: true, moveToStageId };

@@ -92,10 +92,10 @@ export default function ContaPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                  Capacete
+                  Perfil
                 </p>
                 <p className="mt-1 text-sm text-podium-muted">
-                  {ready}% pronto · entra na Anatomia da Ligação
+                  {ready}% pronto · entra no briefing da ligação
                 </p>
               </div>
               <Link

@@ -23,7 +23,7 @@ export function SearchListCard({
   return (
     <OpenableCard
       href={gridHref(search.id, from)}
-      label={`Abrir grid ${search.nome}`}
+      label={`Abrir lista ${search.nome}`}
       actions={actions}
     >
       <p className="font-bold">{search.nome}</p>

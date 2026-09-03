@@ -60,7 +60,7 @@ describe("catalog", () => {
       "~20 fichas por dia no mês",
     );
     expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
-      "Exportar: 50 / CNPJ, só qualificado",
+      "Exportar: 50 créditos por empresa já qualificada",
     );
   });
 

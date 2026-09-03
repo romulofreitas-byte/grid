@@ -51,7 +51,7 @@ function BoxSearchCard({
                 : "rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
             }
           >
-            Abrir grid
+            Abrir lista
           </Link>
           <Link
             href={largadaEditHref(search.id, from)}
@@ -72,9 +72,9 @@ export default async function BoxPage() {
     unstable_rethrow(err);
     console.error("box_page_error", err);
     return (
-      <AppShell title="Box">
+      <AppShell title="Início">
         <GlassCard className="p-8">
-          <p className="text-lg font-bold">Não deu para carregar o Box.</p>
+          <p className="text-lg font-bold">Não deu para carregar o Início.</p>
           <p className="mt-3 text-sm text-podium-gray">
             {userFacingDbBusyMessage(err)}
           </p>
@@ -137,7 +137,7 @@ async function BoxPageInner() {
   const savedLists = allSaved.map((s) => ({ id: s.id, nome: s.nome }));
 
   return (
-    <AppShell title="Box">
+    <AppShell title="Início">
       <div className="flex flex-col gap-8">
         {showPlatformCoupon ? <BoxPlatformCouponBanner /> : null}
         {billing.trialExpired ? (

@@ -28,8 +28,8 @@ describe("COPY login", () => {
     expect(COPY.entrarTrialBadge).toBe("Treino livre");
     expect(COPY.entrarTrialHint).toMatch(/sem cartão/i);
     expect(COPY.entrarSignupHook).toMatch(/grátis/i);
-    expect(COPY.entrarLoginHook).toMatch(/continue ligando/i);
-    expect(COPY.entrarLoginCta).toBe("Entrar no Box");
+    expect(COPY.entrarLoginHook).toMatch(/continuar a lista/i);
+    expect(COPY.entrarLoginCta).toBe("Entrar no GRID");
   });
 });
 
@@ -50,7 +50,7 @@ describe("COPY box cluster", () => {
         .replace("{credits}", "900")
         .replace("{cost}", "1"),
     ).toBe(
-      "Ainda dá 18 dias de meta (20 fichas/dia). 900 créditos · 1 por ficha.",
+      "Seu saldo cobre 18 dias de meta (20 fichas por dia). 900 créditos · 1 por ficha.",
     );
     expect(COPY.boxListasHintZero).toMatch(/não tem listas/i);
     expect(COPY.boxListasHintOne).toMatch(/1 lista salva/);
@@ -84,13 +84,13 @@ describe("COPY crm", () => {
     expect(COPY.crmDeadlineLabel).toBe("Prazo");
     expect(COPY.crmTimeLabel).toBe("Horário");
     expect(COPY.crmWeekLater).toMatch(/semana/i);
-    expect(COPY.crmCadenceHint).toMatch(/faixa/i);
+    expect(COPY.crmCadenceHint).toMatch(/etapa/i);
     expect(COPY.crmScheduleHint).toMatch(/não registra/i);
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.crmOpening).toMatch(/CRM/);
-    expect(COPY.crmSaveListToEnter).toMatch(/lista salva/i);
+    expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.salvarNaPista).toBe("Salvar no CRM");
     expect(COPY.listaDaVolta).toMatch(/lista/i);
   });

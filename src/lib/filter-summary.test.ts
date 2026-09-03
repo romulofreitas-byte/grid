@@ -66,18 +66,18 @@ describe("summarizeFilters", () => {
       }),
     );
     expect(chips.map((c) => c.label)).toEqual([
-      "incluir telefone compartilhado",
-      "sem e-mail gratuito",
+      "Inclui telefone compartilhado",
+      "Sem e-mail gratuito",
       "ME · micro",
       "5 anos+",
-      "só matriz",
-      "com decisor",
+      "Só matriz",
+      "Com sócio identificado",
     ]);
   });
 
   it("labels already-qualified filter", () => {
     const chips = summarizeFilters(filters({ soEnriquecidas: true }));
-    expect(chips.map((c) => c.label)).toContain("só qualificadas");
+    expect(chips.map((c) => c.label)).toContain("Só qualificadas");
   });
 
   it("joins a short line with a cap", () => {
@@ -156,7 +156,7 @@ describe("listSummaryBadges", () => {
       "nicho:Clínica odontológica",
       "local:SP · São Paulo",
       "matriz:Só matriz",
-      "sem-contabil:Sem contábil",
+      "sem-contabil:Sem telefone de contabilidade",
     ]);
   });
 

@@ -14,7 +14,7 @@ export async function PATCH(
   const parsed = stagePatchSchema.safeParse(await readJson(req));
   if (!parsed.success) return jsonError("Payload inválido.");
   const stage = await getRepo().updateCrmStage(gated.userId, stageId, parsed.data);
-  if (!stage) return jsonError("Faixa não encontrada.", 404);
+  if (!stage) return jsonError("Etapa não encontrada.", 404);
   return NextResponse.json({ stage });
 }
 
@@ -34,7 +34,7 @@ export async function DELETE(
   );
   if (!ok) {
     return jsonError(
-      "Escolha outra faixa para os negócios, ou deixe pelo menos uma faixa.",
+      "Escolha outra etapa para os negócios, ou deixe pelo menos uma etapa.",
     );
   }
   return NextResponse.json({ ok: true });

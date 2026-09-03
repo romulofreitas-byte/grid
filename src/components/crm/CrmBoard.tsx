@@ -266,7 +266,7 @@ export function CrmBoard({
       return next;
     } catch (err) {
       if (requestedPipelineRef.current !== pipelineId) return null;
-      setError(err instanceof Error ? err.message : "Não abriu o nicho.");
+      setError(err instanceof Error ? err.message : "Não foi possível abrir o nicho.");
       return null;
     } finally {
       if (requestedPipelineRef.current === pipelineId) {
@@ -294,7 +294,7 @@ export function CrmBoard({
       );
       replaceDeal(res.deal);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não moveu o card.");
+      setError(err instanceof Error ? err.message : "Não foi possível mover o card.");
       revertDrag();
     } finally {
       syncLocked.current = false;

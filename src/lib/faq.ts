@@ -29,11 +29,11 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: "box-largada-grid",
     category: "Começar",
-    question: "O que é Box, Nova lista e Grid?",
+    question: "O que é o Início, a Nova lista e os resultados?",
     answer:
-      "Box é a home. O dia de ligações começa com uma lista salva. Nova lista é onde você escolhe nicho e região. Grid é o resultado na ordem de quem ligar primeiro. No grid, marque as empresas e clique em Qualificar.",
+      "O Início é a home do dia. O dia de ligações começa com uma lista salva. Nova lista é onde você escolhe nicho e região. Os resultados saem na ordem de quem ligar primeiro. Na lista, marque as empresas e clique em Qualificar.",
     links: [
-      { href: "/box", label: "Abrir o Box" },
+      { href: "/box", label: "Abrir o Início" },
       { href: largadaNovaHref, label: "Nova lista" },
     ],
   },
@@ -48,22 +48,22 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: "capacete",
     category: "Começar",
-    question: "O que é o Capacete?",
+    question: "O que é o perfil da ligação?",
     answer:
       "Nome, empresa, cidade e a promessa. Quem você é e o que entrega. A especialidade não vira prosa na ligação.",
-    links: [{ href: "/setup", label: "Completar o Capacete" }],
+    links: [{ href: "/setup", label: "Completar o perfil" }],
   },
   {
     id: "minuto-de-ouro",
     category: "Começar",
-    question: "O que é o Minuto de Ouro?",
+    question: "Qual a diferença entre o briefing e a qualificação?",
     answer:
-      "Na ficha, a Anatomia é o briefing da ligação: dor do ramo, meses de pico e o melhor horário para ligar. Qualificar é outro espaço — mostra site, redes e Google, e o que falta. Isso muda a abordagem; não monta um roteiro.",
+      "O briefing da ligação, na ficha, traz a dor do ramo, os meses de pico e o melhor horário para ligar. Qualificar é outro espaço — mostra site, redes e Google, e o que falta. Isso muda a abordagem; não monta um roteiro.",
   },
   {
     id: "anatomia-da-ligacao",
     category: "Começar",
-    question: "O que é a Anatomia da Ligação?",
+    question: "O que é o briefing da ligação?",
     answer:
       "Na ficha, um briefing do nicho: quem atender, a dor do ramo, o calendário e uma pergunta para ter na cabeça. Não é um texto para ler na ligação.",
   },
@@ -72,7 +72,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Qual a diferença entre Minhas listas e Não salvas?",
     answer:
-      "Minhas listas são as que você guardou para ligar de novo — e são elas que o Box usa no dia. Não salvas são rascunhos: no máximo 3, só dá para abrir. Salve para guardar ou excluir. Fazer outra tira a mais antiga. Tirar daqui não apaga a lista.",
+      "Minhas listas são as que você guardou para ligar de novo — e são elas que o Início usa no dia. Não salvas são rascunhos: no máximo 3, você só abre de novo. Para guardar de verdade ou excluir, salve a lista. Fazer outra tira a mais antiga. Tirar da tela não exclui a lista salva.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -80,7 +80,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da Anatomia. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Busca avulsa vira lista de um lead ao salvar no CRM. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da ligação. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -88,7 +88,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra no GRID?",
     answer:
-      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Só lista salva manda qualificado ao CRM — inclusive a busca avulsa, que vira lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
+      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Os leads qualificados entram no CRM só depois que você salva a lista. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },
@@ -126,7 +126,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Quando gasta crédito?",
     answer:
-      `Buscar e ver a lista é grátis. Qualificar custa 1 crédito e cai no CRM. Exportar CSV/Excel ou enviar para CRM externo custa ${EXPORT_CREDIT_COST}, só de quem já foi qualificado. Atualizar a qualificação cobra de novo.`,
+      `Buscar e ver a lista é grátis. Qualificar custa 1 crédito. Se a lista estiver salva, o lead entra sozinho no CRM. Exportar CSV/Excel ou enviar para CRM externo custa ${EXPORT_CREDIT_COST}, só de quem já foi qualificado. Atualizar a qualificação cobra de novo.`,
     links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
@@ -158,7 +158,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Como exporto a lista?",
     answer:
-      `No Grid, baixe XLSX ou CSV — só CNPJs já qualificados. Cada um custa ${EXPORT_CREDIT_COST} créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. No CRM nativo isso é incluso.`,
+      `Na lista, baixe XLSX ou CSV — só CNPJs já qualificados. Cada um custa ${EXPORT_CREDIT_COST} créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. No CRM nativo isso já está incluído.`,
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -166,7 +166,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Onde ligo o VoIP?",
     answer:
-      "VoIP nativo está em stand-by nesta primeira onda. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca no clique (Box, Grid e Ficha).",
+      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca ao clicar (Início, lista e ficha).",
     links: [{ href: "/conexoes", label: "Abrir conexões" }],
   },
   {

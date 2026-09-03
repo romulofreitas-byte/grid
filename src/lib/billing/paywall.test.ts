@@ -75,7 +75,7 @@ describe("parseBillingGate", () => {
 describe("paywallCopy", () => {
   it("points expired trial to planos first", () => {
     const copy = paywallCopy({ kind: "trial", feature: "qualify" });
-    expect(copy.title).toMatch(/trial/i);
+    expect(copy.title).toMatch(/30 dias/i);
     expect(copy.body).toMatch(/não substitui/i);
     expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
     expect(copy.secondary).toEqual({ href: RECARGA_URL, label: "Recarregar créditos" });

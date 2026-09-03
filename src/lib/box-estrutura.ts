@@ -76,7 +76,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const slots: BoxSlot[] = [
     {
       id: "capacete",
-      label: "Capacete",
+      label: "Perfil",
       done: helmetReady,
       title: "Complete como você se apresenta",
       body: "Nome, empresa e especialidade entram no roteiro da ligação.",
@@ -137,7 +137,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       label: "Acesso",
       done: creditosReady,
       title: "Ative o plano",
-      body: "A mensalidade abre o CRM. Crédito paga a ficha que você liga; exportar a lista custa mais.",
+      body: "A mensalidade libera o CRM e a qualificação. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
       href: planosHref("/box"),
       cta: "Ver planos",
     },

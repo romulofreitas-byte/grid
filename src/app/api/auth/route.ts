@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       return json({ mock: true, ok: true, next: dest });
     }
     if (!supabase) {
-      return json({ error: "Auth não configurado" }, 500);
+      return json({ error: "O acesso não está configurado" }, 500);
     }
 
     if (action === "google") {

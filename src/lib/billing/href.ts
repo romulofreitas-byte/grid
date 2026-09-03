@@ -101,7 +101,7 @@ function billingReturnLabel(path: string): string {
   }
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return "Voltar ao CRM";
   if (pathname.startsWith("/lead/")) return "Voltar à ficha";
-  if (pathname.startsWith("/grid/")) return "Voltar ao Grid";
+  if (pathname.startsWith("/grid/")) return "Voltar à lista";
   if (pathname === "/conexoes" || pathname.startsWith("/conexoes/")) {
     return "Voltar às conexões";
   }
@@ -122,10 +122,10 @@ export function billingSuccessReturn(
 ): { href: string; label: string } {
   const origin = billingOrigin(from);
   if (!origin || !isAppPath(origin)) {
-    return { href: "/box", label: "Ir ao Box" };
+    return { href: "/box", label: "Ir ao Início" };
   }
   if (pathnameOf(origin) === "/box") {
-    return { href: origin, label: "Ir ao Box" };
+    return { href: origin, label: "Ir ao Início" };
   }
   return { href: origin, label: billingReturnLabel(origin) };
 }

@@ -12,7 +12,7 @@ export default function BotPage() {
           O <strong className="text-podium-white">GridBot</strong> é o crawler
           do GRID · Mundo Pódium. Ele visita sites públicos de empresas para
           confirmar telefone, WhatsApp, redes e sinais técnicos (pixel, GTM)
-          que o Piloto vê na ficha.
+          que você vê na ficha.
         </p>
         <p>
           <strong className="text-podium-white">User-Agent:</strong>{" "}

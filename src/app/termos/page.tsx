@@ -9,7 +9,7 @@ export default function TermosPage() {
       <GlassCard className="mt-6 space-y-4 p-6 text-sm leading-relaxed text-podium-gray">
         <p>
           O GRID é uma ferramenta de prospecção B2B do Mundo Pódium. O uso é
-          destinado a Pilotos e equipes comerciais autorizadas.
+          destinado a quem usa o GRID e a equipes comerciais autorizadas.
         </p>
         <p>
           <strong className="text-podium-white">

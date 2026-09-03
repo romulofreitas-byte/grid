@@ -41,7 +41,7 @@ export const DEFAULT_CADENCE_ENTRIES: readonly CadenceEntry[] = [
   { key: "entrada", nome: "Entrada de Lista" },
   { key: "tentando_contato", nome: "Tentando Contato" },
   { key: "contato_respondido", nome: "Contato Respondido" },
-  { key: "followup_decisor", nome: "Follow UP Decisor" },
+  { key: "followup_decisor", nome: "Follow-up com o decisor" },
   { key: "reuniao_agendada", nome: "Reunião Agendada" },
   { key: "reuniao_realizada", nome: "Reunião Realizada (R1)" },
   { key: "ajustando_proposta", nome: "Ajustando Proposta" },

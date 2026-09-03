@@ -13,7 +13,7 @@ describe("planDeleteStage", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "O CRM precisa de pelo menos uma faixa.",
+      error: "O CRM precisa de pelo menos uma etapa.",
     });
   });
 
@@ -26,7 +26,7 @@ describe("planDeleteStage", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "Escolha para onde vão os negócios desta faixa.",
+      error: "Escolha para onde vão os negócios desta etapa.",
     });
   });
 
@@ -63,7 +63,7 @@ describe("planDeleteStage", () => {
       }),
     ).toEqual({
       ok: false,
-      error: "Esta faixa faz parte da ficha. Dá para renomear, não apagar.",
+      error: "Esta etapa faz parte da ficha. Dá para renomear, não apagar.",
     });
   });
 });

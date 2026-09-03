@@ -20,7 +20,7 @@ describe("default cadence", () => {
       "Entrada de Lista",
       "Tentando Contato",
       "Contato Respondido",
-      "Follow UP Decisor",
+      "Follow-up com o decisor",
       "Reunião Agendada",
       "Reunião Realizada (R1)",
       "Ajustando Proposta",

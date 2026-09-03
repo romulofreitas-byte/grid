@@ -29,7 +29,7 @@ describe("largada hrefs", () => {
     expect(leadBack(null, "empresas")).toEqual(BACK.empresas);
     expect(leadBack("abc", "empresas")).toEqual({
       href: "/grid/abc?from=empresas",
-      label: "Voltar ao Grid",
+      label: "Voltar à lista",
     });
   });
 

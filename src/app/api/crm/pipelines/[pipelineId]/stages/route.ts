@@ -12,7 +12,7 @@ export async function POST(
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
   const parsed = stageCreateSchema.safeParse(await readJson(req));
-  if (!parsed.success) return jsonError("Dê um nome à faixa.");
+  if (!parsed.success) return jsonError("Dê um nome à etapa.");
   const stage = await getRepo().createCrmStage(
     gated.userId,
     pipelineId,

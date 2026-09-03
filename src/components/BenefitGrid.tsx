@@ -6,19 +6,19 @@ import { useState } from "react";
 const SLOTS = [
   {
     pos: 1,
-    label: "POLE",
+    label: "LIGAR PRIMEIRO",
     t: "Telefone da empresa",
     d: "Avisa quando o número é da contabilidade, não de quem decide.",
   },
   {
     pos: 2,
-    label: "GRID DA FRENTE",
+    label: "QUEM DECIDE",
     t: "Sócio que decide",
     d: "O nome de quem pode fechar já vem na lista, para a primeira ligação.",
   },
   {
     pos: 3,
-    label: "ORDEM",
+    label: "ORDEM DA LISTA",
     t: "Ligue de cima para baixo",
     d: "P1, P2, P3… o GRID já escolheu quem ligar primeiro.",
   },

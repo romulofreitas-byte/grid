@@ -141,7 +141,7 @@ export function searchJobFailureMessage(err: unknown): string {
   if (isStatementTimeoutError(err)) {
     return "A busca demorou demais. Tente de novo com um recorte menor.";
   }
-  return "Não foi possível montar o grid. Tente de novo em instantes.";
+  return "Não foi possível montar a lista. Tente de novo em instantes.";
 }
 
 export function userFacingDbBusyMessage(err: unknown): string {

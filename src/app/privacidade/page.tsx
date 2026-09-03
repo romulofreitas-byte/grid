@@ -24,9 +24,9 @@ export default function PrivacidadePage() {
           tratado com cuidado — CPF nunca é armazenado nem exibido.
         </p>
         <p>
-          Você pode solicitar oposição ao tratamento pelo formulário em{" "}
+          Você pode pedir para uma empresa sair da base pelo{" "}
           <Link href="/opt-out" className="text-podium-yellow">
-            /opt-out
+            formulário de oposição
           </Link>
           . Processamos em até 15 dias com blocklist permanente. CNPJ com
           oposição registrada não entra na fila de qualificação e não é

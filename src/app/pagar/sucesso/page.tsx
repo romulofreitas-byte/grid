@@ -92,7 +92,7 @@ function SucessoInner() {
             <div className="flex flex-col items-center justify-center px-6 py-10 text-center md:px-10">
               <StartingLights litCount={5} phase="go" />
               <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                Bandeirada
+                Tudo certo
               </p>
               <h1 className="mt-3 text-3xl font-extrabold md:text-4xl">
                 Pagamento confirmado
@@ -117,8 +117,9 @@ function SucessoInner() {
             </div>
             <div className="flex flex-col justify-center gap-6 border-t border-white/10 px-6 py-10 md:px-10 lg:border-l lg:border-t-0">
               <p className="text-sm leading-relaxed text-podium-gray md:text-base">
-                A mensalidade abre o CRM. Crédito paga a ficha que você liga;
-                exportar a lista custa mais. Ligar pela ficha não cobra.
+                A mensalidade libera o CRM e a qualificação. Qualificar custa 1
+                crédito. Ligar pela ficha é grátis. Exportar a planilha custa
+                mais.
               </p>
               {orderId ? (
                 <p className="text-xs text-podium-muted">Pedido {orderId}</p>

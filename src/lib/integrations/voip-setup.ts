@@ -41,7 +41,7 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
     fields: [
       {
         id: "token",
-        label: "Access token",
+        label: "Token de acesso",
         placeholder: "Cole o token da Zenvia Voice",
         hint: "Painel de voz → Desenvolvedores → Configurações API.",
         secret: true,
@@ -54,7 +54,7 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
       },
     ],
     inboundHint:
-      "Copie a URL inbound e cole em Desenvolvedores → Webhook da Zenvia Voice.",
+      "Copie a URL de entrada e cole em Desenvolvedores → Webhook da Zenvia Voice.",
   },
   twilio: {
     provider: "twilio",
@@ -66,13 +66,13 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
       },
       {
         id: "auth_token",
-        label: "Auth Token",
-        placeholder: "Cole o Auth Token",
+        label: "Token de autenticação",
+        placeholder: "Cole o token de autenticação",
         secret: true,
       },
       {
         id: "from_number",
-        label: "Número Twilio (From)",
+        label: "Número Twilio (origem)",
         placeholder: "+5511...",
         hint: "O DID Twilio. É o número que o lead vê.",
       },
@@ -103,7 +103,7 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
       },
       {
         id: "from_number",
-        label: "Número Telnyx (From)",
+        label: "Número Telnyx (origem)",
         placeholder: "+5511...",
       },
       {

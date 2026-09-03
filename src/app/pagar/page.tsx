@@ -233,7 +233,7 @@ function PagarInner() {
                 ) : null}
                 <p className="text-center text-sm text-podium-gray">
                   {phase === "go"
-                    ? "Bandeirada — crédito a caminho"
+                    ? "Pagamento confirmado — crédito a caminho"
                     : "Pague o QR; o GRID confirma sozinho"}
                 </p>
                 {order?.provider === "mock" ? (

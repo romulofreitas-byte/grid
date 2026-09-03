@@ -18,7 +18,7 @@ export const CATALOG_SECTIONS: Array<{
   { kind: "crm", label: "CRM" },
   { kind: "dialer", label: "Discador" },
   { kind: "voip", label: "VoIP" },
-  { kind: "webhook", label: "Ponte" },
+  { kind: "webhook", label: "Webhook" },
 ];
 
 export const INTEGRATION_CATALOG: IntegrationCatalogItem[] = [

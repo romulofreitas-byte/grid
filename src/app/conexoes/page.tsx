@@ -112,7 +112,7 @@ function ConnectionCard({
             <Badge variant={status.variant}>{status.label}</Badge>
           </p>
           <p className="text-xs text-podium-muted">
-            {native ? "VoIP nativo · token + ramal" : "Ponte webhook (legado)"}
+            {native ? "VoIP nativo · token + ramal" : "Webhook (legado)"}
             {connection.caller_id ? ` · ramal ${connection.caller_id}` : ""}
           </p>
           {native ? (
@@ -308,8 +308,8 @@ function ConexoesInner() {
         </p>
       ) : (
         <p className="mt-2 max-w-2xl text-sm text-podium-muted">
-          Cole o token e o ramal. O GRID liga no clique — sem URL, sem HMAC, sem
-          Make. CRM e discador entram na próxima onda.
+          Cole o token e o ramal. O GRID disca ao clicar em Ligar. Conectar CRM e
+          discador externos ainda não está nesta versão.
         </p>
       )}
       {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
@@ -364,8 +364,8 @@ function ConexoesInner() {
             </h3>
             <p className="mt-1 text-sm text-podium-gray">
               {CONNECTIONS_STANDBY
-                ? "A montagem nativa está pausada. API4COM, Zenvia, Twilio e Telnyx voltam na próxima onda."
-                : "API4COM, Zenvia, Twilio e Telnyx conectam agora. Asterisk, 3CX e Issabel ficam para o connector on-prem."}
+                ? "A montagem nativa está pausada. API4COM, Zenvia, Twilio e Telnyx voltam na próxima versão."
+                : "API4COM, Zenvia, Twilio e Telnyx conectam agora. Asterisk, 3CX e Issabel ficam para um conector na rede local."}
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
               {voipItems.map((item) => {
@@ -464,8 +464,8 @@ function ConexoesInner() {
               </>
             ) : (
               <p className="text-sm text-podium-muted">
-                Este PBX precisa de um connector na rede local. Ainda não está na
-                primeira onda.
+                Este PBX precisa de um conector na rede local. Ainda não está nesta
+                versão.
               </p>
             )}
           </GlassCard>
@@ -476,7 +476,7 @@ function ConexoesInner() {
                 <Check className="h-4 w-4" />
                 Token aceito. Teste a ligação.
               </p>
-              <CopyLine value={created.inbound_url} label="URL inbound" />
+              <CopyLine value={created.inbound_url} label="URL de entrada" />
               {created.webhook_registered ? (
                 <p className="text-xs text-podium-success">
                   Webhook já apontado na API4COM.
@@ -495,7 +495,7 @@ function ConexoesInner() {
             <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-relaxed text-podium-gray">
               {CONNECTIONS_STANDBY ? (
                 <>
-                  <li>Nesta onda o VoIP nativo fica em stand-by.</li>
+                  <li>A ligação pela internet ainda não está nesta versão.</li>
                   <li>Ligar na ficha abre o telefone do aparelho.</li>
                   <li>Quando a montagem voltar, você cola o token e o ramal aqui.</li>
                 </>
@@ -504,7 +504,7 @@ function ConexoesInner() {
                   <li>Cole o token do painel do VoIP e o ramal (ou seu número).</li>
                   <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
                   <li>Testar ligação toca o Webphone / seu celular.</li>
-                  <li>Na ficha, Ligar dispara a chamada. O hangup volta para o lead.</li>
+                  <li>Na ficha, Ligar dispara a chamada. Quando a chamada cai, o status volta para o lead.</li>
                 </>
               )}
             </ol>

@@ -20,7 +20,7 @@ import {
 import type { Profile, Tratamento } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Capacete", "Pista", "Oferta", "Volta"] as const;
+const STEPS = ["Perfil", "Empresa", "Oferta", "Meta"] as const;
 
 type Draft = {
   como_chama: string;
@@ -129,14 +129,14 @@ export default function SetupPage() {
 
   if (!profile || !form || !previewProfile) {
     return (
-      <AppShell title="Capacete" back={BACK.box}>
+      <AppShell title="Perfil" back={BACK.box}>
         <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Capacete" back={BACK.box}>
+    <AppShell title="Perfil" back={BACK.box}>
       <div className="mx-auto max-w-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
           Passo {step + 1}/{STEPS.length}
@@ -313,7 +313,7 @@ export default function SetupPage() {
                 ))}
               </div>
               <p className="text-sm text-podium-white">
-                Roteiro pronto. O Box passa a cobrar as ligações — ligar, não só
+                Roteiro pronto. O Início passa a cobrar as ligações — ligar, não só
                 montar lista.
               </p>
             </>
@@ -358,7 +358,7 @@ export default function SetupPage() {
                 onClick={() => void finish()}
                 className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
               >
-                {busy ? "Salvando…" : "Ir para o Box"}
+                {busy ? "Salvando…" : "Ir para o Início"}
               </button>
             )}
           </div>

@@ -1,9 +1,9 @@
+import { COPY } from "@/lib/copy";
 import { filterQualifiedCnpjs } from "@/lib/billing/service";
 import { getRepo } from "@/lib/data";
 import type { LeadDossier } from "@/lib/types";
 
-export const EXPORT_NEEDS_QUALIFY =
-  "Qualifique pelo menos uma empresa para exportar. No CRM do GRID isso é incluso.";
+export const EXPORT_NEEDS_QUALIFY = COPY.exportNeedsQualify;
 
 export function padCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "").padStart(14, "0");

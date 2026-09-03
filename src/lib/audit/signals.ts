@@ -618,7 +618,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
             : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
         : e.fonte.domain?.fonte === "human"
           ? "Você removeu o site desta qualificação."
-          : "Sem site encontrado — dá para abrir a ligação por isso.";
+          : "Não encontramos site. Na ligação, isso pode ser um gancho — principalmente se você vende presença digital.";
 
   const atualizacao =
     !confirmed
@@ -646,7 +646,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
               found: false,
               unverified: true,
               value: "NÃO ENCONTRADO",
-              hint: "Não achei o ano no rodapé.",
+              hint: "Não encontramos o ano no rodapé.",
             };
 
   return [
@@ -678,8 +678,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         presenceSearched(e, "instagram"),
         confirmed,
         socialLiveHint(e.fonte.instagram?.fonte, confirmed, corroborated),
-        "Não achei link de Instagram no site confirmado.",
-        "Não achei Instagram no site nem na busca com a marca.",
+        "Não encontramos link de Instagram no site confirmado.",
+        "Não encontramos Instagram no site nem na busca com a marca.",
         socialBlockedHint("Instagram"),
       ),
       links: igAds
@@ -702,8 +702,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         presenceSearched(e, "facebook"),
         confirmed,
         socialLiveHint(e.fonte.facebook?.fonte, confirmed, corroborated),
-        "Não achei link de Facebook no site confirmado.",
-        "Não achei Facebook no site nem na busca com a marca.",
+        "Não encontramos link de Facebook no site confirmado.",
+        "Não encontramos Facebook no site nem na busca com a marca.",
         socialBlockedHint("Facebook"),
       ),
     }),
@@ -723,8 +723,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         presenceSearched(e, "linkedin"),
         confirmed,
         socialLiveHint(e.fonte.linkedin?.fonte, confirmed, corroborated),
-        "Não achei link de LinkedIn no site confirmado.",
-        "Não achei LinkedIn no site nem na busca com a marca.",
+        "Não encontramos link de LinkedIn no site confirmado.",
+        "Não encontramos LinkedIn no site nem na busca com a marca.",
         socialBlockedHint("LinkedIn"),
       ),
     }),
@@ -744,8 +744,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         presenceSearched(e, "youtube"),
         confirmed,
         socialLiveHint(e.fonte.youtube?.fonte, confirmed, corroborated),
-        "Não achei link de YouTube no site confirmado.",
-        "Não achei YouTube no site nem na busca com a marca.",
+        "Não encontramos link de YouTube no site confirmado.",
+        "Não encontramos YouTube no site nem na busca com a marca.",
         socialBlockedHint("YouTube"),
       ),
     }),
@@ -823,7 +823,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
           ? paidMediaHint(true)
           : hasMeasurement
             ? "GTM no ar; Meta Pixel não apareceu no HTML."
-            : "Site no ar sem mensuração — dá para abrir a ligação por isso.",
+            : "Site no ar sem mensuração — na ligação, isso pode ser um gancho, principalmente se você vende presença digital.",
     }),
     signal({
       id: "gtm",
@@ -844,7 +844,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
           ? "Google Tag Manager no HTML."
           : hasMeasurement
             ? "Pixel no ar; GTM não apareceu no HTML."
-            : "Site no ar sem mensuração — dá para abrir a ligação por isso.",
+            : "Site no ar sem mensuração — na ligação, isso pode ser um gancho, principalmente se você vende presença digital.",
     }),
     signal({
       id: "ga4",

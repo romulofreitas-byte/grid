@@ -58,7 +58,7 @@ async function fetchPage(searchId: string, cursor: number) {
   const res = await fetch(`/api/grid/${searchId}?cursor=${cursor}&limit=50`, {
     signal: AbortSignal.timeout(15_000),
   });
-  if (!res.ok) throw new Error("Não foi possível carregar o grid");
+  if (!res.ok) throw new Error("Não foi possível carregar a lista");
   return res.json() as Promise<{
     rows: GridRow[];
     nextCursor: number | null;
@@ -952,7 +952,7 @@ export default function GridPage() {
                   className="gap-1.5"
                   title={
                     canExport
-                      ? `${EXPORT_CREDIT_COST} créditos / CNPJ`
+                      ? `${EXPORT_CREDIT_COST} créditos por empresa`
                       : COPY.exportNeedsQualify
                   }
                 >
@@ -977,7 +977,7 @@ export default function GridPage() {
               searchId={searchId}
               format={fmt}
               label={fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}
-              costHint={`${EXPORT_CREDIT_COST} créditos / CNPJ`}
+              costHint={`${EXPORT_CREDIT_COST} créditos por empresa`}
               className={
                 fmt === "xlsx" ? "font-semibold text-podium-yellow" : undefined
               }
@@ -987,8 +987,8 @@ export default function GridPage() {
           ))}
         </div>
         <p className="text-[11px] text-podium-muted">
-          Exportar: {EXPORT_CREDIT_COST} créditos / CNPJ, só quem já foi
-          qualificado. {COPY.exportCrmIncluso}
+          Exportar a planilha custa {EXPORT_CREDIT_COST} créditos por empresa já
+          qualificada. {COPY.exportCrmIncluso}
         </p>
       </div>
       {creditHint ? (

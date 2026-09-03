@@ -163,7 +163,7 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
   if (state.kind === "trial") {
     return {
       eyebrow: "30 dias",
-      title: "O trial do Piloto acabou",
+      title: "Os 30 dias do Piloto acabaram",
       body: "Assine o Piloto para reabrir o CRM e a qualificação. Recarga só soma crédito — não substitui a mensalidade.",
       primary: { href: PLANOS_URL, label: "Ver planos" },
       secondary: { href: RECARGA_URL, label: "Recarregar créditos" },

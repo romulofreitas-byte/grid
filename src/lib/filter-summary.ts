@@ -120,16 +120,16 @@ export function summarizeFilters(
   }
 
   if (!filters.ocultarTelefonesCompartilhados) {
-    chips.push({ key: "tel-shared", label: "incluir telefone compartilhado" });
+    chips.push({ key: "tel-shared", label: "Inclui telefone compartilhado" });
   }
   if (filters.ocultarEmailsGratuitos) {
-    chips.push({ key: "email-free", label: "sem e-mail gratuito" });
+    chips.push({ key: "email-free", label: "Sem e-mail gratuito" });
   }
   if (filters.ocultarEnderecosCompartilhados) {
-    chips.push({ key: "addr-shared", label: "sem endereço compartilhado" });
+    chips.push({ key: "addr-shared", label: "Sem endereço compartilhado" });
   }
   if (filters.soEnriquecidas) {
-    chips.push({ key: "auditadas", label: "só qualificadas" });
+    chips.push({ key: "auditadas", label: "Só qualificadas" });
   }
   if (portes.length > 0) {
     chips.push({
@@ -143,15 +143,15 @@ export function summarizeFilters(
       label: `${filters.idadeMinimaAnos} anos+`,
     });
   }
-  if (filters.soMatriz) chips.push({ key: "matriz", label: "só matriz" });
+  if (filters.soMatriz) chips.push({ key: "matriz", label: "Só matriz" });
   if (filters.excluirSimples) {
-    chips.push({ key: "simples", label: "sem Simples" });
+    chips.push({ key: "simples", label: "Sem Simples Nacional" });
   }
   if (filters.exigirEmailProprio) {
-    chips.push({ key: "email-own", label: "e-mail próprio" });
+    chips.push({ key: "email-own", label: "E-mail próprio" });
   }
   if (filters.exigirDecisor) {
-    chips.push({ key: "decisor", label: "com decisor" });
+    chips.push({ key: "decisor", label: "Com sócio identificado" });
   }
 
   return chips;
@@ -236,7 +236,7 @@ export function listSummaryBadges(
     badges.push({ key: "matriz", label: "Só matriz" });
   }
   if (includeSemContabil && filters.ocultarTelefonesCompartilhados) {
-    badges.push({ key: "sem-contabil", label: "Sem contábil" });
+    badges.push({ key: "sem-contabil", label: "Sem telefone de contabilidade" });
   }
 
   return badges;

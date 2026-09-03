@@ -87,7 +87,7 @@ export async function GET(
     });
   } catch (err) {
     return NextResponse.json(
-      { error: "Não foi possível carregar o grid" },
+      { error: "Não foi possível carregar a lista" },
       { status: isPgTimeout(err) ? 504 : 500 },
     );
   }

@@ -118,7 +118,7 @@ describe("buildAuditSignals", () => {
     const gap = byId(enrichment(), "site");
     expect(isAuditGap(gap)).toBe(true);
     expect(gap.value).toBe("NÃO ENCONTRADO");
-    expect(gap.hint).toMatch(/Sem site encontrado/i);
+    expect(gap.hint).toMatch(/Não encontramos site/i);
 
     const candidate = byId(
       enrichment({

@@ -18,7 +18,7 @@ export async function POST(
     pipelineId,
     parsed.data.stageIds,
   );
-  if (!ok) return jsonError("Não foi possível reordenar as faixas.", 400);
+  if (!ok) return jsonError("Não foi possível reordenar as etapas.", 400);
   const board = await getRepo().getCrmBoard(gated.userId, pipelineId);
   return NextResponse.json({ board });
 }
