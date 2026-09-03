@@ -246,9 +246,9 @@ const SEGMENT_CNAES = [
     ["9313100", "Centro de condicionamento fisico e gym"],
   ]],
   ["lavanderias", [
-    ["9601701", "Lavanderias, tinturarias e toalheiros"],
-    ["9601701", "Lavanderia self service e tinturaria"],
-    ["9601702", "Toalheiros hospedagem lavanderia"],
+    ["9601701", "Lavanderias"],
+    ["9601702", "Tinturarias"],
+    ["9601703", "Toalheiros"],
   ]],
   // Alimentação
   ["restaurantes", [
@@ -724,6 +724,19 @@ const EXTRA_CNAES = [
   ["4940000", "Transporte rodoviario de produtos perigosos"],
   ["5211799", "Deposito de mercadorias para terceiros"],
   ["6612601", "Administracao de cartoes de credito"],
+  ["9609201", "Clinicas de estética e similares"],
+  ["9609203", "Alojamento, higiene e embelezamento de animais"],
+  ["9609207", "Alojamento de animais domésticos"],
+  ["4330404", "Serviços de pintura de edifícios em geral"],
+  ["4329105", "Tratamentos térmicos, acústicos ou de vibração"],
+  ["4330401", "Impermeabilização em obras de engenharia civil"],
+  ["3292201", "Fabricação de roupas de proteção e segurança e resistentes a fogo"],
+  ["3292202", "Fabricação de equipamentos e acessórios para segurança pessoal e profissional"],
+  ["4642702", "Comércio atacadista de roupas e acessórios para uso profissional e de segurança do trabalho"],
+  ["6438701", "Bancos de câmbio"],
+  ["7319003", "Marketing direto"],
+  ["8011101", "Serviços de adestramento de cães de guarda"],
+  ["4322302", "Instalação e manutenção de sistemas centrais de ar condicionado, de ventilação e refrigeração"],
 ];
 
 const seen = new Set();

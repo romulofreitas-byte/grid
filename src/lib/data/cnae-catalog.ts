@@ -1,6 +1,6 @@
 import type { RefCnae } from "@/lib/types";
 
-/** ~426 CNAE codes aligned with TAXONOMY segment keywords. */
+/** ~439 CNAE codes aligned with TAXONOMY segment keywords. */
 export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "9602502",
@@ -560,15 +560,15 @@ export const REF_CNAE: RefCnae[] = [
   },
   {
     "codigo": "9601701",
-    "descricao": "Lavanderias, tinturarias e toalheiros"
-  },
-  {
-    "codigo": "9601701",
-    "descricao": "Lavanderia self service e tinturaria"
+    "descricao": "Lavanderias"
   },
   {
     "codigo": "9601702",
-    "descricao": "Toalheiros hospedagem lavanderia"
+    "descricao": "Tinturarias"
+  },
+  {
+    "codigo": "9601703",
+    "descricao": "Toalheiros"
   },
   {
     "codigo": "5611201",
@@ -1705,6 +1705,58 @@ export const REF_CNAE: RefCnae[] = [
   {
     "codigo": "6612601",
     "descricao": "Administracao de cartoes de credito"
+  },
+  {
+    "codigo": "9609201",
+    "descricao": "Clinicas de estética e similares"
+  },
+  {
+    "codigo": "9609203",
+    "descricao": "Alojamento, higiene e embelezamento de animais"
+  },
+  {
+    "codigo": "9609207",
+    "descricao": "Alojamento de animais domésticos"
+  },
+  {
+    "codigo": "4330404",
+    "descricao": "Serviços de pintura de edifícios em geral"
+  },
+  {
+    "codigo": "4329105",
+    "descricao": "Tratamentos térmicos, acústicos ou de vibração"
+  },
+  {
+    "codigo": "4330401",
+    "descricao": "Impermeabilização em obras de engenharia civil"
+  },
+  {
+    "codigo": "3292201",
+    "descricao": "Fabricação de roupas de proteção e segurança e resistentes a fogo"
+  },
+  {
+    "codigo": "3292202",
+    "descricao": "Fabricação de equipamentos e acessórios para segurança pessoal e profissional"
+  },
+  {
+    "codigo": "4642702",
+    "descricao": "Comércio atacadista de roupas e acessórios para uso profissional e de segurança do trabalho"
+  },
+  {
+    "codigo": "6438701",
+    "descricao": "Bancos de câmbio"
+  },
+  {
+    "codigo": "7319003",
+    "descricao": "Marketing direto"
+  },
+  {
+    "codigo": "8011101",
+    "descricao": "Serviços de adestramento de cães de guarda"
+  },
+  {
+    "codigo": "4322302",
+    "descricao": "Instalação e manutenção de sistemas centrais de ar condicionado, de ventilação e refrigeração"
   }
 ];
 

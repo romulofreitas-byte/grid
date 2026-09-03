@@ -1,10 +1,10 @@
 # Cobertura de segmentos
 
-UFs: MG, SP. Gerado em 2026-08-21.
+UFs: MG, SP. Gerado em 2026-09-03.
 
 | Segmento | CNAEs | Empresas | Status |
 |---|---:|---:|---|
-| Clínicas de estética (`clinicas-estetica`) | 1 | 30973 | ok |
+| Clínicas de estética (`clinicas-estetica`) | 2 | 30973 | ok |
 | Harmonização facial (`harmonizacao-facial`) | 1 | 30973 | ok |
 | Depilação a laser (`depilacao-laser`) | 1 | 30973 | ok |
 | Salões premium (`saloes-premium`) | 1 | 49810 | ok |
@@ -16,6 +16,9 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Bronzeamento (`bronzeamento`) | 1 | 30973 | ok |
 | Estética íntima (`estetica-intima`) | 1 | 30973 | ok |
 | Massagem terapêutica (`massagem-terapeutica`) | 2 | 31048 | ok |
+| Barbearias (`barbearias`) | 1 | 49810 | ok |
+| Estúdio de tatuagem (`estudio-tatuagem`) | 1 | 2312 | ok |
+| Clínicas médicas (`clinicas-medicas`) | 3 | 123095 | ok |
 | Ortopedia (`ortopedia`) | 3 | 123095 | ok |
 | Dermatologia (`dermatologia`) | 3 | 123095 | ok |
 | Odontologia (`odontologia`) | 2 | 48092 | ok |
@@ -37,8 +40,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Clínicas veterinárias (`clinicas-veterinarias`) | 1 | 21224 | ok |
 | Pet shops (`pet-shops`) | 4 | 23837 | ok |
 | Banho e tosa (`banho-e-tosa`) | 2 | 6186 | ok |
-| Hotelaria animal (`hotelaria-animal`) | 3 | 27410 | ok |
-| Adestramento (`adestramento`) | 1 | 21224 | ok |
+| Hotelaria animal (`hotelaria-animal`) | 2 | 1239 | ok |
+| Adestramento (`adestramento`) | 2 | 21455 | ok |
 | Pet food e ração (`pet-food-racao`) | 1 | 34860 | ok |
 | Cremação pet (`cremacao-pet`) | 1 | 21224 | ok |
 | Fisioterapia animal (`fisioterapia-animal`) | 1 | 21224 | ok |
@@ -56,6 +59,7 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Blindagem automotiva (`blindagem`) | 1 | 36808 | ok |
 | Oficinas de motos (`oficinas-motos`) | 1 | 3368 | ok |
 | Guincho e reboque (`guincho`) | 1 | 5466 | ok |
+| Postos de combustível (`postos-combustivel`) | 1 | 13870 | ok |
 | Imobiliárias e corretoras (`imobiliarias`) | 1 | 40755 | ok |
 | Incorporadoras (`incorporadoras-varejo`) | 1 | 69230 | ok |
 | Administradoras de condomínio (`administradoras-condominio`) | 1 | 19423 | ok |
@@ -79,6 +83,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Floriculturas e jardinagem (`casa-jardim`) | 1 | 6627 | ok |
 | Colchões (`colchoes`) | 1 | 5296 | ok |
 | Utensílios domésticos (`utensilios-domesticos`) | 2 | 23152 | ok |
+| Farmácias e drogarias (`farmacias-drogarias`) | 3 | 30307 | ok |
+| Supermercados (`supermercados`) | 3 | 76680 | ok |
 | Restaurantes (`restaurantes`) | 1 | 75055 | ok |
 | Pizzarias (`pizzarias`) | 1 | 75055 | ok |
 | Hamburguerias (`hamburguerias`) | 2 | 151453 | ok |
@@ -112,6 +118,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Turismo de aventura (`turismo-aventura`) | 1 | 1734 | ok |
 | Guias locais (`guias-locais`) | 1 | 1734 | ok |
 | Eventos e wedding destination (`eventos-turismo`) | 1 | 1734 | ok |
+| Academias (`academias`) | 1 | 29560 | ok |
+| Lavanderias (`lavanderias`) | 3 | 6135 | ok |
 | Metalurgia (`metalurgia`) | 2 | 822 | ok |
 | Química industrial (`quimica-industrial`) | 1 | 212 | ok |
 | Plásticos industrial (`plasticos-industrial`) | 4 | 5534 | ok |
@@ -141,8 +149,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Fundações e contenções (`fundacoes`) | 3 | 5031 | ok |
 | Instalações hidráulicas (`instalacoes-hidraulicas`) | 2 | 6624 | ok |
 | Instalações elétricas (`instalacoes-eletricas`) | 1 | 1624 | ok |
-| Impermeabilização e vazamentos (`impermeabilizacao-vazamentos`) | 3 | 18076 | ok |
-| Pintura predial (`pintura-predial`) | 2 | 13076 | ok |
+| Impermeabilização e vazamentos (`impermeabilizacao-vazamentos`) | 2 | 6016 | ok |
+| Pintura predial (`pintura-predial`) | 1 | 15516 | ok |
 | Gesso e drywall (`gesso-drywall`) | 2 | 13076 | ok |
 | Climatização e ar-condicionado (`climatizacao`) | 1 | 10700 | ok |
 | Topografia e geotecnia (`topografia`) | 2 | 65738 | ok |
@@ -170,8 +178,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Drywall e placas (`drywall-placas`) | 1 | 32666 | ok |
 | Portas e portões (`portas-portoes`) | 1 | 9323 | ok |
 | Ferragens e parafusos (`ferragens-parafusos`) | 1 | 19617 | ok |
-| Isolamento térmico e acústico (`isolamento-termico`) | 1 | 32666 | ok |
-| EPIs e segurança para obra (`epis-obra`) | 2 | 16020 | ok |
+| Isolamento térmico e acústico (`isolamento-termico`) | 1 | 721 | ok |
+| EPIs e segurança para obra (`epis-obra`) | 3 | 2251 | ok |
 | Escritórios contábeis (`escritorios-contabeis`) | 1 | 40014 | ok |
 | Advocacia (`advocacia`) | 1 | 72205 | ok |
 | Consultoria empresarial (`consultoria-empresarial`) | 1 | 81525 | ok |
@@ -187,7 +195,7 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | E-commerce e plataformas (`ecommerce-plataformas`) | 3 | 40508 | ok |
 | Cibersegurança (`ciberseguranca`) | 2 | 88601 | ok |
 | Automação e RPA (`automacao-rpa`) | 3 | 76201 | ok |
-| Agências de marketing e performance (`marketing-digital`) | 2 | 21447 | ok |
+| Agências de marketing e performance (`marketing-digital`) | 3 | 46492 | ok |
 | Transportadoras de carga (`transportadoras-carga`) | 2 | 114949 | ok |
 | Armazenagem (`armazenagem`) | 2 | 4861 | ok |
 | Last mile e entregas (`last-mile-entregas`) | 2 | 20997 | ok |
@@ -203,8 +211,8 @@ UFs: MG, SP. Gerado em 2026-08-21.
 | Factoring (`factoring`) | 1 | 1613 | ok |
 | Consórcios (`consorcios`) | 2 | 35711 | ok |
 | Previdência e planos (`previdencia-planos`) | 1 | 35012 | ok |
-| Câmbio (`cambio`) | 1 | 156 | ok |
+| Câmbio (`cambio`) | 2 | 160 | ok |
 | Fintech e meios de pagamento (`fintech-pagamentos`) | 2 | 10454 | ok |
 | Cobrança e recuperação de crédito (`cobranca-extrajudicial`) | 1 | 19245 | ok |
 
-**Resumo:** 202 segmentos · 0 sem CNAE · 0 com CNAE mas 0 empresas.
+**Resumo:** 210 segmentos · 0 sem CNAE · 0 com CNAE mas 0 empresas.

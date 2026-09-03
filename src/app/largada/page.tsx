@@ -1120,8 +1120,9 @@ function LargadaWizard() {
                       </p>
                     ) : (cnaePreview.data ?? []).length === 0 ? (
                       <p className="text-sm text-podium-muted">
-                        Selecione um segmento ou uma intenção para listar as
-                        atividades do nicho — ou busque um CNAE acima.
+                        {filters.segmentIds.length > 0
+                          ? "Nenhuma atividade da Receita casou com este nicho — busque um CNAE acima."
+                          : "Selecione um segmento ou uma intenção para listar as atividades do nicho — ou busque um CNAE acima."}
                       </p>
                     ) : (
                       (cnaePreview.data ?? []).map((c) => {

@@ -307,7 +307,7 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   "esporte-e-fitness": ["esporte", "fitness", "academia"],
   academias: ["academia", "academias", "gym", "musculacao", "crossfit", "box de crossfit"],
   "servicos-locais": ["servicos locais", "servico local"],
-  lavanderias: ["lavanderia", "lavanderias", "lavandaria", "tinturaria"],
+  lavanderias: ["lavanderia", "lavanderias", "lavandaria", "tinturaria", "toalheiro", "toalheiros"],
   industria: ["industria", "fabrica"],
   "construcao-civil": ["construcao civil", "construcao"],
   "insumos-para-construcao": ["insumos", "material de construcao"],
