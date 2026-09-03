@@ -1,5 +1,18 @@
 import { classifyPartner, isPessoaFisica } from "@/lib/partner-kind";
-import type { Partner, PartnerCard, RefQualificacao } from "@/lib/types";
+import { titularFromRazao } from "@/lib/titular-from-razao";
+import type {
+  DecisorInfo,
+  Partner,
+  PartnerCard,
+  RefQualificacao,
+} from "@/lib/types";
+
+export const TITULAR_FROM_RAZAO_QUALIFICACAO = "Titular";
+
+export type DecisorCompanyHint = {
+  razaoSocial: string;
+  naturezaId: number | null;
+};
 
 /** Priority by description match — never hardcode qualification IDs. */
 export const DECISOR_PRIORITY: Array<{ match: string[]; rank: number }> = [
@@ -61,18 +74,59 @@ export function pickDecisor(
 export function toPartnerCards(
   partners: Partner[],
   refs: RefQualificacao[],
+  company?: DecisorCompanyHint,
 ): PartnerCard[] {
-  return sortPartners(partners, refs).map((p) => {
-    const classified = classifyPartner(p.nome, p.faixa_etaria);
+  if (partners.length) {
+    return sortPartners(partners, refs).map((p) => {
+      const classified = classifyPartner(p.nome, p.faixa_etaria);
+      return {
+        nome: p.nome,
+        qualificacao: qualificacaoLabel(p.qualificacao_id, refs),
+        dataEntrada: p.data_entrada,
+        faixaEtaria: p.faixa_etaria,
+        kind: classified.kind,
+        kindLabel: classified.label,
+      };
+    });
+  }
+  const nome = company
+    ? titularFromRazao(company.razaoSocial, company.naturezaId)
+    : null;
+  if (!nome) return [];
+  return [
+    {
+      nome,
+      qualificacao: TITULAR_FROM_RAZAO_QUALIFICACAO,
+      dataEntrada: null,
+      faixaEtaria: null,
+      kind: "pessoa",
+      kindLabel: null,
+    },
+  ];
+}
+
+export function resolveDecisor(
+  partners: Partner[],
+  refs: RefQualificacao[],
+  company: DecisorCompanyHint,
+): DecisorInfo {
+  const fromQsa = pickDecisor(partners, refs);
+  if (fromQsa) {
     return {
-      nome: p.nome,
-      qualificacao: qualificacaoLabel(p.qualificacao_id, refs),
-      dataEntrada: p.data_entrada,
-      faixaEtaria: p.faixa_etaria,
-      kind: classified.kind,
-      kindLabel: classified.label,
+      nome: fromQsa.nome,
+      qualificacao: qualificacaoLabel(fromQsa.qualificacao_id, refs),
+      dataEntrada: fromQsa.data_entrada,
+      faixaEtaria: fromQsa.faixa_etaria,
     };
-  });
+  }
+  const nome = titularFromRazao(company.razaoSocial, company.naturezaId);
+  if (!nome) return null;
+  return {
+    nome,
+    qualificacao: TITULAR_FROM_RAZAO_QUALIFICACAO,
+    dataEntrada: null,
+    faixaEtaria: null,
+  };
 }
 
 export function qualificacaoLabel(

@@ -5,7 +5,7 @@ import {
   phoneSealFromUsage,
   sealRank,
 } from "@/lib/contact-confidence";
-import { pickDecisor, qualificacaoLabel, toPartnerCards } from "@/lib/decisor";
+import { pickDecisor, resolveDecisor, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { getMockStore, type MockStore } from "@/lib/data/mock-store";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
@@ -400,7 +400,10 @@ function scoreEstablishment(
   const idx = getIndexes(store);
   const company = idx.companyByBasico.get(est.cnpj_basico)!;
   const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
-  const decisor = pickDecisor(partners, store.ref_qualificacao);
+  const decisor = resolveDecisor(partners, store.ref_qualificacao, {
+    razaoSocial: company.razao_social,
+    naturezaId: company.natureza_id,
+  });
   const contacts = buildContacts(
     store,
     est.cnpj,
@@ -519,7 +522,10 @@ function dossierOf(cnpj: string, searchId?: string): LeadDossier | null {
   }
 
   const partners = store.partners.filter((p) => p.cnpj_basico === est.cnpj_basico);
-  const decisorPartner = pickDecisor(partners, store.ref_qualificacao);
+  const decisorPartner = resolveDecisor(partners, store.ref_qualificacao, {
+    razaoSocial: company.razao_social,
+    naturezaId: company.natureza_id,
+  });
   const saved = searchId
     ? store.saved_leads.find((l) => l.search_id === searchId && l.cnpj === cnpj)
     : store.saved_leads.find((l) => l.cnpj === cnpj);
@@ -544,18 +550,11 @@ function dossierOf(cnpj: string, searchId?: string): LeadDossier | null {
       est.logradouro,
       est.numero,
     ),
-    decisor: decisorPartner
-      ? {
-          nome: decisorPartner.nome,
-          qualificacao: qualificacaoLabel(
-            decisorPartner.qualificacao_id,
-            store.ref_qualificacao,
-          ),
-          dataEntrada: decisorPartner.data_entrada,
-          faixaEtaria: decisorPartner.faixa_etaria,
-        }
-      : null,
-    socios: toPartnerCards(partners, store.ref_qualificacao),
+    decisor: decisorPartner,
+    socios: toPartnerCards(partners, store.ref_qualificacao, {
+      razaoSocial: company.razao_social,
+      naturezaId: company.natureza_id,
+    }),
     gridScore: saved?.grid_score ?? 0,
     gridPosition: saved?.grid_position ?? null,
     status: saved?.status ?? "novo",
@@ -695,7 +694,10 @@ export const mockRepo: GridRepo = {
       const mun = idx.munById.get(est.municipio_id);
       const cnae = idx.cnaeByCodigo.get(est.cnae_principal);
       const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
-      const decisor = pickDecisor(partners, store.ref_qualificacao);
+      const decisor = resolveDecisor(partners, store.ref_qualificacao, {
+        razaoSocial: company.razao_social,
+        naturezaId: company.natureza_id,
+      });
       ranked.push({
         cnpj: est.cnpj,
         razaoSocial: company.razao_social,
@@ -1117,7 +1119,10 @@ export const mockRepo: GridRepo = {
       const company = idx.companyByBasico.get(est.cnpj_basico);
       if (!company) continue;
       const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
-      const decisor = pickDecisor(partners, store.ref_qualificacao);
+      const decisor = resolveDecisor(partners, store.ref_qualificacao, {
+        razaoSocial: company.razao_social,
+        naturezaId: company.natureza_id,
+      });
       out.push({
         cnpj: est.cnpj,
         razaoSocial: company.razao_social,
@@ -1158,7 +1163,10 @@ export const mockRepo: GridRepo = {
       );
       const primary = contacts[0];
       const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
-      const decisor = pickDecisor(partners, store.ref_qualificacao);
+      const decisor = resolveDecisor(partners, store.ref_qualificacao, {
+        razaoSocial: company.razao_social,
+        naturezaId: company.natureza_id,
+      });
       const mun = idx.munById.get(est.municipio_id);
       const cnae = idx.cnaeByCodigo.get(est.cnae_principal);
       const job = [...store.enrichment_jobs]

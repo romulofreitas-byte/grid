@@ -43,6 +43,36 @@ describe("getDossier approach doors", () => {
     ).toBe(true);
   });
 
+  it("fills decisor from razão social when QSA is empty for EI", async () => {
+    const store = getMockStore();
+    const est = store.establishments[0]!;
+    const company = store.companies.find((c) => c.cnpj_basico === est.cnpj_basico)!;
+    const previousRazao = company.razao_social;
+    const previousNatureza = company.natureza_id;
+    const removed = store.partners.filter((p) => p.cnpj_basico === est.cnpj_basico);
+    store.partners = store.partners.filter((p) => p.cnpj_basico !== est.cnpj_basico);
+    company.razao_social = "HANNA FABIELLY DOS SANTOS HOLANDA 02248911203";
+    company.natureza_id = 2135;
+    try {
+      const dossier = await mockRepo.getDossier(est.cnpj);
+      expect(dossier?.decisor).toMatchObject({
+        nome: "HANNA FABIELLY DOS SANTOS HOLANDA",
+        qualificacao: "Titular",
+      });
+      expect(dossier?.socios).toEqual([
+        expect.objectContaining({
+          nome: "HANNA FABIELLY DOS SANTOS HOLANDA",
+          qualificacao: "Titular",
+          kind: "pessoa",
+        }),
+      ]);
+    } finally {
+      company.razao_social = previousRazao;
+      company.natureza_id = previousNatureza;
+      store.partners.push(...removed);
+    }
+  });
+
   it("labels gestão as empresa de gestão", async () => {
     const store = getMockStore();
     const gestao = store.partners.find((p) => p.nome.includes("GESTAO"));

@@ -4,7 +4,7 @@ import {
   phoneSealFromUsage,
   sealRank,
 } from "@/lib/contact-confidence";
-import { pickDecisor, qualificacaoLabel, toPartnerCards } from "@/lib/decisor";
+import { resolveDecisor, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { buildGoldenMinute } from "@/lib/golden-minute";
 import {
@@ -1539,7 +1539,10 @@ function scoreRow(
   profile: ScoreProfile,
   allowed: Set<string> | null,
 ): { score: number; decisorNome: string | null } {
-  const decisor = pickDecisor(partners, quals);
+  const decisor = resolveDecisor(partners, quals, {
+    razaoSocial: company.razao_social,
+    naturezaId: company.natureza_id,
+  });
   const primary = contacts[0];
   const fresh = isEnrichmentFresh(enrichment);
   const includeDor = fresh && !!enrichment;
@@ -1808,7 +1811,10 @@ async function rowsFromReceita(
     );
     const primary = contacts[0];
     const partners = packed.partners.get(est.cnpj_basico) ?? [];
-    const decisor = pickDecisor(partners, packed.quals);
+    const decisor = resolveDecisor(partners, packed.quals, {
+      razaoSocial: company.razao_social,
+      naturezaId: company.natureza_id,
+    });
     const hasAudit = false;
     const phone = overlayGridPhone(
       {
@@ -1929,7 +1935,10 @@ async function dossierOf(cnpj: string, searchId?: string): Promise<LeadDossier |
     est.cep && est.logradouro && est.numero
       ? Number(addrRow.rows[0]?.qtd ?? 1)
       : 0;
-  const decisorPartner = pickDecisor(partners, packed.quals);
+  const decisorPartner = resolveDecisor(partners, packed.quals, {
+    razaoSocial: company.razao_social,
+    naturezaId: company.natureza_id,
+  });
   const cnaeDescricao =
     packed.cnae.get(est.cnae_principal)?.descricao ?? "NÃO ENCONTRADO";
   const municipioNome =
@@ -1961,18 +1970,11 @@ async function dossierOf(cnpj: string, searchId?: string): Promise<LeadDossier |
       accountantHint: hasAccountantDomainHint(email),
     },
     addressSharedCount: Number(addrCount),
-    decisor: decisorPartner
-      ? {
-          nome: decisorPartner.nome,
-          qualificacao: qualificacaoLabel(
-            decisorPartner.qualificacao_id,
-            packed.quals,
-          ),
-          dataEntrada: decisorPartner.data_entrada,
-          faixaEtaria: decisorPartner.faixa_etaria,
-        }
-      : null,
-    socios: toPartnerCards(partners, packed.quals),
+    decisor: decisorPartner,
+    socios: toPartnerCards(partners, packed.quals, {
+      razaoSocial: company.razao_social,
+      naturezaId: company.natureza_id,
+    }),
     gridScore: saved ? Number(saved.grid_score ?? 0) : 0,
     gridPosition: saved?.grid_position == null ? null : Number(saved.grid_position),
     status: (saved?.status as LeadStatus) ?? "novo",
@@ -2078,10 +2080,15 @@ async function attachDecisorsToCompanyHits(
   try {
     const basicos = [...new Set(hits.map((h) => h.cnpj.slice(0, 8)))];
     const quals = await loadQuals();
-    const { rows } = await query(
-      `select * from partners where cnpj_basico = any($1::char(8)[])`,
-      [basicos],
-    );
+    const [{ rows }, companyRes] = await Promise.all([
+      query(`select * from partners where cnpj_basico = any($1::char(8)[])`, [
+        basicos,
+      ]),
+      query<{ cnpj_basico: string; natureza_id: number | null }>(
+        `select cnpj_basico, natureza_id from companies where cnpj_basico = any($1::char(8)[])`,
+        [basicos],
+      ),
+    ]);
     const byBasico = new Map<string, Partner[]>();
     for (const row of rows) {
       const p = mapPartner(row);
@@ -2089,9 +2096,20 @@ async function attachDecisorsToCompanyHits(
       list.push(p);
       byBasico.set(p.cnpj_basico, list);
     }
+    const naturezaByBasico = new Map<string, number | null>();
+    for (const row of companyRes.rows) {
+      naturezaByBasico.set(
+        trimChar(row.cnpj_basico),
+        row.natureza_id == null ? null : Number(row.natureza_id),
+      );
+    }
     return hits.map((h) => {
-      const partners = byBasico.get(h.cnpj.slice(0, 8)) ?? [];
-      const decisor = pickDecisor(partners, quals);
+      const basico = h.cnpj.slice(0, 8);
+      const partners = byBasico.get(basico) ?? [];
+      const decisor = resolveDecisor(partners, quals, {
+        razaoSocial: h.razaoSocial,
+        naturezaId: naturezaByBasico.get(basico) ?? null,
+      });
       return { ...h, decisorNome: decisor?.nome ?? null };
     });
   } catch (err) {
