@@ -64,7 +64,7 @@ beforeEach(() => {
   delete process.env.ASAAS_API_KEY;
   delete process.env.STRIPE_SECRET_KEY;
   delete process.env.CIRCLE_API_KEY;
-  process.env.BILLING_PLATFORM_COUPON = "PILOTOPODIUM";
+  process.env.BILLING_PLATFORM_COUPON = "PILOTO";
   resetBillingMemory();
 });
 
@@ -249,7 +249,7 @@ describe("billing service", () => {
   });
 
   it("rejects checkout for plans that are not on sale", async () => {
-    for (const sku of ["piloto_pro", "escuderia", "membro_plataforma"] as const) {
+    for (const sku of ["piloto_pro", "escuderia"] as const) {
       await expect(
         createCheckout({
           profileId,
@@ -257,7 +257,7 @@ describe("billing service", () => {
           nome: "Rômulo",
           sku,
           method: "pix",
-          coupon: "PILOTOPODIUM",
+          coupon: "PILOTO",
         }),
       ).rejects.toMatchObject({ message: SKU_OFF_SALE_MESSAGE });
     }

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { COPY } from "./copy";
 
 describe("COPY login", () => {
+  it("publishes PILOTO for active platform subscribers", () => {
+    expect(COPY.boxPlatformCoupon).toMatch(/PILOTO/);
+    expect(COPY.boxPlatformCoupon).toMatch(/assinantes ativos da Plataforma/);
+  });
+
   it("does not advertise passwordless or magic link", () => {
     const blob = [
       COPY.landingPrimeiraVez,

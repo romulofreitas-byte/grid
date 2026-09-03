@@ -53,10 +53,13 @@ describe("acesso FAQ", () => {
 });
 
 describe("membro-plataforma FAQ", () => {
-  it("does not send people to checkout while the coupon is paused", () => {
+  it("publishes PILOTO for active platform subscribers", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "membro-plataforma");
-    expect(item?.links).toEqual([{ href: "/planos", label: "Ver planos" }]);
-    expect(item?.answer).not.toMatch(/\/pagar/);
+    expect(item?.answer).toMatch(/PILOTO/);
+    expect(item?.answer).toMatch(/assinantes ativos da Plataforma/);
+    expect(item?.links).toEqual([
+      { href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" },
+    ]);
   });
 });
 

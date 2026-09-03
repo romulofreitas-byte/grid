@@ -149,8 +149,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Já assino o Mundo Pódium — preciso pagar o GRID?",
     answer:
-      "Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. A ativação por cupom está pausada neste momento — assine o Piloto. Recarga só soma crédito.",
-    links: [{ href: "/planos", label: "Ver planos" }],
+      "Quem já assina a plataforma entra no Piloto por 30 dias, sem pagar de novo. Cupom PILOTO — vale só para assinantes ativos da Plataforma, com o mesmo e-mail do cadastro. Recarga só soma crédito.",
+    links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {
     id: "exportar",

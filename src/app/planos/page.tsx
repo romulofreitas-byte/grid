@@ -126,15 +126,17 @@ export default async function PlanosPage({
         <p className="text-sm font-bold text-podium-white">Membro da Plataforma</p>
         <p className="mt-2 text-sm text-podium-gray">
           Quem já assina o Mundo Pódium entra no nível Piloto por 30 dias, sem
-          pagar de novo no GRID. A ativação por cupom está pausada neste
-          momento. Assine o Piloto. Recarga só soma crédito.
+          pagar de novo no GRID. Cupom{" "}
+          <span className="font-extrabold text-podium-white">PILOTO</span> — vale
+          só para assinantes ativos da Plataforma, com o mesmo e-mail do
+          cadastro. Recarga só soma crédito.
         </p>
-        <span
-          aria-disabled="true"
-          className="mt-4 inline-block text-sm font-bold text-podium-muted"
+        <Link
+          href={pagarHref("membro_plataforma", from)}
+          className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
         >
-          Em breve
-        </span>
+          Ativar com cupom
+        </Link>
       </GlassCard>
 
       <GlassCard className="mt-6 p-5" highlight>

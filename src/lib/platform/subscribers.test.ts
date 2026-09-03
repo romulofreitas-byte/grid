@@ -18,9 +18,9 @@ describe("normalizeSubscriberEmail", () => {
 });
 
 describe("shouldShowPlatformCouponBanner", () => {
-  it("hides while membro_plataforma is not on sale", () => {
-    expect(shouldShowPlatformCouponBanner(true, "free")).toBe(false);
-    expect(shouldShowPlatformCouponBanner(true, "piloto")).toBe(false);
+  it("shows for subscribers who are not already on membro_plataforma", () => {
+    expect(shouldShowPlatformCouponBanner(true, "free")).toBe(true);
+    expect(shouldShowPlatformCouponBanner(true, "piloto")).toBe(true);
     expect(shouldShowPlatformCouponBanner(true, "membro_plataforma")).toBe(false);
   });
 

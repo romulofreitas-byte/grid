@@ -14,7 +14,9 @@ afterEach(() => {
 });
 
 describe("normalizePlatformCoupon", () => {
-  it("uppercases, strips spaces and maps the legacy PODIUM code", () => {
+  it("uppercases, strips spaces and maps legacy codes to PILOTO", () => {
+    expect(normalizePlatformCoupon("  piloto  ")).toBe(DEFAULT_PLATFORM_COUPON);
+    expect(normalizePlatformCoupon("Piloto")).toBe(DEFAULT_PLATFORM_COUPON);
     expect(normalizePlatformCoupon("  piloto podium  ")).toBe(DEFAULT_PLATFORM_COUPON);
     expect(normalizePlatformCoupon("PilotoPódium")).toBe(DEFAULT_PLATFORM_COUPON);
     expect(normalizePlatformCoupon("PODIUM")).toBe(DEFAULT_PLATFORM_COUPON);
@@ -23,13 +25,15 @@ describe("normalizePlatformCoupon", () => {
 });
 
 describe("expectedPlatformCoupon", () => {
-  it("defaults to PILOTOPODIUM when the env is empty", () => {
+  it("defaults to PILOTO when the env is empty", () => {
     delete process.env.BILLING_PLATFORM_COUPON;
     expect(expectedPlatformCoupon()).toBe(DEFAULT_PLATFORM_COUPON);
   });
 
-  it("treats a leftover PODIUM env as PILOTOPODIUM", () => {
+  it("treats leftover PODIUM and PILOTOPODIUM env as PILOTO", () => {
     process.env.BILLING_PLATFORM_COUPON = "PODIUM";
+    expect(expectedPlatformCoupon()).toBe(DEFAULT_PLATFORM_COUPON);
+    process.env.BILLING_PLATFORM_COUPON = "PILOTOPODIUM";
     expect(expectedPlatformCoupon()).toBe(DEFAULT_PLATFORM_COUPON);
   });
 
@@ -42,13 +46,14 @@ describe("expectedPlatformCoupon", () => {
 describe("isValidPlatformCoupon", () => {
   it("accepts the published coupon even when env still has PODIUM", () => {
     process.env.BILLING_PLATFORM_COUPON = "PODIUM";
+    expect(isValidPlatformCoupon("PILOTO")).toBe(true);
+    expect(isValidPlatformCoupon("piloto")).toBe(true);
     expect(isValidPlatformCoupon("PILOTOPODIUM")).toBe(true);
-    expect(isValidPlatformCoupon("pilotopodium")).toBe(true);
     expect(isValidPlatformCoupon("errado")).toBe(false);
   });
 
-  it("accepts PILOTOPODIUM when env is unset", () => {
+  it("accepts PILOTO when env is unset", () => {
     delete process.env.BILLING_PLATFORM_COUPON;
-    expect(isValidPlatformCoupon("PILOTOPODIUM")).toBe(true);
+    expect(isValidPlatformCoupon("PILOTO")).toBe(true);
   });
 });

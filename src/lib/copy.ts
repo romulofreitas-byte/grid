@@ -91,7 +91,7 @@ export const COPY = {
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
   boxPlatformCoupon:
-    "Você assina o Mundo Pódium. A ativação por cupom está pausada neste momento — assine o Piloto.",
+    "Você assina o Mundo Pódium. Use o cupom PILOTO — vale só para assinantes ativos da Plataforma.",
   boxPlatformTrialEnded:
     "Os 30 dias do Piloto acabaram. Assine o Piloto para continuar. Recarga só soma crédito — não reabre o CRM.",
   cnae: "Código da atividade da empresa na Receita.",

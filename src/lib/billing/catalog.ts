@@ -152,6 +152,7 @@ const BY_SKU: Record<string, CatalogItem> = Object.fromEntries(
 /** SKUs currently for sale. Treino livre is free and never goes through checkout. */
 export const SKUS_ON_SALE: ReadonlySet<string> = new Set([
   "piloto",
+  "membro_plataforma",
   "pack_100",
   "pack_500",
   "pack_2000",

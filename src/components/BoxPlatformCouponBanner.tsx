@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import { planosHref } from "@/lib/billing/href";
+import { pagarHref, planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 
 export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) {
@@ -51,10 +51,10 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
         </div>
       ) : (
         <Link
-          href={planosHref("/box")}
+          href={pagarHref("membro_plataforma", "/box")}
           className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
         >
-          Ver planos
+          Ativar com cupom
         </Link>
       )}
     </motion.div>

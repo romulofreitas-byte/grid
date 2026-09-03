@@ -51,15 +51,15 @@ describe("catalog", () => {
     expect(orderKindFor("membro_plataforma")).toBe("platform");
   });
 
-  it("sells only Piloto and credit packs right now", () => {
+  it("sells Piloto, the platform coupon plan, and credit packs right now", () => {
     expect(isSkuOnSale("piloto")).toBe(true);
+    expect(isSkuOnSale("membro_plataforma")).toBe(true);
     expect(isSkuOnSale("pack_100")).toBe(true);
     expect(isSkuOnSale("pack_500")).toBe(true);
     expect(isSkuOnSale("pack_2000")).toBe(true);
     expect(isSkuOnSale("free")).toBe(false);
     expect(isSkuOnSale("piloto_pro")).toBe(false);
     expect(isSkuOnSale("escuderia")).toBe(false);
-    expect(isSkuOnSale("membro_plataforma")).toBe(false);
   });
 
   it("formats BRL", () => {

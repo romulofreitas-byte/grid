@@ -1,8 +1,8 @@
 /** Cupom publicado em /planos e na FAQ. A trava real é a lista de assinantes. */
-export const DEFAULT_PLATFORM_COUPON = "PILOTOPODIUM";
+export const DEFAULT_PLATFORM_COUPON = "PILOTO";
 
-/** Valor do primeiro deploy — se a env da Vercel não foi atualizada, ainda é este. */
-const LEGACY_PLATFORM_COUPON = "PODIUM";
+/** Códigos antigos — env da Vercel ou quem ainda digita o cupom velho. */
+const LEGACY_PLATFORM_COUPONS = new Set(["PODIUM", "PILOTOPODIUM"]);
 
 export function normalizePlatformCoupon(raw: string | null | undefined): string {
   const value = (raw ?? "")
@@ -12,7 +12,7 @@ export function normalizePlatformCoupon(raw: string | null | undefined): string 
     .replace(/\p{M}/gu, "")
     .replace(/[\s_-]+/g, "")
     .toUpperCase();
-  if (value === LEGACY_PLATFORM_COUPON) return DEFAULT_PLATFORM_COUPON;
+  if (LEGACY_PLATFORM_COUPONS.has(value)) return DEFAULT_PLATFORM_COUPON;
   return value;
 }
 

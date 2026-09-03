@@ -272,7 +272,7 @@ export async function createCheckout(input: {
     const subscribed = await isPlatformSubscriber(input.email);
     if (!subscribed) {
       throw new BillingError(
-        "Cupom válido só para assinantes Mundo Pódium com o mesmo e-mail do cadastro",
+        "Cupom válido só para assinantes ativos da Plataforma com o mesmo e-mail do cadastro",
         403,
       );
     }
