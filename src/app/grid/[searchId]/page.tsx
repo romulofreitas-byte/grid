@@ -1092,7 +1092,7 @@ export default function GridPage() {
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
             <col className="w-[18rem]" />
-            <col className="w-[4.5rem]" />
+            <col className="w-[10rem]" />
             <col />
             <col className="w-[11.5rem]" />
             <col className="w-[12rem]" />

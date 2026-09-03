@@ -53,7 +53,7 @@ export function PositionBadge({
         P{position}
       </span>
       {!hasAudit ? (
-        <span className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+        <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-podium-muted">
           Score — só cadastro
         </span>
       ) : null}
