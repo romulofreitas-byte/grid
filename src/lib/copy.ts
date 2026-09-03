@@ -141,6 +141,9 @@ export const COPY = {
   continuarLista: "Continuar lista",
   qualificar: "Qualificar",
   qualificarMetaHoje: "Qualificar a meta de hoje",
+  exportCrmIncluso: "No CRM do GRID isso é incluso.",
+  exportNeedsQualify:
+    "Qualifique pelo menos uma empresa para exportar. No CRM do GRID isso é incluso.",
   qualificarMarque:
     "Selecione para ver site, redes e Google — telefone e nome mais confiáveis. 1 crédito cada. A ordem pode mudar depois.",
   qualificarEstaEmpresa: "Qualificar esta empresa",

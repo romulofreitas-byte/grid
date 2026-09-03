@@ -48,7 +48,7 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "25 créditos / mês",
-      "Exportação cara (10 / CNPJ)",
+      "Exportação cara (50 / CNPJ)",
       "Sem qualificação nem CRM",
     ],
   },
@@ -65,7 +65,7 @@ export const PLANS: PlanDefinition[] = [
       "900 créditos / mês",
       "~20 fichas por dia no mês",
       "CRM nativo",
-      "Exportar: 10 créditos / CNPJ",
+      "Exportar: 50 / CNPJ, só qualificado",
     ],
   },
   {
@@ -174,7 +174,7 @@ export function formatBrl(cents: number): string {
   }).format(cents / 100);
 }
 
-export const EXPORT_CREDIT_COST = 10;
+export const EXPORT_CREDIT_COST = 50;
 export const ENRICH_CREDIT_COST = 1;
 
 export function creditsPhrase(n: number): string {

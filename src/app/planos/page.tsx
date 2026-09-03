@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
-import { formatBrl, PACKS, PLANS } from "@/lib/billing/catalog";
+import { formatBrl, EXPORT_CREDIT_COST, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
 import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,10 @@ export default async function PlanosPage({
       <SectionTitle className="mt-8">Planos e créditos</SectionTitle>
       <p className="mt-3 max-w-2xl text-sm text-podium-gray">
         Buscar e ver a lista é grátis. A mensalidade abre o CRM. Crédito paga
-        a ficha que você liga (1); exportar custa 10 por CNPJ. O crédito do
-        plano zera no mês — recarga fica e não substitui a assinatura. Pix é o
-        caminho padrão — cartão e boleto também entram.
+        a ficha que você liga (1); exportar custa {EXPORT_CREDIT_COST} por CNPJ
+        já qualificado. O crédito do plano zera no mês — recarga fica e não
+        substitui a assinatura. Pix é o caminho padrão — cartão e boleto também
+        entram.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

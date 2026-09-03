@@ -1,4 +1,5 @@
 import { largadaNovaHref } from "@/lib/back";
+import { EXPORT_CREDIT_COST } from "@/lib/billing/catalog";
 import { DEFAULT_PLATFORM_COUPON } from "@/lib/billing/platform-coupon";
 
 export const FAQ_CATEGORIES = [
@@ -125,7 +126,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Quando gasta crédito?",
     answer:
-      "Buscar e ver a lista é grátis. Qualificar custa 1 crédito e cai no CRM. Exportar CSV/Excel ou enviar para CRM externo custa 10. Atualizar a qualificação cobra de novo.",
+      `Buscar e ver a lista é grátis. Qualificar custa 1 crédito e cai no CRM. Exportar CSV/Excel ou enviar para CRM externo custa ${EXPORT_CREDIT_COST}, só de quem já foi qualificado. Atualizar a qualificação cobra de novo.`,
     links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
@@ -157,7 +158,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Como exporto a lista?",
     answer:
-      "No Grid, baixe XLSX ou CSV. Cada CNPJ custa 10 créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. Trabalhar no CRM nativo não cobra essa taxa.",
+      `No Grid, baixe XLSX ou CSV — só CNPJs já qualificados. Cada um custa ${EXPORT_CREDIT_COST} créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. No CRM nativo isso é incluso.`,
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {

@@ -700,6 +700,21 @@ export async function debitCredits(
   return syncCache(store, profileId);
 }
 
+export async function filterQualifiedCnpjs(
+  profileId: string,
+  cnpjs: string[],
+): Promise<string[]> {
+  const store = await getBillingStore();
+  const unique = [
+    ...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0"))),
+  ];
+  const qualified: string[] = [];
+  for (const cnpj of unique) {
+    if (await store.isCnpjBilled(profileId, cnpj, "enrich")) qualified.push(cnpj);
+  }
+  return qualified;
+}
+
 export async function debitExport(
   profileId: string,
   cnpjs: string[],
@@ -707,8 +722,9 @@ export async function debitExport(
 ): Promise<{ charged: number; skipped: number; balance: CreditBalance }> {
   const store = await getBillingStore();
   const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")))];
+  const qualified = await filterQualifiedCnpjs(profileId, unique);
   const toCharge: string[] = [];
-  for (const cnpj of unique) {
+  for (const cnpj of qualified) {
     if (!(await store.isCnpjBilled(profileId, cnpj, "export"))) toCharge.push(cnpj);
   }
   const needed = toCharge.length * EXPORT_CREDIT_COST;

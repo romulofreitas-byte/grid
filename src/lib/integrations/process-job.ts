@@ -1,5 +1,10 @@
 import { crmAllowed } from "@/lib/billing/service";
 import { getRepo } from "@/lib/data";
+import {
+  cnpjsFromJobPayload,
+  padCnpj,
+  qualifiedLeadsForExport,
+} from "@/lib/export/qualified";
 import { advanceCrmOnCall } from "@/lib/crm/lead-sync";
 import { toE164 } from "@/lib/format";
 import { normalizePhoneBR } from "@/lib/phone";
@@ -74,7 +79,13 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       if (!job.search_id) throw new Error("search_id required");
       const search = await repo.getSearch(job.search_id);
       if (!search) throw new Error("search not found");
-      const dossiers = await repo.getAllLeadsForExport(job.search_id);
+      const billedCnpjs = cnpjsFromJobPayload(job.payload);
+      const dossiers =
+        billedCnpjs === null
+          ? await qualifiedLeadsForExport(job.user_id, job.search_id, 1000)
+          : (await repo.getAllLeadsForExport(job.search_id)).filter((d) =>
+              billedCnpjs.includes(padCnpj(d.establishment.cnpj)),
+            );
       const origin = appOrigin();
       const leads = dossiers.map((d) =>
         toLeadOutbound(d, {

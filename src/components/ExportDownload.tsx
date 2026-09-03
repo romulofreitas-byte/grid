@@ -14,6 +14,8 @@ export function ExportDownload({
   className,
   wrapperClassName,
   costHint,
+  disabled,
+  disabledHint,
 }: {
   searchId: string;
   format: "xlsx" | "csv" | "pdf";
@@ -21,11 +23,14 @@ export function ExportDownload({
   className?: string;
   wrapperClassName?: string;
   costHint?: string;
+  disabled?: boolean;
+  disabledHint?: string;
 }) {
   const { openPaywall } = usePaywall();
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
+    if (disabled) return;
     setError(null);
     const res = await fetch(`/api/export/${searchId}?format=${format}`);
     if (!res.ok) {
@@ -72,7 +77,8 @@ export function ExportDownload({
         variant="secondary"
         onClick={() => void run()}
         className={className}
-        title={costHint}
+        disabled={disabled}
+        title={disabled ? disabledHint : costHint}
       >
         <Download className="h-3.5 w-3.5" />
         {label}

@@ -60,13 +60,13 @@ describe("catalog", () => {
       "~20 fichas por dia no mês",
     );
     expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
-      "Exportar: 10 créditos / CNPJ",
+      "Exportar: 50 / CNPJ, só qualificado",
     );
   });
 
-  it("charges one credit to qualify and ten to export", () => {
+  it("charges one credit to qualify and fifty to export", () => {
     expect(ENRICH_CREDIT_COST).toBe(1);
-    expect(EXPORT_CREDIT_COST).toBe(10);
+    expect(EXPORT_CREDIT_COST).toBe(50);
     expect(EXPORT_CREDIT_COST).toBeGreaterThan(ENRICH_CREDIT_COST);
     expect(creditsPhrase(1)).toBe("1 crédito");
     expect(creditsPhrase(10)).toBe("10 créditos");

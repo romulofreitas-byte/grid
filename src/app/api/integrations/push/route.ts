@@ -5,6 +5,11 @@ import { debitExport } from "@/lib/billing/service";
 import { insufficientCreditsPayload } from "@/lib/billing/paywall";
 import { InsufficientCreditsError } from "@/lib/billing/types";
 import { getRepo } from "@/lib/data";
+import {
+  EXPORT_NEEDS_QUALIFY,
+  padCnpj,
+  qualifiedLeadsForExport,
+} from "@/lib/export/qualified";
 import { drainIntegrationJobs } from "@/lib/integrations/process-job";
 
 const schema = z.object({
@@ -35,9 +40,9 @@ export async function POST(req: Request) {
     );
   }
 
-  const leads = (await repo.getAllLeadsForExport(search.id)).slice(0, 1000);
+  const leads = await qualifiedLeadsForExport(gated.userId, search.id, 1000);
   if (leads.length === 0) {
-    return NextResponse.json({ error: "Lista vazia" }, { status: 400 });
+    return NextResponse.json({ error: EXPORT_NEEDS_QUALIFY }, { status: 400 });
   }
 
   let billed: { charged: number; skipped: number };
@@ -63,7 +68,11 @@ export async function POST(req: Request) {
     search_id: search.id,
     verb: "push_list",
     provider: connection.provider,
-    payload: { charged: billed.charged, skipped: billed.skipped },
+    payload: {
+      charged: billed.charged,
+      skipped: billed.skipped,
+      cnpjs: leads.map((l) => padCnpj(l.establishment.cnpj)),
+    },
   });
   void drainIntegrationJobs(4);
   return NextResponse.json({

@@ -604,6 +604,7 @@ export default function GridPage() {
 
   const total = query.data?.pages[0]?.total ?? 0;
   const unaudited = query.data?.pages[0]?.unaudited ?? 0;
+  const canExport = total > 0 && unaudited < total;
 
   const visibleUnaudited = useMemo(
     () => rows.filter((r) => !r.hasAudit && !isRowQualifying(r, pendingCnpjs)),
@@ -904,12 +905,18 @@ export default function GridPage() {
                 <Button
                   size="sm"
                   variant="primary"
-                  disabled={pushMutation.isPending || rows.length === 0}
+                  disabled={
+                    pushMutation.isPending || rows.length === 0 || !canExport
+                  }
                   onClick={() =>
                     pushMutation.mutate(connectionId || destinations[0]!.id)
                   }
                   className="gap-1.5"
-                  title={`${EXPORT_CREDIT_COST} créditos / CNPJ`}
+                  title={
+                    canExport
+                      ? `${EXPORT_CREDIT_COST} créditos / CNPJ`
+                      : COPY.exportNeedsQualify
+                  }
                 >
                   <Send className="h-3.5 w-3.5" />
                   Enviar
@@ -932,10 +939,19 @@ export default function GridPage() {
               searchId={searchId}
               format={fmt}
               label={fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}
-              costHint={`${EXPORT_CREDIT_COST} / CNPJ`}
+              costHint={`${EXPORT_CREDIT_COST} créditos / CNPJ`}
+              className={
+                fmt === "xlsx" ? "font-semibold text-podium-yellow" : undefined
+              }
+              disabled={!canExport}
+              disabledHint={COPY.exportNeedsQualify}
             />
           ))}
         </div>
+        <p className="text-[11px] text-podium-muted">
+          Exportar: {EXPORT_CREDIT_COST} créditos / CNPJ, só quem já foi
+          qualificado. {COPY.exportCrmIncluso}
+        </p>
       </div>
       {creditHint ? (
         <p className="mb-4 text-sm text-podium-yellow">{creditHint}</p>

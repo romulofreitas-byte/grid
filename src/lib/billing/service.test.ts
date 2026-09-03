@@ -8,6 +8,7 @@ import {
   debitCredits,
   debitEnrich,
   debitExport,
+  filterQualifiedCnpjs,
   getBalance,
   getBillingMe,
   handleNormalizedEvent,
@@ -97,11 +98,12 @@ describe("billing service", () => {
       sku: "piloto",
       method: "card_br",
     });
+    await debitEnrich(profileId, ["12345678000190"], "search-1");
     const first = await debitExport(profileId, ["12345678000190"], "search-1");
     expect(first.charged).toBe(1);
     const second = await debitExport(profileId, ["12345678000190"], "search-1");
     expect(second.charged).toBe(0);
-    expect(second.balance.total).toBe(890);
+    expect(second.balance.total).toBe(849);
   });
 
   it("shares export billing between CSV and list push", async () => {
@@ -112,12 +114,47 @@ describe("billing service", () => {
       sku: "piloto",
       method: "card_br",
     });
+    await debitEnrich(
+      profileId,
+      ["12345678000190", "98765432000100"],
+      "search-csv",
+    );
     const csv = await debitExport(profileId, ["12345678000190", "98765432000100"], "search-csv");
     expect(csv.charged).toBe(2);
     const push = await debitExport(profileId, ["12345678000190", "98765432000100"], "search-push");
     expect(push.charged).toBe(0);
     expect(push.skipped).toBe(2);
-    expect(push.balance.total).toBe(880);
+    expect(push.balance.total).toBe(798);
+  });
+
+  it("does not bill export for CNPJs that were never qualified", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const out = await debitExport(profileId, ["12345678000190"], "search-1");
+    expect(out.charged).toBe(0);
+    expect(out.skipped).toBe(1);
+    expect(out.balance.total).toBe(900);
+  });
+
+  it("lists only CNPJs already billed for enrich", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    await debitEnrich(profileId, ["12345678000190"], "s1");
+    const qualified = await filterQualifiedCnpjs(profileId, [
+      "12345678000190",
+      "98765432000100",
+    ]);
+    expect(qualified).toEqual(["12345678000190"]);
   });
 
   it("blocks enrichment on free", async () => {
