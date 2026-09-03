@@ -165,5 +165,7 @@ describe("COPY empresas", () => {
     expect(COPY.empresasPlaceholder.toLowerCase()).toMatch(/cnpj/);
     expect(COPY.empresasPlaceholder).not.toMatch(/00\.000/);
     expect(COPY.empresasMinChars.toLowerCase()).toMatch(/cnpj/);
+    expect(COPY.empresasListaCta).toMatch(/\{nicho\}/);
+    expect(COPY.empresasListaHint.toLowerCase()).toMatch(/atividade/);
   });
 });

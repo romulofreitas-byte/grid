@@ -9,6 +9,14 @@ export const BACK = {
 
 export const largadaNovaHref = "/largada?nova=1";
 
+/** New list prefilled with a commercial activity (from Empresas keyword). */
+export function largadaIntentHref(intent: string, opts?: { uf?: string }) {
+  const params = new URLSearchParams({ nova: "1", intent: intent.trim() });
+  const uf = opts?.uf?.trim().toUpperCase() ?? "";
+  if (/^[A-Z]{2}$/.test(uf)) params.set("uf", uf);
+  return `/largada?${params}`;
+}
+
 export type ConexoesKind = "crm" | "dialer" | "voip" | "webhook";
 
 export function conexoesHref(kind?: ConexoesKind) {

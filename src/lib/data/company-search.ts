@@ -35,29 +35,46 @@ const ACCENT_FROM =
 const ACCENT_TO =
   "aaaaaaeeeeiiiiooooouuuuyycnAAAAAAEEEEIIIIOOOOOUUUUYCN";
 
+/** Legal form tokens — "Vale S.A." must search as "Vale", not "Vale SA". */
+const COMPANY_LEGAL_STOPWORDS = new Set([
+  "sa",
+  "ltda",
+  "me",
+  "epp",
+  "eireli",
+  "slu",
+]);
+
+function splitNameTokens(q: string): string[] {
+  return q
+    .trim()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length >= 2);
+}
+
+function dropLegalStopwords(tokens: string[]): string[] {
+  const kept = tokens.filter(
+    (t) => !COMPANY_LEGAL_STOPWORDS.has(t.toLowerCase()),
+  );
+  return kept.length ? kept : tokens;
+}
+
 /** Fold accents in a SQL text expression (no unaccent extension). */
 export function sqlFoldAccent(expr: string): string {
   return `translate(lower(${expr}), '${ACCENT_FROM}', '${ACCENT_TO}')`;
 }
 
 export function companyNameTokens(q: string): string[] {
-  return q
+  const folded = q
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ""))
-    .filter((t) => t.length >= 2);
+    .toLowerCase();
+  return dropLegalStopwords(splitNameTokens(folded));
 }
 
 /** Tokens for GIN ILIKE — keep the user's accents so `clínica` still hits. */
 export function companyIlikeTokens(q: string): string[] {
-  return q
-    .trim()
-    .split(/\s+/)
-    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ""))
-    .filter((t) => t.length >= 2);
+  return dropLegalStopwords(splitNameTokens(q));
 }
 
 /** Format examples shown on /empresas — not a real CNPJ. */
@@ -85,6 +102,36 @@ export function companyIlikePrefixPattern(q: string): string | null {
   const tokens = companyIlikeTokens(q);
   if (!tokens.length) return null;
   return `${escapeIlike(tokens.join(" "))}%`;
+}
+
+/**
+ * True when `name` starts with the query as a whole word ("Vale S.A." → vale),
+ * not as a stem of another word ("Valente").
+ */
+export function companyNameHasTokenPrefix(
+  name: string,
+  q: string,
+): boolean {
+  const phrase = companyNameTokens(q).join(" ");
+  if (!phrase) return false;
+  const n = companyNameTokens(name).join(" ");
+  if (n === phrase) return true;
+  if (!n.startsWith(phrase)) return false;
+  const next = n[phrase.length];
+  return next === undefined || next === " ";
+}
+
+/** Postgres regex: query is a word prefix, not Valente-from-Vale. */
+export function companyPrefixWordRegex(
+  q: string,
+  folded = false,
+): string | null {
+  const tokens = folded ? companyNameTokens(q) : companyIlikeTokens(q);
+  if (!tokens.length) return null;
+  const escaped = tokens
+    .join(" ")
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return `^${escaped}([^[:alpha:]]|$)`;
 }
 
 export function mergeCompanyNameWaves<T extends { cnpj: string }>(

@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Flag, Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
-import { gridHref } from "@/lib/back";
+import { gridHref, largadaIntentHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
+import { matchActivitySuggestion } from "@/lib/activity-suggestion";
 import {
   canSearchCompanies,
   isFullCnpjQuery,
@@ -152,6 +153,13 @@ export default function EmpresasPage() {
   });
 
   const hits = ready ? (query.data ?? []) : [];
+  const activity = useMemo(
+    () => (ready ? matchActivitySuggestion(q) : null),
+    [ready, q],
+  );
+  const listaHref = activity
+    ? largadaIntentHref(activity.query, { uf: ufs.length === 1 ? ufs[0] : undefined })
+    : null;
 
   async function saveToPista(hit: { cnpj: string }) {
     setSaveError(null);
@@ -273,6 +281,19 @@ export default function EmpresasPage() {
             );
           })}
         </div>
+      ) : null}
+
+      {listaHref && activity ? (
+        <GlassCard className="mt-6 p-4">
+          <Link href={listaHref} className="block">
+            <p className="text-sm font-bold text-podium-yellow">
+              {COPY.empresasListaCta.replace("{nicho}", activity.nome)}
+            </p>
+            <p className="mt-1 text-xs text-podium-muted">
+              {COPY.empresasListaHint}
+            </p>
+          </Link>
+        </GlassCard>
       ) : null}
 
       {query.isFetching && hits.length === 0 ? (

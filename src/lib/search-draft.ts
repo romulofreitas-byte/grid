@@ -49,9 +49,11 @@ export function resolveLargadaSource(input: {
   nova: boolean;
   fromSearch: string | null | undefined;
   hasDraft: boolean;
+  intent?: string | null;
 }): LargadaSource {
   if (input.nova) return "nova";
   if (input.fromSearch) return "fromSearch";
+  if ((input.intent ?? "").trim().length >= 2) return "nova";
   if (input.hasDraft) return "draft";
   return "empty";
 }

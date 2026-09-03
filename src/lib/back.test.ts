@@ -5,6 +5,7 @@ import {
   crmHref,
   gridBack,
   largadaEditHref,
+  largadaIntentHref,
   largadaNovaHref,
   leadBack,
   leadHrefForCnpj,
@@ -13,6 +14,12 @@ import {
 describe("largada hrefs", () => {
   it("builds nova and edit URLs", () => {
     expect(largadaNovaHref).toBe("/largada?nova=1");
+    expect(largadaIntentHref("madeireira")).toBe(
+      "/largada?nova=1&intent=madeireira",
+    );
+    expect(largadaIntentHref("mineração", { uf: "rj" })).toBe(
+      "/largada?nova=1&intent=minera%C3%A7%C3%A3o&uf=RJ",
+    );
     expect(largadaEditHref("abc", "listas")).toBe(
       "/largada?fromSearch=abc&from=listas",
     );

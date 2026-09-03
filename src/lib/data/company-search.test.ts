@@ -7,8 +7,10 @@ import {
   COMPANY_PREFIX_ENOUGH,
   companyIlikePrefixPattern,
   companyIlikeTokens,
+  companyNameHasTokenPrefix,
   companyNameMatchesFields,
   companyNameTokens,
+  companyPrefixWordRegex,
   companySearchDigits,
   escapeIlike,
   isCompanyCnpjQuery,
@@ -45,6 +47,19 @@ describe("company search helpers", () => {
       "grande",
     ]);
     expect(companyNameTokens("A B CD")).toEqual(["cd"]);
+  });
+
+  it("drops legal suffixes so Vale S.A. matches VALE S.A.", () => {
+    expect(companyIlikeTokens("Vale S.A.")).toEqual(["Vale"]);
+    expect(companyIlikeTokens("Vale SA")).toEqual(["Vale"]);
+    expect(companyIlikePrefixPattern("Vale S.A.")).toBe("Vale%");
+    expect(companyNameTokens("VALE S.A.")).toEqual(["vale"]);
+    expect(
+      companyNameMatchesFields("Vale S.A.", "VALE S.A.", null),
+    ).toBe(true);
+    expect(
+      companyNameMatchesFields("Vale SA", "VALE S.A.", "VALE"),
+    ).toBe(true);
   });
 
   it("keeps accents on ILIKE tokens and skips the contain wave after a prefix hit", () => {
@@ -105,6 +120,10 @@ describe("company search helpers", () => {
   it("builds a prefix pattern from name tokens", () => {
     expect(companyIlikePrefixPattern("produtos marina")).toBe("produtos marina%");
     expect(companyIlikePrefixPattern("a b")).toBeNull();
+    expect(companyPrefixWordRegex("Vale S.A.")).toBe("^Vale([^[:alpha:]]|$)");
+    expect(companyNameHasTokenPrefix("VALE S.A.", "Vale S.A.")).toBe(true);
+    expect(companyNameHasTokenPrefix("VALENTE STUDIO", "Vale S.A.")).toBe(false);
+    expect(companyNameHasTokenPrefix("VALE DO AGRESTE", "Vale")).toBe(true);
   });
 
   it("keeps CNPJ format examples consistent with digit counts", () => {

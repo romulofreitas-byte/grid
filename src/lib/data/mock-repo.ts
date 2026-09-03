@@ -28,6 +28,7 @@ import { computeDorDigital, computeGridScore } from "@/lib/scoring";
 import {
   canSearchCompanies,
   COMPANY_SEARCH_LIMIT,
+  companyNameHasTokenPrefix,
   companyNameMatchesFields,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
@@ -672,7 +673,6 @@ export const mockRepo: GridRepo = {
     const ufs = opts?.ufs ?? [];
     const soMatriz = Boolean(opts?.soMatriz);
     const digits = q.replace(/\D/g, "");
-    const nq = normalizeText(q);
     const cnpjQuery = isCompanyCnpjQuery(q);
     const ranked: Array<CompanySearchHit & { prefix: boolean; matriz: boolean }> =
       [];
@@ -681,12 +681,12 @@ export const mockRepo: GridRepo = {
       if (soMatriz && !est.is_matriz) continue;
       const company = idx.companyByBasico.get(est.cnpj_basico);
       if (!company) continue;
-      const razao = normalizeText(company.razao_social);
-      const fantasia = normalizeText(est.nome_fantasia ?? "");
       const byCnpj =
         cnpjQuery &&
         (est.cnpj.includes(digits) || est.cnpj_basico.includes(digits));
-      const prefix = razao.startsWith(nq) || fantasia.startsWith(nq);
+      const prefix =
+        companyNameHasTokenPrefix(company.razao_social, q) ||
+        companyNameHasTokenPrefix(est.nome_fantasia ?? "", q);
       const byName =
         !cnpjQuery &&
         companyNameMatchesFields(q, company.razao_social, est.nome_fantasia);

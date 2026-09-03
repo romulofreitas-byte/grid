@@ -330,6 +330,8 @@ function LargadaWizard() {
   const novaParam = searchParams.get("nova") === "1";
   const fromSearchParam = searchParams.get("fromSearch");
   const fromParam = parseGridFrom(searchParams.get("from"));
+  const intentParam = (searchParams.get("intent") ?? "").trim();
+  const ufParam = (searchParams.get("uf") ?? "").trim().toUpperCase();
 
   const [step, setStep] = useState(1);
   const [filters, setFilters] = useState<SearchFilters>({ ...DEFAULT_FILTERS });
@@ -363,15 +365,26 @@ function LargadaWizard() {
         nova: novaParam,
         fromSearch: fromSearchParam,
         hasDraft: draftHasWork(readDraft()),
+        intent: intentParam,
       });
 
       if (source === "nova") {
         clearDraft();
         if (!cancelled) {
+          if (intentParam.length >= 2) {
+            setFilters(
+              mergeFilters({
+                intentQuery: intentParam,
+                ufs: /^[A-Z]{2}$/.test(ufParam) ? [ufParam] : [],
+              }),
+            );
+            setIntentDraft(intentParam);
+            setShowCnaePanel(true);
+          }
           setMode("nova");
           setHydrated(true);
         }
-        if (novaParam) router.replace("/largada");
+        if (novaParam || intentParam) router.replace("/largada");
         return;
       }
 
@@ -428,7 +441,7 @@ function LargadaWizard() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, novaParam, fromSearchParam, router]);
+  }, [hydrated, novaParam, fromSearchParam, intentParam, ufParam, router]);
 
   useEffect(() => {
     if (step !== 3) setVolumeExpanded(false);

@@ -48,14 +48,26 @@ describe("resolveLargadaSource", () => {
     ).toBe("nova");
   });
 
-  it("prefers fromSearch over draft", () => {
+  it("prefers fromSearch over an activity intent", () => {
     expect(
       resolveLargadaSource({
         nova: false,
         fromSearch: "abc",
         hasDraft: true,
+        intent: "madeireira",
       }),
     ).toBe("fromSearch");
+  });
+
+  it("starts a new list when an activity intent is in the URL", () => {
+    expect(
+      resolveLargadaSource({
+        nova: false,
+        fromSearch: null,
+        hasDraft: true,
+        intent: "madeireira",
+      }),
+    ).toBe("nova");
   });
 
   it("uses draft when there is no query", () => {
