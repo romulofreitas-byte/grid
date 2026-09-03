@@ -1,5 +1,6 @@
 import type { MarketPack } from "@/lib/market/packs";
 import { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
+import { gmbListingThin } from "@/lib/types";
 import type { DigitalSignalId, LeadEnrichment } from "@/lib/types";
 
 export { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
@@ -17,6 +18,8 @@ export const PONTE_CHIP: Record<DigitalSignalId, string> = {
   "site-fora": "Site fora",
   "sem-mensuracao": "Sem medição",
   "copyright-antigo": "Site parado",
+  "sem-gmb": "Sem Google",
+  "gmb-incompleto": "Card incompleto",
   "sem-instagram": "Sem Instagram",
   "sem-whatsapp": "Sem WhatsApp",
   "midia-paga": "Sinal de anúncio",
@@ -60,22 +63,39 @@ export const CONTEXT_RULES: ContextRule[] = [
     fonte: () => "rodapé do site",
   },
   {
-    id: "sem-instagram",
+    id: "sem-gmb",
     priority: 6,
+    when: (e) => Boolean(e.gmb) && !e.gmb?.matched,
+    phrase: () => "não achei a ficha de vocês no Google Meu Negócio",
+    fonte: () => "Google Meu Negócio",
+  },
+  {
+    id: "gmb-incompleto",
+    priority: 5,
+    when: (e) => gmbListingThin(e.gmb),
+    phrase: (e) => {
+      const score = e.gmb?.card?.score ?? 0;
+      return `o card no Google está incompleto (${score}/5)`;
+    },
+    fonte: () => "card do Google Meu Negócio",
+  },
+  {
+    id: "sem-instagram",
+    priority: 4,
     when: (e) => e.domain_status === "confirmado" && !e.socials.instagram,
     phrase: () => "vocês não têm o Instagram linkado no site",
     fonte: () => "links do site",
   },
   {
     id: "sem-whatsapp",
-    priority: 5,
+    priority: 3,
     when: (e) => e.domain_status === "confirmado" && !e.whatsapp,
     phrase: () => "não achei um canal de WhatsApp no site de vocês",
     fonte: () => "HTML do site",
   },
   {
     id: "midia-paga",
-    priority: 4,
+    priority: 2,
     when: (e) =>
       e.domain_status === "confirmado" &&
       (e.tech.metaPixel || e.tech.googleAds),

@@ -1,3 +1,4 @@
+import { COPY } from "@/lib/copy";
 import { formatPhone } from "@/lib/format";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { mapsListingHref } from "@/lib/enrichment/company-name";
@@ -6,8 +7,13 @@ import {
   companySiteLabel,
   homepagePathOf,
 } from "@/lib/enrichment/company-site";
-import type { LeadEnrichment } from "@/lib/types";
-import { gmbListingCorroborated } from "@/lib/types";
+import {
+  GMB_CARD_CHECKS,
+  gmbListingCorroborated,
+  type GmbCardCheck,
+  type GmbListing,
+  type LeadEnrichment,
+} from "@/lib/types";
 
 export type AuditGroup = "presenca" | "ferramentas";
 
@@ -26,6 +32,9 @@ export type AuditSignal = {
   hint: string;
   note?: string;
   links: Array<{ label: string; href: string }>;
+  /** Compact seal on the tile (GMB completeness). */
+  sealLabel?: string;
+  sealKind?: "live" | "unverified";
 };
 
 export const AUDIT_GROUPS: Array<{
@@ -286,6 +295,65 @@ function instagramValue(raw: string | undefined): string {
   if (!raw) return "NÃO ENCONTRADO";
   const handle = parseInstagramHandle(raw);
   return handle ? `@${handle}` : raw;
+}
+
+const GMB_CARD_LABEL: Record<GmbCardCheck, string> = {
+  phone: "telefone",
+  website: "site",
+  hours: "horário",
+  photo: "foto",
+  reviews: "avaliações",
+};
+
+function joinPt(items: string[]): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} e ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+}
+
+function formatGmbRating(
+  rating: number | null | undefined,
+  count: number | null | undefined,
+): string | null {
+  const stars =
+    rating != null
+      ? `${String(rating).replace(".", ",")} ★`
+      : null;
+  if (count != null && count > 0) {
+    const n = count.toLocaleString("pt-BR");
+    const word = count === 1 ? "avaliação" : "avaliações";
+    return stars ? `${stars} (${n} ${word})` : `${n} ${word}`;
+  }
+  return stars;
+}
+
+function gmbCardNote(listing: GmbListing | null | undefined): string | undefined {
+  if (!listing?.matched || !listing.card) return undefined;
+  const card = listing.card;
+  const ratingBit = formatGmbRating(card.rating, card.ratingCount);
+  if (card.score >= 5) {
+    return ratingBit ? `Card completo · ${ratingBit}` : "Card completo.";
+  }
+  const missing = GMB_CARD_CHECKS.filter(
+    (check) => !card.filled.includes(check),
+  ).map((check) => GMB_CARD_LABEL[check]);
+  const lack = missing.length ? `Falta ${joinPt(missing)}.` : "";
+  return [`Card ${card.score}/5`, ratingBit, lack].filter(Boolean).join(" · ");
+}
+
+function gmbSeal(listing: GmbListing | null | undefined): {
+  sealLabel?: string;
+  sealKind?: "live" | "unverified";
+} {
+  if (!listing?.matched || !listing.card) return {};
+  if (listing.card.score >= 5) {
+    return { sealLabel: COPY.fichaSealGmbComplete, sealKind: "live" };
+  }
+  if (listing.card.score >= 3) {
+    return { sealLabel: COPY.fichaSealGmbPartial, sealKind: "unverified" };
+  }
+  return { sealLabel: COPY.fichaSealGmbThin, sealKind: "unverified" };
 }
 
 function presenceSearched(e: LeadEnrichment, key: string): boolean {
@@ -701,6 +769,8 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
             ? "Você removeu a ficha desta qualificação."
             : "Busca no Google Meu Negócio não achou a ficha."
           : "Qualifique para buscar o Google Meu Negócio.",
+      note: gmbCardNote(e.gmb),
+      ...gmbSeal(e.gmb),
     }),
     signal({
       id: "whatsapp",

@@ -136,6 +136,12 @@ function assetSeal(
   }
   const tools = signal.group === "ferramentas";
   if (isAuditLive(signal)) {
+    if (signal.sealLabel) {
+      return {
+        text: signal.sealLabel,
+        kind: signal.sealKind ?? "live",
+      };
+    }
     if (tools) return { text: COPY.fichaSealToolLive, kind: "live" };
     if (signal.id === "site") return { text: COPY.fichaSealLiveSite, kind: "live" };
     if (signal.id === "gmb" || signal.id === "atualizacao") {
@@ -358,7 +364,7 @@ function SelectedSignalCard({
               Site fora do ar
             </p>
           ) : null}
-          {signal.id === "atualizacao" && signal.hint ? (
+          {signal.hint ? (
             <p className="mt-2 text-xs leading-snug text-podium-muted">
               {signal.hint}
             </p>

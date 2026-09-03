@@ -21,8 +21,9 @@ export default function TermosPage() {
         </p>
         <p>
           Exportações (XLSX/CSV/PDF) destinam-se ao CRM e ao uso operacional do
-          assinante. Google Maps / Places API não são utilizados para armazenar
-          ou extrair dados.
+          assinante. Google Maps / Places API não são utilizados. O GRID não
+          grava texto de avaliação nem coordenadas; nota média e quantidade de
+          avaliações do card público entram na qualificação.
         </p>
         <p>
           Pagamentos de planos e créditos são processados por{" "}

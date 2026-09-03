@@ -7,7 +7,8 @@ import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { mapsCidUrl, searchableCompanyName } from "@/lib/enrichment/company-name";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { phonesMatch } from "@/lib/phone";
-import type { GmbListing, GmbMatchBy } from "@/lib/types";
+import type { GmbCard, GmbCardCheck, GmbListing, GmbMatchBy } from "@/lib/types";
+import { GMB_CARD_CHECKS } from "@/lib/types";
 
 export type OrganicHit = {
   link: string;
@@ -24,6 +25,11 @@ export type MapsPlace = {
   website?: string;
   link?: string;
   cid?: string;
+  rating?: number;
+  ratingCount?: number;
+  category?: string;
+  openingHours?: unknown;
+  thumbnailUrl?: string;
 };
 
 export type GmbSearchInput = {
@@ -38,8 +44,10 @@ export type GmbSearchInput = {
 
 export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
 
-/** Minimum distinctive-token hits in title/snippet to accept a domain candidate. */
+/** Minimum distinctive-token hits in title/snippet/host to accept a domain candidate. */
 export const DOMAIN_SCORE_MIN = 1;
+/** Organic window — school/CNPJ directories often occupy the first handful. */
+export const SERPER_ORGANIC_NUM = 10;
 
 const SOCIAL_HOST: Record<SocialPlatform, string> = {
   instagram: "instagram.com",
@@ -171,14 +179,19 @@ export function pickBestMapsPlace(
   return best;
 }
 
-export function gmbSearchQuery(input: GmbSearchInput): string {
+export function gmbSearchQuery(
+  input: GmbSearchInput,
+  opts?: { quoted?: boolean },
+): string {
   const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+  const quoted = opts?.quoted !== false;
+  const namePart = name ? (quoted ? `"${name}"` : name) : "";
   const street = [input.logradouro, input.numero]
     .map((part) => part?.trim())
     .filter(Boolean)
     .join(", ");
   const place = [input.municipio, input.uf].filter(Boolean).join(" ");
-  return [`"${name}"`, street, place].filter(Boolean).join(" ").trim();
+  return [namePart, street, place].filter(Boolean).join(" ").trim();
 }
 
 function pushHit(
@@ -350,6 +363,34 @@ export function titleMatchesCompany(
   return hits.length >= Math.min(2, tokens.length) && hits.length >= 2;
 }
 
+export function hostBrandTokenHits(
+  link: string,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): number {
+  const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
+  if (strong.length === 0) return 0;
+  let host = "";
+  try {
+    host = new URL(withHttp(link)).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return 0;
+  }
+  const label = stripAccents(host.split(".")[0] ?? "").replace(/[^a-z0-9]/g, "");
+  if (label.length < 4) return 0;
+  return strong.filter((t) => t.length >= 4 && label.includes(t)).length;
+}
+
+function homepageBonus(link: string): number {
+  try {
+    const path = new URL(withHttp(link)).pathname.replace(/\/+$/, "") || "/";
+    return path === "/" ? 1 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function scoreDomainHit(
   hit: OrganicHit,
   razaoSocial: string,
@@ -359,12 +400,23 @@ export function scoreDomainHit(
   const blob = `${hit.title} ${hit.snippet ?? ""}`;
   const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
   const hay = stripAccents(blob);
+  let textScore = 0;
   if (strong.length > 0) {
-    return strong.filter((t) => hay.includes(t)).length;
+    textScore = strong.filter((t) => hay.includes(t)).length;
+  } else {
+    // Weak-only brands: require ≥2 distinctive tokens to propose a domain.
+    const hits = brandTokenHits(blob, razaoSocial, nomeFantasia, municipio);
+    textScore = hits >= 2 ? hits : 0;
   }
-  // Weak-only brands: require ≥2 distinctive tokens to propose a domain.
-  const hits = brandTokenHits(blob, razaoSocial, nomeFantasia, municipio);
-  return hits >= 2 ? hits : 0;
+  const hostScore = hostBrandTokenHits(
+    hit.link,
+    razaoSocial,
+    nomeFantasia,
+    municipio,
+  );
+  if (textScore + hostScore === 0) return 0;
+  const kgBonus = hit.via === "kg" ? 2 : 0;
+  return textScore + hostScore * 2 + kgBonus + homepageBonus(hit.link);
 }
 
 /**
@@ -453,7 +505,7 @@ export function hitsFromSerperJson(json: {
 
 export async function serperOrganic(
   query: string,
-  num = 5,
+  num = SERPER_ORGANIC_NUM,
 ): Promise<OrganicHit[]> {
   const key = serperKey();
   if (!key) return [];
@@ -497,28 +549,130 @@ export async function serperMaps(query: string): Promise<MapsPlace[]> {
     return [];
   }
   const json = (await res.json()) as {
-    places?: Array<{
-      title?: string;
-      address?: string;
-      phoneNumber?: string;
-      website?: string;
-      link?: string;
-      cid?: string;
-    }>;
+    places?: Array<Record<string, unknown>>;
   };
   const places: MapsPlace[] = [];
   for (const place of json.places ?? []) {
-    if (!place?.title) continue;
-    places.push({
-      title: place.title,
-      address: place.address,
-      phoneNumber: place.phoneNumber,
-      website: place.website,
-      link: place.link,
-      cid: place.cid,
-    });
+    const parsed = mapsPlaceFromSerper(place);
+    if (parsed) places.push(parsed);
   }
   return places;
+}
+
+function asTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value.replace(",", "."));
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function firstPhotoUrl(value: unknown): string | undefined {
+  const direct = asTrimmedString(value);
+  if (direct) return direct;
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  const first = value[0];
+  if (typeof first === "string") return asTrimmedString(first);
+  if (first && typeof first === "object") {
+    const rec = first as Record<string, unknown>;
+    return (
+      asTrimmedString(rec.thumbnailUrl) ||
+      asTrimmedString(rec.imageUrl) ||
+      asTrimmedString(rec.url)
+    );
+  }
+  return undefined;
+}
+
+function mapsPlaceFromSerper(
+  place: Record<string, unknown>,
+): MapsPlace | null {
+  const title = asTrimmedString(place.title);
+  if (!title) return null;
+  const category =
+    asTrimmedString(place.category) ||
+    asTrimmedString(place.type) ||
+    (Array.isArray(place.types)
+      ? asTrimmedString(place.types[0])
+      : undefined);
+  return {
+    title,
+    address: asTrimmedString(place.address),
+    phoneNumber: asTrimmedString(place.phoneNumber),
+    website: asTrimmedString(place.website),
+    link: asTrimmedString(place.link),
+    cid:
+      asTrimmedString(place.cid) ??
+      (typeof place.cid === "number" && Number.isFinite(place.cid)
+        ? String(place.cid)
+        : undefined),
+    rating: asFiniteNumber(place.rating),
+    ratingCount: asFiniteNumber(
+      place.ratingCount ?? place.reviews ?? place.reviewCount,
+    ),
+    category,
+    openingHours: place.openingHours ?? place.hours ?? place.opening_hours,
+    thumbnailUrl:
+      firstPhotoUrl(place.thumbnailUrl) ||
+      firstPhotoUrl(place.thumbnail) ||
+      firstPhotoUrl(place.imageUrl) ||
+      firstPhotoUrl(place.photos),
+  };
+}
+
+function mapsWebsiteOnCard(website: string | undefined): boolean {
+  if (!website?.trim()) return false;
+  try {
+    const host = new URL(withHttp(website)).hostname.toLowerCase();
+    if (host.includes("google.com") || host.includes("maps.google")) {
+      return false;
+    }
+    return !isDirectoryUrl(website);
+  } catch {
+    return false;
+  }
+}
+
+function mapsHoursOnCard(value: unknown): boolean {
+  if (value == null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) {
+    return value.some((item) => mapsHoursOnCard(item));
+  }
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some((item) =>
+      mapsHoursOnCard(item),
+    );
+  }
+  return false;
+}
+
+/** Checklist of the public Maps card. Does not store address, hours text, or reviews. */
+export function gmbCardFromPlace(place: MapsPlace): GmbCard {
+  const filled: GmbCardCheck[] = [];
+  if (place.phoneNumber?.trim()) filled.push("phone");
+  if (mapsWebsiteOnCard(place.website)) filled.push("website");
+  if (mapsHoursOnCard(place.openingHours)) filled.push("hours");
+  if (place.thumbnailUrl?.trim()) filled.push("photo");
+  const rating = asFiniteNumber(place.rating) ?? null;
+  const ratingCount = asFiniteNumber(place.ratingCount) ?? null;
+  if ((ratingCount != null && ratingCount > 0) || (rating != null && rating > 0)) {
+    filled.push("reviews");
+  }
+  return {
+    filled: GMB_CARD_CHECKS.filter((check) => filled.includes(check)),
+    score: filled.length,
+    rating,
+    ratingCount,
+    category: place.category?.trim() || null,
+  };
 }
 
 /** Only accept a social hit when title/handle correlates with a strong brand token. */
@@ -644,9 +798,16 @@ export async function searchSocialProfile(input: {
 }
 
 export async function searchGmb(input: GmbSearchInput): Promise<GmbListing | null> {
-  const q = gmbSearchQuery(input);
-  const places = await serperMaps(q);
-  const best = pickBestMapsPlace(places, input);
+  const quoted = gmbSearchQuery(input);
+  let places = await serperMaps(quoted);
+  let best = pickBestMapsPlace(places, input);
+  if (!best) {
+    const loose = gmbSearchQuery(input, { quoted: false });
+    if (loose && loose !== quoted) {
+      places = await serperMaps(loose);
+      best = pickBestMapsPlace(places, input);
+    }
+  }
   if (!best) return { name: "", url: "", matched: false };
   return {
     name: best.place.title,
@@ -654,6 +815,7 @@ export async function searchGmb(input: GmbSearchInput): Promise<GmbListing | nul
     matched: true,
     match_by: best.match_by,
     cid: best.place.cid ?? null,
+    card: gmbCardFromPlace(best.place),
   };
 }
 

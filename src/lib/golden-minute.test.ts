@@ -99,4 +99,45 @@ describe("buildGoldenMinute", () => {
     expect(r.facts.some((f) => f.phrase.includes("calçada"))).toBe(true);
     expect(r.contexto).not.toMatch(/ferramenta de mensuração/i);
   });
+
+  it("treats a missing or thin Google card as a talking point", () => {
+    expect(
+      buildGoldenMinute(enrichment({})).facts.some((f) => f.id === "sem-gmb"),
+    ).toBe(false);
+
+    const withSite = buildGoldenMinute(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        tech: emptyTech,
+        gmb: { name: "", url: "", matched: false },
+      }),
+    );
+    expect(withSite.facts.some((f) => f.id === "sem-gmb")).toBe(true);
+
+    const thin = buildGoldenMinute(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        tech: { ...emptyTech, metaPixel: true, gtm: true },
+        socials: { instagram: "https://instagram.com/exemplo" },
+        whatsapp: "5511999999999",
+        gmb: {
+          name: "Exemplo",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          card: {
+            filled: ["phone"],
+            score: 1,
+            rating: null,
+            ratingCount: 0,
+            category: null,
+          },
+        },
+      }),
+    );
+    expect(thin.facts.some((f) => f.id === "gmb-incompleto")).toBe(true);
+  });
 });

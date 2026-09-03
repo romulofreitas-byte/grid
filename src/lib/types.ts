@@ -39,6 +39,26 @@ export type EnrichmentStage =
 
 export type GmbMatchBy = "title" | "address" | "phone";
 
+/** Public Maps-card fields we can audit without storing address/review text. */
+export const GMB_CARD_CHECKS = [
+  "phone",
+  "website",
+  "hours",
+  "photo",
+  "reviews",
+] as const;
+
+export type GmbCardCheck = (typeof GMB_CARD_CHECKS)[number];
+
+export type GmbCard = {
+  filled: GmbCardCheck[];
+  /** 0–5 checks present on the public card. */
+  score: number;
+  rating?: number | null;
+  ratingCount?: number | null;
+  category?: string | null;
+};
+
 export type GmbListing = {
   name: string;
   url: string;
@@ -47,6 +67,8 @@ export type GmbListing = {
   match_by?: GmbMatchBy[];
   /** Google cid — deep-link to the listing, not a nearby search. */
   cid?: string | null;
+  /** Completeness of the public card. Absent on human insert / legacy rows. */
+  card?: GmbCard | null;
 };
 
 /** Phone, or address together with a brand title — never address-only. */
@@ -57,6 +79,14 @@ export function gmbListingCorroborated(
   const by = listing.match_by ?? [];
   if (by.includes("phone")) return true;
   return by.includes("address") && by.includes("title");
+}
+
+/** Matched listing whose public card is missing most of the basics. */
+export function gmbListingThin(
+  listing: GmbListing | null | undefined,
+): boolean {
+  if (!listing?.matched || listing.card == null) return false;
+  return listing.card.score < 3;
 }
 
 export type EnrichmentFonteRef = {
@@ -80,6 +110,8 @@ export type DigitalSignalId =
   | "site-fora"
   | "sem-mensuracao"
   | "copyright-antigo"
+  | "sem-gmb"
+  | "gmb-incompleto"
   | "sem-instagram"
   | "sem-whatsapp"
   | "midia-paga";

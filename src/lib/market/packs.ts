@@ -131,6 +131,8 @@ function pontes(
     "site-fora": `com o site fora do ar, quem busca ${ramo} agora vai para o concorrente`,
     "sem-mensuracao": `sem medir o que entra, ${ramo} não vê qual canal está pagando`,
     "copyright-antigo": `o site de ${ramo} está desatualizado — a captação nova ficou parada`,
+    "sem-gmb": `sem ficha no Google Meu Negócio, ${ramo} some da busca no Maps`,
+    "gmb-incompleto": `o card no Google está incompleto — falta o básico que o cliente de ${ramo} vê`,
     "sem-instagram": `sem Instagram, ${ramo} depende de quem passa na porta ou de quem já indica`,
     "sem-whatsapp": `sem WhatsApp, o lead de ${ramo} pede preço no concorrente que responde agora`,
     "midia-paga": `tem sinal de anúncio no site — a pergunta é se isso está trazendo pedido certo`,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { gmbListingCorroborated } from "@/lib/types";
 import { presenceBrandTokens } from "./confirm-domain";
 import {
+  gmbCardFromPlace,
   gmbSearchQuery,
   hitsFromSerperJson,
   mapsAddressMatchesReceita,
@@ -219,6 +220,27 @@ describe("pickBestDomainHit", () => {
     expect(best?.link).toBe("https://colegiogenesis.com.br/");
   });
 
+  it("prefers a branded host over a school directory with the same title tokens", () => {
+    const best = pickBestDomainHit(
+      [
+        {
+          link: "https://escolasbrasil.org/minas-gerais/belo-horizonte/31007196",
+          title: "Colegio Santa Doroteia — Belo Horizonte/MG",
+          snippet: "Colégio Santa Doroteia em Belo Horizonte",
+        },
+        {
+          link: "https://santadoroteiabh.com.br/",
+          title: "Colégio Santa Dorotéia de Belo Horizonte",
+          snippet: "Educação infantil, fundamental e médio",
+        },
+      ],
+      "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL",
+      "COLEGIO SANTA DOROTEIA",
+      "Belo Horizonte",
+    );
+    expect(best?.link).toBe("https://santadoroteiabh.com.br/");
+  });
+
   it("returns null when no hit meets the brand score floor", () => {
     expect(
       pickBestDomainHit(
@@ -305,6 +327,9 @@ describe("Maps × Receita matching", () => {
     expect(gmbSearchQuery(silva)).toBe(
       '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
     );
+    expect(gmbSearchQuery(silva, { quoted: false })).toBe(
+      "DISTRIBUIDORA SILVA Rua das Palmeiras, 100 Contagem MG",
+    );
   });
 
   it("rejects a neighbor listing that only shares the street address", () => {
@@ -358,6 +383,53 @@ describe("gmbListingCorroborated", () => {
         match_by: ["title", "address"],
       }),
     ).toBe(true);
+  });
+});
+
+describe("gmbCardFromPlace", () => {
+  it("scores a full public card without storing hours or photo URLs", () => {
+    const card = gmbCardFromPlace({
+      title: "Distribuidora Silva",
+      phoneNumber: "(31) 3333-1111",
+      website: "https://silva-pecas.com.br",
+      openingHours: ["Monday: 8AM-6PM"],
+      thumbnailUrl: "https://lh3.googleusercontent.com/photo",
+      rating: 4.2,
+      ratingCount: 37,
+      category: "Auto parts store",
+    });
+    expect(card.score).toBe(5);
+    expect(card.filled).toEqual([
+      "phone",
+      "website",
+      "hours",
+      "photo",
+      "reviews",
+    ]);
+    expect(card.rating).toBe(4.2);
+    expect(card.ratingCount).toBe(37);
+    expect(card.category).toBe("Auto parts store");
+    expect(JSON.stringify(card)).not.toMatch(/8AM-6PM/);
+    expect(JSON.stringify(card)).not.toMatch(/googleusercontent/);
+  });
+
+  it("treats a Maps website as missing and a title-only place as empty", () => {
+    expect(
+      gmbCardFromPlace({
+        title: "Padaria",
+        website: "https://maps.google.com/?cid=1",
+      }).filled,
+    ).toEqual([]);
+    expect(gmbCardFromPlace({ title: "Padaria" }).score).toBe(0);
+  });
+
+  it("counts hours from an object shape", () => {
+    expect(
+      gmbCardFromPlace({
+        title: "Clínica",
+        openingHours: { monday: "9:00-18:00" },
+      }).filled,
+    ).toContain("hours");
   });
 });
 

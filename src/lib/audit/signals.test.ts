@@ -399,6 +399,55 @@ describe("buildAuditSignals", () => {
     expect(gmb.openLabel).toBe("Abrir ficha");
   });
 
+  it("describes Maps card completeness without treating a thin card as missing", () => {
+    const thin = byId(
+      enrichment({
+        gmb: {
+          name: "Distribuidora Silva",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["phone"],
+          card: {
+            filled: ["phone"],
+            score: 1,
+            rating: null,
+            ratingCount: 0,
+            category: null,
+          },
+        },
+      }),
+      "gmb",
+    );
+    expect(isAuditLive(thin)).toBe(true);
+    expect(thin.sealLabel).toBe("Incompleto");
+    expect(thin.note).toMatch(/card 1\/5/i);
+    expect(thin.note).toMatch(/falta/i);
+    expect(thin.hint).toMatch(/receita/i);
+
+    const full = byId(
+      enrichment({
+        gmb: {
+          name: "Marmoraria Carvalho",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["title", "address"],
+          card: {
+            filled: ["phone", "website", "hours", "photo", "reviews"],
+            score: 5,
+            rating: 4.8,
+            ratingCount: 210,
+            category: "Marble contractor",
+          },
+        },
+      }),
+      "gmb",
+    );
+    expect(full.sealLabel).toBe("Completo");
+    expect(full.note).toMatch(/card completo/i);
+    expect(full.note).toMatch(/4,8/);
+    expect(full.note).toMatch(/210/);
+  });
+
   it("attaches the OSM mismatch note to the site signal", () => {
     const site = byId(
       enrichment({

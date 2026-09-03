@@ -1,4 +1,5 @@
 import { isOwnDomainEmail } from "@/lib/contact-confidence";
+import { gmbListingThin } from "@/lib/types";
 import type { ContactSeal, LeadEnrichment, ScoreProfile } from "@/lib/types";
 
 export const GRID_WEIGHTS = {
@@ -96,6 +97,11 @@ export function computeDorDigital(
   }
   if (enrichment.domain_status === "confirmado" && !enrichment.socials.instagram) {
     raw += 8;
+  }
+  if (enrichment.gmb && !enrichment.gmb.matched) {
+    raw += 6;
+  } else if (gmbListingThin(enrichment.gmb)) {
+    raw += 4;
   }
   if (!enrichment.whatsapp && !enrichment.tech.chat) {
     raw += 7;
