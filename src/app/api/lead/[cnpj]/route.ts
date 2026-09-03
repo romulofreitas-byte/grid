@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getSearchForUser } from "@/lib/auth/search-access";
@@ -11,7 +11,13 @@ import {
   moveLeadCrmFromFicha,
   syncCrmDealNotes,
 } from "@/lib/crm/lead-sync";
-import { getRepo } from "@/lib/data";
+import { getDataSource, getRepo } from "@/lib/data";
+import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
+import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
+import {
+  drainJobsIfMock,
+  processOwnedEnrichmentJobs,
+} from "@/lib/enrichment/process-job";
 import type { LeadStatus } from "@/lib/types";
 
 function normalizeCnpj(raw: string): string {
@@ -65,6 +71,36 @@ export async function GET(
         search,
       })
     : null;
+  if (
+    enriched &&
+    balance.enrichAllowed &&
+    needsDiscoveryRetry(dossier.enrichment)
+  ) {
+    const userId = gated.userId;
+    after(() =>
+      enqueueDiscoveryRetries({
+        cnpjs: [cnpj],
+        userId,
+        searchId: search?.id ?? null,
+        priority: true,
+      })
+        .then((queued) => {
+          if (!queued) return;
+          drainJobsIfMock();
+          if (getDataSource() === "mock") return;
+          return processOwnedEnrichmentJobs(search?.id ?? null, userId);
+        })
+        .catch((err) => {
+          console.error(
+            JSON.stringify({
+              event: "discovery_retry_error",
+              cnpj,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        }),
+    );
+  }
   return NextResponse.json({
     ...safe,
     notas: crm?.notes || safe.notas,

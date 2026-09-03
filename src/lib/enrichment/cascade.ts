@@ -1,6 +1,10 @@
 import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
-import { domainSearchQueries } from "@/lib/enrichment/company-name";
+import {
+  domainSearchFallbackQueries,
+  domainSearchQueries,
+} from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
+import { stampDiscoveryFonte } from "@/lib/enrichment/discovery";
 import { extractPeople } from "@/lib/enrichment/extract-people";
 import {
   extractContacts,
@@ -492,12 +496,21 @@ export async function enrichCompany(
     ? normalizeHost(options.forceConfirmDomain)
     : null;
   let homepage_path = normalizeHomepagePath(options.homepagePath);
-  const fonte: LeadEnrichment["fonte"] = {};
+  const fonte: LeadEnrichment["fonte"] = stampDiscoveryFonte(
+    {},
+    collected_at,
+  );
 
+  const cachedHost = cachedDomain?.domain
+    ? normalizeHost(cachedDomain.domain)
+    : "";
+  const cacheUsable = Boolean(
+    cachedHost && !discarded.has(cachedHost) && !isDirectoryUrl(cachedHost),
+  );
   let domain: string | null = forceHost
     ? forceHost
-    : cachedDomain?.domain && !discarded.has(normalizeHost(cachedDomain.domain))
-      ? cachedDomain.domain
+    : cacheUsable
+      ? cachedHost
       : null;
   let domain_status: DomainStatus = forceHost
     ? "confirmado"
@@ -645,20 +658,17 @@ export async function enrichCompany(
     const serperStarted = Date.now();
     const exclude = [...discarded];
 
-    const queries = domainSearchQueries({
+    const queryInput = {
       nomeFantasia: est.nome_fantasia,
       razaoSocial: input.company.razao_social,
       municipio: input.municipioNome,
       uf: est.uf,
-    });
+    };
+    const queries = domainSearchQueries(queryInput);
     const strongBrand =
       presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
         .length > 0;
-    const [hitSets, gmbSeed] = await Promise.all([
-      Promise.all(queries.map((q) => serperOrganic(q))),
-      searchGmb(gmbInput),
-    ]);
-    for (const hits of hitSets) {
+    const absorbHits = (hits: OrganicHit[]) => {
       socialsFromSearch = absorbSearchSocials(
         hits,
         brand,
@@ -668,14 +678,32 @@ export async function enrichCompany(
         fonte,
         collected_at,
       );
-    }
-    const best = pickBestDomainHit(
+    };
+    const [hitSets, gmbSeed] = await Promise.all([
+      Promise.all(queries.map((q) => serperOrganic(q))),
+      searchGmb(gmbInput),
+    ]);
+    for (const hits of hitSets) absorbHits(hits);
+    let best = pickBestDomainHit(
       hitSets.flat(),
       brand.razaoSocial,
       brand.nomeFantasia,
       brand.municipio,
       exclude,
     );
+    if (!best) {
+      const extraSets = await Promise.all(
+        domainSearchFallbackQueries(queryInput).map((q) => serperOrganic(q)),
+      );
+      for (const hits of extraSets) absorbHits(hits);
+      best = pickBestDomainHit(
+        [...hitSets, ...extraSets].flat(),
+        brand.razaoSocial,
+        brand.nomeFantasia,
+        brand.municipio,
+        exclude,
+      );
+    }
     if (best) {
       try {
         const host = normalizeHost(new URL(best.link).host);

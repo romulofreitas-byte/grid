@@ -17,7 +17,7 @@ export default function BotPage() {
         <p>
           <strong className="text-podium-white">User-Agent:</strong>{" "}
           <code className="text-podium-yellow">
-            GridBot/1.0 (+https://grid.mundopodium.com.br/bot)
+            Mozilla/5.0 (compatible; GridBot/1.0; +https://grid.mundopodium.com.br/bot)
           </code>
         </p>
         <p>

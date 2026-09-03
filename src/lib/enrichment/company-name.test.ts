@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   displayCompanyName,
   domainSearchQueries,
+  domainSearchFallbackQueries,
   searchableCompanyName,
   companyMapsQuery,
   leadMapsHref,
@@ -55,6 +56,23 @@ describe("domainSearchQueries", () => {
         uf: "MG",
       }),
     ).toEqual(['"Clinica Sol" Belo Horizonte MG']);
+  });
+});
+
+describe("domainSearchFallbackQueries", () => {
+  it("adds an unquoted site query so directories do not bury the real host", () => {
+    expect(
+      domainSearchFallbackQueries({
+        nomeFantasia: "COLEGIO SANTA DOROTEIA",
+        razaoSocial: "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL",
+        municipio: "Belo Horizonte",
+        uf: "MG",
+      }),
+    ).toEqual([
+      "COLEGIO SANTA DOROTEIA Belo Horizonte MG site",
+      "COLEGIO SANTA DOROTEIA Belo Horizonte MG",
+      "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL Belo Horizonte MG site",
+    ]);
   });
 });
 

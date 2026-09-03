@@ -5,6 +5,7 @@ import {
   swapWwwOrigin,
   type CascadeCompany,
 } from "./cascade";
+import { DOMAIN_DISCOVERY_VERSION } from "./discovery";
 import { OSM_OVERPASS_URL } from "./osm";
 import type { Company, Establishment } from "@/lib/types";
 
@@ -505,6 +506,7 @@ describe("enrichCompany crawl", () => {
     const { row } = await enrichCompany(input);
     expect(row.gmb?.matched).toBe(true);
     expect(row.gmb?.match_by).toEqual(expect.arrayContaining(["phone"]));
+    expect(row.gmb?.card?.filled).toEqual(expect.arrayContaining(["phone"]));
     expect(row.socials.instagram).toContain("distribuidorasilvacontagem");
     expect(row.fonte.instagram?.fonte).toBe("serper");
     expect(row.fonte.instagram?.fonte).not.toBe("skipped_weak_brand");
@@ -734,6 +736,125 @@ describe("enrichCompany crawl", () => {
     );
     expect(serperBodies.some((body) => body.includes("Solaris"))).toBe(true);
     expect(row.domain).toBe("solarishbh.com.br");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("skips school directories and confirms the branded host", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://escolasbrasil.org/minas-gerais/belo-horizonte/31007196",
+                  title: "Colegio Santa Doroteia — Belo Horizonte/MG",
+                  snippet: "Colégio Santa Doroteia",
+                },
+                {
+                  link: "https://santadoroteiabh.com.br/",
+                  title: "Colégio Santa Dorotéia de Belo Horizonte",
+                  snippet: "Congregação de Santa Doroteia",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("santadoroteiabh.com.br")) {
+          return htmlResponse(
+            `<html><body>Colégio Santa Dorotéia CNPJ ${CNPJ}</body></html>`,
+          );
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "COLEGIO SANTA DOROTEIA";
+    input.company.razao_social =
+      "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL";
+    const { row } = await enrichCompany(input);
+    expect(row.domain).toBe("santadoroteiabh.com.br");
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.fonte.discovery?.fonte).toBe(DOMAIN_DISCOVERY_VERSION);
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("runs an unquoted site query when quoted search only hits directories", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const serperBodies: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/search")) {
+          const body = String(init?.body ?? "");
+          serperBodies.push(body);
+          if (body.includes(" MG site")) {
+            return new Response(
+              JSON.stringify({
+                organic: [
+                  {
+                    link: "https://santadoroteiabh.com.br/",
+                    title: "Colégio Santa Dorotéia de Belo Horizonte",
+                    snippet: "Site oficial",
+                  },
+                ],
+              }),
+              { status: 200, headers: { "Content-Type": "application/json" } },
+            );
+          }
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://escolasbrasil.org/colegio-santa-doroteia",
+                  title: "Colegio Santa Doroteia",
+                  snippet: "Lista de escolas",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("santadoroteiabh.com.br")) {
+          return htmlResponse(
+            `<html><body>Colégio Santa Dorotéia CNPJ ${CNPJ}</body></html>`,
+          );
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "COLEGIO SANTA DOROTEIA";
+    input.company.razao_social =
+      "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL";
+    const { row } = await enrichCompany(input);
+    expect(serperBodies.some((body) => body.includes(" MG site"))).toBe(true);
+    expect(row.domain).toBe("santadoroteiabh.com.br");
     delete process.env.SERPER_API_KEY;
   });
 

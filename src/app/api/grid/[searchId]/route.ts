@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getSearchForUser } from "@/lib/auth/search-access";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getBalance } from "@/lib/billing/service";
 import { redactGridRows } from "@/lib/billing/redact";
-import { getRepo } from "@/lib/data";
+import { getDataSource, getRepo } from "@/lib/data";
+import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
+import {
+  drainJobsIfMock,
+  processOwnedEnrichmentJobs,
+} from "@/lib/enrichment/process-job";
 
 export const maxDuration = 60;
 
@@ -36,8 +41,9 @@ export async function GET(
     const cursor = Number(searchParams.get("cursor") ?? "0");
     const limit = Number(searchParams.get("limit") ?? "50");
     const result = await getRepo().listGridRows(searchId, cursor, limit);
+    const { discoveryRetryCnpjs, ...grid } = result;
     const balance = await getBalance(gated.userId);
-    let rows = redactGridRows(result.rows, balance.enrichAllowed);
+    let rows = redactGridRows(grid.rows, balance.enrichAllowed);
     if (search.saved && rows.length > 0) {
       const inCrm = new Set(
         await getRepo().listCrmDealCnpjs(
@@ -50,8 +56,33 @@ export async function GET(
         inCrm: inCrm.has(row.cnpj.replace(/\D/g, "").padStart(14, "0")),
       }));
     }
+    if (discoveryRetryCnpjs?.length && balance.enrichAllowed) {
+      const userId = gated.userId;
+      after(() =>
+        enqueueDiscoveryRetries({
+          cnpjs: discoveryRetryCnpjs,
+          userId,
+          searchId,
+        })
+          .then((queued) => {
+            if (!queued) return;
+            drainJobsIfMock();
+            if (getDataSource() === "mock") return;
+            return processOwnedEnrichmentJobs(searchId, userId);
+          })
+          .catch((err) => {
+            console.error(
+              JSON.stringify({
+                event: "discovery_retry_error",
+                searchId,
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            );
+          }),
+      );
+    }
     return NextResponse.json({
-      ...result,
+      ...grid,
       rows,
     });
   } catch (err) {

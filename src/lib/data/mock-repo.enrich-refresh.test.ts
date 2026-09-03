@@ -10,6 +10,9 @@ describe("enqueueEnrichment refresh (force)", () => {
     store.enrichment_jobs = store.enrichment_jobs.filter(
       (j) => j.requested_by !== USER,
     );
+    store.lead_enrichment = store.lead_enrichment.filter(
+      (e) => e.cnpj !== "03658515001062",
+    );
   });
 
   it("skips fresh complete enrichment without force", async () => {
@@ -57,5 +60,27 @@ describe("enqueueEnrichment refresh (force)", () => {
     const still = store.lead_enrichment.find((e) => e.cnpj === cnpj);
     expect(still?.stage).toBe(beforeStage);
     expect(still?.collected_at).toBe(beforeCollected);
+  });
+
+  it("re-queues a complete miss from the previous discovery rules", async () => {
+    const store = getMockStore();
+    const cnpj = "03658515001062";
+    store.lead_enrichment.push({
+      ...store.lead_enrichment[0]!,
+      cnpj,
+      domain: null,
+      domain_status: "nao_encontrado",
+      fonte: {},
+      stage: "complete",
+      expires_at: "2026-12-12T12:00:00.000Z",
+    });
+
+    const result = await mockRepo.enqueueEnrichment({
+      cnpjs: [cnpj],
+      userId: USER,
+      searchId: null,
+    });
+
+    expect(result.queued).toBe(1);
   });
 });

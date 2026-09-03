@@ -137,7 +137,13 @@ export type GridRepo = {
     searchId: string,
     cursor?: number,
     limit?: number,
-  ): Promise<{ rows: GridRow[]; nextCursor: number | null; total: number; unaudited: number }>;
+  ): Promise<{
+    rows: GridRow[];
+    nextCursor: number | null;
+    total: number;
+    unaudited: number;
+    discoveryRetryCnpjs?: string[];
+  }>;
   listUnauditedCnpjs(
     searchId: string,
     opts?: { limit?: number },

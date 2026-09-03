@@ -7,6 +7,10 @@ import {
 import { pickDecisor, qualificacaoLabel, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { buildGoldenMinute } from "@/lib/golden-minute";
+import {
+  DOMAIN_DISCOVERY_VERSION,
+  needsDiscoveryRetry,
+} from "@/lib/enrichment/discovery";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { homepagePathOf } from "@/lib/enrichment/company-site";
 import { midiaPagaLabel } from "@/lib/enrichment/tech";
@@ -1714,8 +1718,8 @@ async function overlayGridRows(
   searchId: string,
   userId: string,
   rows: GridRow[],
-): Promise<GridRow[]> {
-  if (!rows.length) return rows;
+): Promise<{ rows: GridRow[]; discoveryRetryCnpjs: string[] }> {
+  if (!rows.length) return { rows, discoveryRetryCnpjs: [] };
   const paddedCnpjs = cnpjChar14Params(rows.map((r) => r.cnpj));
   const [jobRes, auditRes, billedRes] = await allQueries([
     () =>
@@ -1745,11 +1749,15 @@ async function overlayGridRows(
     auditRes.rows.map((r) => [trimChar(r.cnpj), mapEnrichment(r)] as const),
   );
   const billed = new Set(billedRes.rows.map((r) => trimChar(r.cnpj)));
-  return rows.map((row) => {
+  const discoveryRetryCnpjs: string[] = [];
+  const nextRows = rows.map((row) => {
     const job = jobs.get(row.cnpj);
     const ownedJob = job?.status === "done" || job?.status === "skipped";
     const hasAudit = billed.has(row.cnpj) || ownedJob;
     const enrichment = hasAudit ? enrichmentByCnpj.get(row.cnpj) : undefined;
+    if (hasAudit && needsDiscoveryRetry(enrichment ?? null)) {
+      discoveryRetryCnpjs.push(row.cnpj);
+    }
     const phone = overlayGridPhone(
       {
         telefone: row.telefone,
@@ -1770,6 +1778,7 @@ async function overlayGridRows(
       hasAudit,
     };
   });
+  return { rows: nextRows, discoveryRetryCnpjs };
 }
 
 async function rowsFromReceita(
@@ -3124,13 +3133,16 @@ export const supabaseRepo: GridRepo = {
       return rfRows.get(p.cnpj) ?? gridRowStub(p.cnpj, p);
     });
 
+    let discoveryRetryCnpjs: string[] = [];
     try {
-      rows = await overlayGridRows(searchId, search.user_id, rows);
+      const overlay = await overlayGridRows(searchId, search.user_id, rows);
+      rows = overlay.rows;
+      discoveryRetryCnpjs = overlay.discoveryRetryCnpjs;
     } catch {
       /* snapshots / RF rows still render */
     }
 
-    return { rows, nextCursor, total, unaudited };
+    return { rows, nextCursor, total, unaudited, discoveryRetryCnpjs };
   },
 
   async listUnauditedCnpjs(searchId, opts) {
@@ -3495,8 +3507,13 @@ export const supabaseRepo: GridRepo = {
       `select cnpj from lead_enrichment
        where cnpj = any($1::text[])
          and expires_at > now()
-         and coalesce(stage, 'complete') = 'complete'`,
-      [remaining],
+         and coalesce(stage, 'complete') = 'complete'
+         and not (
+           coalesce(fonte->'domain'->>'fonte', '') <> 'human'
+           and domain_status = 'nao_encontrado'
+           and coalesce(fonte->'discovery'->>'fonte', '') <> $2
+         )`,
+      [remaining, DOMAIN_DISCOVERY_VERSION],
     );
     const freshSet = new Set(fresh.map((r) => trimChar(r.cnpj)));
 

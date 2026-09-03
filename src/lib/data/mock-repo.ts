@@ -10,6 +10,7 @@ import { yearsSince } from "@/lib/format";
 import { getMockStore, type MockStore } from "@/lib/data/mock-store";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { buildGoldenMinute } from "@/lib/golden-minute";
 import {
   resolveMarketBrief,
@@ -1143,6 +1144,7 @@ export const mockRepo: GridRepo = {
       (l) => !userOwnsAudit(store, search.user_id, l.cnpj, searchId),
     ).length;
     const page = leads.slice(cursor, cursor + limit);
+    const discoveryRetryCnpjs: string[] = [];
     const rows: GridRow[] = page.map((lead) => {
       const est = idx.estByCnpj.get(lead.cnpj)!;
       const company = idx.companyByBasico.get(est.cnpj_basico)!;
@@ -1165,6 +1167,9 @@ export const mockRepo: GridRepo = {
       const enrichment = store.lead_enrichment.find((e) => e.cnpj === lead.cnpj);
       const hasAudit = userOwnsAudit(store, search.user_id, lead.cnpj, searchId);
       const completeAudit = hasAudit && isEnrichmentFresh(enrichment);
+      if (hasAudit && needsDiscoveryRetry(enrichment)) {
+        discoveryRetryCnpjs.push(lead.cnpj);
+      }
       const phone = overlayGridPhone(
         {
           telefone: primary ? `${primary.ddd}${primary.telefone}` : null,
@@ -1198,7 +1203,7 @@ export const mockRepo: GridRepo = {
     });
 
     const next = cursor + limit < leads.length ? cursor + limit : null;
-    return { rows, nextCursor: next, total: leads.length, unaudited };
+    return { rows, nextCursor: next, total: leads.length, unaudited, discoveryRetryCnpjs };
   },
 
   async listUnauditedCnpjs(searchId: string, opts?: { limit?: number }) {
@@ -1382,7 +1387,8 @@ export const mockRepo: GridRepo = {
       if (active) continue;
       const id =
         (store.enrichment_jobs.reduce((m, j) => Math.max(m, j.id), 0) || 0) + 1;
-      const skipFresh = Boolean(fresh) && !input.force;
+      const skipFresh =
+        Boolean(fresh) && !input.force && !needsDiscoveryRetry(fresh);
       store.enrichment_jobs.push({
         id,
         cnpj,

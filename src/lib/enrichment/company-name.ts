@@ -74,13 +74,20 @@ export function leadMapsHref(
   return companyMapsSearchUrl(input);
 }
 
+function placeOf(input: {
+  municipio: string;
+  uf: string;
+}): string {
+  return [input.municipio, input.uf].filter(Boolean).join(" ").trim();
+}
+
 export function domainSearchQueries(input: {
   nomeFantasia: string | null | undefined;
   razaoSocial: string;
   municipio: string;
   uf: string;
 }): string[] {
-  const place = [input.municipio, input.uf].filter(Boolean).join(" ").trim();
+  const place = placeOf(input);
   const fantasia = input.nomeFantasia?.trim();
   const queries: string[] = [];
   if (fantasia) queries.push([`"${fantasia}"`, place].filter(Boolean).join(" "));
@@ -89,4 +96,37 @@ export function domainSearchQueries(input: {
     queries.push([`"${razao}"`, place].filter(Boolean).join(" "));
   }
   return queries;
+}
+
+/**
+ * Unquoted follow-ups when quoted search returns only directories / nothing.
+ * Keep short — each query is a Serper call.
+ */
+export function domainSearchFallbackQueries(input: {
+  nomeFantasia: string | null | undefined;
+  razaoSocial: string;
+  municipio: string;
+  uf: string;
+}): string[] {
+  const place = placeOf(input);
+  const fantasia = input.nomeFantasia?.trim();
+  const razao = searchableCompanyName(null, input.razaoSocial);
+  const out: string[] = [];
+  const push = (parts: Array<string | null | undefined>) => {
+    const q = parts
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (q && !out.includes(q)) out.push(q);
+  };
+  if (fantasia) {
+    push([fantasia, place, "site"]);
+    push([fantasia, place]);
+  }
+  if (razao && razao.toLowerCase() !== fantasia?.toLowerCase()) {
+    push([razao, place, "site"]);
+  }
+  return out.slice(0, 3);
 }

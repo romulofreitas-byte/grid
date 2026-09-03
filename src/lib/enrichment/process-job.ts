@@ -8,6 +8,8 @@ import {
   hasAccountantDomainHint,
   receitaProviderDomain,
 } from "@/lib/contact-confidence";
+import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
+import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { enrichCompany, type CascadeCompany } from "@/lib/enrichment/cascade";
 import {
   applyOsmFollowup,
@@ -135,7 +137,12 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     return;
   }
   const existing = await repo.getEnrichment(job.cnpj);
-  if (existing && !job.payload?.force && isEnrichmentComplete(existing)) {
+  if (
+    existing &&
+    !job.payload?.force &&
+    isEnrichmentComplete(existing) &&
+    !needsDiscoveryRetry(existing)
+  ) {
     await repo.updateJob(job.id, {
       status: "skipped",
       finished_at: new Date().toISOString(),
@@ -201,6 +208,9 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
             ? [job.payload.domain]
             : []),
           ...(providerHost ? [providerHost] : []),
+          ...(existing?.domain && isDirectoryUrl(existing.domain)
+            ? [existing.domain]
+            : []),
         ],
         forceConfirmDomain:
           job.payload?.action === "confirm" ? (job.payload.domain ?? null) : null,
