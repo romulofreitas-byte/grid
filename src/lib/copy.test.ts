@@ -21,6 +21,8 @@ describe("COPY login", () => {
       COPY.entrarSignupHook,
       COPY.entrarLoginHook,
       COPY.entrarLoginCta,
+      COPY.entrarGoogleCta,
+      COPY.entrarOrDivider,
     ].join(" ");
     expect(blob.toLowerCase()).not.toMatch(/sem senha/);
     expect(blob.toLowerCase()).not.toMatch(/magic/);
@@ -35,6 +37,8 @@ describe("COPY login", () => {
     expect(COPY.entrarSignupHook).toMatch(/grátis/i);
     expect(COPY.entrarLoginHook).toMatch(/continuar a lista/i);
     expect(COPY.entrarLoginCta).toBe("Entrar no GRID");
+    expect(COPY.entrarGoogleCta).toBe("Continuar com Google");
+    expect(COPY.entrarOrDivider).toBe("ou");
   });
 });
 

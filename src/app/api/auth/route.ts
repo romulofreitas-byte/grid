@@ -10,6 +10,7 @@ import {
   signupErrorMessage,
 } from "@/lib/auth/messages";
 import { isValidEmail, validatePassword } from "@/lib/auth/password";
+import { isGoogleAuthEnabled } from "@/lib/auth/google-provider";
 import { usesMockAuth } from "@/lib/auth/session";
 import { safeInternalPath } from "@/lib/auth/next-path";
 import { createRouteClient } from "@/lib/supabase/route-client";
@@ -57,6 +58,34 @@ export async function POST(req: NextRequest) {
       return json({ ok: true });
     }
 
+    if (action === "google") {
+      if (!supabase) {
+        return json({ error: "O acesso não está configurado" }, 500);
+      }
+      const googleOn = await isGoogleAuthEnabled();
+      if (googleOn === false) {
+        return json(
+          { error: oauthErrorMessage("provider is not enabled") },
+          400,
+        );
+      }
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: callbackUrl(callbackNext),
+          queryParams: {
+            prompt: "select_account consent",
+            access_type: "offline",
+          },
+        },
+      });
+      if (error) return json({ error: oauthErrorMessage(error.message) }, 400);
+      if (!data.url) {
+        return json({ error: oauthErrorMessage(undefined) }, 400);
+      }
+      return json({ url: data.url });
+    }
+
     if (usesMockAuth()) {
       if (action === "recover") {
         return json({ mock: true, ok: true, recover: true });
@@ -68,15 +97,6 @@ export async function POST(req: NextRequest) {
     }
     if (!supabase) {
       return json({ error: "O acesso não está configurado" }, 500);
-    }
-
-    if (action === "google") {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: callbackUrl(callbackNext) },
-      });
-      if (error) return json({ error: oauthErrorMessage(error.message) }, 400);
-      return json({ url: data.url });
     }
 
     if (action === "password") {

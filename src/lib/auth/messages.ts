@@ -63,6 +63,9 @@ export function oauthErrorMessage(raw: string | undefined): string {
   if (isRateLimited(msg)) {
     return "Muitas tentativas. Espere um pouco e tente de novo.";
   }
+  if (msg.includes("not enabled") || msg.includes("unsupported provider")) {
+    return "O login com Google ainda não está disponível. Use e-mail e senha.";
+  }
   if (msg.includes("provider") || msg.includes("oauth")) {
     return "Não foi possível entrar com o Google. Tente e-mail e senha.";
   }

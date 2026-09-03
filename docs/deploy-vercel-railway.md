@@ -60,9 +60,32 @@ DATABASE_URL=postgresql://postgres.[ref]:[SENHA]@db.[ref].supabase.co:5432/postg
 
 1. **Authentication → URL configuration**
    - Site URL: `https://grid.mundopodium.com.br`
-   - Redirect URLs: `https://grid.mundopodium.com.br/auth/callback`
+   - Redirect URLs: `https://grid.mundopodium.com.br/auth/callback` e `http://localhost:3000/auth/callback`
 2. Copie **anon key** e **service role key** para a Vercel.
 3. Em produção: **não** defina `GRID_MOCK_AUTH`.
+
+### 1.2.1 Google (cadastro e login)
+
+E-mail/senha continua. Google é o segundo jeito de entrar. Contas com o **mesmo e-mail confirmado** viram um só perfil (auto-link). Não coloque Client ID/Secret no Next.js.
+
+**Google Cloud Console**
+
+1. Crie (ou use) um projeto e configure a **OAuth consent screen** (External, e-mail de suporte, domínio `mundopodium.com.br`).
+2. Credenciais → **OAuth 2.0 Client ID** tipo **Web application**.
+3. Origens JavaScript autorizadas: `http://localhost:3000`, `https://grid.mundopodium.com.br`.
+4. Redirect URIs autorizados (o do **Supabase**, não o da app): `https://<PROJECT_REF>.supabase.co/auth/v1/callback`.
+5. Copie Client ID e Client Secret.
+
+Enquanto o consent screen estiver em **Testing**, só e-mails de teste entram. Publique o app no Google para o público.
+
+**Supabase Dashboard**
+
+1. **Authentication → Providers → Google**: ligar, colar Client ID e Secret.
+2. Confirme as Redirect URLs da seção 1.2 (a app recebe `{SITE}/auth/callback`; o Google fala com o callback do Supabase).
+
+**Supabase local** (`supabase start`)
+
+Em [`supabase/config.toml`](../supabase/config.toml) o provider Google já está ligado via `env(GOOGLE_CLIENT_ID)` / `env(GOOGLE_CLIENT_SECRET)`. Defina essas variáveis no `.env` da máquina (veja `.env.example`). Não commitar os secrets.
 
 ### 1.3 Schema e migrations
 

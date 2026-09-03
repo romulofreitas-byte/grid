@@ -90,6 +90,8 @@ export const COPY = {
   entrarSignupHook: "Buscar e ver a lista é grátis. Qualifique 25 empresas. Sem cartão.",
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
+  entrarGoogleCta: "Continuar com Google",
+  entrarOrDivider: "ou",
   boxPlatformCoupon:
     "Você assina o Mundo Pódium. Use o cupom PILOTO — vale só para assinantes ativos da Plataforma.",
   boxPlatformTrialEnded:

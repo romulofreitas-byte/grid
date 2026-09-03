@@ -65,6 +65,7 @@ describe("authCatchMessage", () => {
     expect(authCatchMessage("recover")).toMatch(/recuperação/);
     expect(authCatchMessage("password")).toMatch(/senha/);
     expect(authCatchMessage("logout")).toBe("Não foi possível sair");
+    expect(authCatchMessage("google")).toBe("Não foi possível entrar com o Google");
   });
 });
 
@@ -72,6 +73,12 @@ describe("oauthErrorMessage", () => {
   it("stays in Portuguese", () => {
     expect(oauthErrorMessage("Unable to exchange oauth code")).toMatch(/Google/);
     expect(oauthErrorMessage("Unable to exchange oauth code")).not.toMatch(/Unable/);
+  });
+
+  it("explains when the Google provider is off", () => {
+    expect(
+      oauthErrorMessage("Unsupported provider: provider is not enabled"),
+    ).toMatch(/ainda não está disponível/);
   });
 });
 
