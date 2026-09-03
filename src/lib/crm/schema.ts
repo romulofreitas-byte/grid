@@ -40,6 +40,7 @@ export const dealCreateSchema = z.object({
   contact_name: z.string().trim().max(80).optional(),
   secretaries: z.array(z.string().trim().max(80)).max(8).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
+  stage_id: z.string().uuid().optional(),
   notes: z.string().max(4000).optional(),
   cnpj: z
     .string()

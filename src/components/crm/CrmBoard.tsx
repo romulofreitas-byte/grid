@@ -240,8 +240,8 @@ export function CrmBoard({
   async function loadPipeline(
     pipelineId: string,
     opts?: { force?: boolean },
-  ) {
-    if (pipelineId === selectedPipelineId && board && !opts?.force) return;
+  ): Promise<Board | null> {
+    if (pipelineId === selectedPipelineId && board && !opts?.force) return board;
     setError(null);
     setSelectedPipelineId(pipelineId);
     requestedPipelineRef.current = pipelineId;
@@ -254,18 +254,20 @@ export function CrmBoard({
       !opts?.force;
     if (cached) {
       setBoard(cached);
-      if (fresh) return;
+      if (fresh) return cached;
     } else {
       setBoard(null);
       setLoadingPipelineId(pipelineId);
     }
     try {
       const next = await fetchBoard(pipelineId);
-      if (requestedPipelineRef.current !== pipelineId) return;
+      if (requestedPipelineRef.current !== pipelineId) return null;
       setBoard(next);
+      return next;
     } catch (err) {
-      if (requestedPipelineRef.current !== pipelineId) return;
+      if (requestedPipelineRef.current !== pipelineId) return null;
       setError(err instanceof Error ? err.message : "Não abriu o nicho.");
+      return null;
     } finally {
       if (requestedPipelineRef.current === pipelineId) {
         setLoadingPipelineId(null);
@@ -658,25 +660,59 @@ export function CrmBoard({
       ) : null}
       {addOpen && board ? (
         <CrmAddDealDialog
-          pipelineDeals={board.deals}
+          pipelines={pipelines}
+          currentPipelineId={board.pipeline.id}
+          currentStages={board.stages}
+          currentDeals={board.deals}
           onClose={() => setAddOpen(false)}
-          onOpenExisting={(dealId) => {
-            const deal = dealsById.get(dealId);
-            if (deal && deal.outcome !== "open") setShowClosed(true);
-            setAddOpen(false);
-            openDealCard(dealId);
+          onOpenExisting={(dealId, pipelineId) => {
+            void (async () => {
+              setAddOpen(false);
+              const destId = pipelineId || board.pipeline.id;
+              if (destId !== board.pipeline.id) {
+                const next = await loadPipeline(destId);
+                const opened = next?.deals.find((deal) => deal.id === dealId);
+                if (opened && opened.outcome !== "open") setShowClosed(true);
+                setOpenDealId(dealId);
+                writeCrmUrl(destId, dealId);
+                return;
+              }
+              const deal = dealsById.get(dealId);
+              if (deal && deal.outcome !== "open") setShowClosed(true);
+              openDealCard(dealId);
+            })();
           }}
           onCreate={async (input) => {
+            const destId = input.pipelineId;
+            const sameBoard = destId === board.pipeline.id;
             const knownIds = new Set(board.deals.map((deal) => deal.id));
             const res = await crmFetch<{ deal: Deal }>(
-              `/api/crm/pipelines/${board.pipeline.id}/deals`,
-              { method: "POST", body: JSON.stringify(input) },
+              `/api/crm/pipelines/${destId}/deals`,
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  company_name: input.company_name,
+                  contact_name: input.contact_name,
+                  secretaries: input.secretaries,
+                  phones: input.phones,
+                  cnpj: input.cnpj,
+                  meta: input.meta,
+                  stage_id: input.stage_id,
+                }),
+              },
             );
-            replaceDeal(res.deal);
-            if (!knownIds.has(res.deal.id)) bumpCount(board.pipeline.id, 1);
             setAddOpen(false);
             if (res.deal.outcome !== "open") setShowClosed(true);
-            openDealCard(res.deal.id);
+            if (sameBoard) {
+              replaceDeal(res.deal);
+              if (!knownIds.has(res.deal.id)) bumpCount(destId, 1);
+              openDealCard(res.deal.id);
+              return;
+            }
+            bumpCount(destId, 1);
+            await loadPipeline(destId, { force: true });
+            setOpenDealId(res.deal.id);
+            writeCrmUrl(destId, res.deal.id);
           }}
         />
       ) : null}

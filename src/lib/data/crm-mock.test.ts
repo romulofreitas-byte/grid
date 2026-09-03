@@ -85,6 +85,40 @@ describe("crm mock board", () => {
     expect(updated?.phones).toEqual(["(34) 99999-0000", "(34) 3333-2020"]);
   });
 
+  it("creates on a requested stage when it belongs to the pipeline", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const tentando = board!.stages.find(
+      (stage) => stage.canonical_key === "tentando_contato",
+    )!;
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Oficina Na Faixa",
+      stage_id: tentando.id,
+    });
+    expect(created?.stage_id).toBe(tentando.id);
+  });
+
+  it("falls back to Entrada when stage_id is missing or foreign", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const other = await mockRepo.createCrmPipeline(USER, "Outro nicho");
+    const otherBoard = await mockRepo.getCrmBoard(USER, other.id);
+    const foreign = otherBoard!.stages[1]!.id;
+    const omitted = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Sem faixa",
+    });
+    const fallback = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Faixa de outro nicho",
+      stage_id: foreign,
+    });
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const entrada = board!.stages.find((stage) => stage.canonical_key === "entrada")!;
+    expect(omitted?.stage_id).toBe(entrada.id);
+    expect(fallback?.stage_id).toBe(entrada.id);
+  });
+
   it("dedupes deals by CNPJ inside the same pipeline", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const pipelineId = pipeline.id;

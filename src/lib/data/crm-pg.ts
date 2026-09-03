@@ -6,7 +6,7 @@ import {
 import {
   cloneDefaultCadenceEntries,
   isCrmStageKey,
-  pickEntradaStage,
+  pickCreateStage,
 } from "@/lib/crm/cadence";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
@@ -548,8 +548,7 @@ export const crmPgMethods = {
         }
       }
       const stages = await listStages(q, input.pipelineId);
-      const entrada = pickEntradaStage(stages);
-      const stageId = entrada?.id;
+      const stageId = pickCreateStage(stages, input.stage_id)?.id;
       if (!stageId) return null;
       const count = await q(
         `select count(*)::int as n from crm_deals where stage_id = $1`,

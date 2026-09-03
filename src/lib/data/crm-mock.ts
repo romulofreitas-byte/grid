@@ -1,5 +1,5 @@
 import { digitsCnpj } from "@/lib/crm/bridge";
-import { cloneDefaultCadenceEntries, pickEntradaStage } from "@/lib/crm/cadence";
+import { cloneDefaultCadenceEntries, pickCreateStage } from "@/lib/crm/cadence";
 import {
   briefingPresenceFromFields,
   type CrmBriefingLookup,
@@ -395,16 +395,16 @@ export const crmMockMethods = {
       );
       if (existing) return toCard(store, existing);
     }
-    const first = pickEntradaStage(stagesOf(store, pipeline.id));
-    if (!first) return null;
+    const stage = pickCreateStage(stagesOf(store, pipeline.id), input.stage_id);
+    if (!stage) return null;
     const position = store.crm_deals.filter(
-      (row) => row.stage_id === first.id,
+      (row) => row.stage_id === stage.id,
     ).length;
     const created = nowIso();
     const deal: CrmDeal = {
       id: id(),
       pipeline_id: pipeline.id,
-      stage_id: first.id,
+      stage_id: stage.id,
       company_name: input.company_name.trim(),
       contact_name: input.contact_name?.trim() ?? "",
       secretaries: cleanList(input.secretaries),

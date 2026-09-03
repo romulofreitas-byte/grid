@@ -142,6 +142,16 @@ export function pickEntradaStage<T extends { canonical_key: string | null }>(
   );
 }
 
+export function pickCreateStage<
+  T extends { id: string; canonical_key: string | null },
+>(stages: T[], stageId?: string | null): T | undefined {
+  if (stageId) {
+    const match = stages.find((stage) => stage.id === stageId);
+    if (match) return match;
+  }
+  return pickEntradaStage(stages);
+}
+
 export function pickStageByKey<T extends { canonical_key: string | null }>(
   stages: T[],
   key: string,

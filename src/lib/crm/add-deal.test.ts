@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   dealFieldsFromCompanyHit,
   dealFieldsFromDossier,
+  enrichJobIsSettled,
   findDealByCnpj,
   mergeDealPhones,
+  reviewBriefingFromDossier,
   sociosFromPartners,
 } from "./add-deal";
 import { dealCreateSchema } from "./schema";
@@ -41,6 +43,7 @@ describe("dealFieldsFromCompanyHit", () => {
       cnpj: "12345678000190",
       municipio: "Uberlândia",
       uf: "MG",
+      cnaeDescricao: "Marmoraria",
     });
   });
 
@@ -123,6 +126,92 @@ describe("findDealByCnpj", () => {
   });
 });
 
+describe("reviewBriefingFromDossier", () => {
+  it("builds a compact review with CNAE, place, phones and digital badges", () => {
+    const briefing = reviewBriefingFromDossier({
+      establishment: {
+        cnpj: "12.345.678/0001-90",
+        nome_fantasia: "Carvalho Pedras",
+        uf: "MG",
+      },
+      company: { razao_social: "MARMORARIA CARVALHO LTDA" },
+      cnaeDescricao: "Marmoraria",
+      municipioNome: "Uberlândia",
+      contacts: [
+        {
+          ddd: "34",
+          telefone: "999990000",
+          seal: "CONFIRMADO",
+          sharedCount: 1,
+          label: "Receita",
+          source: "receita",
+        },
+      ],
+      socios: [partner("Ana Carvalho")],
+      decisor: {
+        nome: "Ana Carvalho",
+        qualificacao: "Sócio",
+        dataEntrada: null,
+        faixaEtaria: null,
+      },
+      enrichment: {
+        domain_status: "encontrado",
+        socials: { instagram: "https://instagram.com/x" },
+        whatsapp: "5534999990000",
+        gmb: { matched: true },
+      } as LeadDossier["enrichment"],
+    });
+    expect(briefing.company).toBe("Carvalho Pedras");
+    expect(briefing.cnpj).toBe("12345678000190");
+    expect(briefing.municipio).toBe("Uberlândia");
+    expect(briefing.uf).toBe("MG");
+    expect(briefing.cnae).toBe("Marmoraria");
+    expect(briefing.contact).toBe("Ana Carvalho");
+    expect(briefing.phones).toEqual(["(34) 99999-0000"]);
+    expect(briefing.badges.map((badge) => [badge.id, badge.found])).toEqual([
+      ["site", true],
+      ["instagram", true],
+      ["whatsapp", true],
+      ["gmb", true],
+    ]);
+  });
+
+  it("falls back to search fields and empty badges when the dossier is thin", () => {
+    const briefing = reviewBriefingFromDossier(
+      {
+        establishment: { cnpj: "12345678000190", nome_fantasia: null, uf: "" },
+        company: { razao_social: "" },
+        cnaeDescricao: "",
+        municipioNome: "",
+        contacts: [],
+        socios: [],
+        decisor: null,
+        enrichment: null,
+      },
+      {
+        company: "Carvalho Pedras",
+        municipio: "Uberlândia",
+        uf: "MG",
+        cnae: "Marmoraria",
+      },
+    );
+    expect(briefing.company).toBe("Carvalho Pedras");
+    expect(briefing.municipio).toBe("Uberlândia");
+    expect(briefing.uf).toBe("MG");
+    expect(briefing.cnae).toBe("Marmoraria");
+    expect(briefing.badges.every((badge) => !badge.found)).toBe(true);
+  });
+});
+
+describe("enrichJobIsSettled", () => {
+  it("treats pending and running as still in flight", () => {
+    expect(enrichJobIsSettled("pending")).toBe(false);
+    expect(enrichJobIsSettled("running")).toBe(false);
+    expect(enrichJobIsSettled("done")).toBe(true);
+    expect(enrichJobIsSettled(null)).toBe(true);
+  });
+});
+
 describe("dealCreateSchema", () => {
   it("accepts a manual create without CNPJ", () => {
     const parsed = dealCreateSchema.parse({
@@ -150,5 +239,19 @@ describe("dealCreateSchema", () => {
   it("treats empty CNPJ as missing", () => {
     expect(dealCreateSchema.parse({ company_name: "X", cnpj: "" }).cnpj).toBeUndefined();
     expect(dealCreateSchema.parse({ company_name: "X", cnpj: null }).cnpj).toBeUndefined();
+  });
+
+  it("accepts an optional stage_id uuid", () => {
+    const parsed = dealCreateSchema.parse({
+      company_name: "Carvalho Pedras",
+      stage_id: "2f1b8c3a-4d5e-6789-abcd-ef0123456789",
+    });
+    expect(parsed.stage_id).toBe("2f1b8c3a-4d5e-6789-abcd-ef0123456789");
+  });
+
+  it("rejects a non-uuid stage_id", () => {
+    expect(() =>
+      dealCreateSchema.parse({ company_name: "X", stage_id: "entrada" }),
+    ).toThrow();
   });
 });

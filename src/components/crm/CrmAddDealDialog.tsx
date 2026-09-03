@@ -1,18 +1,26 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePaywall } from "@/components/PaywallDialog";
+import { BILLING_ME_QUERY_KEY } from "@/hooks/useBillingMe";
+import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import {
   dealFieldsFromCompanyHit,
   dealFieldsFromDossier,
+  enrichJobIsSettled,
   findDealByCnpj,
   mergeDealPhones,
+  reviewBriefingFromDossier,
+  type AddDealReviewBriefing,
   type AddDealSelectedCompany,
   type AddDealSocio,
 } from "@/lib/crm/add-deal";
-import { CRM_FIELD, CRM_LABEL } from "@/lib/crm/client";
+import { pickEntradaStage } from "@/lib/crm/cadence";
+import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
+import type { CrmBoard, CrmPipelineSummary, CrmStage } from "@/lib/crm/types";
 import { canSearchCompanies } from "@/lib/data/company-search";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnpj } from "@/lib/format";
@@ -20,7 +28,14 @@ import { fetchLeadDossier } from "@/lib/lead-query";
 import type { CompanySearchHit } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const ENRICH_POLL_INTERVAL_MS = 1000;
+const ENRICH_POLL_TIMEOUT_MS = 25_000;
+const EMPTY_STAGES: CrmStage[] = [];
+const EMPTY_DEALS: Array<{ id: string; cnpj: string | null }> = [];
+
 export type CrmAddDealInput = {
+  pipelineId: string;
+  stage_id: string;
   company_name: string;
   contact_name: string;
   secretaries: string[];
@@ -52,17 +67,31 @@ function useCompanySearch(q: string, enabled: boolean) {
   });
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export function CrmAddDealDialog({
   onClose,
   onCreate,
   onOpenExisting,
-  pipelineDeals,
+  pipelines,
+  currentPipelineId,
+  currentStages,
+  currentDeals,
 }: {
   onClose: () => void;
   onCreate: (input: CrmAddDealInput) => Promise<void>;
-  onOpenExisting: (dealId: string) => void;
-  pipelineDeals: Array<{ id: string; cnpj: string | null }>;
+  onOpenExisting: (dealId: string, pipelineId: string) => void;
+  pipelines: CrmPipelineSummary[];
+  currentPipelineId: string;
+  currentStages: CrmStage[];
+  currentDeals: Array<{ id: string; cnpj: string | null }>;
 }) {
+  const qc = useQueryClient();
+  const { openPaywall } = usePaywall();
   const [company, setCompany] = useState("");
   const [contact, setContact] = useState("");
   const [secretary, setSecretary] = useState("");
@@ -72,14 +101,48 @@ export function CrmAddDealDialog({
   const [listOpen, setListOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pulling, setPulling] = useState(false);
+  const [pulled, setPulled] = useState(false);
+  const [review, setReview] = useState<AddDealReviewBriefing | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pipelineId, setPipelineId] = useState(currentPipelineId);
+  const [stageId, setStageId] = useState(
+    () => pickEntradaStage(currentStages)?.id ?? "",
+  );
   const wrapRef = useRef<HTMLDivElement>(null);
+  const pullGen = useRef(0);
 
   const debounced = useDebounced(company, 300);
   const search = useCompanySearch(debounced.trim(), !selected);
   const hits = !selected && canSearchCompanies(debounced.trim()) ? (search.data ?? []) : [];
   const showList = listOpen && !selected && canSearchCompanies(debounced.trim());
+
+  const remoteBoard = useQuery({
+    queryKey: ["crm-add-deal-board", pipelineId],
+    queryFn: async () => {
+      const res = await crmFetch<{ board: CrmBoard }>(
+        `/api/crm/pipelines/${pipelineId}`,
+      );
+      return res.board;
+    },
+    enabled: pipelineId !== currentPipelineId,
+  });
+
+  const stages =
+    pipelineId === currentPipelineId
+      ? currentStages
+      : (remoteBoard.data?.stages ?? EMPTY_STAGES);
+  const pipelineDeals =
+    pipelineId === currentPipelineId
+      ? currentDeals
+      : (remoteBoard.data?.deals ?? EMPTY_DEALS);
   const existing = selected ? findDealByCnpj(pipelineDeals, selected.cnpj) : null;
+
+  useEffect(() => {
+    const next = pickEntradaStage(stages)?.id ?? "";
+    setStageId((current) =>
+      stages.some((stage) => stage.id === current) ? current : next,
+    );
+  }, [stages]);
 
   const chipLabel = useMemo(() => {
     if (!selected) return null;
@@ -96,6 +159,14 @@ export function CrmAddDealDialog({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [listOpen]);
 
+  function resetFicha() {
+    pullGen.current += 1;
+    setPulled(false);
+    setReview(null);
+    setSocios(null);
+    setPulling(false);
+  }
+
   function pick(hit: CompanySearchHit) {
     const fields = dealFieldsFromCompanyHit(hit);
     setCompany(fields.company_name);
@@ -105,8 +176,9 @@ export function CrmAddDealDialog({
       cnpj: fields.cnpj,
       municipio: fields.municipio,
       uf: fields.uf,
+      cnaeDescricao: fields.cnaeDescricao,
     });
-    setSocios(null);
+    resetFicha();
     setListOpen(false);
     setError(null);
   }
@@ -114,47 +186,97 @@ export function CrmAddDealDialog({
   function unlink() {
     setSelected(null);
     setPhones([]);
-    setSocios(null);
+    resetFicha();
     setError(null);
     setListOpen(true);
   }
 
   async function pullFicha() {
-    if (!selected || pulling) return;
+    if (!selected || pulling || existing) return;
+    const token = ++pullGen.current;
     setPulling(true);
     setError(null);
     try {
+      const res = await fetch("/api/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cnpjs: [selected.cnpj] }),
+      });
+      const json = (await res.json()) as { error?: string };
+      throwIfBillingGate(res.status, json, openPaywall, "qualify");
+      if (!res.ok) {
+        throw new Error(json.error ?? "Não qualificou a ficha.");
+      }
+      if (token !== pullGen.current) return;
+
+      const deadline = Date.now() + ENRICH_POLL_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        if (token !== pullGen.current) return;
+        const poll = await fetch(
+          `/api/enrich?cnpj=${encodeURIComponent(selected.cnpj)}`,
+        );
+        if (poll.ok) {
+          const body = (await poll.json()) as { jobStatus?: string | null };
+          if (enrichJobIsSettled(body.jobStatus)) break;
+        }
+        await sleep(ENRICH_POLL_INTERVAL_MS);
+      }
+      if (token !== pullGen.current) return;
+
       const dossier = await fetchLeadDossier(selected.cnpj);
+      if (token !== pullGen.current) return;
       const extras = dealFieldsFromDossier(dossier);
       setPhones((current) => mergeDealPhones(current, extras.phones));
       setSocios(extras.socios);
       setContact((current) => current.trim() || extras.contact_name);
+      setReview(
+        reviewBriefingFromDossier(dossier, {
+          company,
+          municipio: selected.municipio,
+          uf: selected.uf,
+          cnae: selected.cnaeDescricao,
+        }),
+      );
+      setPulled(true);
+      void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
     } catch (err) {
+      if (token !== pullGen.current) return;
+      if (isBillingGateError(err)) return;
       setError(err instanceof Error ? err.message : "Não puxou a ficha.");
     } finally {
-      setPulling(false);
+      if (token === pullGen.current) setPulling(false);
     }
   }
 
   async function submit() {
     if (existing) {
-      onOpenExisting(existing.id);
+      onOpenExisting(existing.id, pipelineId);
       return;
     }
-    if (!company.trim()) {
-      setError("Informe o nome da empresa.");
+    if (!selected) {
+      setError(COPY.crmAddDealNeedCompany);
+      return;
+    }
+    if (!pulled) {
+      setError(COPY.crmAddDealNeedFicha);
+      return;
+    }
+    if (!pipelineId || !stageId) {
+      setError("Escolha o pipeline e a etapa.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
       await onCreate({
+        pipelineId,
+        stage_id: stageId,
         company_name: company.trim(),
         contact_name: contact.trim(),
         secretaries: secretary.trim() ? [secretary.trim()] : [],
-        phones: selected && phones.length ? phones : undefined,
-        cnpj: selected?.cnpj,
-        meta: selected ? { source: "crm_add" } : undefined,
+        phones: phones.length ? phones : undefined,
+        cnpj: selected.cnpj,
+        meta: { source: "crm_add" },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não criou o negócio.");
@@ -162,16 +284,24 @@ export function CrmAddDealDialog({
     }
   }
 
+  const canSubmit =
+    Boolean(existing) ||
+    (Boolean(selected) && pulled && Boolean(pipelineId) && Boolean(stageId));
+
+  const placeLabel = review
+    ? [review.municipio, review.uf].filter(Boolean).join("/")
+    : null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
       <button
         type="button"
         aria-label="Fechar"
         className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg rounded-lg border border-white/10 bg-podium-navy p-5 shadow-2xl">
-        <div className="flex items-start justify-between">
+      <div className="relative flex max-h-[min(92vh,44rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-white/10 bg-podium-navy p-5 shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between">
           <div>
             <p className={CRM_LABEL}>{COPY.crmAddDeal}</p>
             <h2 className="mt-1 text-base font-semibold">Entrada de lista</h2>
@@ -184,7 +314,38 @@ export function CrmAddDealDialog({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 min-h-0 space-y-3 overflow-y-auto pr-0.5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className={CRM_LABEL}>{COPY.crmPipelineSelectLabel}</span>
+              <select
+                className={cn(CRM_FIELD, "mt-1.5")}
+                value={pipelineId}
+                onChange={(event) => setPipelineId(event.target.value)}
+              >
+                {pipelines.map((pipeline) => (
+                  <option key={pipeline.id} value={pipeline.id}>
+                    {pipeline.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className={CRM_LABEL}>{COPY.crmStageSelectLabel}</span>
+              <select
+                className={cn(CRM_FIELD, "mt-1.5")}
+                value={stageId}
+                disabled={stages.length === 0}
+                onChange={(event) => setStageId(event.target.value)}
+              >
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div ref={wrapRef} className="relative">
             <label className="block">
               <span className={CRM_LABEL}>{COPY.crmCompanyLabel}</span>
@@ -263,7 +424,7 @@ export function CrmAddDealDialog({
               {phones[0] ? (
                 <span className="text-[10px] tabular-nums text-podium-muted">{phones[0]}</span>
               ) : null}
-              {!existing ? (
+              {!existing && !pulled ? (
                 <button
                   type="button"
                   disabled={pulling}
@@ -271,12 +432,65 @@ export function CrmAddDealDialog({
                   className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow hover:text-podium-white disabled:opacity-50"
                 >
                   {pulling ? COPY.crmPullFichaLoading : COPY.crmPullFicha}
+                  <span className="ml-1.5 font-normal normal-case tracking-normal text-podium-muted">
+                    · {COPY.crmPullFichaCredit}
+                  </span>
                 </button>
+              ) : null}
+              {!existing && pulled ? (
+                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                  {COPY.crmPullFichaDone}
+                </span>
               ) : null}
             </div>
           ) : null}
+          {!existing && selected && !pulled ? (
+            <p className="text-[11px] text-podium-muted">{COPY.crmPullFichaHint}</p>
+          ) : null}
           {existing ? (
             <p className="text-xs text-podium-yellow">{COPY.crmAddDealAlreadyInPipeline}</p>
+          ) : null}
+          {review && pulled && !existing ? (
+            <div className="rounded-md border border-white/10 bg-podium-panel/60 p-3">
+              <p className={CRM_LABEL}>{COPY.crmAddDealReview}</p>
+              <p className="mt-1.5 text-sm font-semibold text-podium-white">
+                {review.company || company}
+              </p>
+              <p className="mt-0.5 text-[11px] tabular-nums text-podium-muted">
+                {formatCnpj(review.cnpj)}
+                {placeLabel ? ` · ${placeLabel}` : ""}
+              </p>
+              {review.cnae ? (
+                <p className="mt-1 text-[11px] text-podium-muted">
+                  <span className="uppercase tracking-[0.12em]">{COPY.crmAddDealCnae}</span>
+                  {" · "}
+                  {review.cnae}
+                </p>
+              ) : null}
+              {review.phones.length ? (
+                <p className="mt-1 text-[11px] tabular-nums text-podium-white">
+                  {review.phones.slice(0, 3).join(" · ")}
+                </p>
+              ) : null}
+              {review.contact ? (
+                <p className="mt-1 text-[11px] text-podium-white">{review.contact}</p>
+              ) : null}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {review.badges.map((badge) => (
+                  <span
+                    key={badge.id}
+                    className={cn(
+                      "rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                      badge.found
+                        ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
+                        : "border-white/10 text-podium-muted",
+                    )}
+                  >
+                    {badge.label} · {badge.found ? "ok" : "falta"}
+                  </span>
+                ))}
+              </div>
+            </div>
           ) : null}
           <label className="block">
             <span className={CRM_LABEL}>{COPY.crmContactLabel}</span>
@@ -317,15 +531,18 @@ export function CrmAddDealDialog({
             />
           </label>
           {error ? <p className="text-xs text-red-400">{error}</p> : null}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void submit()}
-            className="w-full rounded-md bg-podium-yellow py-1.5 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-          >
-            {existing ? COPY.crmOpenExistingDeal : COPY.crmAddDeal}
-          </button>
+          {remoteBoard.isError ? (
+            <p className="text-xs text-red-400">Não carregou as etapas deste nicho.</p>
+          ) : null}
         </div>
+        <button
+          type="button"
+          disabled={saving || !canSubmit}
+          onClick={() => void submit()}
+          className="mt-4 w-full shrink-0 rounded-md bg-podium-yellow py-1.5 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+        >
+          {existing ? COPY.crmOpenExistingDeal : COPY.crmAddDeal}
+        </button>
       </div>
     </div>
   );

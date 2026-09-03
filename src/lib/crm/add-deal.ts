@@ -1,13 +1,25 @@
 import { digitsCnpj } from "@/lib/crm/bridge";
+import {
+  briefingBadgesFromPresence,
+  briefingPresenceFromEnrichment,
+  type CrmBriefingBadge,
+} from "@/lib/crm/briefing";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatPhone } from "@/lib/format";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
-import type { CompanySearchHit, LeadDossier, PartnerCard } from "@/lib/types";
+import type {
+  Company,
+  CompanySearchHit,
+  Establishment,
+  LeadDossier,
+  PartnerCard,
+} from "@/lib/types";
 
 export type AddDealSelectedCompany = {
   cnpj: string;
   municipio: string;
   uf: string;
+  cnaeDescricao: string;
 };
 
 export type AddDealFromHit = {
@@ -17,6 +29,7 @@ export type AddDealFromHit = {
   cnpj: string;
   municipio: string;
   uf: string;
+  cnaeDescricao: string;
 };
 
 export type AddDealSocio = {
@@ -28,6 +41,28 @@ export type AddDealFromDossier = {
   phones: string[];
   socios: AddDealSocio[];
   contact_name: string;
+};
+
+export type AddDealReviewBriefing = {
+  company: string;
+  cnpj: string;
+  municipio: string | null;
+  uf: string | null;
+  cnae: string | null;
+  phones: string[];
+  contact: string | null;
+  badges: CrmBriefingBadge[];
+};
+
+export type AddDealReviewDossier = {
+  establishment: Pick<Establishment, "cnpj" | "nome_fantasia" | "uf">;
+  company: Pick<Company, "razao_social">;
+  cnaeDescricao: string;
+  municipioNome: string;
+  contacts: LeadDossier["contacts"];
+  socios: LeadDossier["socios"];
+  decisor: LeadDossier["decisor"];
+  enrichment: LeadDossier["enrichment"];
 };
 
 function formatDealPhone(raw: string | null | undefined): string | null {
@@ -60,6 +95,7 @@ export function dealFieldsFromCompanyHit(hit: CompanySearchHit): AddDealFromHit 
     cnpj: digitsCnpj(hit.cnpj),
     municipio: hit.municipio,
     uf: hit.uf,
+    cnaeDescricao: hit.cnaeDescricao.trim(),
   };
 }
 
@@ -92,6 +128,45 @@ export function dealFieldsFromDossier(
     socios,
     contact_name: (dossier.decisor?.nome ?? socios[0]?.nome ?? "").trim().slice(0, 80),
   };
+}
+
+export function reviewBriefingFromDossier(
+  dossier: AddDealReviewDossier,
+  fallback?: {
+    company?: string;
+    municipio?: string;
+    uf?: string;
+    cnae?: string;
+  },
+): AddDealReviewBriefing {
+  const extras = dealFieldsFromDossier(dossier);
+  const company =
+    displayCompanyName(
+      dossier.establishment.nome_fantasia,
+      dossier.company.razao_social,
+    ).trim() ||
+    fallback?.company?.trim() ||
+    "";
+  const municipio =
+    dossier.municipioNome.trim() || fallback?.municipio?.trim() || null;
+  const uf = dossier.establishment.uf.trim() || fallback?.uf?.trim() || null;
+  const cnae = dossier.cnaeDescricao.trim() || fallback?.cnae?.trim() || null;
+  return {
+    company,
+    cnpj: digitsCnpj(dossier.establishment.cnpj),
+    municipio,
+    uf,
+    cnae,
+    phones: extras.phones,
+    contact: extras.contact_name || null,
+    badges: briefingBadgesFromPresence(
+      briefingPresenceFromEnrichment(dossier.enrichment),
+    ),
+  };
+}
+
+export function enrichJobIsSettled(jobStatus: string | null | undefined): boolean {
+  return jobStatus !== "pending" && jobStatus !== "running";
 }
 
 export function findDealByCnpj<T extends { cnpj: string | null }>(

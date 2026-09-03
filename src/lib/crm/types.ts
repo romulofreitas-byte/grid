@@ -128,6 +128,7 @@ export type CrmBoard = {
 
 export type CrmDealCreateInput = {
   pipelineId: string;
+  stage_id?: string;
   company_name: string;
   contact_name?: string;
   secretaries?: string[];

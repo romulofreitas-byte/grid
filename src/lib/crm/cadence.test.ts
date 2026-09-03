@@ -10,6 +10,8 @@ import {
   isLockedStageKey,
   isPastFirstMile,
   leadStatusFromStageKey,
+  pickCreateStage,
+  pickEntradaStage,
 } from "./cadence";
 
 describe("default cadence", () => {
@@ -108,5 +110,22 @@ describe("first-mile mapping", () => {
       "r",
       "d",
     ]);
+  });
+});
+
+describe("pickCreateStage", () => {
+  const stages = [
+    { id: "entrada", canonical_key: "entrada" as const },
+    { id: "contato", canonical_key: "tentando_contato" as const },
+  ];
+
+  it("uses the requested stage when it belongs to the pipeline", () => {
+    expect(pickCreateStage(stages, "contato")?.id).toBe("contato");
+  });
+
+  it("falls back to Entrada when stage_id is missing or foreign", () => {
+    expect(pickCreateStage(stages)?.id).toBe("entrada");
+    expect(pickCreateStage(stages, "other")?.id).toBe("entrada");
+    expect(pickEntradaStage(stages)?.id).toBe("entrada");
   });
 });
