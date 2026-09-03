@@ -35,15 +35,15 @@ describe("pickNewestAudienceNames", () => {
       pickNewestAudienceNames([
         "community_mundo_podium_356405_1787003890_audience_list.csv",
         "config.toml",
-        "community_mundo_podium_356405_1787654806_audience_list.csv.zip",
-        "community_mundo_podium_356405_1787654806_audience_list.csv",
+        "community_mundo_podium_356405_1788401072_audience_list.csv.zip",
+        "community_mundo_podium_356405_1788401072_audience_list.csv",
       ])[0],
-    ).toBe("community_mundo_podium_356405_1787654806_audience_list.csv");
+    ).toBe("community_mundo_podium_356405_1788401072_audience_list.csv");
     expect(
       audienceExportStamp(
-        "community_mundo_podium_356405_1787654806_audience_list.csv",
+        "community_mundo_podium_356405_1788401072_audience_list.csv",
       ),
-    ).toBe(1787654806);
+    ).toBe(1788401072);
   });
 });
 
@@ -56,7 +56,7 @@ describe("resolveAudienceCsvPath", () => {
     if (!newest) return;
     const resolved = resolveAudienceCsvPath(path.join(supabaseDir, newest));
     expect(resolved).toMatch(/audience_list\.csv$/);
-    expect(resolved).toMatch(/1787654806/);
+    expect(resolved).toMatch(/1788401072/);
   });
 });
 
