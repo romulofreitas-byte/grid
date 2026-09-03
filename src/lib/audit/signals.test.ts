@@ -100,9 +100,10 @@ describe("buildAuditSignals", () => {
       "site",
     );
     expect(isAuditLive(stillLiveOn404)).toBe(true);
-    expect(stillLiveOn404.hint).toMatch(/não abriu agora/i);
+    expect(stillLiveOn404.hint).toMatch(/bot não leu a página agora/i);
+    expect(stillLiveOn404.hint).toMatch(/navegador pode abrir/i);
     expect(stillLiveOn404.hint).not.toMatch(/confirme/i);
-    expect(stillLiveOn404.note).toMatch(/Não abriu agora/);
+    expect(stillLiveOn404.note).toMatch(/Bot não leu agora/);
 
     const downOn500 = byId(
       enrichment({
@@ -131,7 +132,8 @@ describe("buildAuditSignals", () => {
     expect(candidate.unverified).toBe(true);
     expect(isAuditLive(candidate)).toBe(false);
     expect(candidate.hint).toMatch(/confirme se é o site/i);
-    expect(candidate.note).toMatch(/Não abriu agora/);
+    expect(candidate.hint).toMatch(/bot não leu a página agora/i);
+    expect(candidate.note).toMatch(/Bot não leu agora/);
 
     const botMissed = byId(
       enrichment({
@@ -144,9 +146,9 @@ describe("buildAuditSignals", () => {
     );
     expect(botMissed.found).toBe(true);
     expect(botMissed.unverified).toBe(true);
-    expect(botMissed.note).toMatch(/Não abriu agora/);
+    expect(botMissed.note).toMatch(/Bot não leu agora/);
     expect(botMissed.note).not.toMatch(/fora do ar/i);
-    expect(botMissed.hint).toMatch(/não abriu agora/i);
+    expect(botMissed.hint).toMatch(/bot não leu a página agora/i);
     expect(botMissed.hint).toMatch(/confirme/i);
     expect(isSiteOffline(enrichment({
       domain: "faseimoveis.com.br",
@@ -171,7 +173,7 @@ describe("buildAuditSignals", () => {
       "site",
     );
     expect(stillScanning.note ?? "").not.toMatch(/fora do ar/i);
-    expect(stillScanning.note ?? "").not.toMatch(/Não abriu agora/);
+    expect(stillScanning.note ?? "").not.toMatch(/Não abriu agora|Bot não leu agora/);
   });
 
   it("treats pixel and GTM as unverified until the domain is confirmed", () => {

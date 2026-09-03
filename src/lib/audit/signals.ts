@@ -437,7 +437,7 @@ function siteNote(e: LeadEnrichment): string | undefined {
   if (isSiteOffline(e)) {
     bits.push("Site fora do ar");
   } else if (isSiteFetchFailed(e)) {
-    bits.push("Não abriu agora");
+    bits.push("Bot não leu agora");
   }
   if (e.osm?.matched === true) {
     bits.push(
@@ -608,13 +608,13 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ? siteDown
         ? "Site confirmado, mas fora do ar agora. Dá para abrir a ligação por isso."
         : siteSoftFail
-          ? "Site confirmado, mas a página não abriu agora (bloqueio ou 404)."
+          ? "Site confirmado. O nosso bot não leu a página agora (bloqueio ou 404) — no navegador pode abrir."
           : "Domínio confirmado — este é o site da empresa. Abra o link para conferir."
       : e.domain_status === "nao_confirmado"
         ? siteDown
           ? "Achei este domínio, mas ele não abriu. Confirme se é o site da empresa."
           : siteSoftFail
-            ? "Achei este domínio, mas a página não abriu agora. Confirme se é o site da empresa."
+            ? "Achei este domínio, mas o bot não leu a página agora. Confirme se é o site da empresa."
             : "Achei este domínio, mas ainda sem confirmação de que é da empresa."
         : e.fonte.domain?.fonte === "human"
           ? "Você removeu o site desta qualificação."

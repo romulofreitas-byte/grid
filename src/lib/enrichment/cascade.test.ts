@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   domainFromEmail,
   enrichCompany,
+  rememberStorefrontStatus,
   swapWwwOrigin,
   type CascadeCompany,
 } from "./cascade";
@@ -160,6 +161,29 @@ describe("domainFromEmail", () => {
   });
 });
 
+describe("rememberStorefrontStatus", () => {
+  it("keeps a usable home status when harvest returns 404", () => {
+    expect(
+      rememberStorefrontStatus(200, { html: "not found", status: 404 }),
+    ).toBe(200);
+  });
+
+  it("records the first 4xx when nothing has opened yet", () => {
+    expect(
+      rememberStorefrontStatus(null, { html: "Forbidden", status: 403 }),
+    ).toBe(403);
+  });
+
+  it("upgrades a 4xx once a later page is usable", () => {
+    expect(
+      rememberStorefrontStatus(403, {
+        html: "<html><body>Solaris</body></html>",
+        status: 200,
+      }),
+    ).toBe(200);
+  });
+});
+
 describe("swapWwwOrigin", () => {
   it("toggles www on https origins", () => {
     expect(swapWwwOrigin("https://faseimoveis.com.br")).toBe(
@@ -200,6 +224,21 @@ describe("enrichCompany crawl", () => {
     expect(sitePaths).toContain("/contato");
     expect(sitePaths).not.toContain("/equipe");
     expect(requested.some((u) => u.startsWith(OSM_OVERPASS_URL))).toBe(false);
+  });
+
+  it("keeps home http_status 200 when harvest paths like /contato return 404", async () => {
+    const domain = "paprika-home.test";
+    mockSiteFetch({
+      "/": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
+    });
+
+    const { row } = await enrichCompany(companyInput(domain), {
+      domain,
+      status: "nao_confirmado",
+    });
+
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.http_status).toBe(200);
   });
 
   it("falls back to www when the apex host refuses the home fetch", async () => {

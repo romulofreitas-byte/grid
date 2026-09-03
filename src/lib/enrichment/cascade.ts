@@ -143,6 +143,22 @@ export async function allowedByRobots(origin: string, path: string): Promise<boo
   return pathAllowedByRobots(text, path, "GridBot");
 }
 
+/**
+ * Keep the storefront status the card shows. Home 200 must not be replaced
+ * by a later harvest 404 (/contato); a later usable page may replace a 4xx.
+ */
+export function rememberStorefrontStatus(
+  current: number | null,
+  page: { html: string; status: number },
+): number {
+  const usable = page.status < 400 && page.html.trim().length > 0;
+  if (usable) {
+    if (current == null || current >= 400) return page.status;
+    return current;
+  }
+  return current ?? page.status;
+}
+
 /** Apex ↔ www twin. Same host identity; some stacks only answer on one of them. */
 export function swapWwwOrigin(origin: string): string | null {
   try {
@@ -820,8 +836,8 @@ export async function enrichCompany(
       const page = await fetchPage(`${origin}${path}`, minGap);
       pages += 1;
       if (!page) return false;
-      http_status = page.status;
-      finalUrl = page.finalUrl;
+      http_status = rememberStorefrontStatus(http_status, page);
+      if (pageUsable(page) || !finalUrl) finalUrl = page.finalUrl;
       if (mode === "usable" && !pageUsable(page)) return false;
       combinedHtml += `\n${page.html}`;
       return true;
