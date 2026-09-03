@@ -151,27 +151,56 @@ export function hasAccountantDomainHint(email: string | null | undefined): boole
   return CONTACT_RULES.accountantDomainHints.some((h) => domain.includes(h));
 }
 
-/**
- * Host do e-mail da Receita quando é provedor (compartilhado / contabilidade).
- * Não é site da empresa — deve ir para discardedDomains na qualificação.
- * E-mails gratuitos não geram host (gmail etc. não são “site do contador”).
- */
-export function receitaProviderDomain(
+export type ReceitaBrand = {
+  razaoSocial: string;
+  nomeFantasia: string | null;
+  municipio: string;
+};
+
+export function receitaEmailHost(
   email: string | null | undefined,
-  opts?: { shared?: boolean; accountantHint?: boolean },
 ): string | null {
   if (!email || !email.includes("@")) return null;
-  if (isFreeEmail(email)) return null;
-  const ban =
-    opts?.shared === true ||
-    opts?.accountantHint === true ||
-    hasAccountantDomainHint(email);
-  if (!ban) return null;
   const host = (email.split("@")[1] ?? "")
     .toLowerCase()
     .replace(/^www\./, "")
     .trim();
   return host || null;
+}
+
+/**
+ * Host do e-mail da Receita quando é provedor (compartilhado / contabilidade).
+ * Não é site da empresa — deve ir para discardedDomains na qualificação.
+ * E-mails gratuitos não geram host (gmail etc. não são “site do contador”).
+ * Host compartilhado que carrega a marca (franquia/rede) também não é provedor.
+ */
+export function receitaProviderDomain(
+  email: string | null | undefined,
+  opts?: {
+    shared?: boolean;
+    accountantHint?: boolean;
+    brand?: ReceitaBrand;
+  },
+): string | null {
+  if (!email || !email.includes("@")) return null;
+  if (isFreeEmail(email)) return null;
+  const accountant =
+    opts?.accountantHint === true || hasAccountantDomainHint(email);
+  if (!accountant && opts?.shared === true && opts.brand) {
+    if (
+      emailDomainCorrelatesWithBrand(
+        email,
+        opts.brand.razaoSocial,
+        opts.brand.nomeFantasia,
+        opts.brand.municipio,
+      )
+    ) {
+      return null;
+    }
+  }
+  const ban = opts?.shared === true || accountant;
+  if (!ban) return null;
+  return receitaEmailHost(email);
 }
 
 /**

@@ -121,7 +121,7 @@ describe("domainFromEmail", () => {
     ).toBeNull();
   });
 
-  it("never seeds a shared email even on a branded host", () => {
+  it("seeds a shared branded host (franchise / group mailbox)", () => {
     expect(
       domainFromEmail("contato@colegiogenesis.com.br", {
         razaoSocial: "Genesis Sociedade de Ensino Ltda",
@@ -129,7 +129,7 @@ describe("domainFromEmail", () => {
         municipio: "Belo Horizonte",
         emailShared: true,
       }),
-    ).toBeNull();
+    ).toBe("colegiogenesis.com.br");
   });
 
   it("seeds only when the host embeds a strong brand token", () => {
@@ -1068,6 +1068,94 @@ describe("enrichCompany crawl", () => {
     expect(row.domain_status).toBe("nao_encontrado");
     expect(row.discarded_domains).toContain("contajul.com");
     expect(row.socials.instagram).toBeUndefined();
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("seeds a shared branded franchise e-mail even if a prior run discarded the host", async () => {
+    mockSiteFetch({
+      "/": "<html><body>Lavanderia 60 Minutos — franquia nacional</body></html>",
+      "/contato": "<html><body>contato</body></html>",
+    });
+    const input = companyInput("lavanderia60minutos.com.br");
+    input.establishment.email = "atendimento@lavanderia60minutos.com.br";
+    input.establishment.nome_fantasia = "Lavanderia 60 Minutos";
+    input.company.razao_social = "LAVANDERIA 60 MINUTOS BH LTDA";
+    const { row } = await enrichCompany(input, null, undefined, {
+      emailShared: true,
+      discardedDomains: ["lavanderia60minutos.com.br"],
+    });
+    expect(row.domain).toBe("lavanderia60minutos.com.br");
+    expect(row.fonte.domain?.fonte).toBe("email_receita");
+    expect(row.discarded_domains).not.toContain("lavanderia60minutos.com.br");
+  });
+
+  it("finds a national franchise site when regional Serper misses", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const queries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("google.serper.dev/search")) {
+          const raw =
+            typeof init?.body === "string"
+              ? init.body
+              : "";
+          let q = "";
+          try {
+            q = (JSON.parse(raw) as { q?: string }).q ?? "";
+          } catch {
+            q = "";
+          }
+          queries.push(q);
+          const regional = /Belo Horizonte|\bMG\b/i.test(q);
+          return new Response(
+            JSON.stringify({
+              organic: regional
+                ? []
+                : [
+                    {
+                      link: "https://www.lavanderia60minutos.com.br/",
+                      title: "Lavanderia 60 Minutos",
+                      snippet: "Franquia nacional de lavanderia express",
+                    },
+                  ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes("lavanderia60minutos.com.br")) {
+          return htmlResponse(
+            "<html><body>Lavanderia 60 Minutos franquia</body></html>",
+          );
+        }
+        if (href.startsWith(OSM_OVERPASS_URL)) {
+          return new Response(JSON.stringify({ elements: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("gmail.com");
+    input.establishment.email = "atendimento@gmail.com";
+    input.establishment.nome_fantasia = "Lavanderia 60 Minutos";
+    input.company.razao_social = "LAVANDERIA 60 MINUTOS BH LTDA";
+    const { row } = await enrichCompany(input);
+    expect(queries.some((q) => /Belo Horizonte/.test(q))).toBe(true);
+    expect(queries).toContain('"Lavanderia 60 Minutos"');
+    expect(row.domain).toBe("lavanderia60minutos.com.br");
+    expect(row.fonte.domain?.fonte).toBe("serper");
     delete process.env.SERPER_API_KEY;
   });
 

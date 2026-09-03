@@ -194,6 +194,11 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       accountantHint:
         dossier.emailSeal?.accountantHint === true ||
         hasAccountantDomainHint(dossier.establishment.email),
+      brand: {
+        razaoSocial: dossier.company.razao_social,
+        nomeFantasia: dossier.establishment.nome_fantasia,
+        municipio: dossier.municipioNome,
+      },
     });
     const { row, timings } = await enrichCompany(
       company,

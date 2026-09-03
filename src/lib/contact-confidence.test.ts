@@ -214,4 +214,30 @@ describe("receitaProviderDomain", () => {
       receitaProviderDomain("contato@tnaslubrificacao.com.br"),
     ).toBeNull();
   });
+
+  it("does not treat a shared branded host as a provider (franchise HQ)", () => {
+    expect(
+      receitaProviderDomain("atendimento@lavanderia60minutos.com.br", {
+        shared: true,
+        brand: {
+          razaoSocial: "LAVANDERIA 60 MINUTOS LTDA",
+          nomeFantasia: "Lavanderia 60 Minutos",
+          municipio: "Belo Horizonte",
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("still bans a shared host that does not carry the brand", () => {
+    expect(
+      receitaProviderDomain("processos@contajul.com", {
+        shared: true,
+        brand: {
+          razaoSocial: "TNA LUBRIFICACAO E LIMPEZA AUTOMOTIVA LTDA",
+          nomeFantasia: "TNA Lubrificacao",
+          municipio: "Contagem",
+        },
+      }),
+    ).toBe("contajul.com");
+  });
 });

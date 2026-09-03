@@ -1,6 +1,7 @@
 import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
 import {
   domainSearchFallbackQueries,
+  domainSearchNationalFallbackQueries,
   domainSearchQueries,
 } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
@@ -38,6 +39,7 @@ import {
   hasAccountantDomainHint,
   isFreeEmail,
   emailDomainCorrelatesWithBrand,
+  receitaEmailHost,
   receitaProviderDomain,
 } from "@/lib/contact-confidence";
 import { normalizePhoneBR, sameNumberBR } from "@/lib/phone";
@@ -217,7 +219,6 @@ export function domainFromEmail(
 ): string | null {
   if (!email || !email.includes("@")) return null;
   if (isFreeEmail(email) || hasAccountantDomainHint(email)) return null;
-  if (brand?.emailShared) return null;
   const host = email.split("@")[1]?.toLowerCase();
   if (!host) return null;
   if (isDirectoryUrl(`https://${host}/`)) return null;
@@ -345,7 +346,7 @@ export type EnrichOptions = {
   forceConfirmDomain?: string | null;
   /** Shallow storefront (`/home`) when `/` is not the live site. */
   homepagePath?: string | null;
-  /** Receita e-mail appears on many CNPJs — never seed domain from it. */
+  /** Receita e-mail appears on many CNPJs — provider unless the host is the brand. */
   emailShared?: boolean;
 };
 
@@ -483,12 +484,32 @@ export async function enrichCompany(
   const discarded = new Set(
     (options.discardedDomains ?? []).map(normalizeHost).filter(Boolean),
   );
+  const emailBrand = {
+    razaoSocial: input.company.razao_social,
+    nomeFantasia: est.nome_fantasia,
+    municipio: input.municipioNome,
+  };
   // Shared / accountant Receita e-mail → never treat that host as the company site.
+  // Branded shared hosts (national franchise) stay eligible.
   const providerHost = receitaProviderDomain(est.email, {
     shared: options.emailShared === true,
     accountantHint: hasAccountantDomainHint(est.email),
+    brand: emailBrand,
   });
   if (providerHost) discarded.add(providerHost);
+  // Prior runs stored franchise hosts in discarded_domains — drop them on retry.
+  if (
+    !hasAccountantDomainHint(est.email) &&
+    emailDomainCorrelatesWithBrand(
+      est.email,
+      emailBrand.razaoSocial,
+      emailBrand.nomeFantasia,
+      emailBrand.municipio,
+    )
+  ) {
+    const brandedHost = receitaEmailHost(est.email);
+    if (brandedHost) discarded.delete(normalizeHost(brandedHost));
+  }
   const blockedSocialLabels = providerHost
     ? [providerHost.split(".")[0] ?? providerHost]
     : [];
@@ -684,8 +705,9 @@ export async function enrichCompany(
       searchGmb(gmbInput),
     ]);
     for (const hits of hitSets) absorbHits(hits);
+    let pooledHits = hitSets.flat();
     let best = pickBestDomainHit(
-      hitSets.flat(),
+      pooledHits,
       brand.razaoSocial,
       brand.nomeFantasia,
       brand.municipio,
@@ -696,8 +718,25 @@ export async function enrichCompany(
         domainSearchFallbackQueries(queryInput).map((q) => serperOrganic(q)),
       );
       for (const hits of extraSets) absorbHits(hits);
+      pooledHits = [...pooledHits, ...extraSets.flat()];
       best = pickBestDomainHit(
-        [...hitSets, ...extraSets].flat(),
+        pooledHits,
+        brand.razaoSocial,
+        brand.nomeFantasia,
+        brand.municipio,
+        exclude,
+      );
+    }
+    if (!best) {
+      const nationalSets = await Promise.all(
+        domainSearchNationalFallbackQueries(queryInput).map((q) =>
+          serperOrganic(q),
+        ),
+      );
+      for (const hits of nationalSets) absorbHits(hits);
+      pooledHits = [...pooledHits, ...nationalSets.flat()];
+      best = pickBestDomainHit(
+        pooledHits,
         brand.razaoSocial,
         brand.nomeFantasia,
         brand.municipio,

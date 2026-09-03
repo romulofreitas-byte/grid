@@ -130,3 +130,23 @@ export function domainSearchFallbackQueries(input: {
   }
   return out.slice(0, 3);
 }
+
+/**
+ * Last-resort queries without município/UF. National franchise sites often
+ * rank here after local directory noise. Keep to 1–2 Serper calls.
+ */
+export function domainSearchNationalFallbackQueries(input: {
+  nomeFantasia: string | null | undefined;
+  razaoSocial: string;
+}): string[] {
+  const fantasia = input.nomeFantasia?.trim();
+  const razao = searchableCompanyName(null, input.razaoSocial);
+  const name = fantasia || razao;
+  if (!name) return [];
+  const out: string[] = [];
+  const quoted = `"${name}"`;
+  const withSite = `${name} site`;
+  out.push(quoted);
+  if (withSite !== quoted) out.push(withSite);
+  return out.slice(0, 2);
+}

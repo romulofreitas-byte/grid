@@ -3,6 +3,7 @@ import {
   displayCompanyName,
   domainSearchQueries,
   domainSearchFallbackQueries,
+  domainSearchNationalFallbackQueries,
   searchableCompanyName,
   companyMapsQuery,
   leadMapsHref,
@@ -73,6 +74,26 @@ describe("domainSearchFallbackQueries", () => {
       "COLEGIO SANTA DOROTEIA Belo Horizonte MG",
       "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL Belo Horizonte MG site",
     ]);
+  });
+});
+
+describe("domainSearchNationalFallbackQueries", () => {
+  it("quotes fantasia without município or UF", () => {
+    expect(
+      domainSearchNationalFallbackQueries({
+        nomeFantasia: "Lavanderia 60 Minutos",
+        razaoSocial: "LAVANDERIA 60 MINUTOS BH LTDA",
+      }),
+    ).toEqual(['"Lavanderia 60 Minutos"', "Lavanderia 60 Minutos site"]);
+  });
+
+  it("falls back to stripped razão when there is no fantasia", () => {
+    expect(
+      domainSearchNationalFallbackQueries({
+        nomeFantasia: null,
+        razaoSocial: "Clinica Sol Ltda",
+      }),
+    ).toEqual(['"Clinica Sol"', "Clinica Sol site"]);
   });
 });
 
