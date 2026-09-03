@@ -107,6 +107,7 @@ export async function GET(
     profile,
     enrichAllowed: balance.enrichAllowed,
     searchSaved: search?.saved ?? false,
+    searchNome: search?.nome ?? null,
     wasQualified: enriched,
     crm,
   });

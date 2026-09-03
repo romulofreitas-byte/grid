@@ -4,7 +4,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Flag, MapPin, MessageCircle } from "lucide-react";
+import { MapPin, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnatomyCard } from "@/components/AnatomyCard";
 import { SociosPanel } from "@/components/ApproachDoors";
@@ -14,8 +14,9 @@ import { DigitalAuditPanel } from "@/components/DigitalAuditPanel";
 import { GlassCard } from "@/components/GlassCard";
 import { LeadCompanyCard } from "@/components/LeadCompanyCard";
 import { LeadStatusStrip } from "@/components/LeadStatusStrip";
+import { SaveListDialog } from "@/components/SaveListDialog";
 import { Button } from "@/components/ui/Button";
-import { leadBack, leadHref, parseGridFrom, gridHref, crmHref } from "@/lib/back";
+import { leadBack, leadHref, parseGridFrom, crmHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
   blockQualifyIfFree,
@@ -34,6 +35,7 @@ import type {
   PilotStats,
 } from "@/lib/types";
 import type { FichaMoveKey } from "@/lib/crm/cadence";
+import { fichaCrmPrompt } from "@/lib/crm/ficha-prompt";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { displayCompanyName, leadMapsHref } from "@/lib/enrichment/company-name";
@@ -122,7 +124,6 @@ export default function LeadPage() {
   const searchParams = useSearchParams();
   const searchId = searchParams.get("searchId") ?? undefined;
   const from = parseGridFrom(searchParams.get("from"));
-  const fromEmpresas = searchParams.get("from") === "empresas";
   const back = leadBack(searchId, searchParams.get("from"));
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
@@ -133,6 +134,9 @@ export default function LeadPage() {
   const [correctError, setCorrectError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [savingPista, setSavingPista] = useState(false);
+  const [saveListOpen, setSaveListOpen] = useState(false);
+  const [saveListName, setSaveListName] = useState("");
+  const [saveListError, setSaveListError] = useState<string | null>(null);
   const heldCompleteRef = useRef<LeadEnrichment | null>(null);
   const ensuringRef = useRef<string | null>(null);
   const sawQueuedJobRef = useRef(false);
@@ -144,6 +148,9 @@ export default function LeadPage() {
     setQualifyError(null);
     setCorrectError(null);
     setCalling(false);
+    setSavingPista(false);
+    setSaveListOpen(false);
+    setSaveListError(null);
     heldCompleteRef.current = null;
     sawQueuedJobRef.current = false;
     watchCollectedAtRef.current = null;
@@ -629,6 +636,93 @@ export default function LeadPage() {
   }
 
   const cityLine = [d.municipioNome, est.uf].filter(Boolean).join(" · ");
+  const crmPrompt = fichaCrmPrompt({
+    hasDeal: Boolean(d.crm),
+    searchSaved: Boolean(d.searchSaved),
+    wasQualified: Boolean(displayEnrichment) || Boolean(d.wasQualified),
+  });
+
+  function saveStandaloneLead() {
+    setSavingPista(true);
+    void fetch("/api/empresas/pista", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cnpj: params.cnpj }),
+    })
+      .then(async (res) => {
+        const json = (await res.json()) as {
+          searchId?: string;
+          error?: string;
+        };
+        if (!res.ok || !json.searchId) {
+          throw new Error(json.error ?? "Não foi possível salvar");
+        }
+        router.push(leadHref(params.cnpj, json.searchId, from));
+      })
+      .catch((err: Error) => {
+        setSavingPista(false);
+        setQualifyError(err.message);
+      });
+  }
+
+  function openSaveList() {
+    setSaveListName((d.searchNome ?? "").trim() || companyTitle);
+    setSaveListError(null);
+    setSaveListOpen(true);
+  }
+
+  async function submitSaveList() {
+    if (!searchId) return;
+    const trimmed = saveListName.trim();
+    if (!trimmed) return;
+    setSavingPista(true);
+    setSaveListError(null);
+    try {
+      const res = await fetch(`/api/search/${searchId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: trimmed, saved: true }),
+      });
+      if (!res.ok) throw new Error("Não foi possível salvar");
+      setSaveListOpen(false);
+      setSavingPista(false);
+      void qc.invalidateQueries({
+        queryKey: leadQueryKey(params.cnpj, searchId),
+      });
+      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      router.refresh();
+    } catch {
+      setSavingPista(false);
+      setSaveListError("Não foi possível salvar. Tente de novo.");
+    }
+  }
+
+  const crmAction = d.crm
+    ? {
+        type: "open" as const,
+        href: crmHref({ pipeline: d.crm.pipelineId, deal: d.crm.dealId }),
+      }
+    : crmPrompt === "entering"
+      ? { type: "status" as const, label: COPY.crmEnteringPista }
+      : crmPrompt === "qualify"
+        ? {
+            type: "cta" as const,
+            label: COPY.qualificar,
+            pendingLabel: "Qualificando…",
+            pending: qualifyQueued || qualifyMutation.isPending,
+            title: COPY.crmQualifyToEnter,
+            onClick: () => runQualify(false),
+          }
+        : crmPrompt === "save"
+          ? {
+              type: "cta" as const,
+              label: COPY.salvarNaPista,
+              pendingLabel: "Salvando…",
+              pending: savingPista,
+              title: COPY.crmSaveListToEnter,
+              onClick: searchId ? openSaveList : saveStandaloneLead,
+            }
+          : undefined;
 
   return (
     <AppShell fill title="Ficha" back={back}>
@@ -648,49 +742,8 @@ export default function LeadPage() {
           municipioNome={d.municipioNome}
           addressSharedCount={d.addressSharedCount}
           emailSeal={d.emailSeal}
-          crmHref={
-            d.crm
-              ? crmHref({ pipeline: d.crm.pipelineId, deal: d.crm.dealId })
-              : undefined
-          }
+          crmAction={crmAction}
         />
-
-        {fromEmpresas && !searchId ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              size="sm"
-              disabled={savingPista}
-              onClick={() => {
-                setSavingPista(true);
-                void fetch("/api/empresas/pista", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ cnpj: params.cnpj }),
-                })
-                  .then(async (res) => {
-                    const json = (await res.json()) as {
-                      searchId?: string;
-                      error?: string;
-                    };
-                    if (!res.ok || !json.searchId) {
-                      throw new Error(json.error ?? "Não foi possível salvar");
-                    }
-                    router.push(gridHref(json.searchId, "empresas"));
-                  })
-                  .catch((err: Error) => {
-                    setSavingPista(false);
-                    setQualifyError(err.message);
-                  });
-              }}
-              className="gap-1.5"
-            >
-              <Flag className="h-3.5 w-3.5" />
-              {savingPista ? "Salvando…" : COPY.salvarNaPista}
-            </Button>
-            <p className="text-xs text-podium-muted">{COPY.crmSaveListToEnter}</p>
-          </div>
-        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
           <GlassCard
@@ -938,6 +991,22 @@ export default function LeadPage() {
           }
         />
       </div>
+      <SaveListDialog
+        open={saveListOpen}
+        saved={false}
+        name={saveListName}
+        pending={savingPista}
+        error={saveListError}
+        onClose={() => {
+          if (savingPista) return;
+          setSaveListOpen(false);
+          setSaveListError(null);
+        }}
+        onNameChange={setSaveListName}
+        onSubmit={() => {
+          void submitSaveList();
+        }}
+      />
     </AppShell>
   );
 }

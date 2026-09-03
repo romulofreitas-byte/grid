@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
 import { PositionBadge } from "@/components/PositionBadge";
-import { buttonClassName } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import {
   formatCapital,
@@ -71,6 +71,54 @@ function EmailSealNotice({
   );
 }
 
+export type LeadCompanyCrmAction =
+  | { type: "open"; href: string }
+  | {
+      type: "cta";
+      label: string;
+      pendingLabel: string;
+      pending?: boolean;
+      title?: string;
+      onClick: () => void;
+    }
+  | { type: "status"; label: string };
+
+function CompanyCrmHeaderAction({ action }: { action: LeadCompanyCrmAction }) {
+  if (action.type === "open") {
+    return (
+      <Link
+        href={action.href}
+        className={buttonClassName({
+          variant: "accent",
+          size: "sm",
+          className: "shrink-0",
+        })}
+      >
+        {COPY.crmOpenDeal}
+      </Link>
+    );
+  }
+  if (action.type === "status") {
+    return (
+      <p className="max-w-[9.5rem] shrink-0 text-right text-[11px] leading-snug text-podium-muted">
+        {action.label}
+      </p>
+    );
+  }
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      disabled={action.pending}
+      title={action.title}
+      onClick={action.onClick}
+      className="shrink-0"
+    >
+      {action.pending ? action.pendingLabel : action.label}
+    </Button>
+  );
+}
+
 export function LeadCompanyCard({
   title,
   razaoSocial,
@@ -86,7 +134,7 @@ export function LeadCompanyCard({
   municipioNome,
   addressSharedCount,
   emailSeal,
-  crmHref,
+  crmAction,
 }: {
   title: string;
   razaoSocial: string;
@@ -102,7 +150,7 @@ export function LeadCompanyCard({
   municipioNome?: string;
   addressSharedCount?: number;
   emailSeal?: LeadDossier["emailSeal"];
-  crmHref?: string;
+  crmAction?: LeadCompanyCrmAction;
 }) {
   const [showCadastro, setShowCadastro] = useState(false);
   const opened = establishment ? formatDateBr(establishment.data_inicio) : null;
@@ -142,18 +190,7 @@ export function LeadCompanyCard({
             {formatCnpj(cnpj)}
           </p>
         </div>
-        {crmHref ? (
-          <Link
-            href={crmHref}
-            className={buttonClassName({
-              variant: "accent",
-              size: "sm",
-              className: "shrink-0",
-            })}
-          >
-            {COPY.crmOpenDeal}
-          </Link>
-        ) : null}
+        {crmAction ? <CompanyCrmHeaderAction action={crmAction} /> : null}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
