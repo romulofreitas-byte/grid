@@ -15,7 +15,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { LeadCompanyCard } from "@/components/LeadCompanyCard";
 import { LeadStatusStrip } from "@/components/LeadStatusStrip";
 import { Button } from "@/components/ui/Button";
-import { leadBack, leadHref, parseGridFrom, gridHref } from "@/lib/back";
+import { leadBack, leadHref, parseGridFrom, gridHref, crmHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
   blockQualifyIfFree,
@@ -648,6 +648,11 @@ export default function LeadPage() {
           municipioNome={d.municipioNome}
           addressSharedCount={d.addressSharedCount}
           emailSeal={d.emailSeal}
+          crmHref={
+            d.crm
+              ? crmHref({ pipeline: d.crm.pipelineId, deal: d.crm.dealId })
+              : undefined
+          }
         />
 
         {fromEmpresas && !searchId ? (

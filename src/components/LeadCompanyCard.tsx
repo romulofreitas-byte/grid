@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
 import { PositionBadge } from "@/components/PositionBadge";
+import { buttonClassName } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import {
   formatCapital,
@@ -84,6 +86,7 @@ export function LeadCompanyCard({
   municipioNome,
   addressSharedCount,
   emailSeal,
+  crmHref,
 }: {
   title: string;
   razaoSocial: string;
@@ -99,6 +102,7 @@ export function LeadCompanyCard({
   municipioNome?: string;
   addressSharedCount?: number;
   emailSeal?: LeadDossier["emailSeal"];
+  crmHref?: string;
 }) {
   const [showCadastro, setShowCadastro] = useState(false);
   const opened = establishment ? formatDateBr(establishment.data_inicio) : null;
@@ -138,6 +142,18 @@ export function LeadCompanyCard({
             {formatCnpj(cnpj)}
           </p>
         </div>
+        {crmHref ? (
+          <Link
+            href={crmHref}
+            className={buttonClassName({
+              variant: "accent",
+              size: "sm",
+              className: "shrink-0",
+            })}
+          >
+            {COPY.crmOpenDeal}
+          </Link>
+        ) : null}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
