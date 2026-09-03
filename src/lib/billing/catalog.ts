@@ -41,15 +41,14 @@ export const PLANS: PlanDefinition[] = [
     sku: "free",
     kind: "plan",
     nome: "Treino livre",
-    tagline: "Buscar e ver a lista é grátis.",
+    tagline: "Buscar, ver a lista e qualificar 25 empresas.",
     priceCents: 0,
     credits: 25,
     enrichAllowed: false,
     billed: false,
     highlights: [
-      "25 créditos / mês",
-      "Exportar: 50 créditos por empresa já qualificada",
-      "Sem qualificação nem CRM",
+      "25 qualificações / mês",
+      "CRM e export a partir do Piloto",
     ],
   },
   {
@@ -167,6 +166,12 @@ export function isSkuOnSale(sku: string): boolean {
 
 export function getCatalogItem(sku: string): CatalogItem | undefined {
   return BY_SKU[sku];
+}
+
+export function isBilledPlanSku(sku: string | null | undefined): boolean {
+  if (!sku) return false;
+  const item = getCatalogItem(sku);
+  return item?.kind === "plan" && item.billed;
 }
 
 export function isPlanSku(sku: string): sku is PlanSku {

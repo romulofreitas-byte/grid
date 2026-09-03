@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /ops
+Disallow: /ops/
 
 Sitemap: https://grid.mundopodium.com.br

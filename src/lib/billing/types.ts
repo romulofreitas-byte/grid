@@ -122,8 +122,11 @@ export class InsufficientCreditsError extends Error {
   }
 }
 
+export const FREE_QUALIFY_EXHAUSTED_MESSAGE =
+  "Os 25 créditos do Treino livre acabaram. Assine o Piloto para continuar.";
+
 export class EnrichmentNotAllowedError extends Error {
-  constructor(message = "Qualificação não está no Treino livre. Escolha um plano.") {
+  constructor(message = FREE_QUALIFY_EXHAUSTED_MESSAGE) {
     super(message);
     this.name = "EnrichmentNotAllowedError";
   }

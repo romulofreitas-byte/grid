@@ -27,6 +27,14 @@ describe("crm-nativo FAQ", () => {
   });
 });
 
+describe("qualificar FAQ", () => {
+  it("says Treino livre includes 25 qualifications", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "qualificar");
+    expect(item?.answer).toMatch(/25 por mês/);
+    expect(item?.answer).toMatch(/Plano Piloto/);
+  });
+});
+
 describe("conexoes FAQ", () => {
   it("says GRID dials with VoIP and falls back to the device phone", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "conexoes");

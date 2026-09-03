@@ -79,7 +79,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      "Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da ligação. O resultado é da sua conta: outra conta não herda. Em lista salva, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.",
+      `Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). No Treino livre você tem 25 por mês. Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da ligação. O resultado é da sua conta: outra conta não herda. Em lista salva, a partir do Plano Piloto, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.`,
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -125,7 +125,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Quando gasta crédito?",
     answer:
-      `Buscar e ver a lista é grátis. Qualificar custa 1 crédito. Se a lista estiver salva, o lead entra sozinho no CRM. Exportar CSV/Excel ou enviar para CRM externo custa ${EXPORT_CREDIT_COST}, só de quem já foi qualificado. Atualizar a qualificação cobra de novo.`,
+      `Buscar e ver a lista é grátis. Qualificar custa 1 crédito — o Treino livre inclui 25 por mês. Se a lista estiver salva e você tiver o Piloto, o lead entra sozinho no CRM. Exportar CSV/Excel ou enviar para CRM externo custa ${EXPORT_CREDIT_COST}, só de quem já foi qualificado. Atualizar a qualificação cobra de novo.`,
     links: [{ href: "/planos", label: "Ver planos" }],
   },
   {
@@ -133,7 +133,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "Recarga substitui o plano?",
     answer:
-      "Não. Pacotes não expiram e não substituem a assinatura — nem reabrem o CRM. Servem para o meio do mês ou para exportar, com custo por crédito pior que o plano.",
+      "Não. Pacotes não expiram e não substituem a assinatura — nem reabrem o CRM, nem a qualificação depois dos 25 do Treino livre. Servem para o meio do mês ou para exportar, com custo por crédito pior que o plano.",
     links: [{ href: "/planos", label: "Recarregar" }],
   },
   {
@@ -141,7 +141,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "O crédito que eu não usei passa para o mês seguinte?",
     answer:
-      "O crédito do plano zera na renovação. Recarga não expira e fica na conta. Sem mensalidade, o CRM e a qualificação fecham — recarga só soma crédito, não reabre o acesso.",
+      "O crédito do plano zera na renovação. Recarga não expira e fica na conta. Sem mensalidade, o CRM fecha e a qualificação do Treino livre para nos 25 do mês — recarga só soma crédito, não reabre o acesso.",
     links: [{ href: "/planos", label: "Ver planos" }],
   },
   {

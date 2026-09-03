@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { getBalance } from "@/lib/billing/service";
+import { filterQualifiedCnpjs, getBalance } from "@/lib/billing/service";
 import { redactCompanySearchHits } from "@/lib/billing/redact";
 import { COMPANY_SEARCH_LIMIT } from "@/lib/data/company-search";
 import { getRepo } from "@/lib/data";
@@ -25,7 +25,12 @@ export async function GET(req: Request) {
       repo.searchCompanies(q, { ufs, soMatriz, limit: COMPANY_SEARCH_LIMIT }),
       getBalance(gated.userId),
     ]);
-    return NextResponse.json(redactCompanySearchHits(hits, balance.enrichAllowed));
+    const revealed = balance.enrichAllowed
+      ? undefined
+      : new Set(await filterQualifiedCnpjs(gated.userId, hits.map((h) => h.cnpj)));
+    return NextResponse.json(
+      redactCompanySearchHits(hits, balance.enrichAllowed, revealed),
+    );
   } catch (err) {
     return dbUnavailableResponse(err, "empresas_search");
   }

@@ -35,6 +35,7 @@ import {
   BillingError,
   CrmNotAllowedError,
   EnrichmentNotAllowedError,
+  FREE_QUALIFY_EXHAUSTED_MESSAGE,
   InsufficientCreditsError,
   type BillingOrder,
   type CreditBalance,
@@ -195,13 +196,19 @@ async function grantLot(
 export async function ensureStartingCredits(profileId: string): Promise<CreditBalance> {
   try {
     const store = await getBillingStore();
-    const lots = await store.listOpenLots(profileId);
-    const live = lots.filter((l) => lotOpen(l));
+    const lots = await store.listLots(profileId);
+    const now = new Date();
     const sub = await store.getActiveSubscription(profileId);
     if (subscriptionGrantsAccess(sub)) {
       return syncCache(store, profileId);
     }
-    if (live.some((l) => l.source === "plan_grant")) {
+    const hasPeriodGrant = lots.some(
+      (l) =>
+        l.source === "plan_grant" &&
+        l.expiresAt != null &&
+        new Date(l.expiresAt).getTime() > now.getTime(),
+    );
+    if (hasPeriodGrant) {
       return syncCache(store, profileId);
     }
     const free = getCatalogItem("free") as PlanDefinition;
@@ -713,11 +720,10 @@ export async function filterQualifiedCnpjs(
   const unique = [
     ...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0"))),
   ];
-  const qualified: string[] = [];
-  for (const cnpj of unique) {
-    if (await store.isCnpjBilled(profileId, cnpj, "enrich")) qualified.push(cnpj);
-  }
-  return qualified;
+  if (unique.length === 0) return [];
+  const billed = await store.listBilledCnpjs(profileId, unique, "enrich");
+  const billedSet = new Set(billed);
+  return unique.filter((cnpj) => billedSet.has(cnpj));
 }
 
 export async function debitExport(
@@ -749,11 +755,9 @@ export async function debitEnrich(
   options?: { forceCharge?: boolean },
 ): Promise<CreditBalance> {
   const balance = await getBalance(profileId);
-  if (!balance.enrichAllowed) {
+  if (!balance.enrichAllowed && balance.trialExpired) {
     throw new EnrichmentNotAllowedError(
-      balance.trialExpired
-        ? "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar."
-        : undefined,
+      "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar.",
     );
   }
   const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")))];
@@ -768,6 +772,9 @@ export async function debitEnrich(
     }
   }
   const needed = toCharge.length * ENRICH_CREDIT_COST;
+  if (!balance.enrichAllowed && needed > balance.plan) {
+    throw new EnrichmentNotAllowedError(FREE_QUALIFY_EXHAUSTED_MESSAGE);
+  }
   const result = needed
     ? await debitCredits(profileId, needed, "enrich", searchId)
     : await getBalance(profileId);
@@ -786,6 +793,71 @@ export async function cancelSubscription(profileId: string): Promise<void> {
     await provider.cancelSubscription(sub.providerSubId);
   }
   await store.updateSubscription(sub.id, { cancelAtPeriodEnd: true });
+}
+
+export async function grantManualCredits(
+  profileId: string,
+  qty: number,
+  reason = "ops_grant",
+): Promise<CreditBalance> {
+  if (!Number.isInteger(qty) || qty < 1 || qty > 50_000) {
+    throw new BillingError("Quantidade de créditos inválida", 400);
+  }
+  const store = await getBillingStore();
+  await grantLot(store, {
+    profileId,
+    qty,
+    source: "manual",
+    expiresAt: null,
+    orderId: null,
+    reason,
+    ref: "ops",
+  });
+  return syncCache(store, profileId);
+}
+
+export async function opsGrantPlatformTrial(
+  profileId: string,
+  opts?: { force?: boolean },
+): Promise<BillingOrder> {
+  const store = await getBillingStore();
+  const prior = await store.listOrders(profileId);
+  const used = prior.some((o) => o.kind === "platform" && o.status === "paid");
+  if (used && !opts?.force) {
+    throw new BillingError(
+      "Os 30 dias do Piloto da Plataforma já foram usados.",
+      409,
+    );
+  }
+  const item = getCatalogItem("membro_plataforma");
+  if (!item || item.kind !== "plan") {
+    throw new BillingError("Plano da Plataforma indisponível", 500);
+  }
+  const order: BillingOrder = {
+    id: crypto.randomUUID(),
+    profileId,
+    sku: item.sku,
+    kind: "platform",
+    provider: "platform",
+    method: "platform",
+    status: "pending",
+    amountCents: 0,
+    currency: "BRL",
+    providerPaymentId: `ops_trial_${crypto.randomUUID()}`,
+    providerSubId: null,
+    pixQr: null,
+    pixCopy: null,
+    boletoUrl: null,
+    boletoLine: null,
+    checkoutUrl: null,
+    paidAt: null,
+    createdAt: nowIso(),
+  };
+  await store.insertOrder(order);
+  await applyPaymentPaid(order.id);
+  const paid = await store.getOrder(order.id);
+  if (!paid) throw new BillingError("Falha ao liberar o trial", 500);
+  return paid;
 }
 
 export async function getBillingMe(profileId: string) {

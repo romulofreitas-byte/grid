@@ -34,6 +34,18 @@ describe("redactGridRow", () => {
   it("leaves paid plan rows intact", () => {
     expect(redactGridRow(gridRow, true)).toEqual(gridRow);
   });
+
+  it("reveals a Treino livre row after that CNPJ was qualified", () => {
+    const revealed = new Set(["12345678000190"]);
+    expect(redactGridRow(gridRow, false, revealed)).toEqual(gridRow);
+    const other = redactGridRow(
+      { ...gridRow, cnpj: "98765432000100" },
+      false,
+      revealed,
+    );
+    expect(other.telefone).toBe("••••-••••");
+    expect(other.decisorNome).toBeNull();
+  });
 });
 
 describe("redactCompanySearchHit", () => {
@@ -57,6 +69,12 @@ describe("redactCompanySearchHit", () => {
 
   it("leaves paid plan hits intact", () => {
     expect(redactCompanySearchHit(hit, true)).toEqual(hit);
+  });
+
+  it("reveals a Treino livre hit after that CNPJ was qualified", () => {
+    expect(
+      redactCompanySearchHit(hit, false, new Set(["12345678000190"])),
+    ).toEqual(hit);
   });
 });
 

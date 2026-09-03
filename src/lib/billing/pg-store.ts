@@ -300,6 +300,15 @@ export const pgBillingStore: BillingStore = {
     );
     return rows.map(mapLot);
   },
+  async listLots(profileId) {
+    const { rows } = await query(
+      `select * from credit_lots
+       where profile_id=$1
+       order by expires_at nulls last, created_at`,
+      [profileId],
+    );
+    return rows.map(mapLot);
+  },
   async updateLotRemaining(id, remaining) {
     await query("update credit_lots set remaining=$2 where id=$1", [id, remaining]);
   },
@@ -362,6 +371,15 @@ export const pgBillingStore: BillingStore = {
       [profileId, cnpj, kind],
     );
     return Number(rows[0]?.n ?? 0) > 0;
+  },
+  async listBilledCnpjs(profileId, cnpjs, kind) {
+    if (cnpjs.length === 0) return [];
+    const { rows } = await query<{ cnpj: string }>(
+      `select cnpj from billed_cnpjs
+       where profile_id=$1 and kind=$2 and cnpj = any($3::text[])`,
+      [profileId, kind, cnpjs],
+    );
+    return rows.map((r) => r.cnpj);
   },
   async markCnpjBilled(profileId, cnpj, kind, searchId) {
     await query(

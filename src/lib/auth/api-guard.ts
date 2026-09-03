@@ -7,6 +7,11 @@ import {
   rateLimitUser,
   type RateBucket,
 } from "@/lib/auth/rate-limit";
+import {
+  isOpsRequestAuthenticated,
+  opsCredentialsConfigured,
+  opsEmail,
+} from "@/lib/ops/auth";
 
 function limitedResponse(resetAt: number): NextResponse {
   const retry = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
@@ -53,6 +58,21 @@ export async function guardPublicApi(
   const hit = await rateLimit(clientIp(req), bucket);
   if (!hit.ok) return limitedResponse(hit.resetAt);
   return null;
+}
+
+export async function guardOpsApi(
+  req: Request,
+  bucket: RateBucket,
+): Promise<{ email: string } | NextResponse> {
+  const hit = await rateLimit(clientIp(req), bucket);
+  if (!hit.ok) return limitedResponse(hit.resetAt);
+  if (!opsCredentialsConfigured()) {
+    return NextResponse.json({ error: "Ops desligado" }, { status: 503 });
+  }
+  if (!isOpsRequestAuthenticated(req)) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+  return { email: opsEmail() };
 }
 
 export function isGuardReject(

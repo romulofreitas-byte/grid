@@ -136,11 +136,16 @@ export function throwIfBillingGate(
 export function blockQualifyIfFree(
   enrichAllowed: boolean | undefined,
   openPaywall: (input: PaywallOpen) => void,
-  options?: { trialExpired?: boolean },
+  options?: { trialExpired?: boolean; planCredits?: number },
 ): boolean {
+  if (options?.trialExpired) {
+    openPaywall({ kind: "trial", feature: "qualify" });
+    return true;
+  }
   if (enrichAllowed !== false) return false;
+  if ((options?.planCredits ?? 0) > 0) return false;
   openPaywall({
-    kind: options?.trialExpired ? "trial" : "plan",
+    kind: "plan",
     feature: "qualify",
   });
   return true;
@@ -180,9 +185,9 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
       };
     }
     return {
-      eyebrow: "Plano Piloto",
-      title: "Qualificação só a partir do Plano Piloto",
-      body: "Buscar e ver a lista continua grátis. Ver site, redes e Google entra no Piloto.",
+      eyebrow: "Treino livre",
+      title: "Os 25 créditos do Treino livre acabaram",
+      body: "Você já viu o que a qualificação entrega. No Piloto são 900 créditos por mês e o CRM do nicho.",
       primary: { href: PLANOS_URL, label: "Ver planos" },
       secondary: { action: "close", label: "Fechar" },
     };

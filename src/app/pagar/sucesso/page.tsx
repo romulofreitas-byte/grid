@@ -117,9 +117,9 @@ function SucessoInner() {
             </div>
             <div className="flex flex-col justify-center gap-6 border-t border-white/10 px-6 py-10 md:px-10 lg:border-l lg:border-t-0">
               <p className="text-sm leading-relaxed text-podium-gray md:text-base">
-                A mensalidade libera o CRM e a qualificação. Qualificar custa 1
-                crédito. Ligar pela ficha é grátis. Exportar a planilha custa
-                mais.
+                A mensalidade libera o CRM e o volume de créditos. Qualificar
+                custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha
+                custa mais.
               </p>
               {orderId ? (
                 <p className="text-xs text-podium-muted">Pedido {orderId}</p>

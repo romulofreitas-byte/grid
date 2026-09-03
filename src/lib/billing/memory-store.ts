@@ -148,6 +148,11 @@ export const memoryBillingStore: BillingStore = {
       .lots.filter((l) => l.profileId === profileId && l.remaining > 0)
       .map(clone);
   },
+  async listLots(profileId) {
+    return db()
+      .lots.filter((l) => l.profileId === profileId)
+      .map(clone);
+  },
   async updateLotRemaining(id, remaining) {
     const row = db().lots.find((l) => l.id === id);
     if (row) row.remaining = remaining;
@@ -196,6 +201,19 @@ export const memoryBillingStore: BillingStore = {
     return db().billed.some(
       (b) => b.profileId === profileId && b.cnpj === cnpj && b.kind === kind,
     );
+  },
+  async listBilledCnpjs(profileId, cnpjs, kind) {
+    const wanted = new Set(cnpjs);
+    return [
+      ...new Set(
+        db()
+          .billed.filter(
+            (b) =>
+              b.profileId === profileId && b.kind === kind && wanted.has(b.cnpj),
+          )
+          .map((b) => b.cnpj),
+      ),
+    ];
   },
   async markCnpjBilled(profileId, cnpj, kind, searchId) {
     if (await this.isCnpjBilled(profileId, cnpj, kind)) return;

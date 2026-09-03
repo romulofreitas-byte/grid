@@ -62,7 +62,7 @@ export async function GET(
   }
   const safe = redactDossier(dossier, {
     showEnrichment: enriched,
-    showContacts: balance.enrichAllowed,
+    showContacts: balance.enrichAllowed || enriched,
   });
   const crm = balance.enrichAllowed
     ? await loadLeadCrm(repo, {
@@ -73,7 +73,6 @@ export async function GET(
     : null;
   if (
     enriched &&
-    balance.enrichAllowed &&
     needsDiscoveryRetry(dossier.enrichment)
   ) {
     const userId = gated.userId;

@@ -5,6 +5,7 @@ import {
   creditsPhrase,
   formatBrl,
   getCatalogItem,
+  isBilledPlanSku,
   isSkuOnSale,
   orderKindFor,
   PACKS,
@@ -19,7 +20,7 @@ describe("catalog", () => {
     expect(getCatalogItem("piloto")?.credits).toBe(900);
   });
 
-  it("blocks enrichment on free", () => {
+  it("keeps CRM gated on Treino livre and advertises 25 qualifications", () => {
     const free = getCatalogItem("free");
     expect(free).toMatchObject({
       kind: "plan",
@@ -27,7 +28,10 @@ describe("catalog", () => {
       credits: 25,
     });
     expect(free?.kind === "plan" ? free.highlights : []).toContain(
-      "Sem qualificação nem CRM",
+      "25 qualificações / mês",
+    );
+    expect(free?.kind === "plan" ? free.highlights : []).toContain(
+      "CRM e export a partir do Piloto",
     );
   });
 
@@ -83,5 +87,13 @@ describe("catalog", () => {
     expect(creditsPhrase(1)).toBe("1 crédito");
     expect(creditsPhrase(10)).toBe("10 créditos");
     expect(PLANS).toHaveLength(5);
+  });
+
+  it("marks billed plans for ops MRR", () => {
+    expect(isBilledPlanSku("piloto")).toBe(true);
+    expect(isBilledPlanSku("piloto_pro")).toBe(true);
+    expect(isBilledPlanSku("escuderia")).toBe(true);
+    expect(isBilledPlanSku("free")).toBe(false);
+    expect(isBilledPlanSku("membro_plataforma")).toBe(false);
   });
 });

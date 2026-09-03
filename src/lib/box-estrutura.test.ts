@@ -104,6 +104,7 @@ describe("buildBoxEstrutura", () => {
     expect(slots.find((s) => s.id === "lista")?.cta).toBe(COPY.novaLista);
     expect(slots.find((s) => s.id === "lista")?.href).toBe(largadaNovaHref);
     expect(slots.find((s) => s.id === "creditos")?.label).toBe("Acesso");
+    expect(slots.find((s) => s.id === "creditos")?.body).toMatch(/25 empresas/);
   });
 
   it("opens oferta after capacete is ready", () => {

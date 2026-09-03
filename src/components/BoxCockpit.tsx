@@ -13,6 +13,10 @@ import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 import { tankDaysLabel, tankHint, qualifyDaysRemaining } from "@/lib/billing/tank";
+import {
+  canSpendQualifyCredits,
+  qualifyCreditPool,
+} from "@/lib/billing/qualify-gate";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { NextCallLead, Profile, Search } from "@/lib/types";
 import { writeWorkingSearchCookie } from "@/lib/working-search";
@@ -25,13 +29,13 @@ function sequenciaHint(n: number): string {
 }
 
 function acessoHint(input: {
-  total: number;
-  enrichAllowed: boolean;
+  credits: number;
+  canQualify: boolean;
   meta: number;
 }): string {
   return tankHint({
-    enrichAllowed: input.enrichAllowed,
-    credits: input.total,
+    enrichAllowed: input.canQualify,
+    credits: input.credits,
     dailyGoal: input.meta,
   });
 }
@@ -150,7 +154,13 @@ export function BoxCockpit({
   workingSearchId: string | null;
 }) {
   const router = useRouter();
-  const tankEmpty = billing.total === 0 || !billing.enrichAllowed;
+  const canQualify = canSpendQualifyCredits({
+    enrichAllowed: billing.enrichAllowed,
+    trialExpired: billing.trialExpired,
+    plan: billing.plan,
+  });
+  const qualifyCredits = qualifyCreditPool(billing);
+  const tankEmpty = !canQualify || qualifyCredits === 0;
   const workingMismatch =
     Boolean(workingSearchId) && next != null && next.searchId !== workingSearchId;
   const missionTitle = !pistaAberta
@@ -275,12 +285,12 @@ export function BoxCockpit({
                   <ClusterCard
                     label="Acesso"
                     value={tankDaysLabel(
-                      qualifyDaysRemaining(billing.total, meta),
-                      billing.enrichAllowed,
+                      qualifyDaysRemaining(qualifyCredits, meta),
+                      canQualify,
                     )}
                     hint={acessoHint({
-                      total: billing.total,
-                      enrichAllowed: billing.enrichAllowed,
+                      credits: qualifyCredits,
+                      canQualify,
                       meta,
                     })}
                     icon={Wallet}

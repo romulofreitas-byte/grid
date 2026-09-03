@@ -13,11 +13,14 @@ import {
   filterQualifiedCnpjs,
   getBalance,
   getBillingMe,
+  grantManualCredits,
   handleNormalizedEvent,
+  opsGrantPlatformTrial,
 } from "@/lib/billing/service";
 import {
   CrmNotAllowedError,
   EnrichmentNotAllowedError,
+  FREE_QUALIFY_EXHAUSTED_MESSAGE,
   InsufficientCreditsError,
   type BillingOrder,
 } from "@/lib/billing/types";
@@ -185,11 +188,69 @@ describe("billing service", () => {
     expect(qualified).toEqual(["12345678000190"]);
   });
 
-  it("blocks enrichment on free", async () => {
+  it("lets Treino livre spend plan credits on qualify", async () => {
     await getBalance(profileId);
+    const bal = await debitEnrich(profileId, ["12345678000190"], null);
+    expect(bal.plan).toBe(24);
+    expect(bal.plano).toBe("free");
+    expect(bal.enrichAllowed).toBe(false);
+  });
+
+  it("does not spend pack credits to qualify on Treino livre", async () => {
+    await getBalance(profileId);
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "pack_100",
+      method: "card_br",
+    });
+    const cnpjs = Array.from({ length: 25 }, (_, i) =>
+      String(i + 1).padStart(14, "0"),
+    );
+    const spent = await debitEnrich(profileId, cnpjs, null);
+    expect(spent.plan).toBe(0);
+    expect(spent.pack).toBe(100);
     await expect(
       debitEnrich(profileId, ["12345678000190"], null),
-    ).rejects.toBeInstanceOf(EnrichmentNotAllowedError);
+    ).rejects.toMatchObject({ message: FREE_QUALIFY_EXHAUSTED_MESSAGE });
+    const leftover = await getBalance(profileId);
+    expect(leftover.pack).toBe(100);
+    expect(leftover.plan).toBe(0);
+  });
+
+  it("does not refill Treino livre credits in the same month", async () => {
+    const cnpjs = Array.from({ length: 25 }, (_, i) =>
+      String(i + 1).padStart(14, "0"),
+    );
+    await debitEnrich(profileId, cnpjs, null);
+    expect((await getBalance(profileId)).plan).toBe(0);
+    await expect(
+      debitEnrich(profileId, ["12345678000190"], null),
+    ).rejects.toMatchObject({ message: FREE_QUALIFY_EXHAUSTED_MESSAGE });
+  });
+
+  it("skips already-billed qualify on Treino livre without plan credits", async () => {
+    await debitEnrich(profileId, ["12345678000190"], null);
+    const cnpjs = Array.from({ length: 24 }, (_, i) =>
+      String(i + 2).padStart(14, "0"),
+    );
+    await debitEnrich(profileId, cnpjs, null);
+    const again = await debitEnrich(profileId, ["12345678000190"], null);
+    expect(again.plan).toBe(0);
+  });
+
+  it("re-grants Treino livre credits in the next month", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00.000Z"));
+    const cnpjs = Array.from({ length: 25 }, (_, i) =>
+      String(i + 1).padStart(14, "0"),
+    );
+    await debitEnrich(profileId, cnpjs, null);
+    vi.setSystemTime(new Date("2026-09-01T00:00:01.000Z"));
+    const bal = await getBalance(profileId);
+    expect(bal.plan).toBe(25);
+    vi.useRealTimers();
   });
 
   it("blocks CRM on free and allows it on Piloto", async () => {
@@ -365,5 +426,30 @@ describe("billing service", () => {
     await handleNormalizedEvent(event, {});
     const bal = await getBalance(profileId);
     expect(bal.pack).toBe(100);
+  });
+
+  it("grants manual credits from ops without touching the plan", async () => {
+    await getBalance(profileId);
+    const bal = await grantManualCredits(profileId, 40);
+    expect(bal.pack).toBe(40);
+    expect(bal.total).toBe(65);
+    expect(bal.plano).toBe("free");
+    await expect(grantManualCredits(profileId, 0)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it("lets ops grant a platform trial even when the sku is off sale", async () => {
+    const order = await opsGrantPlatformTrial(profileId);
+    expect(order.status).toBe("paid");
+    expect(order.kind).toBe("platform");
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("membro_plataforma");
+    expect(bal.enrichAllowed).toBe(true);
+    await expect(opsGrantPlatformTrial(profileId)).rejects.toMatchObject({
+      status: 409,
+    });
+    const again = await opsGrantPlatformTrial(profileId, { force: true });
+    expect(again.status).toBe("paid");
   });
 });

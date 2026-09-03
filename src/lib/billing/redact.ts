@@ -2,9 +2,26 @@ import type { CompanySearchHit, GridRow, LeadDossier, LeadEnrichment } from "@/l
 
 const MASK_PHONE = "••••-••••";
 
-/** Hides contact/decisor on grid for Treino livre — export still unlocks full data. */
-export function redactGridRow(row: GridRow, enrichAllowed: boolean): GridRow {
-  if (enrichAllowed) return row;
+function cnpjDigits(cnpj: string): string {
+  return cnpj.replace(/\D/g, "").padStart(14, "0");
+}
+
+function isRevealed(
+  cnpj: string,
+  enrichAllowed: boolean,
+  revealedCnpjs?: ReadonlySet<string>,
+): boolean {
+  if (enrichAllowed) return true;
+  return Boolean(revealedCnpjs?.has(cnpjDigits(cnpj)));
+}
+
+/** Hides contact/decisor on grid for Treino livre — qualified CNPJs stay visible. */
+export function redactGridRow(
+  row: GridRow,
+  enrichAllowed: boolean,
+  revealedCnpjs?: ReadonlySet<string>,
+): GridRow {
+  if (isRevealed(row.cnpj, enrichAllowed, revealedCnpjs)) return row;
   return {
     ...row,
     telefone: row.telefone ? MASK_PHONE : null,
@@ -13,17 +30,22 @@ export function redactGridRow(row: GridRow, enrichAllowed: boolean): GridRow {
   };
 }
 
-export function redactGridRows(rows: GridRow[], enrichAllowed: boolean): GridRow[] {
+export function redactGridRows(
+  rows: GridRow[],
+  enrichAllowed: boolean,
+  revealedCnpjs?: ReadonlySet<string>,
+): GridRow[] {
   if (enrichAllowed) return rows;
-  return rows.map((r) => redactGridRow(r, false));
+  return rows.map((r) => redactGridRow(r, false, revealedCnpjs));
 }
 
 /** Masks phone and decisor on autocomplete cards for Treino livre. */
 export function redactCompanySearchHit(
   hit: CompanySearchHit,
   enrichAllowed: boolean,
+  revealedCnpjs?: ReadonlySet<string>,
 ): CompanySearchHit {
-  if (enrichAllowed) return hit;
+  if (isRevealed(hit.cnpj, enrichAllowed, revealedCnpjs)) return hit;
   return {
     ...hit,
     telefone: hit.telefone ? MASK_PHONE : null,
@@ -34,9 +56,10 @@ export function redactCompanySearchHit(
 export function redactCompanySearchHits(
   hits: CompanySearchHit[],
   enrichAllowed: boolean,
+  revealedCnpjs?: ReadonlySet<string>,
 ): CompanySearchHit[] {
   if (enrichAllowed) return hits;
-  return hits.map((h) => redactCompanySearchHit(h, false));
+  return hits.map((h) => redactCompanySearchHit(h, false, revealedCnpjs));
 }
 
 function stripEnrichmentFields(enrichment: LeadEnrichment | null): LeadEnrichment | null {

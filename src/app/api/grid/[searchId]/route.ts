@@ -1,7 +1,7 @@
 import { NextResponse, after } from "next/server";
 import { getSearchForUser } from "@/lib/auth/search-access";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { getBalance } from "@/lib/billing/service";
+import { filterQualifiedCnpjs, getBalance } from "@/lib/billing/service";
 import { redactGridRows } from "@/lib/billing/redact";
 import { getDataSource, getRepo } from "@/lib/data";
 import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
@@ -43,7 +43,10 @@ export async function GET(
     const result = await getRepo().listGridRows(searchId, cursor, limit);
     const { discoveryRetryCnpjs, ...grid } = result;
     const balance = await getBalance(gated.userId);
-    let rows = redactGridRows(grid.rows, balance.enrichAllowed);
+    const revealed = balance.enrichAllowed
+      ? undefined
+      : new Set(await filterQualifiedCnpjs(gated.userId, grid.rows.map((row) => row.cnpj)));
+    let rows = redactGridRows(grid.rows, balance.enrichAllowed, revealed);
     if (search.saved && rows.length > 0) {
       const inCrm = new Set(
         await getRepo().listCrmDealCnpjs(
@@ -56,11 +59,15 @@ export async function GET(
         inCrm: inCrm.has(row.cnpj.replace(/\D/g, "").padStart(14, "0")),
       }));
     }
-    if (discoveryRetryCnpjs?.length && balance.enrichAllowed) {
+    const retryCnpjs =
+      discoveryRetryCnpjs?.length && !balance.enrichAllowed
+        ? await filterQualifiedCnpjs(gated.userId, discoveryRetryCnpjs)
+        : discoveryRetryCnpjs;
+    if (retryCnpjs?.length) {
       const userId = gated.userId;
       after(() =>
         enqueueDiscoveryRetries({
-          cnpjs: discoveryRetryCnpjs,
+          cnpjs: retryCnpjs,
           userId,
           searchId,
         })

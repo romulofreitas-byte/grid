@@ -36,6 +36,7 @@ export type BillingStore = {
 
   insertLot(lot: CreditLot): Promise<CreditLot>;
   listOpenLots(profileId: string): Promise<CreditLot[]>;
+  listLots(profileId: string): Promise<CreditLot[]>;
   updateLotRemaining(id: string, remaining: number): Promise<void>;
   expirePlanLots(profileId: string, at: string): Promise<CreditLot[]>;
 
@@ -49,6 +50,11 @@ export type BillingStore = {
   }): Promise<boolean>;
 
   isCnpjBilled(profileId: string, cnpj: string, kind: "export" | "enrich"): Promise<boolean>;
+  listBilledCnpjs(
+    profileId: string,
+    cnpjs: string[],
+    kind: "export" | "enrich",
+  ): Promise<string[]>;
   markCnpjBilled(
     profileId: string,
     cnpj: string,

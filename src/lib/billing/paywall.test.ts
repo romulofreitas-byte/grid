@@ -81,9 +81,10 @@ describe("paywallCopy", () => {
     expect(copy.secondary).toEqual({ href: RECARGA_URL, label: "Recarregar créditos" });
   });
 
-  it("points plan qualify to /planos", () => {
+  it("points plan qualify to /planos after the free credits run out", () => {
     const copy = paywallCopy({ kind: "plan", feature: "qualify" });
-    expect(copy.title).toMatch(/Qualificação/);
+    expect(copy.title).toMatch(/25 créditos/);
+    expect(copy.body).toMatch(/Piloto/);
     expect(copy.primary).toEqual({ href: PLANOS_URL, label: "Ver planos" });
     expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
   });
@@ -132,14 +133,26 @@ describe("throwIfBillingGate", () => {
 });
 
 describe("blockQualifyIfFree", () => {
-  it("blocks only when enrich is explicitly disallowed", () => {
+  it("lets Treino livre qualify while plan credits remain", () => {
+    const open = vi.fn();
+    expect(blockQualifyIfFree(false, open, { planCredits: 25 })).toBe(false);
+    expect(open).not.toHaveBeenCalled();
+    expect(blockQualifyIfFree(true, open)).toBe(false);
+    expect(blockQualifyIfFree(undefined, open)).toBe(false);
+  });
+
+  it("blocks when the 25 ran out or the trial expired", () => {
     const open = vi.fn();
     expect(blockQualifyIfFree(false, open)).toBe(true);
     expect(open).toHaveBeenCalledWith({ kind: "plan", feature: "qualify" });
-    expect(blockQualifyIfFree(true, open)).toBe(false);
-    expect(blockQualifyIfFree(undefined, open)).toBe(false);
+    expect(blockQualifyIfFree(false, open, { planCredits: 0 })).toBe(true);
     const trialOpen = vi.fn();
-    expect(blockQualifyIfFree(false, trialOpen, { trialExpired: true })).toBe(true);
+    expect(
+      blockQualifyIfFree(false, trialOpen, {
+        trialExpired: true,
+        planCredits: 25,
+      }),
+    ).toBe(true);
     expect(trialOpen).toHaveBeenCalledWith({ kind: "trial", feature: "qualify" });
   });
 });

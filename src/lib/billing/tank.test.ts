@@ -35,4 +35,10 @@ describe("tankHint", () => {
     expect(hint).toMatch(/900 créditos/);
     expect(hint).toContain(`${ENRICH_CREDIT_COST} por ficha`);
   });
+
+  it("counts Treino livre plan credits as a real tank", () => {
+    const hint = tankHint({ enrichAllowed: true, credits: 25, dailyGoal: 20 });
+    expect(hint).toMatch(/25 créditos/);
+    expect(hint).not.toMatch(/não reabre/i);
+  });
 });

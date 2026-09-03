@@ -466,7 +466,10 @@ export default function LeadPage() {
       blockQualifyIfFree(
         billingQuery.data?.balance.enrichAllowed,
         openPaywall,
-        { trialExpired: billingQuery.data?.balance.trialExpired },
+        {
+          trialExpired: billingQuery.data?.balance.trialExpired,
+          planCredits: billingQuery.data?.balance.plan,
+        },
       )
     ) {
       return;

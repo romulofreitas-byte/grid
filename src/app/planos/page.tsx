@@ -21,12 +21,12 @@ export default async function PlanosPage({
     <PublicPage className="max-w-6xl" back={back}>
       <SectionTitle className="mt-8">Planos e créditos</SectionTitle>
       <p className="mt-3 max-w-2xl text-sm text-podium-gray">
-        Buscar e ver a lista é grátis. A mensalidade libera o CRM e a
-        qualificação. Qualificar custa 1 crédito. Ligar pela ficha é grátis.
-        Exportar a planilha custa {EXPORT_CREDIT_COST} créditos por empresa já
-        qualificada. O crédito do plano zera no mês — recarga fica e não
-        substitui a assinatura. Pix é o caminho padrão — cartão e boleto também
-        entram.
+        Buscar e ver a lista é grátis. No Treino livre você qualifica 25
+        empresas. A mensalidade libera o CRM e o volume do mês. Qualificar
+        custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa{" "}
+        {EXPORT_CREDIT_COST} créditos por empresa já qualificada. O crédito do
+        plano zera no mês — recarga fica e não substitui a assinatura. Pix é o
+        caminho padrão — cartão e boleto também entram.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -91,9 +91,9 @@ export default async function PlanosPage({
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
         <p className="mt-3 max-w-2xl text-sm text-podium-gray">
-          Pacotes não expiram e não substituem o plano — nem reabrem o CRM. O
-          custo por crédito é pior que a assinatura: serve para o meio do mês
-          ou para exportar.
+          Pacotes não expiram e não substituem o plano — nem reabrem o CRM, nem
+          a qualificação depois dos 25 do Treino livre. O custo por crédito é
+          pior que a assinatura: serve para o meio do mês ou para exportar.
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {PACKS.map((pack) => (

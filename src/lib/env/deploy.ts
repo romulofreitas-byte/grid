@@ -84,6 +84,23 @@ export function collectLaunchEnvIssues(): EnvIssue[] {
     });
   }
 
+  if (isRuntimeProduction() && !process.env.GRID_OPS_PASSWORD?.trim()) {
+    issues.push({
+      level: "warn",
+      message: "GRID_OPS_PASSWORD ausente — /ops desligado.",
+    });
+  } else if (
+    isRuntimeProduction() &&
+    process.env.GRID_OPS_PASSWORD?.trim() &&
+    !process.env.GRID_OPS_SECRET?.trim()
+  ) {
+    issues.push({
+      level: "warn",
+      message:
+        "GRID_OPS_SECRET ausente — cookie do /ops assinado com a senha.",
+    });
+  }
+
   if (isRuntimeProduction() && !process.env.INTEGRATION_KMS_KEY?.trim()) {
     issues.push({
       level: "error",

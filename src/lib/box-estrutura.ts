@@ -137,7 +137,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       label: "Acesso",
       done: creditosReady,
       title: "Ative o plano",
-      body: "A mensalidade libera o CRM e a qualificação. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
+      body: "No Treino livre você qualifica 25 empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
       href: planosHref("/box"),
       cta: "Ver planos",
     },

@@ -63,7 +63,7 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano e comece pela lista",
   landingPlansBody:
-    "A mensalidade libera o CRM e a qualificação. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
+    "No Treino livre você busca, vê a lista e qualifica 25 empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
@@ -87,7 +87,7 @@ export const COPY = {
   entrarLoginLane: "Já tenho conta",
   entrarTrialBadge: "Treino livre",
   entrarTrialHint: "Sem cartão",
-  entrarSignupHook: "Buscar e ver a lista é grátis. Sem cartão.",
+  entrarSignupHook: "Buscar e ver a lista é grátis. Qualifique 25 empresas. Sem cartão.",
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
   boxPlatformCoupon:
@@ -194,7 +194,7 @@ export const COPY = {
   boxAcessoHintZero:
     "Saldo insuficiente para um dia de meta ({goal} fichas). {credits} créditos · {cost} por ficha.",
   boxAcessoHintLocked:
-    "A mensalidade abre o CRM e a qualificação. Recarga só soma crédito — não reabre o acesso.",
+    "A mensalidade segue a qualificação e abre o CRM. Recarga só soma crédito — não reabre o acesso.",
   boxListasHintZero: "Você não tem listas salvas.",
   boxListasHintOne: "Você possui 1 lista salva.",
   boxListasHintMany: "Você possui {n} listas salvas.",
