@@ -226,6 +226,90 @@ function ToggleRow({
   );
 }
 
+function formatCountTotal(count: CountResult): string {
+  return count.capped
+    ? `${(count.total ?? 0).toLocaleString("pt-BR")}+`
+    : (count.total ?? 0).toLocaleString("pt-BR");
+}
+
+function VolumeCompactTotal({
+  liveReady,
+  count,
+  isFetching,
+}: {
+  liveReady: boolean;
+  count: CountResult | undefined;
+  isFetching: boolean;
+}) {
+  if (!liveReady) {
+    return (
+      <p className="text-sm text-podium-muted">
+        Escolha o nicho para ver o volume
+      </p>
+    );
+  }
+  if (!count) {
+    return <div className="h-5 w-28 animate-pulse rounded-md bg-white/10" />;
+  }
+  return (
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="text-lg font-extrabold text-podium-yellow">
+        {formatCountTotal(count)}
+      </span>
+      <span className="text-xs text-podium-muted">empresas</span>
+      {isFetching ? (
+        <span className="text-xs text-podium-yellow">{COPY.filaContando}</span>
+      ) : null}
+    </p>
+  );
+}
+
+function VolumeMunicipioBars({
+  municipios,
+  total,
+}: {
+  municipios: CountResult["porMunicipio"];
+  total: number;
+}) {
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-podium-gray">
+        Onde concentra
+      </p>
+      <div className="space-y-2">
+        {municipios.map((m) => (
+          <div key={m.municipio_id}>
+            <div className="mb-1 flex justify-between gap-2 text-xs">
+              <span className="min-w-0 truncate text-podium-gray">
+                {m.uf ? `${m.nome} - ${m.uf}` : m.nome}
+              </span>
+              <span className="shrink-0 text-podium-muted">{m.total}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-podium-yellow/70"
+                style={{
+                  width: `${Math.min(100, (m.total / Math.max(total, 1)) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VolumeBreakdown({ count }: { count: CountResult | undefined }) {
+  return (
+    <div className="mt-4 space-y-2 text-xs text-podium-muted">
+      <p>Com telefone: {count?.comTelefone ?? "—"}</p>
+      <p>Com e-mail: {count?.comEmail ?? "—"}</p>
+      <p>Com decisor: {count?.comDecisor ?? "—"}</p>
+    </div>
+  );
+}
+
 export default function LargadaPage() {
   return (
     <Suspense
@@ -265,6 +349,7 @@ function LargadaWizard() {
   const [sourceNome, setSourceNome] = useState<string | null>(null);
   const [sourceSearchId, setSourceSearchId] = useState<string | null>(null);
   const [moreFilters, setMoreFilters] = useState(false);
+  const [volumeExpanded, setVolumeExpanded] = useState(false);
   const autoOpenedNiche = useRef(false);
   /** Evita reaplicar o default de CNAEs no mesmo escopo (segmento/intenção). */
   const autoCnaeScopeKey = useRef<string | null>(null);
@@ -344,6 +429,19 @@ function LargadaWizard() {
       cancelled = true;
     };
   }, [hydrated, novaParam, fromSearchParam, router]);
+
+  useEffect(() => {
+    if (step !== 3) setVolumeExpanded(false);
+  }, [step]);
+
+  useEffect(() => {
+    if (!volumeExpanded) return;
+    function onKey(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") setVolumeExpanded(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [volumeExpanded]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -853,6 +951,10 @@ function LargadaWizard() {
         className={cn(
           "grid gap-6",
           showVolumeAside && "lg:grid-cols-[1fr_280px]",
+          showVolumeAside &&
+            (volumeExpanded
+              ? "pb-[calc(40vh+5.5rem)] md:pb-0"
+              : "pb-20 md:pb-0"),
         )}
       >
         <div className="space-y-6">
@@ -1339,6 +1441,7 @@ function LargadaWizard() {
                 size="lg"
                 onClick={() => setStep(3)}
                 disabled={!filters.ufs.length}
+                className={cn(showVolumeAside && "max-md:scroll-mb-32")}
               >
                 Continuar para qualidade
               </Button>
@@ -1476,7 +1579,13 @@ function LargadaWizard() {
                   runSearch.isPending || !canContinueStep1 || !filters.ufs.length
                 }
                 onClick={() => runSearch.mutate()}
-                className="w-full"
+                className={cn(
+                  "w-full",
+                  showVolumeAside &&
+                    (volumeExpanded
+                      ? "max-md:scroll-mb-[calc(40vh+8rem)]"
+                      : "max-md:scroll-mb-32"),
+                )}
               >
                 {runSearch.isPending
                   ? queuePosition > 1
@@ -1502,10 +1611,68 @@ function LargadaWizard() {
 
         {showVolumeAside ? (
         <aside className="lg:sticky lg:top-20 lg:self-start">
+          {volumeExpanded ? (
+            <button
+              type="button"
+              aria-label="Fechar detalhes do volume"
+              className="fixed inset-0 z-20 bg-black/40 md:hidden"
+              onClick={() => setVolumeExpanded(false)}
+            />
+          ) : null}
           <GlassCard
-            className="fixed inset-x-0 bottom-16 z-30 mx-4 p-4 md:static md:mx-0 md:p-5"
+            className="fixed inset-x-0 bottom-16 z-30 mx-4 overflow-hidden p-0 md:static md:mx-0 md:p-5"
             highlight
           >
+            <div className="md:hidden">
+              {step === 3 ? (
+                <button
+                  type="button"
+                  aria-expanded={volumeExpanded}
+                  aria-controls="volume-details-mobile"
+                  onClick={() => setVolumeExpanded((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <VolumeCompactTotal
+                    liveReady={liveReady}
+                    count={count}
+                    isFetching={countQuery.isFetching}
+                  />
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-podium-muted transition",
+                      volumeExpanded && "rotate-180",
+                    )}
+                  />
+                </button>
+              ) : (
+                <div className="px-4 py-3">
+                  <VolumeCompactTotal
+                    liveReady={liveReady}
+                    count={count}
+                    isFetching={countQuery.isFetching}
+                  />
+                </div>
+              )}
+              {step === 3 && volumeExpanded ? (
+                <div
+                  id="volume-details-mobile"
+                  className="max-h-[40vh] overflow-y-auto border-t border-white/10 px-4 pb-3"
+                >
+                  {showCountMunicipios &&
+                  (count?.porMunicipio?.length ?? 0) > 0 ? (
+                    <VolumeMunicipioBars
+                      municipios={count!.porMunicipio}
+                      total={count?.total || 1}
+                    />
+                  ) : null}
+                  {showCountBreakdown ? (
+                    <VolumeBreakdown count={count} />
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="hidden md:block">
             <p className="text-xs uppercase tracking-wide text-podium-gray">
               Empresas nesta busca
             </p>
@@ -1521,9 +1688,7 @@ function LargadaWizard() {
             ) : (
               <>
                 <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
-                  {count?.capped
-                    ? `${(count.total ?? 0).toLocaleString("pt-BR")}+`
-                    : (count?.total ?? 0).toLocaleString("pt-BR")}
+                  {formatCountTotal(count)}
                 </p>
                 {countQuery.isFetching ? (
                   <p className="mt-1 text-xs text-podium-yellow">
@@ -1540,42 +1705,13 @@ function LargadaWizard() {
               </>
             )}
             {showCountMunicipios && (count?.porMunicipio?.length ?? 0) > 0 ? (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-podium-gray">
-                  Onde concentra
-                </p>
-                <div className="space-y-2">
-                  {count!.porMunicipio.map((m: CountResult["porMunicipio"][number]) => (
-                    <div key={m.municipio_id}>
-                      <div className="mb-1 flex justify-between gap-2 text-xs">
-                        <span className="min-w-0 truncate text-podium-gray">
-                          {m.uf ? `${m.nome} - ${m.uf}` : m.nome}
-                        </span>
-                        <span className="shrink-0 text-podium-muted">{m.total}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div
-                          className="h-full rounded-full bg-podium-yellow/70"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              (m.total / Math.max(count?.total || 1, 1)) * 100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <VolumeMunicipioBars
+                municipios={count!.porMunicipio}
+                total={count?.total || 1}
+              />
             ) : null}
-            {showCountBreakdown ? (
-              <div className="mt-4 space-y-2 text-xs text-podium-muted">
-                <p>Com telefone: {count?.comTelefone ?? "—"}</p>
-                <p>Com e-mail: {count?.comEmail ?? "—"}</p>
-                <p>Com decisor: {count?.comDecisor ?? "—"}</p>
-              </div>
-            ) : null}
+            {showCountBreakdown ? <VolumeBreakdown count={count} /> : null}
+            </div>
           </GlassCard>
         </aside>
         ) : null}
