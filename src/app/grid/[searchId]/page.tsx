@@ -764,6 +764,7 @@ export default function GridPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => setSaveOpen(true)}
+                className="recommend-pulse"
               >
                 <BookmarkPlus className="h-3.5 w-3.5" />
                 {COPY.salvarLista}

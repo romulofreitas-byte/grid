@@ -56,7 +56,7 @@ export function SaveListButton({
           setError(null);
           setOpen(true);
         }}
-        className={cockpit ? "gap-2" : undefined}
+        className={cockpit ? "gap-2 recommend-pulse" : "recommend-pulse"}
       >
         <BookmarkPlus className={cockpit ? "h-4 w-4" : "h-3.5 w-3.5"} />
         {COPY.salvarLista}
