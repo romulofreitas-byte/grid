@@ -558,6 +558,31 @@ export function CrmBoard({
             const next = res.pipelines[0];
             if (next) await loadPipeline(next.id);
           }}
+          onReorder={async (pipelineIds) => {
+            const previous = pipelines;
+            setError(null);
+            setPipelines((current) => {
+              const byId = new Map(current.map((row) => [row.id, row]));
+              return pipelineIds.flatMap((id, position) => {
+                const row = byId.get(id);
+                return row ? [{ ...row, position }] : [];
+              });
+            });
+            try {
+              const res = await crmFetch<{ pipelines: CrmPipelineSummary[] }>(
+                "/api/crm/pipelines/reorder",
+                { method: "POST", body: JSON.stringify({ pipelineIds }) },
+              );
+              setPipelines(res.pipelines);
+            } catch (err) {
+              setPipelines(previous);
+              setError(
+                err instanceof Error
+                  ? err.message
+                  : "Não foi possível reordenar os nichos.",
+              );
+            }
+          }}
         />
         <div className="flex min-h-0 min-w-0 flex-1">
           {dndReady ? (

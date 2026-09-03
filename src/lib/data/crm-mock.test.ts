@@ -341,6 +341,40 @@ describe("crm mock board", () => {
     });
     expect(undated?.deal.next_activity?.kind).toBe("whatsapp");
   });
+
+  it("reorders pipelines and lists them in the new order", async () => {
+    const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const second = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    const third = await mockRepo.createCrmPipeline(USER, "Nicho C");
+    expect(await mockRepo.reorderCrmPipelines(USER, [third.id, first.id, second.id])).toBe(
+      true,
+    );
+    expect((await mockRepo.listCrmPipelines(USER)).map((row) => row.id)).toEqual([
+      third.id,
+      first.id,
+      second.id,
+    ]);
+    expect((await mockRepo.listCrmPipelines(USER)).map((row) => row.position)).toEqual([
+      0, 1, 2,
+    ]);
+  });
+
+  it("rejects incomplete or foreign pipeline reorder lists", async () => {
+    const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const second = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    expect(await mockRepo.reorderCrmPipelines(USER, [second.id])).toBe(false);
+    expect(
+      await mockRepo.reorderCrmPipelines(USER, [
+        first.id,
+        second.id,
+        "00000000-0000-4000-8000-000000000099",
+      ]),
+    ).toBe(false);
+    expect((await mockRepo.listCrmPipelines(USER)).map((row) => row.id)).toEqual([
+      first.id,
+      second.id,
+    ]);
+  });
 });
 
 describe("seeded telemetry mix", () => {

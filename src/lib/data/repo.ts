@@ -275,6 +275,7 @@ export type GridRepo = {
     patch: { nome?: string; position?: number },
   ): Promise<CrmPipeline | null>;
   deleteCrmPipeline(userId: string, pipelineId: string): Promise<boolean>;
+  reorderCrmPipelines(userId: string, pipelineIds: string[]): Promise<boolean>;
   createCrmStage(
     userId: string,
     pipelineId: string,

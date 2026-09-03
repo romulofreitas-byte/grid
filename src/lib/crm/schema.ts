@@ -18,6 +18,10 @@ export const pipelinePatchSchema = z.object({
   position: z.number().int().min(0).max(999).optional(),
 });
 
+export const pipelineReorderSchema = z.object({
+  pipelineIds: z.array(z.string().uuid()).min(1).max(40),
+});
+
 export const stageCreateSchema = z.object({
   nome: pipelineNameSchema,
 });

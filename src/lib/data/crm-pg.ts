@@ -377,6 +377,29 @@ export const crmPgMethods = {
     return rows[0] ? mapPipeline(rows[0]) : null;
   },
 
+  async reorderCrmPipelines(
+    userId: string,
+    pipelineIds: string[],
+  ): Promise<boolean> {
+    return withTransaction(async (q) => {
+      const { rows } = await q(
+        `select id from crm_pipelines where user_id = $1`,
+        [userId],
+      );
+      if (rows.length !== pipelineIds.length) return false;
+      if (new Set(pipelineIds).size !== pipelineIds.length) return false;
+      const known = new Set(rows.map((row) => String(row.id)));
+      if (pipelineIds.some((pipelineId) => !known.has(pipelineId))) return false;
+      for (let position = 0; position < pipelineIds.length; position += 1) {
+        await q(
+          `update crm_pipelines set position = $2 where id = $1 and user_id = $3`,
+          [pipelineIds[position], position, userId],
+        );
+      }
+      return true;
+    });
+  },
+
   async deleteCrmPipeline(userId: string, pipelineId: string): Promise<boolean> {
     const owned = await listPipelineRows(userId);
     if (owned.length <= 1) return false;

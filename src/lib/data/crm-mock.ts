@@ -258,6 +258,23 @@ export const crmMockMethods = {
     return pipeline;
   },
 
+  async reorderCrmPipelines(
+    userId: string,
+    pipelineIds: string[],
+  ): Promise<boolean> {
+    const store = getMockStore();
+    const owned = pipelinesOf(store, userId);
+    if (owned.length !== pipelineIds.length) return false;
+    if (new Set(pipelineIds).size !== pipelineIds.length) return false;
+    const known = new Set(owned.map((row) => row.id));
+    if (pipelineIds.some((pipelineId) => !known.has(pipelineId))) return false;
+    pipelineIds.forEach((pipelineId, position) => {
+      const pipeline = store.crm_pipelines.find((row) => row.id === pipelineId);
+      if (pipeline) pipeline.position = position;
+    });
+    return true;
+  },
+
   async deleteCrmPipeline(
     userId: string,
     pipelineId: string,
