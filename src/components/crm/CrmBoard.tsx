@@ -658,15 +658,24 @@ export function CrmBoard({
       ) : null}
       {addOpen && board ? (
         <CrmAddDealDialog
+          pipelineDeals={board.deals}
           onClose={() => setAddOpen(false)}
+          onOpenExisting={(dealId) => {
+            const deal = dealsById.get(dealId);
+            if (deal && deal.outcome !== "open") setShowClosed(true);
+            setAddOpen(false);
+            openDealCard(dealId);
+          }}
           onCreate={async (input) => {
+            const knownIds = new Set(board.deals.map((deal) => deal.id));
             const res = await crmFetch<{ deal: Deal }>(
               `/api/crm/pipelines/${board.pipeline.id}/deals`,
               { method: "POST", body: JSON.stringify(input) },
             );
             replaceDeal(res.deal);
-            bumpCount(board.pipeline.id, 1);
+            if (!knownIds.has(res.deal.id)) bumpCount(board.pipeline.id, 1);
             setAddOpen(false);
+            if (res.deal.outcome !== "open") setShowClosed(true);
             openDealCard(res.deal.id);
           }}
         />

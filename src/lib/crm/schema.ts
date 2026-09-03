@@ -41,6 +41,25 @@ export const dealCreateSchema = z.object({
   secretaries: z.array(z.string().trim().max(80)).max(8).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   notes: z.string().max(4000).optional(),
+  cnpj: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((value) => {
+      if (value == null || value === "") return undefined;
+      const digits = value.replace(/\D/g, "");
+      if (!digits) return undefined;
+      return digits.padStart(14, "0");
+    })
+    .refine((value) => value === undefined || /^\d{14}$/.test(value), {
+      message: "CNPJ inválido",
+    }),
+  meta: z
+    .object({
+      source: z.enum(["qualify_bridge", "catchup_bridge", "crm_add"]).optional(),
+    })
+    .optional(),
 });
 
 export const dealPatchSchema = z.object({

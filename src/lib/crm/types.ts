@@ -58,7 +58,7 @@ export type CrmDealMeta = {
   searchId?: string;
   ufs?: string[];
   municipioIds?: number[];
-  source?: "qualify_bridge" | "catchup_bridge";
+  source?: "qualify_bridge" | "catchup_bridge" | "crm_add";
 };
 
 export type CrmDeal = {
@@ -71,7 +71,7 @@ export type CrmDeal = {
   people: CrmPerson[];
   phones: string[];
   notes: string;
-  /** Digits-only CNPJ when bridged from Grid qualify; null for manual deals. */
+  /** Digits-only CNPJ when linked from search or a list; null for manual deals. */
   cnpj: string | null;
   meta: CrmDealMeta;
   outcome: CrmOutcome;
