@@ -94,13 +94,13 @@ export default function LandingPage() {
               transition={{ duration: 0.45, delay: reduce ? 0 : 0.18, ease }}
             >
               <Link
-                href={signedIn ? "/box" : "/entrar"}
+                href={signedIn ? "/box" : "/entrar?modo=cadastro"}
                 className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
               >
                 {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
               </Link>
               <Link
-                href="/entrar?modo=entrar"
+                href="/entrar"
                 className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
               >
                 {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}

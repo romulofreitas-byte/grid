@@ -18,6 +18,7 @@ import {
   loginConfirmNotice,
 } from "@/lib/auth/messages";
 import { safeInternalPath } from "@/lib/auth/next-path";
+import { modeFromParams, type EntrarMode } from "@/lib/auth/entrar-mode";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,7 @@ const AUTH_TIMEOUT_MS = 20_000;
 const fieldClass =
   "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
-type Mode = "login" | "signup" | "recover" | "definir";
+type Mode = EntrarMode;
 
 async function readAuthJson<T extends { error?: string }>(
   res: Response,
@@ -50,13 +51,6 @@ function authFailMessage(err: unknown, fallback: string): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
-}
-
-function modeFromParams(params: URLSearchParams): Mode {
-  if (params.get("definir") === "1") return "definir";
-  if (params.get("modo") === "entrar") return "login";
-  if (params.get("modo") === "recuperar") return "recover";
-  return "signup";
 }
 
 function GoogleMark({ className }: { className?: string }) {
@@ -87,32 +81,60 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-function AccessLane({
-  active,
-  label,
-  onSelect,
+function AccessModeToggle({
+  mode,
+  onChange,
+  reduce,
 }: {
-  active: boolean;
-  label: string;
-  onSelect: () => void;
+  mode: "login" | "signup";
+  onChange: (next: "login" | "signup") => void;
+  reduce: boolean | null;
 }) {
+  const options = [
+    { value: "login" as const, label: COPY.entrarToggleLogin },
+    { value: "signup" as const, label: COPY.entrarToggleSignup },
+  ];
+
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onSelect}
-      className={cn(
-        "relative px-3 py-3.5 text-sm font-extrabold transition md:px-4",
-        active
-          ? "bg-podium-yellow/12 text-podium-white"
-          : "bg-white/[0.03] text-podium-muted hover:bg-white/[0.06] hover:text-podium-gray",
-      )}
+    <div
+      role="radiogroup"
+      aria-label="Modo de acesso"
+      className="grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.04] p-0.5"
     >
-      {active ? (
-        <span className="absolute inset-x-0 top-0 h-0.5 bg-podium-yellow md:h-1" />
-      ) : null}
-      {label}
-    </button>
+      {options.map((option) => {
+        const active = mode === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => {
+              if (!active) onChange(option.value);
+            }}
+            className={cn(
+              "relative rounded-full py-1.5 text-center text-xs font-extrabold transition",
+              active
+                ? "text-podium-white"
+                : "text-podium-muted hover:text-podium-gray",
+            )}
+          >
+            {active ? (
+              reduce ? (
+                <span className="absolute inset-0 rounded-full bg-white/10" />
+              ) : (
+                <motion.span
+                  layoutId="entrar-mode-thumb"
+                  className="absolute inset-0 rounded-full bg-white/10"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              )
+            ) : null}
+            <span className="relative">{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -130,7 +152,7 @@ function EntrarInner() {
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [mode, setMode] = useState<Mode>(() => modeFromParams(searchParams));
   const next = safeInternalPath(searchParams.get("next"));
-  const showLanes = mode === "login" || mode === "signup";
+  const showToggle = mode === "login" || mode === "signup";
 
   useEffect(() => {
     setMode(modeFromParams(searchParams));
@@ -177,7 +199,7 @@ function EntrarInner() {
     params.delete("definir");
     params.delete("error");
     params.delete("go");
-    if (nextMode === "login") params.set("modo", "entrar");
+    if (nextMode === "signup") params.set("modo", "cadastro");
     else if (nextMode === "recover") params.set("modo", "recuperar");
     else params.delete("modo");
     const query = params.toString();
@@ -343,8 +365,8 @@ function EntrarInner() {
   const title = useMemo(() => {
     if (mode === "definir") return "Nova senha";
     if (mode === "recover") return "Recuperar senha";
-    if (mode === "login") return COPY.entrarLoginLane;
-    return COPY.entrarSignupLane;
+    if (mode === "login") return COPY.entrarToggleLogin;
+    return COPY.entrarToggleSignup;
   }, [mode]);
 
   const submitLabel = loading
@@ -404,35 +426,23 @@ function EntrarInner() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl">
-          {showLanes ? (
-            <div className="grid grid-cols-2 border-b border-white/10">
-              <AccessLane
-                active={mode === "signup"}
-                label={COPY.entrarSignupLane}
-                onSelect={() => {
-                  if (mode !== "signup") switchMode("signup");
-                }}
-              />
-              <AccessLane
-                active={mode === "login"}
-                label={COPY.entrarLoginLane}
-                onSelect={() => {
-                  if (mode !== "login") switchMode("login");
-                }}
-              />
-            </div>
-          ) : null}
-
           <div className="p-6 md:p-8">
-            {showLanes ? (
-              <h1 className="sr-only">{title}</h1>
+            {mode === "login" || mode === "signup" ? (
+              <>
+                <AccessModeToggle
+                  mode={mode}
+                  reduce={reduce}
+                  onChange={(nextMode) => switchMode(nextMode)}
+                />
+                <h1 className="sr-only">{title}</h1>
+              </>
             ) : (
               <h1 className="text-center text-2xl font-extrabold">{title}</h1>
             )}
 
             <form
               onSubmit={enter}
-              className={showLanes ? "space-y-4" : "mt-6 space-y-4"}
+              className={showToggle ? "mt-5 space-y-4" : "mt-6 space-y-4"}
             >
               <motion.div
                 key={mode}
@@ -464,7 +474,7 @@ function EntrarInner() {
                     </p>
                   ) : null}
 
-                  {showLanes ? (
+                  {showToggle ? (
                     <>
                       <button
                         type="button"

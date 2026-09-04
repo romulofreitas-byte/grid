@@ -24,26 +24,17 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link
-            href={signedIn ? "/box" : "/entrar"}
+            href={signedIn ? "/box" : "/entrar?modo=cadastro"}
             className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>
-          {signedIn ? (
-            <Link
-              href="/entrar?modo=entrar"
-              className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
-            >
-              {COPY.landingSwitchAccount}
-            </Link>
-          ) : (
-            <Link
-              href="/entrar?modo=entrar"
-              className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
-            >
-              {COPY.entrarLoginLane}
-            </Link>
-          )}
+          <Link
+            href="/entrar"
+            className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
+          >
+            {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}
+          </Link>
           <a
             href="#planos"
             className="text-sm font-bold text-podium-muted transition hover:text-podium-white"

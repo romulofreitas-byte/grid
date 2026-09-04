@@ -16,6 +16,8 @@ describe("COPY login", () => {
       COPY.boxPlatformTrialEnded,
       COPY.entrarSignupLane,
       COPY.entrarLoginLane,
+      COPY.entrarToggleLogin,
+      COPY.entrarToggleSignup,
       COPY.entrarTrialBadge,
       COPY.entrarTrialHint,
       COPY.entrarSignupHook,
@@ -32,6 +34,8 @@ describe("COPY login", () => {
   it("gives signup a free-training badge and login a return hook", () => {
     expect(COPY.entrarSignupLane).toBe("Criar conta");
     expect(COPY.entrarLoginLane).toBe("Já tenho conta");
+    expect(COPY.entrarToggleLogin).toBe("Entrar");
+    expect(COPY.entrarToggleSignup).toBe("Criar conta");
     expect(COPY.entrarTrialBadge).toBe("Treino livre");
     expect(COPY.entrarTrialHint).toMatch(/sem cartão/i);
     expect(COPY.entrarSignupHook).toMatch(/grátis/i);

@@ -85,6 +85,8 @@ export const COPY = {
     "Se houver conta neste e-mail, você recebe o link para definir a senha.",
   entrarSignupLane: "Criar conta",
   entrarLoginLane: "Já tenho conta",
+  entrarToggleLogin: "Entrar",
+  entrarToggleSignup: "Criar conta",
   entrarTrialBadge: "Treino livre",
   entrarTrialHint: "Sem cartão",
   entrarSignupHook: "Buscar e ver a lista é grátis. Qualifique 25 empresas. Sem cartão.",
