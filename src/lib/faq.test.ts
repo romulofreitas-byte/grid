@@ -52,6 +52,18 @@ describe("maps FAQ", () => {
   });
 });
 
+describe("capacete FAQ", () => {
+  it("describes first-list onboarding without specialty as script copy", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "capacete");
+    expect(item?.answer).toMatch(/primeira lista/);
+    expect(item?.answer).toMatch(/nicho/);
+    expect(item?.answer).not.toMatch(/especialidade/);
+    expect(item?.links).toEqual([
+      { href: "/setup", label: "Montar a primeira lista" },
+    ]);
+  });
+});
+
 describe("acesso FAQ", () => {
   it("describes password signup and recovery for old magic-link users", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "acesso");

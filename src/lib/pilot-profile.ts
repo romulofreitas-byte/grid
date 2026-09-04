@@ -78,41 +78,41 @@ function filled(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
-export type ScriptIdentity = Pick<
+export type PresentationIdentity = Pick<
   Profile,
-  | "como_chama"
-  | "nome"
-  | "empresa_usuario"
-  | "cidade_usuario"
-  | "especialidade"
-  | "area"
+  "como_chama" | "nome" | "empresa_usuario" | "cidade_usuario"
 >;
 
-export function hasScriptIdentity(profile: ScriptIdentity): boolean {
+export type ScriptIdentity = PresentationIdentity &
+  Pick<Profile, "promessa">;
+
+export function hasPresentationIdentity(
+  profile: PresentationIdentity,
+): boolean {
   const name = filled(profile.como_chama) || filled(profile.nome);
   return (
-    name &&
+    Boolean(name) &&
     filled(profile.empresa_usuario) &&
-    filled(profile.cidade_usuario) &&
-    filled(profile.especialidade) &&
-    filled(profile.area)
+    filled(profile.cidade_usuario)
   );
 }
 
-export function needsHelmetSetup(profile: Profile): boolean {
-  return !profile.onboarding_completed_at && !hasScriptIdentity(profile);
+export function hasScriptIdentity(profile: ScriptIdentity): boolean {
+  return hasPresentationIdentity(profile) && filled(profile.promessa);
 }
 
-/** 0–100. Seven equal slots: name, company, city, specialty, area, photo, promise. */
+export function needsHelmetSetup(profile: Profile): boolean {
+  return !profile.onboarding_completed_at;
+}
+
+/** 0–100. Five equal slots: name, company, city, promise, photo. */
 export function profileReadiness(profile: Profile): number {
   const slots = [
     filled(profile.como_chama) || filled(profile.nome),
     filled(profile.empresa_usuario),
     filled(profile.cidade_usuario),
-    filled(profile.especialidade),
-    filled(profile.area),
-    filled(profile.foto_url),
     filled(profile.promessa),
+    filled(profile.foto_url),
   ];
   return Math.round((slots.filter(Boolean).length / slots.length) * 100);
 }

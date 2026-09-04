@@ -130,7 +130,10 @@ export function BoxCockpit({
   workingSearchId,
 }: {
   name: string;
-  profile: Pick<Profile, "foto_url" | "como_chama" | "nome">;
+  profile: Pick<
+    Profile,
+    "foto_url" | "como_chama" | "nome" | "especialidade" | "cidade_usuario"
+  >;
   slots: BoxSlot[];
   defaultOpen: BoxSlotId | null;
   unsavedSearch: { id: string; nome: string } | null;
@@ -189,7 +192,11 @@ export function BoxCockpit({
               <div className="flex min-w-0 items-center gap-2.5">
                 <PilotAvatar profile={profile} size="sm" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-podium-muted">Bem-vindo de volta</p>
+                  <p className="text-[11px] text-podium-muted">
+                    {profile.especialidade && profile.cidade_usuario
+                      ? `${profile.especialidade} · ${profile.cidade_usuario}`
+                      : COPY.setupWelcomeBack}
+                  </p>
                   <p className="truncate text-sm font-bold md:text-base">{name}</p>
                 </div>
               </div>
@@ -207,10 +214,10 @@ export function BoxCockpit({
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-muted">
                     Trabalho do dia
                   </p>
-                  <h1 className="mt-3 max-w-xl text-4xl font-extrabold leading-[1.05] md:text-5xl">
+                  <h1 className="mt-3 max-w-xl text-balance text-4xl font-extrabold leading-[1.05] md:text-5xl">
                     {missionTitle}
                   </h1>
-                  <p className="mt-3 max-w-lg text-sm text-podium-gray md:text-base">
+                  <p className="mt-3 max-w-lg text-pretty text-sm text-podium-gray md:text-base">
                     {missionBody}
                   </p>
                   {pistaAberta && savedLists.length > 0 ? (

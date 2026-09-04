@@ -93,14 +93,24 @@ describe("profileReadiness", () => {
     expect(needsHelmetSetup(profile())).toBe(true);
   });
 
-  it("reaches 100 when every slot is filled", () => {
+  it("treats identity as name, company, city and promise — not specialty", () => {
+    const identity = profile({
+      como_chama: "Rômulo",
+      empresa_usuario: "Combustível",
+      cidade_usuario: "BH",
+      promessa: "gerar demanda",
+    });
+    expect(hasScriptIdentity(identity)).toBe(true);
+    expect(needsHelmetSetup(identity)).toBe(true);
+    expect(profileReadiness(identity)).toBe(80);
+  });
+
+  it("reaches 100 when presentation slots are filled", () => {
     const full = profile({
       nome: "Rômulo Freitas",
       como_chama: "Rômulo",
       empresa_usuario: "Combustível",
       cidade_usuario: "BH",
-      especialidade: "marketing digital",
-      area: "vendas",
       foto_url: "data:image/jpeg;base64,xx",
       promessa: "gerar demanda",
       onboarding_completed_at: "2026-08-16T12:00:00.000Z",
@@ -110,7 +120,7 @@ describe("profileReadiness", () => {
     expect(needsHelmetSetup(full)).toBe(false);
   });
 
-  it("does not gate after skip even if fields are empty", () => {
+  it("does not gate after onboarding even if fields are empty", () => {
     expect(
       needsHelmetSetup(
         profile({ onboarding_completed_at: "2026-08-16T12:00:00.000Z" }),

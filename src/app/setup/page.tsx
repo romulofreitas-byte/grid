@@ -2,36 +2,35 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnatomyAssembler } from "@/components/AnatomyAssembler";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { PhotoPicker } from "@/components/PhotoPicker";
 import { SectionTitle } from "@/components/SectionTitle";
-import { BACK } from "@/lib/back";
+import {
+  SetupFirstGrid,
+  type FirstGridNiche,
+} from "@/components/SetupFirstGrid";
+import { BACK, gridHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
-  CALL_GOAL_OPTIONS,
-  DEFAULT_CALL_GOAL,
   DEFAULT_MEETING_MINUTES,
+  hasScriptIdentity,
   isTratamento,
 } from "@/lib/pilot-profile";
-import type { Profile, Tratamento } from "@/lib/types";
+import type { Profile, Search, Tratamento } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Perfil", "Empresa", "Oferta", "Meta"] as const;
+const STEPS = ["Quem liga", "Primeira lista"] as const;
 
 type Draft = {
   como_chama: string;
   tratamento: Tratamento;
   empresa_usuario: string;
   cidade_usuario: string;
-  especialidade: string;
-  area: string;
   promessa: string;
   duracao_reuniao: number;
-  meta_ligacoes_dia: number;
 };
 
 function draftFrom(p: Profile): Draft {
@@ -40,11 +39,8 @@ function draftFrom(p: Profile): Draft {
     tratamento: isTratamento(p.tratamento) ? p.tratamento : "o",
     empresa_usuario: p.empresa_usuario ?? "",
     cidade_usuario: p.cidade_usuario ?? "",
-    especialidade: p.especialidade ?? "",
-    area: p.area ?? "",
     promessa: p.promessa ?? "",
     duracao_reuniao: p.duracao_reuniao || DEFAULT_MEETING_MINUTES,
-    meta_ligacoes_dia: p.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
   };
 }
 
@@ -68,6 +64,12 @@ export default function SetupPage() {
 
   const profile = profileQuery.data;
   const form = draft ?? (profile ? draftFrom(profile) : null);
+
+  useEffect(() => {
+    if (profile?.onboarding_completed_at) {
+      router.replace("/painel");
+    }
+  }, [profile?.onboarding_completed_at, router]);
 
   const save = useMutation({
     mutationFn: async (body: Partial<Profile>) => {
@@ -99,51 +101,62 @@ export default function SetupPage() {
     }
   }
 
-  function goToBox() {
-    router.push("/box");
-    router.refresh();
-  }
-
-  async function skip() {
-    try {
-      await save.mutateAsync({
-        onboarding_completed_at: new Date().toISOString(),
-      });
-      goToBox();
-    } catch {
-      /* keep on page */
-    }
-  }
-
-  async function finish() {
-    const ok = await persist({ onboarding_completed_at: new Date().toISOString() });
-    if (ok) goToBox();
-  }
+  const identityOk = form
+    ? hasScriptIdentity({
+        como_chama: form.como_chama,
+        nome: profile?.nome ?? null,
+        empresa_usuario: form.empresa_usuario,
+        cidade_usuario: form.cidade_usuario,
+        promessa: form.promessa,
+      })
+    : false;
 
   async function advance() {
+    if (!identityOk) return;
     const ok = await persist();
-    if (ok) setStep((s) => s + 1);
+    if (ok) setStep(1);
+  }
+
+  async function finishFirstList(search: Search, niche: FirstGridNiche) {
+    const ok = await persist({
+      especialidade: niche.segmentNome,
+      area: niche.parentNome,
+      onboarding_completed_at: new Date().toISOString(),
+    });
+    if (!ok) throw new Error("Não foi possível guardar o perfil");
+    router.push(gridHref(search.id, "box"));
+    router.refresh();
   }
 
   const busy = save.isPending;
 
   if (!profile || !form || !previewProfile) {
     return (
-      <AppShell title="Perfil" back={BACK.box}>
+      <AppShell title="Começar" back={BACK.painel}>
+        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+      </AppShell>
+    );
+  }
+
+  if (profile.onboarding_completed_at) {
+    return (
+      <AppShell title="Começar" back={BACK.painel}>
         <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
       </AppShell>
     );
   }
 
   return (
-    <AppShell title="Perfil" back={BACK.box}>
+    <AppShell title="Começar" back={BACK.painel}>
       <div className="mx-auto max-w-2xl">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
           Passo {step + 1}/{STEPS.length}
         </p>
-        <SectionTitle className="mt-2">Como você se apresenta</SectionTitle>
+        <SectionTitle className="mt-2">
+          {step === 0 ? COPY.setupIdentityTitle : COPY.setupGridTitle}
+        </SectionTitle>
         <Hint className="mt-2">
-          Esses dados entram como quem você é na ligação. Pular deixa a identidade genérica.
+          {step === 0 ? COPY.setupIdentityHint : COPY.setupGridHint}
         </Hint>
 
         <div className="mt-5 flex gap-2">
@@ -162,100 +175,68 @@ export default function SetupPage() {
           ))}
         </div>
 
-        <GlassCard className="mt-6 space-y-5 p-5" highlight>
-          {step === 0 ? (
-            <>
-              <PhotoPicker
-                profile={profile}
-                onUploaded={(p) => qc.setQueryData(["profile"], p)}
-              />
-              <label className="block text-sm text-podium-gray">
-                Como você se chama na ligação
-                <Hint className="mt-0.5">{COPY.comoChama}</Hint>
-                <input
-                  id="como_chama"
-                  value={form.como_chama}
-                  onChange={(e) =>
-                    setDraft({ ...form, como_chama: e.target.value })
-                  }
-                  className={fieldClass}
-                />
-              </label>
-              <fieldset id="tratamento">
-                <legend className="text-sm text-podium-gray">
-                  Aqui é…
-                  <Hint className="mt-0.5">{COPY.tratamento}</Hint>
-                </legend>
-                <div className="mt-2 flex gap-2">
-                  {(["o", "a", "e"] as const).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setDraft({ ...form, tratamento: t })}
-                      className={cn(
-                        "rounded-xl border px-4 py-2 text-sm font-bold",
-                        form.tratamento === t
-                          ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
-                          : "border-white/10 text-podium-gray",
-                      )}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-            </>
-          ) : null}
-
-          {step === 1 ? (
-            <>
-              <label className="block text-sm text-podium-gray">
-                Empresa
-                <input
-                  id="empresa_usuario"
-                  value={form.empresa_usuario}
-                  onChange={(e) =>
-                    setDraft({ ...form, empresa_usuario: e.target.value })
-                  }
-                  className={fieldClass}
-                />
-              </label>
-              <label className="block text-sm text-podium-gray">
-                Cidade
-                <input
-                  id="cidade_usuario"
-                  value={form.cidade_usuario}
-                  onChange={(e) =>
-                    setDraft({ ...form, cidade_usuario: e.target.value })
-                  }
-                  className={fieldClass}
-                />
-              </label>
-            </>
-          ) : null}
-
-          {step === 2 ? (
-            <>
-              <label className="block text-sm text-podium-gray">
-                Especialidade
-                <Hint className="mt-0.5">{COPY.especialidade}</Hint>
-                <input
-                  value={form.especialidade}
-                  onChange={(e) =>
-                    setDraft({ ...form, especialidade: e.target.value })
-                  }
-                  className={fieldClass}
-                />
-              </label>
-              <label className="block text-sm text-podium-gray">
-                Área
-                <Hint className="mt-0.5">{COPY.area}</Hint>
-                <input
-                  value={form.area}
-                  onChange={(e) => setDraft({ ...form, area: e.target.value })}
-                  className={fieldClass}
-                />
-              </label>
+        {step === 0 ? (
+          <>
+            <GlassCard className="mt-6 space-y-5 p-5" highlight>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm text-podium-gray sm:col-span-2">
+                  Como você se chama na ligação
+                  <Hint className="mt-0.5">{COPY.comoChama}</Hint>
+                  <input
+                    id="como_chama"
+                    value={form.como_chama}
+                    onChange={(e) =>
+                      setDraft({ ...form, como_chama: e.target.value })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+                <fieldset id="tratamento" className="sm:col-span-2">
+                  <legend className="text-sm text-podium-gray">
+                    Aqui é…
+                    <Hint className="mt-0.5">{COPY.tratamento}</Hint>
+                  </legend>
+                  <div className="mt-2 flex gap-2">
+                    {(["o", "a", "e"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setDraft({ ...form, tratamento: t })}
+                        className={cn(
+                          "rounded-xl border px-4 py-2 text-sm font-bold",
+                          form.tratamento === t
+                            ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
+                            : "border-white/10 text-podium-gray",
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <label className="block text-sm text-podium-gray">
+                  Empresa
+                  <input
+                    id="empresa_usuario"
+                    value={form.empresa_usuario}
+                    onChange={(e) =>
+                      setDraft({ ...form, empresa_usuario: e.target.value })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+                <label className="block text-sm text-podium-gray">
+                  Cidade
+                  <input
+                    id="cidade_usuario"
+                    value={form.cidade_usuario}
+                    onChange={(e) =>
+                      setDraft({ ...form, cidade_usuario: e.target.value })
+                    }
+                    className={fieldClass}
+                  />
+                </label>
+              </div>
               <label className="block rounded-2xl border border-podium-yellow/35 bg-podium-yellow/10 p-4 text-sm text-podium-gray">
                 A promessa do piloto
                 <Hint className="mt-0.5">{COPY.promessaCompromisso}</Hint>
@@ -289,80 +270,33 @@ export default function SetupPage() {
                   className={fieldClass}
                 />
               </label>
-            </>
-          ) : null}
-
-          {step === 3 ? (
-            <>
-              <p className="text-sm text-podium-gray">Meta de ligações no dia</p>
-              <div className="flex flex-wrap gap-2">
-                {CALL_GOAL_OPTIONS.map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setDraft({ ...form, meta_ligacoes_dia: n })}
-                    className={cn(
-                      "rounded-xl border px-4 py-2 text-sm font-bold",
-                      form.meta_ligacoes_dia === n
-                        ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
-                        : "border-white/10 text-podium-gray",
-                    )}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm text-podium-white">
-                Roteiro pronto. O Início passa a cobrar as ligações — ligar, não só
-                montar lista.
-              </p>
-            </>
-          ) : null}
-
-          <AnatomyAssembler profile={previewProfile} step={step} />
-        </GlassCard>
-
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void skip()}
-            className="text-sm text-podium-muted hover:text-podium-white disabled:opacity-40"
-          >
-            {busy ? "Salvando…" : "Pular por agora"}
-          </button>
-          <div className="flex gap-2">
-            {step > 0 ? (
+              <AnatomyAssembler profile={previewProfile} />
+            </GlassCard>
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => setStep((s) => s - 1)}
-                className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-podium-gray disabled:opacity-40"
-              >
-                Voltar
-              </button>
-            ) : null}
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                disabled={busy}
+                disabled={busy || !identityOk}
                 onClick={() => void advance()}
                 className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
               >
-                {busy ? "Salvando…" : "Continuar"}
+                {busy ? "Salvando…" : COPY.setupContinue}
               </button>
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void finish()}
-                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
-              >
-                {busy ? "Salvando…" : "Ir para o Início"}
-              </button>
-            )}
+            </div>
+            {!identityOk ? (
+              <p className="mt-3 text-right text-xs text-podium-muted">
+                {COPY.setupNeedIdentity}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <div className="mt-6">
+            <SetupFirstGrid
+              cidadeUsuario={form.cidade_usuario}
+              onBack={() => setStep(0)}
+              onReady={finishFirstList}
+            />
           </div>
-        </div>
+        )}
       </div>
     </AppShell>
   );
