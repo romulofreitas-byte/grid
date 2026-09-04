@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search as SearchIcon } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { Badge } from "@/components/ui/Badge";
@@ -372,7 +372,7 @@ export function SetupFirstGrid({
       ) : selected ? null : (
         <>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
+            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
             <input
               value={segmentQuery}
               onChange={(e) => setSegmentQuery(e.target.value)}
