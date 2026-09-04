@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   countIntentOnly,
+  normalizeCnaeCodigo,
+  rollupCnaes,
   rollupNiches,
   rollupNicheUf,
   rollupSegments,
@@ -82,5 +84,27 @@ describe("ops market rollup", () => {
   it("separa segmentos e intenção livre", () => {
     expect(rollupSegments(rows).map((row) => row.id)).toEqual([odonto, implante]);
     expect(countIntentOnly(rows)).toBe(1);
+  });
+});
+
+describe("ops CNAE rollup", () => {
+  it("normalizes formatted codes to 7 digits", () => {
+    expect(normalizeCnaeCodigo("2391-5/01")).toBe("2391501");
+    expect(normalizeCnaeCodigo("2391501")).toBe("2391501");
+    expect(normalizeCnaeCodigo("")).toBeNull();
+    expect(normalizeCnaeCodigo("0000000")).toBeNull();
+  });
+
+  it("counts each CNAE and keeps the Receita label", () => {
+    expect(
+      rollupCnaes([
+        { codigo: "2391-5/01", nome: "Aparelhamento de mármores" },
+        { codigo: "2391501", nome: "Aparelhamento de mármores" },
+        { codigo: "5611201", nome: "Restaurantes" },
+      ]),
+    ).toEqual([
+      { codigo: "2391501", nome: "Aparelhamento de mármores", count: 2 },
+      { codigo: "5611201", nome: "Restaurantes", count: 1 },
+    ]);
   });
 });

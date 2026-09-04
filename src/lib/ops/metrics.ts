@@ -21,6 +21,7 @@ import {
 import { EMPTY_FUNNEL, funnelFromCounts } from "@/lib/ops/funnel";
 import {
   beginScoped,
+  cnaeDigitsSql,
   daysCte,
   LIVE_SUB_JOIN,
   periodSql,
@@ -128,6 +129,9 @@ function emptyMetrics(range: OpsDashboardFilters["range"]): OpsMetrics {
     segments: [],
     ufs: [],
     nicheUf: [],
+    cnaes: [],
+    cnaeEnrich: [],
+    cnaeCalls: [],
     intentSearches: 0,
     enrichSeries: [],
     packs: [],
@@ -733,6 +737,16 @@ async function loadSignups(filters: OpsDashboardFilters): Promise<OpsDayCohort[]
   }));
 }
 
+function mapCnaeRows(
+  rows: { codigo: string; nome: string; count: string | number }[],
+): { codigo: string; nome: string; count: number }[] {
+  return rows.map((row) => ({
+    codigo: String(row.codigo ?? "").trim(),
+    nome: row.nome?.trim() || String(row.codigo ?? "").trim(),
+    count: num(row.count),
+  }));
+}
+
 async function loadMarket(filters: OpsDashboardFilters) {
   const { params, cte } = scoped(filters);
   const inPeriod = periodSql("s.created_at", filters.range);
@@ -740,15 +754,20 @@ async function loadMarket(filters: OpsDashboardFilters) {
     from searches s
     join scoped_users u on u.id = s.user_id
   `;
-  const [niches, segments, ufs, nicheUf, intent] = await allQueries<
-    [
-      { id: string; nome: string; count: string | number }[],
-      { id: string; nome: string; count: string | number }[],
-      { uf: string; count: string | number }[],
-      { niche_id: string; niche_nome: string; uf: string; count: string | number }[],
-      { n: string | number | null }[],
-    ]
-  >([
+  const cnaeCodigo = cnaeDigitsSql("cnae.code");
+  const [niches, segments, ufs, nicheUf, intent, cnaes, cnaeEnrich, cnaeCalls] =
+    await allQueries<
+      [
+        { id: string; nome: string; count: string | number }[],
+        { id: string; nome: string; count: string | number }[],
+        { uf: string; count: string | number }[],
+        { niche_id: string; niche_nome: string; uf: string; count: string | number }[],
+        { n: string | number | null }[],
+        { codigo: string; nome: string; count: string | number }[],
+        { codigo: string; nome: string; count: string | number }[],
+        { codigo: string; nome: string; count: string | number }[],
+      ]
+    >([
     () =>
       optionalRows(
         `with ${cte}
@@ -829,6 +848,78 @@ async function loadMarket(filters: OpsDashboardFilters) {
            and coalesce(s.filtros->>'intentQuery', '') <> ''`,
         params.values,
       ),
+    () =>
+      optionalRows(
+        `with ${cte},
+         search_cnaes as (
+           select ${cnaeCodigo} as codigo
+           ${fromSearches}
+           cross join lateral jsonb_array_elements_text(
+             coalesce(s.filtros->'cnaes', '[]'::jsonb)
+           ) cnae(code)
+           where ${inPeriod}
+             and regexp_replace(cnae.code, '[^0-9]', '', 'g') <> ''
+           union all
+           select npc.cnae as codigo
+           ${fromSearches}
+           cross join lateral jsonb_array_elements_text(
+             coalesce(s.filtros->'segmentIds', '[]'::jsonb)
+           ) seg(id)
+           join niche_preset_cnaes npc
+             on npc.preset_id::text = seg.id
+            and npc.incluido
+           where ${inPeriod}
+             and coalesce(s.filtros->'cnaes', '[]'::jsonb) = '[]'::jsonb
+         )
+         select
+           sc.codigo,
+           coalesce(nullif(trim(rc.descricao), ''), sc.codigo) as nome,
+           count(*)::int as count
+         from search_cnaes sc
+         left join ref_cnae rc on rc.codigo = sc.codigo
+         where sc.codigo ~ '^[0-9]{7}$'
+           and sc.codigo <> '0000000'
+         group by 1, 2
+         order by count desc, nome
+         limit 15`,
+        params.values,
+      ),
+    () =>
+      optionalRows(
+        `with ${cte}
+         select
+           es.cnae_principal as codigo,
+           coalesce(nullif(trim(rc.descricao), ''), es.cnae_principal) as nome,
+           count(*)::int as count
+         from enrichment_jobs e
+         join scoped_users u on u.id = e.requested_by
+         join establishments es on es.cnpj = e.cnpj
+         left join ref_cnae rc on rc.codigo = es.cnae_principal
+         where ${periodSql("e.created_at", filters.range)}
+           and nullif(trim(es.cnae_principal), '') is not null
+         group by 1, 2
+         order by count desc, nome
+         limit 15`,
+        params.values,
+      ),
+    () =>
+      optionalRows(
+        `with ${cte}
+         select
+           es.cnae_principal as codigo,
+           coalesce(nullif(trim(rc.descricao), ''), es.cnae_principal) as nome,
+           count(*)::int as count
+         from call_events c
+         join scoped_users u on u.id = c.user_id
+         join establishments es on es.cnpj = c.cnpj
+         left join ref_cnae rc on rc.codigo = es.cnae_principal
+         where ${periodSql("c.created_at", filters.range)}
+           and nullif(trim(es.cnae_principal), '') is not null
+         group by 1, 2
+         order by count desc, nome
+         limit 15`,
+        params.values,
+      ),
   ]);
   return {
     niches: niches.map((row) => ({
@@ -848,6 +939,9 @@ async function loadMarket(filters: OpsDashboardFilters) {
       uf: row.uf,
       count: num(row.count),
     })),
+    cnaes: mapCnaeRows(cnaes),
+    cnaeEnrich: mapCnaeRows(cnaeEnrich),
+    cnaeCalls: mapCnaeRows(cnaeCalls),
     intentSearches: num(intent[0]?.n),
   };
 }
@@ -1092,6 +1186,9 @@ export async function loadOpsMetrics(
       segments: market.segments,
       ufs: market.ufs,
       nicheUf: market.nicheUf,
+      cnaes: market.cnaes,
+      cnaeEnrich: market.cnaeEnrich,
+      cnaeCalls: market.cnaeCalls,
       intentSearches: market.intentSearches,
       enrichSeries: series.enrichSeries,
       packs: packs.packs,

@@ -1,4 +1,5 @@
 import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
+import { formatCnae } from "@/lib/format";
 import type { OpsCohort } from "@/lib/ops/classify";
 
 export function formatInt(n: number): string {
@@ -56,6 +57,13 @@ export function jobStatusLabel(status: string): string {
   if (status === "failed") return "Falhou";
   if (status === "skipped") return "Pulado";
   return status;
+}
+
+export function cnaeChartName(codigo: string, descricao: string): string {
+  const code = formatCnae(codigo) ?? codigo;
+  const nome = descricao.trim();
+  if (!nome || nome === codigo || nome === code) return code;
+  return `${code} · ${nome}`;
 }
 
 export { formatBrl };

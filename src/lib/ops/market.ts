@@ -25,6 +25,12 @@ export type OpsNicheUfCell = {
   count: number;
 };
 
+export type OpsCnaeCount = {
+  codigo: string;
+  nome: string;
+  count: number;
+};
+
 export function parentNicheOf(row: ExplodedSearch): {
   id: string;
   nome: string;
@@ -97,4 +103,34 @@ export function rollupNicheUf(rows: ExplodedSearch[]): OpsNicheUfCell[] {
 
 export function countIntentOnly(rows: ExplodedSearch[]): number {
   return rows.filter((row) => row.intentOnly).length;
+}
+
+export function normalizeCnaeCodigo(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+  const codigo = digits.padStart(7, "0").slice(0, 7);
+  if (codigo === "0000000") return null;
+  return codigo;
+}
+
+export function rollupCnaes(
+  rows: { codigo: string; nome?: string | null }[],
+): OpsCnaeCount[] {
+  const map = new Map<string, OpsCnaeCount>();
+  for (const row of rows) {
+    const codigo = normalizeCnaeCodigo(row.codigo);
+    if (!codigo) continue;
+    const nome = row.nome?.trim() || codigo;
+    const current = map.get(codigo) ?? { codigo, nome, count: 0 };
+    if (row.nome?.trim()) current.nome = row.nome.trim();
+    current.count += 1;
+    map.set(codigo, current);
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      b.count - a.count ||
+      a.nome.localeCompare(b.nome) ||
+      a.codigo.localeCompare(b.codigo),
+  );
 }

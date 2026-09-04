@@ -18,6 +18,7 @@ import {
   OPS_COHORT_COLORS,
 } from "@/app/ops/_components/chartTheme";
 import {
+  cnaeChartName,
   cohortLabel,
   debitReasonLabel,
   formatBrl,
@@ -361,7 +362,7 @@ export function OpsDashboard() {
             title="Funil de quem cadastrou no período"
             hint={
               m
-                ? `${formatInt(m.funnel.recharged)} destes recarregaram`
+                ? `${formatInt(m.funnel.recharged)} destes recarregaram. A barra segue o número; % é a conversão da etapa de cima.`
                 : undefined
             }
           >
@@ -383,8 +384,9 @@ export function OpsDashboard() {
       <div>
         <SectionTitle>Mercado</SectionTitle>
         <Hint className="mt-1">
-          Uma busca com vários UFs ou segmentos conta em cada um — é onde estão
-          procurando.
+          Uma busca com vários UFs, segmentos ou CNAEs conta em cada um — é onde
+          estão procurando. Qualificação e ligação usam o CNAE da empresa, não o
+          filtro da lista.
           {m && m.intentSearches > 0
             ? ` ${formatInt(m.intentSearches)} buscas só com intenção livre.`
             : null}
@@ -447,6 +449,45 @@ export function OpsDashboard() {
                 }
                 setFilters({ ...filters, nicheId, uf });
               }}
+            />
+          </OpsChartCard>
+          <OpsChartCard
+            title="CNAEs mais buscados"
+            hint="Atividade marcada na lista. Se a busca não pinou CNAE, usa os do segmento."
+          >
+            <OpsHBar
+              data={(m?.cnaes ?? []).map((row) => ({
+                id: row.codigo,
+                name: cnaeChartName(row.codigo, row.nome),
+                value: row.count,
+              }))}
+              color={OPS_CHART.export}
+            />
+          </OpsChartCard>
+          <OpsChartCard
+            title="Qualificações por CNAE"
+            hint="CNAE principal da empresa que qualificaram."
+          >
+            <OpsHBar
+              data={(m?.cnaeEnrich ?? []).map((row) => ({
+                id: row.codigo,
+                name: cnaeChartName(row.codigo, row.nome),
+                value: row.count,
+              }))}
+              color={OPS_CHART.enrich}
+            />
+          </OpsChartCard>
+          <OpsChartCard
+            title="Ligações por CNAE"
+            hint="CNAE principal de quem ligaram no recorte."
+          >
+            <OpsHBar
+              data={(m?.cnaeCalls ?? []).map((row) => ({
+                id: row.codigo,
+                name: cnaeChartName(row.codigo, row.nome),
+                value: row.count,
+              }))}
+              color={OPS_CHART.calls}
             />
           </OpsChartCard>
         </div>
@@ -575,8 +616,8 @@ export function OpsDashboard() {
               ]}
             />
           </OpsChartCard>
-          <OpsChartCard title="Mix no período">
-            <OpsDonut data={kindDonut} />
+          <OpsChartCard title="Mix no período" hint="Receita paga no recorte, em reais.">
+            <OpsDonut asMoney data={kindDonut} />
           </OpsChartCard>
         </div>
       </div>

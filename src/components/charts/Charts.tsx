@@ -1,7 +1,7 @@
 "use client";
 
 import { ChartEmpty } from "@/components/charts/ChartCard";
-import { CHART, formatInt, shortDay } from "@/components/charts/chartTheme";
+import { CHART, formatInt, proportionalWidthPct, shortDay } from "@/components/charts/chartTheme";
 import { cn } from "@/lib/utils";
 
 function polar(cx: number, cy: number, r: number, angle: number): [number, number] {
@@ -25,17 +25,27 @@ function donutSlice(
   return `M ${ox1} ${oy1} A ${outer} ${outer} 0 ${large} 1 ${ox2} ${oy2} L ${ix1} ${iy1} A ${inner} ${inner} 0 ${large} 0 ${ix2} ${iy2} Z`;
 }
 
+function money(cents: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(cents / 100);
+}
+
 export function ChartDonut({
   data,
   onSlice,
   activeId,
+  asMoney = false,
 }: {
   data: { id: string; name: string; value: number; fill: string }[];
   onSlice?: (id: string) => void;
   activeId?: string;
+  asMoney?: boolean;
 }) {
   const total = data.reduce((sum, row) => sum + row.value, 0);
   if (total <= 0) return <ChartEmpty />;
+  const format = asMoney ? money : formatInt;
   let cursor = 0;
   const slices = data
     .filter((row) => row.value > 0)
@@ -58,7 +68,7 @@ export function ChartDonut({
             onClick={() => onSlice?.(row.id)}
           >
             <title>
-              {row.name}: {formatInt(row.value)}
+              {row.name}: {format(row.value)}
             </title>
           </path>
         ))}
@@ -67,10 +77,10 @@ export function ChartDonut({
           y="56"
           textAnchor="middle"
           className="fill-podium-white"
-          fontSize="14"
+          fontSize={asMoney ? "10" : "14"}
           fontWeight="800"
         >
-          {formatInt(total)}
+          {format(total)}
         </text>
         <text
           x="60"
@@ -100,8 +110,8 @@ export function ChartDonut({
                 style={{ backgroundColor: row.fill }}
               />
               <span className="truncate">{row.name}</span>
-              <span className="ml-auto font-semibold text-podium-white">
-                {formatInt(row.value)}
+              <span className="ml-auto shrink-0 font-semibold tabular-nums text-podium-white">
+                {format(row.value)}
               </span>
             </button>
           </li>
@@ -164,14 +174,6 @@ export function ChartHBar({
       })}
     </ul>
   );
-}
-
-function money(cents: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 }
 
 function lineChart({
@@ -332,25 +334,41 @@ export function ChartFunnel({
   return (
     <ul className="space-y-2">
       {steps.map((step, index) => {
-        const width = 48 + (step.count / max) * 52;
-        const prev = index === 0 ? step.count : steps[index - 1]!.count;
-        const conv = index > 0 && prev ? Math.round((step.count / prev) * 100) : null;
+        const width = proportionalWidthPct(step.count, max);
+        const prev = index === 0 ? null : steps[index - 1]!.count;
+        const conv =
+          prev != null && prev > 0 ? Math.round((step.count / prev) * 100) : null;
         return (
-          <li key={step.id} className="flex items-center gap-2">
-            <div
-              className="flex h-10 items-center justify-between gap-3 rounded-md px-3 text-xs font-bold text-podium-navy"
-              style={{ width: `${width}%`, backgroundColor: CHART.active }}
-            >
-              <span className="truncate">{step.label}</span>
-              <span className="shrink-0 tabular-nums">{formatInt(step.count)}</span>
+          <li
+            key={step.id}
+            className="grid grid-cols-[5.75rem_minmax(0,1fr)_2.25rem_2.5rem] items-center gap-x-2"
+          >
+            <span className="truncate text-xs font-bold text-podium-white">
+              {step.label}
+            </span>
+            <div className="h-8 overflow-hidden rounded-md bg-white/5">
+              <div
+                className="h-full rounded-md"
+                style={{
+                  width: `${width}%`,
+                  backgroundColor: CHART.active,
+                }}
+                title={`${step.label}: ${formatInt(step.count)}`}
+              />
             </div>
-            {conv != null ? (
-              <span className="shrink-0 text-[10px] font-semibold tabular-nums text-podium-muted">
-                {conv}%
-              </span>
-            ) : (
-              <span className="w-8 shrink-0" />
-            )}
+            <span className="text-right text-xs font-bold tabular-nums text-podium-white">
+              {formatInt(step.count)}
+            </span>
+            <span
+              className="text-right text-[10px] font-semibold tabular-nums text-podium-muted"
+              title={
+                conv != null && prev != null
+                  ? `${formatInt(step.count)} de ${formatInt(prev)} na etapa de cima`
+                  : undefined
+              }
+            >
+              {conv != null ? `${conv}%` : ""}
+            </span>
           </li>
         );
       })}

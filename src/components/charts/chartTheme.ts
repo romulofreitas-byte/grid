@@ -49,3 +49,9 @@ export function shortDay(iso: string): string {
 export function formatInt(n: number): string {
   return new Intl.NumberFormat("pt-BR").format(n);
 }
+
+/** Share of the track. Do not add a floor — 28 must stay shorter than 30. */
+export function proportionalWidthPct(count: number, max: number): number {
+  if (max <= 0) return 0;
+  return (count / max) * 100;
+}

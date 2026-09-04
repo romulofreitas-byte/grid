@@ -65,6 +65,11 @@ export function mrrExpr(
   return `coalesce(case ${whens} else 0 end, 0)`;
 }
 
+/** Normalize a CNAE expression to 7 digits (Receita / char(7)). */
+export function cnaeDigitsSql(expr: string): string {
+  return `lpad(regexp_replace(${expr}, '[^0-9]', '', 'g'), 7, '0')`;
+}
+
 export function periodSql(column: string, range: OpsRange): string {
   if (range === "all") return "true";
   if (range === "today") {

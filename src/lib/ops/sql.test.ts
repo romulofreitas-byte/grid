@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   beginScoped,
+  cnaeDigitsSql,
   cohortExpr,
   mrrExpr,
   periodSql,
@@ -31,6 +32,12 @@ describe("ops sql fragments", () => {
     expect(testerExcludeSql(true)).toContain("mundopodium@gmail.com");
     expect(testerExcludeSql(true)).toContain("rômulo freitas");
     expect(testerExcludeSql(false)).not.toContain("auth.users");
+  });
+
+  it("normalizes a CNAE expression to 7 digits", () => {
+    expect(cnaeDigitsSql("cnae.code")).toBe(
+      "lpad(regexp_replace(cnae.code, '[^0-9]', '', 'g'), 7, '0')",
+    );
   });
 
   it("restricts Hoje to people with activity that day", () => {

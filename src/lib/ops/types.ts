@@ -1,6 +1,11 @@
 import type { OpsCohort } from "@/lib/ops/classify";
 import type { OpsFunnel } from "@/lib/ops/funnel";
-import type { OpsNicheCount, OpsNicheUfCell, OpsUfCount } from "@/lib/ops/market";
+import type {
+  OpsCnaeCount,
+  OpsNicheCount,
+  OpsNicheUfCell,
+  OpsUfCount,
+} from "@/lib/ops/market";
 import type { OpsRange } from "@/lib/ops/filters";
 import type {
   BillingOrder,
@@ -97,6 +102,9 @@ export type OpsMetrics = {
   segments: OpsNicheCount[];
   ufs: OpsUfCount[];
   nicheUf: OpsNicheUfCell[];
+  cnaes: OpsCnaeCount[];
+  cnaeEnrich: OpsCnaeCount[];
+  cnaeCalls: OpsCnaeCount[];
   intentSearches: number;
   enrichSeries: { day: string; count: number }[];
   packs: OpsPackMix[];
