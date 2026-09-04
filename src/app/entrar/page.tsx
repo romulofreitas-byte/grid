@@ -150,9 +150,13 @@ function EntrarInner() {
   const [litCount, setLitCount] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  const [emailFormOpen, setEmailFormOpen] = useState(
+    () => Boolean(searchParams.get("error")),
+  );
   const [mode, setMode] = useState<Mode>(() => modeFromParams(searchParams));
   const next = safeInternalPath(searchParams.get("next"));
   const showToggle = mode === "login" || mode === "signup";
+  const emailFormVisible = emailFormOpen || !showToggle;
 
   useEffect(() => {
     setMode(modeFromParams(searchParams));
@@ -183,9 +187,16 @@ function EntrarInner() {
       void lightsOutThenGo();
     }
     const fromError = entrarNoticeForError(searchParams.get("error"));
-    if (fromError) setNotice(fromError);
+    if (fromError) {
+      setNotice(fromError);
+      setEmailFormOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    if (notice) setEmailFormOpen(true);
+  }, [notice]);
 
   function switchMode(nextMode: Mode, options?: { keepNotice?: boolean }) {
     if (!options?.keepNotice) {
@@ -194,6 +205,13 @@ function EntrarInner() {
     }
     setPassword("");
     setPasswordConfirm("");
+    if (
+      (mode === "recover" || mode === "definir") &&
+      (nextMode === "login" || nextMode === "signup")
+    ) {
+      setEmailFormOpen(true);
+    }
+    if (options?.keepNotice) setEmailFormOpen(true);
     setMode(nextMode);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("definir");
@@ -387,9 +405,7 @@ function EntrarInner() {
 
   const showPassword = mode !== "recover";
   const showConfirm = mode === "signup" || mode === "definir";
-  const fadeTransition = reduce
-    ? { duration: 0 }
-    : { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const };
+  const fadeClass = reduce ? "" : "duration-200 ease-out";
 
   return (
     <div className="relative flex min-h-svh items-center justify-center overflow-hidden px-4 py-10">
@@ -444,141 +460,226 @@ function EntrarInner() {
               onSubmit={enter}
               className={showToggle ? "mt-5 space-y-4" : "mt-6 space-y-4"}
             >
-              <motion.div
-                key={mode}
-                initial={reduce ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={fadeTransition}
-                className="space-y-4"
-              >
-                  {mode === "signup" ? (
-                    <div className="space-y-2 text-center">
-                      <p className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-podium-yellow px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-podium-navy">
-                        {COPY.entrarTrialBadge}
-                        <span
-                          className="h-1 w-1 rounded-full bg-podium-navy/35"
-                          aria-hidden
-                        />
-                        <span className="font-bold normal-case tracking-normal">
-                          {COPY.entrarTrialHint}
-                        </span>
-                      </p>
-                      <p className="text-balance text-sm text-podium-muted">
-                        {COPY.entrarSignupHook}
-                      </p>
-                    </div>
-                  ) : null}
-                  {mode === "login" ? (
-                    <p className="text-balance text-center text-sm text-podium-muted">
+              {showToggle ? (
+                <div className="grid text-center">
+                  <div
+                    className={cn(
+                      "col-start-1 row-start-1 space-y-2 transition-opacity",
+                      fadeClass,
+                      mode === "signup"
+                        ? "opacity-100"
+                        : "pointer-events-none opacity-0",
+                    )}
+                    aria-hidden={mode !== "signup"}
+                  >
+                    <p className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-podium-yellow px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-podium-navy">
+                      {COPY.entrarTrialBadge}
+                      <span
+                        className="h-1 w-1 rounded-full bg-podium-navy/35"
+                        aria-hidden
+                      />
+                      <span className="font-bold normal-case tracking-normal">
+                        {COPY.entrarTrialHint}
+                      </span>
+                    </p>
+                    <p className="text-balance text-sm text-podium-muted">
+                      {COPY.entrarSignupHook}
+                    </p>
+                  </div>
+                  <div
+                    className={cn(
+                      "col-start-1 row-start-1 flex items-center justify-center transition-opacity",
+                      fadeClass,
+                      mode === "login"
+                        ? "opacity-100"
+                        : "pointer-events-none opacity-0",
+                    )}
+                    aria-hidden={mode !== "login"}
+                  >
+                    <p className="text-balance text-sm text-podium-muted">
                       {COPY.entrarLoginHook}
                     </p>
-                  ) : null}
+                  </div>
+                </div>
+              ) : null}
 
-                  {showToggle ? (
-                    <>
-                      <button
-                        type="button"
-                        disabled={loading}
-                        onClick={() => void enterWithGoogle()}
-                        className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/15 bg-white px-3 py-3 text-sm font-extrabold text-podium-navy transition hover:brightness-95 disabled:opacity-60"
-                      >
-                        <GoogleMark className="h-5 w-5 shrink-0" />
-                        {COPY.entrarGoogleCta}
-                      </button>
+              {showToggle ? (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void enterWithGoogle()}
+                  className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/15 bg-white px-3 py-3 text-sm font-extrabold text-podium-navy transition hover:brightness-95 disabled:opacity-60"
+                >
+                  <GoogleMark className="h-5 w-5 shrink-0" />
+                  {COPY.entrarGoogleCta}
+                </button>
+              ) : null}
+
+              <div>
+                {showToggle && !emailFormOpen ? (
+                  <button
+                    type="button"
+                    aria-expanded={false}
+                    aria-controls="entrar-email-form"
+                    onClick={() => setEmailFormOpen(true)}
+                    className="block w-full text-center text-sm text-podium-muted hover:text-podium-white"
+                  >
+                    {COPY.entrarEmailCta}
+                  </button>
+                ) : null}
+
+              <div
+                className={cn(
+                  "grid",
+                  reduce
+                    ? ""
+                    : "transition-[grid-template-rows] duration-200 ease-out",
+                  emailFormVisible ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                )}
+              >
+                <div
+                  id="entrar-email-form"
+                  className="min-h-0 overflow-hidden"
+                  inert={!emailFormVisible}
+                >
+                  <div className="space-y-4">
+                    {showToggle ? (
                       <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.16em] text-podium-muted">
                         <span className="h-px flex-1 bg-white/10" />
                         {COPY.entrarOrDivider}
                         <span className="h-px flex-1 bg-white/10" />
                       </div>
-                    </>
-                  ) : null}
+                    ) : null}
 
-                  {mode !== "definir" ? (
-                    <label className="block text-sm text-podium-gray">
-                      E-mail
-                      <input
-                        type="email"
-                        autoComplete="email"
-                        required
-                        placeholder="seu@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={fieldClass}
-                      />
-                    </label>
-                  ) : null}
-                  {showPassword ? (
-                    <label className="block text-sm text-podium-gray">
-                      Senha
-                      <input
-                        type="password"
-                        autoComplete={
-                          mode === "login" ? "current-password" : "new-password"
-                        }
-                        required
-                        minLength={MIN_PASSWORD_LENGTH}
-                        placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={fieldClass}
-                      />
-                    </label>
-                  ) : null}
-                  {showConfirm ? (
-                    <label className="block text-sm text-podium-gray">
-                      Repetir senha
-                      <input
-                        type="password"
-                        autoComplete="new-password"
-                        required
-                        minLength={MIN_PASSWORD_LENGTH}
-                        value={passwordConfirm}
-                        onChange={(e) => setPasswordConfirm(e.target.value)}
-                        className={fieldClass}
-                      />
-                    </label>
-                  ) : null}
-                  {notice ? (
-                    <div className="space-y-2">
-                      <p className="text-sm text-podium-yellow">{notice}</p>
-                      {awaitingConfirm ? (
-                        <button
-                          type="button"
-                          disabled={loading}
-                          onClick={() => void resendConfirm()}
-                          className="text-sm font-bold text-podium-gray hover:text-podium-white disabled:opacity-60"
+                    <div className="mx-auto w-full max-w-[17.5rem] space-y-4">
+                      {mode !== "definir" ? (
+                        <label className="block text-sm text-podium-gray">
+                          E-mail
+                          <input
+                            type="email"
+                            autoComplete="email"
+                            required={emailFormVisible}
+                            placeholder="seu@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className={fieldClass}
+                          />
+                        </label>
+                      ) : null}
+                      {showPassword ? (
+                        <label className="block text-sm text-podium-gray">
+                          Senha
+                          <input
+                            type="password"
+                            autoComplete={
+                              mode === "login"
+                                ? "current-password"
+                                : "new-password"
+                            }
+                            required={emailFormVisible}
+                            minLength={MIN_PASSWORD_LENGTH}
+                            placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={fieldClass}
+                          />
+                        </label>
+                      ) : null}
+                      {showToggle ? (
+                        <div
+                          className={cn(
+                            "min-h-[4.5rem] transition-opacity",
+                            fadeClass,
+                            showConfirm
+                              ? "opacity-100"
+                              : "pointer-events-none opacity-0",
+                          )}
+                          aria-hidden={!showConfirm}
                         >
-                          Reenviar link
-                        </button>
+                          <label className="block text-sm text-podium-gray">
+                            Repetir senha
+                            <input
+                              type="password"
+                              autoComplete="new-password"
+                              required={showConfirm && emailFormVisible}
+                              disabled={!showConfirm}
+                              tabIndex={showConfirm ? undefined : -1}
+                              minLength={MIN_PASSWORD_LENGTH}
+                              value={passwordConfirm}
+                              onChange={(e) =>
+                                setPasswordConfirm(e.target.value)
+                              }
+                              className={fieldClass}
+                            />
+                          </label>
+                        </div>
+                      ) : showConfirm ? (
+                        <label className="block text-sm text-podium-gray">
+                          Repetir senha
+                          <input
+                            type="password"
+                            autoComplete="new-password"
+                            required
+                            minLength={MIN_PASSWORD_LENGTH}
+                            value={passwordConfirm}
+                            onChange={(e) =>
+                              setPasswordConfirm(e.target.value)
+                            }
+                            className={fieldClass}
+                          />
+                        </label>
                       ) : null}
                     </div>
-                  ) : null}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110 disabled:opacity-60"
-                  >
-                    {submitLabel}
-                  </button>
-                  {mode === "login" ? (
+
+                    {notice ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-podium-yellow">{notice}</p>
+                        {awaitingConfirm ? (
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => void resendConfirm()}
+                            className="text-sm font-bold text-podium-gray hover:text-podium-white disabled:opacity-60"
+                          >
+                            Reenviar link
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     <button
-                      type="button"
-                      onClick={() => switchMode("recover")}
-                      className="block w-full text-center text-sm text-podium-muted hover:text-podium-white"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110 disabled:opacity-60"
                     >
-                      Esqueci a senha
+                      {submitLabel}
                     </button>
-                  ) : null}
-                  {mode === "recover" || mode === "definir" ? (
-                    <button
-                      type="button"
-                      onClick={() => switchMode("login")}
-                      className="block w-full text-center text-sm text-podium-muted hover:text-podium-white"
-                    >
-                      Voltar
-                    </button>
-                  ) : null}
-                </motion.div>
+
+                    {showToggle ? (
+                      <div className="min-h-5">
+                        {mode === "login" ? (
+                          <button
+                            type="button"
+                            onClick={() => switchMode("recover")}
+                            className="block w-full text-center text-sm text-podium-muted hover:text-podium-white"
+                          >
+                            Esqueci a senha
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => switchMode("login")}
+                        className="block w-full text-center text-sm text-podium-muted hover:text-podium-white"
+                      >
+                        Voltar
+                      </button>
+                    )}
+                  </div>
+                </div>
+                </div>
+              </div>
             </form>
           </div>
         </div>

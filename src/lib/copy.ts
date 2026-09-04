@@ -94,6 +94,7 @@ export const COPY = {
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
   entrarGoogleCta: "Continuar com Google",
+  entrarEmailCta: "Usar e-mail",
   entrarOrDivider: "ou",
   boxPlatformCoupon:
     "Você assina o Mundo Pódium. Use o cupom PILOTO — vale só para assinantes ativos da\u00a0Plataforma.",
