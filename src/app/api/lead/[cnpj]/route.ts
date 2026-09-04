@@ -12,6 +12,7 @@ import {
   syncCrmDealNotes,
 } from "@/lib/crm/lead-sync";
 import { getDataSource, getRepo } from "@/lib/data";
+import { resolveFichaNichoNome } from "@/lib/nicho-cidade";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
 import {
@@ -71,6 +72,12 @@ export async function GET(
         search,
       })
     : null;
+  const segmentId =
+    search?.filtros.segmentIds[0] ?? search?.filtros.presetId ?? null;
+  const nichoNome = await resolveFichaNichoNome((id) => repo.getPreset(id), {
+    pipelineNome: crm?.pipelineNome,
+    segmentId,
+  });
   if (
     enriched &&
     needsDiscoveryRetry(dossier.enrichment)
@@ -107,6 +114,7 @@ export async function GET(
     enrichAllowed: balance.enrichAllowed,
     searchSaved: search?.saved ?? false,
     searchNome: search?.nome ?? null,
+    nichoNome,
     wasQualified: enriched,
     crm,
   });

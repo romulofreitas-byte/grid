@@ -613,6 +613,7 @@ export function CrmBoard({
             key="crm-deal-modal"
             deal={openDeal}
             stages={board.stages}
+            pipelineNome={board.pipeline.nome}
             onClose={() => openDealCard(null)}
             onChange={replaceDeal}
             onMoveStage={(stageId) => {

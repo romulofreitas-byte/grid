@@ -15,6 +15,7 @@ import {
   formatDateBr,
   formatPorte,
 } from "@/lib/format";
+import { formatNichoCidade } from "@/lib/nicho-cidade";
 import { estimateRevenueBand } from "@/lib/market/revenue-band";
 import type { Company, Establishment, LeadDossier } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,7 @@ export function LeadCompanyCard({
   razaoSocial,
   showRazao,
   cityLine,
+  nichoNome,
   cnaeDescricao,
   cnpj,
   gridPosition,
@@ -140,6 +142,7 @@ export function LeadCompanyCard({
   razaoSocial: string;
   showRazao: boolean;
   cityLine: string;
+  nichoNome?: string | null;
   cnaeDescricao: string;
   cnpj: string;
   gridPosition?: number | null;
@@ -154,6 +157,7 @@ export function LeadCompanyCard({
 }) {
   const [showCadastro, setShowCadastro] = useState(false);
   const opened = establishment ? formatDateBr(establishment.data_inicio) : null;
+  const nichoCidade = formatNichoCidade(nichoNome, cityLine);
   const revenue = company
     ? estimateRevenueBand({
         porte: company.porte,
@@ -175,14 +179,16 @@ export function LeadCompanyCard({
           <h1 className="text-base font-semibold leading-tight text-podium-white">
             {title}
           </h1>
+          {nichoCidade ? (
+            <p className="mt-0.5 truncate text-[10px] text-podium-muted">
+              {nichoCidade}
+            </p>
+          ) : null}
           {showRazao ? (
             <p className="mt-0.5 truncate text-xs text-podium-muted">
               {razaoSocial}
             </p>
           ) : null}
-          <p className="mt-1 text-sm text-podium-gray">
-            {cityLine || <EmptyValue />}
-          </p>
           <p className="mt-0.5 line-clamp-2 text-xs text-podium-muted">
             {cnaeDescricao}
           </p>

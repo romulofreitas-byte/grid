@@ -735,6 +735,7 @@ export default function LeadPage() {
           razaoSocial={company.razao_social}
           showRazao={Boolean(est.nome_fantasia)}
           cityLine={cityLine}
+          nichoNome={d.nichoNome}
           cnaeDescricao={d.cnaeDescricao}
           cnpj={est.cnpj}
           gridPosition={d.gridPosition}
