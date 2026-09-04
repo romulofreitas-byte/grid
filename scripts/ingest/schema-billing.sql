@@ -72,6 +72,19 @@ create table if not exists credit_lots (
 );
 create index if not exists credit_lots_open_idx
   on credit_lots (profile_id, remaining) where remaining > 0;
+create unique index if not exists credit_lots_one_open_period
+  on credit_lots (
+    profile_id,
+    source,
+    (date_trunc('month', expires_at at time zone 'UTC'))
+  )
+  where order_id is null
+    and remaining > 0
+    and expires_at is not null
+    and source in ('plan_grant', 'platform');
+create unique index if not exists credit_lots_one_per_order
+  on credit_lots (order_id)
+  where order_id is not null;
 
 create table if not exists credit_ledger (
   id          uuid primary key,

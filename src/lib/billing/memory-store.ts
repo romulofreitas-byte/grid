@@ -61,6 +61,45 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
+function uniqueViolation(): Error & { code: string } {
+  const err = new Error("duplicate key value violates unique constraint") as Error & {
+    code: string;
+  };
+  err.code = "23505";
+  return err;
+}
+
+function periodMonthKey(expiresAt: string): string {
+  const d = new Date(expiresAt);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function assertLotUnique(lot: CreditLot): void {
+  const lots = db().lots;
+  if (lot.orderId && lots.some((row) => row.orderId === lot.orderId)) {
+    throw uniqueViolation();
+  }
+  if (
+    lot.orderId ||
+    lot.remaining <= 0 ||
+    !lot.expiresAt ||
+    (lot.source !== "plan_grant" && lot.source !== "platform")
+  ) {
+    return;
+  }
+  const key = periodMonthKey(lot.expiresAt);
+  const clash = lots.some(
+    (row) =>
+      row.profileId === lot.profileId &&
+      row.source === lot.source &&
+      row.orderId == null &&
+      row.remaining > 0 &&
+      row.expiresAt != null &&
+      periodMonthKey(row.expiresAt) === key,
+  );
+  if (clash) throw uniqueViolation();
+}
+
 export const memoryBillingStore: BillingStore = {
   async insertOrder(order) {
     db().orders.push(clone(order));
@@ -70,6 +109,13 @@ export const memoryBillingStore: BillingStore = {
     const row = db().orders.find((o) => o.id === id);
     if (!row) return null;
     Object.assign(row, patch);
+    return clone(row);
+  },
+  async claimOrderPaid(id, paidAt) {
+    const row = db().orders.find((o) => o.id === id);
+    if (!row || row.status === "paid") return null;
+    row.status = "paid";
+    row.paidAt = paidAt;
     return clone(row);
   },
   async getOrder(id) {
@@ -140,6 +186,7 @@ export const memoryBillingStore: BillingStore = {
   },
 
   async insertLot(lot) {
+    assertLotUnique(lot);
     db().lots.push(clone(lot));
     return clone(lot);
   },
@@ -153,9 +200,12 @@ export const memoryBillingStore: BillingStore = {
       .lots.filter((l) => l.profileId === profileId)
       .map(clone);
   },
-  async updateLotRemaining(id, remaining) {
+  async tryDebitLot(id, amount) {
+    if (!Number.isInteger(amount) || amount <= 0) return false;
     const row = db().lots.find((l) => l.id === id);
-    if (row) row.remaining = remaining;
+    if (!row || row.remaining < amount) return false;
+    row.remaining -= amount;
+    return true;
   },
   async expirePlanLots(profileId, at) {
     const expired: CreditLot[] = [];

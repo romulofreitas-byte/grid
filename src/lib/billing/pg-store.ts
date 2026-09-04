@@ -157,6 +157,15 @@ export const pgBillingStore: BillingStore = {
     );
     return rows[0] ? mapOrder(rows[0]) : null;
   },
+  async claimOrderPaid(id, paidAt) {
+    const { rows } = await query(
+      `update billing_orders set status='paid', paid_at=$2
+       where id=$1 and status <> 'paid'
+       returning *`,
+      [id, paidAt],
+    );
+    return rows[0] ? mapOrder(rows[0]) : null;
+  },
   async getOrder(id) {
     const { rows } = await query("select * from billing_orders where id=$1", [id]);
     return rows[0] ? mapOrder(rows[0]) : null;
@@ -309,8 +318,14 @@ export const pgBillingStore: BillingStore = {
     );
     return rows.map(mapLot);
   },
-  async updateLotRemaining(id, remaining) {
-    await query("update credit_lots set remaining=$2 where id=$1", [id, remaining]);
+  async tryDebitLot(id, amount) {
+    if (!Number.isInteger(amount) || amount <= 0) return false;
+    const { rowCount } = await query(
+      `update credit_lots set remaining = remaining - $2
+       where id=$1 and remaining >= $2`,
+      [id, amount],
+    );
+    return (rowCount ?? 0) > 0;
   },
   async expirePlanLots(profileId, at) {
     const { rows } = await query(

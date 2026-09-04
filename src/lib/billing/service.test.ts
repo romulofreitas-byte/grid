@@ -85,6 +85,22 @@ describe("billing service", () => {
     expect(bal.enrichAllowed).toBe(false);
   });
 
+  it("does not double-grant Treino livre on concurrent first balance", async () => {
+    const [a, b, c] = await Promise.all([
+      getBalance(profileId),
+      getBalance(profileId),
+      getBalance(profileId),
+    ]);
+    expect(a.total).toBe(25);
+    expect(b.total).toBe(25);
+    expect(c.total).toBe(25);
+    const periodLots = (await memoryBillingStore.listLots(profileId)).filter(
+      (lot) => lot.source === "plan_grant" && lot.remaining > 0,
+    );
+    expect(periodLots).toHaveLength(1);
+    expect(periodLots[0]?.qty).toBe(25);
+  });
+
   it("pays a mock card checkout and grants plan credits", async () => {
     const order = await createCheckout({
       profileId,
@@ -491,6 +507,45 @@ describe("billing service", () => {
     await handleNormalizedEvent(event, {});
     const bal = await getBalance(profileId);
     expect(bal.pack).toBe(100);
+  });
+
+  it("does not double-grant when two paid events hit the same order", async () => {
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "pack_100",
+      method: "boleto",
+    });
+    expect(order.status).toBe("pending");
+    await Promise.all([
+      applyPaymentPaid(order.id),
+      applyPaymentPaid(order.id),
+      handleNormalizedEvent(
+        {
+          provider: "mock",
+          providerEventId: "evt-paid-a",
+          type: "payment.paid",
+          providerPaymentId: order.providerPaymentId ?? "",
+        },
+        {},
+      ),
+      handleNormalizedEvent(
+        {
+          provider: "mock",
+          providerEventId: "evt-paid-b",
+          type: "payment.paid",
+          providerPaymentId: order.providerPaymentId ?? "",
+        },
+        {},
+      ),
+    ]);
+    const bal = await getBalance(profileId);
+    expect(bal.pack).toBe(100);
+    const packLots = (await memoryBillingStore.listLots(profileId)).filter(
+      (lot) => lot.source === "pack",
+    );
+    expect(packLots).toHaveLength(1);
   });
 
   it("grants manual credits from ops without touching the plan", async () => {

@@ -316,6 +316,11 @@ export function isStatementTimeoutError(err: unknown): boolean {
   return pgErrorCode(err) === "57014";
 }
 
+/** Postgres 23505 — unique_violation. */
+export function isUniqueViolation(err: unknown): boolean {
+  return pgErrorCode(err) === "23505";
+}
+
 export type SqlQuery = <T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],

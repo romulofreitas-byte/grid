@@ -9,6 +9,7 @@ import {
   isStatementTimeoutError,
   isUndefinedColumnError,
   isUndefinedTableError,
+  isUniqueViolation,
   isUnpopulatedRelationError,
   pgErrorCode,
   preferTransactionPoolerUrl,
@@ -49,6 +50,11 @@ describe("pg error helpers", () => {
   it("classifies missing columns", () => {
     expect(isUndefinedColumnError(pgErr("42703"))).toBe(true);
     expect(isUndefinedColumnError(pgErr("42P01"))).toBe(false);
+  });
+
+  it("classifies unique violations", () => {
+    expect(isUniqueViolation(pgErr("23505"))).toBe(true);
+    expect(isUniqueViolation(pgErr("42P01"))).toBe(false);
   });
 
   it("classifies session pooler exhaustion", () => {

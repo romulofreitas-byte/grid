@@ -9,6 +9,7 @@ import type {
 export type BillingStore = {
   insertOrder(order: BillingOrder): Promise<BillingOrder>;
   updateOrder(id: string, patch: Partial<BillingOrder>): Promise<BillingOrder | null>;
+  claimOrderPaid(id: string, paidAt: string): Promise<BillingOrder | null>;
   getOrder(id: string): Promise<BillingOrder | null>;
   getOrderByProviderPayment(provider: string, providerPaymentId: string): Promise<BillingOrder | null>;
   listOrders(profileId: string): Promise<BillingOrder[]>;
@@ -37,7 +38,7 @@ export type BillingStore = {
   insertLot(lot: CreditLot): Promise<CreditLot>;
   listOpenLots(profileId: string): Promise<CreditLot[]>;
   listLots(profileId: string): Promise<CreditLot[]>;
-  updateLotRemaining(id: string, remaining: number): Promise<void>;
+  tryDebitLot(id: string, amount: number): Promise<boolean>;
   expirePlanLots(profileId: string, at: string): Promise<CreditLot[]>;
 
   insertLedger(entry: LedgerEntry): Promise<void>;

@@ -1,6 +1,6 @@
 import { getDataSource, hasLiveDatabase } from "@/lib/data";
 import { isRuntimeProduction } from "@/lib/env/deploy";
-import { isUndefinedTableError } from "@/lib/data/pg";
+import { isUndefinedTableError, isUniqueViolation } from "@/lib/data/pg";
 import {
   addUtcDays,
   isTrialExpired,
@@ -170,7 +170,7 @@ async function grantLot(
     reason: string;
     ref?: string | null;
   },
-): Promise<void> {
+): Promise<boolean> {
   const lot: CreditLot = {
     id: crypto.randomUUID(),
     profileId: input.profileId,
@@ -181,7 +181,12 @@ async function grantLot(
     orderId: input.orderId,
     createdAt: nowIso(),
   };
-  await store.insertLot(lot);
+  try {
+    await store.insertLot(lot);
+  } catch (err) {
+    if (isUniqueViolation(err)) return false;
+    throw err;
+  }
   await store.insertLedger({
     id: crypto.randomUUID(),
     profileId: input.profileId,
@@ -192,6 +197,7 @@ async function grantLot(
     lotId: lot.id,
     createdAt: nowIso(),
   });
+  return true;
 }
 
 export async function ensureStartingCredits(profileId: string): Promise<CreditBalance> {
@@ -436,24 +442,24 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   const store = await getBillingStore();
   const order = await store.getOrder(orderId);
   if (!order) return;
-  if (order.status === "paid") return;
 
   const item = getCatalogItem(order.sku);
   if (!item) return;
 
-  await store.updateOrder(order.id, { status: "paid", paidAt: nowIso() });
+  const claimed = await store.claimOrderPaid(order.id, nowIso());
+  if (!claimed) return;
 
   if (item.kind === "pack") {
     await grantLot(store, {
-      profileId: order.profileId,
+      profileId: claimed.profileId,
       qty: item.credits,
       source: "pack",
       expiresAt: null,
-      orderId: order.id,
+      orderId: claimed.id,
       reason: `pack_${item.sku}`,
     });
-    await syncCache(store, order.profileId);
-    await enqueueTreasurySweep(store, order);
+    await syncCache(store, claimed.profileId);
+    await enqueueTreasurySweep(store, claimed);
     return;
   }
 
@@ -464,29 +470,29 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
     ? addUtcDays(new Date(), PLATFORM_TRIAL_DAYS).toISOString()
     : periodEnd();
   const status = isPlatform ? "trialing" : "active";
-  const expired = await store.expirePlanLots(order.profileId, start);
+  const expired = await store.expirePlanLots(claimed.profileId, start);
   for (const lot of expired) {
     if (lot.remaining > 0) {
       await store.insertLedger({
         id: crypto.randomUUID(),
-        profileId: order.profileId,
+        profileId: claimed.profileId,
         type: "expire",
         amount: lot.remaining,
         reason: "plan_renew_reset",
-        ref: order.id,
+        ref: claimed.id,
         lotId: lot.id,
         createdAt: start,
       });
     }
   }
 
-  const existing = await store.getActiveSubscription(order.profileId);
+  const existing = await store.getActiveSubscription(claimed.profileId);
   if (existing) {
     await store.updateSubscription(existing.id, {
       plan: plan.sku,
       status,
-      provider: order.provider,
-      providerSubId: order.providerSubId,
+      provider: claimed.provider,
+      providerSubId: claimed.providerSubId,
       currentPeriodStart: start,
       currentPeriodEnd: end,
       cancelAtPeriodEnd: false,
@@ -494,11 +500,11 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   } else {
     await store.insertSubscription({
       id: crypto.randomUUID(),
-      profileId: order.profileId,
+      profileId: claimed.profileId,
       plan: plan.sku,
       status,
-      provider: order.provider,
-      providerSubId: order.providerSubId,
+      provider: claimed.provider,
+      providerSubId: claimed.providerSubId,
       currentPeriodStart: start,
       currentPeriodEnd: end,
       cancelAtPeriodEnd: false,
@@ -506,16 +512,16 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   }
 
   await grantLot(store, {
-    profileId: order.profileId,
+    profileId: claimed.profileId,
     qty: plan.credits,
     source: isPlatform ? "platform" : "plan_grant",
     expiresAt: end,
-    orderId: order.id,
+    orderId: claimed.id,
     reason: `plan_${plan.sku}`,
   });
-  await syncCache(store, order.profileId);
-  if (order.amountCents > 0) {
-    await enqueueTreasurySweep(store, order);
+  await syncCache(store, claimed.profileId);
+  if (claimed.amountCents > 0) {
+    await enqueueTreasurySweep(store, claimed);
   }
 }
 
@@ -697,7 +703,10 @@ export async function debitCredits(
   for (const lot of lots) {
     if (left <= 0) break;
     const take = Math.min(lot.remaining, left);
-    await store.updateLotRemaining(lot.id, lot.remaining - take);
+    const took = await store.tryDebitLot(lot.id, take);
+    if (!took) {
+      throw new InsufficientCreditsError(amount, available - (amount - left));
+    }
     await store.insertLedger({
       id: crypto.randomUUID(),
       profileId,
