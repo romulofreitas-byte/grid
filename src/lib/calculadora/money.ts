@@ -13,8 +13,11 @@ export function formatBrl(reais: number): string {
   return reais.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function maskBrlTyping(raw: string): string {
-  if (!raw.trim()) return "";
+function takeBrlParts(raw: string): {
+  intDigits: string;
+  centDigits: string;
+  commaSeen: boolean;
+} {
   let commaSeen = false;
   let intDigits = "";
   let centDigits = "";
@@ -30,33 +33,40 @@ export function maskBrlTyping(raw: string): string {
     }
   }
   intDigits = intDigits.replace(/^0+(?=\d)/, "");
+  return { intDigits, centDigits, commaSeen };
+}
+
+function formatIntDigits(intDigits: string): string {
+  return Number(intDigits || "0").toLocaleString("pt-BR");
+}
+
+/** Live mask: reais grow as you type. Cents only after a comma. No padded `,00`. */
+export function maskBrlTyping(raw: string): string {
+  if (!raw.trim()) return "";
+  const { intDigits, centDigits, commaSeen } = takeBrlParts(raw);
   if (!intDigits && !centDigits && !commaSeen) return "";
-  const intFormatted = Number(intDigits || "0").toLocaleString("pt-BR");
-  if (!commaSeen) return `R$ ${intFormatted},00`;
+  const intFormatted = formatIntDigits(intDigits);
+  if (!commaSeen) return `R$ ${intFormatted}`;
   if (centDigits.length === 0) return `R$ ${intFormatted},`;
-  if (centDigits.length === 1) return `R$ ${intFormatted},${centDigits}`;
   return `R$ ${intFormatted},${centDigits}`;
+}
+
+/** Focused value without trailing `,00`, so extra keystrokes stay in the reais. */
+export function formatBrlForEdit(reais: number): string {
+  if (!Number.isFinite(reais) || reais <= 0) return "";
+  const cents = Math.round(reais * 100);
+  const intPart = Math.floor(cents / 100);
+  const centPart = cents % 100;
+  const intFormatted = intPart.toLocaleString("pt-BR");
+  if (centPart === 0) return `R$ ${intFormatted}`;
+  return `R$ ${intFormatted},${String(centPart).padStart(2, "0")}`;
 }
 
 export function reaisFromBrlMask(display: string): number {
   if (!display.trim()) return 0;
-  let commaSeen = false;
-  let intDigits = "";
-  let centDigits = "";
-  for (const ch of display) {
-    if (ch >= "0" && ch <= "9") {
-      if (commaSeen) {
-        if (centDigits.length < 2) centDigits += ch;
-      } else {
-        intDigits += ch;
-      }
-    } else if (ch === "," && !commaSeen) {
-      commaSeen = true;
-    }
-  }
-  intDigits = intDigits.replace(/^0+(?=\d)/, "") || "0";
+  const { intDigits, centDigits } = takeBrlParts(display);
   const cents = (centDigits + "00").slice(0, 2);
-  return Number(intDigits) + Number(cents) / 100;
+  return Number(intDigits || "0") + Number(cents) / 100;
 }
 
 export function roundReais(value: number): number {

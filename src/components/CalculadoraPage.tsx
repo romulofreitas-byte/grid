@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
@@ -18,6 +18,7 @@ import type { CrmRateSample, CrmRateSuggestions } from "@/lib/calculadora/crm-ra
 import {
   eachTen,
   formatBrl,
+  formatBrlForEdit,
   maskBrlTyping,
   reaisFromBrlMask,
 } from "@/lib/calculadora/money";
@@ -86,21 +87,37 @@ function MoneyInput({
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const caretRef = useRef<"select" | "end">("select");
   const display = focused ? draft : formatBrl(value);
+
+  useLayoutEffect(() => {
+    if (!focused) return;
+    const el = inputRef.current;
+    if (!el) return;
+    if (caretRef.current === "select") {
+      el.select();
+      return;
+    }
+    const pos = el.value.length;
+    el.setSelectionRange(pos, pos);
+  }, [draft, focused]);
 
   return (
     <input
+      ref={inputRef}
       type="text"
       inputMode="decimal"
       autoComplete="off"
       placeholder="R$ 0,00"
       value={display}
-      onFocus={(e) => {
+      onFocus={() => {
+        caretRef.current = "select";
         setFocused(true);
-        setDraft(value > 0 ? formatBrl(value) : "");
-        e.target.select();
+        setDraft(value > 0 ? formatBrlForEdit(value) : "");
       }}
       onChange={(e) => {
+        caretRef.current = "end";
         const next = maskBrlTyping(e.target.value);
         setDraft(next);
         onChange(reaisFromBrlMask(next));

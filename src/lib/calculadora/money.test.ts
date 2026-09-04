@@ -2,17 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   eachTen,
   formatBrl,
+  formatBrlForEdit,
   maskBrlTyping,
   reaisFromBrlMask,
   roundReais,
 } from "./money";
 
 describe("maskBrlTyping", () => {
-  it("formats whole reais with cents as the person types", () => {
-    expect(maskBrlTyping("1")).toBe("R$ 1,00");
-    expect(maskBrlTyping("15")).toBe("R$ 15,00");
-    expect(maskBrlTyping("1500")).toBe("R$ 1.500,00");
-    expect(maskBrlTyping("150000")).toBe("R$ 150.000,00");
+  it("grows whole reais as the person types, without locking cents", () => {
+    expect(maskBrlTyping("1")).toBe("R$ 1");
+    expect(maskBrlTyping("15")).toBe("R$ 15");
+    expect(maskBrlTyping("1500")).toBe("R$ 1.500");
+    expect(maskBrlTyping("150000")).toBe("R$ 150.000");
+    expect(maskBrlTyping("R$ 1" + "5")).toBe("R$ 15");
   });
 
   it("lets comma start the cents", () => {
@@ -27,8 +29,17 @@ describe("maskBrlTyping", () => {
   });
 });
 
+describe("formatBrlForEdit", () => {
+  it("drops trailing ,00 so the next digit stays in the reais", () => {
+    expect(formatBrlForEdit(1)).toBe("R$ 1");
+    expect(formatBrlForEdit(150000)).toBe("R$ 150.000");
+    expect(formatBrlForEdit(150000.5)).toBe("R$ 150.000,50");
+  });
+});
+
 describe("reaisFromBrlMask", () => {
   it("reads Brazilian currency back to reais", () => {
+    expect(reaisFromBrlMask("R$ 150.000")).toBe(150000);
     expect(reaisFromBrlMask("R$ 150.000,00")).toBe(150000);
     expect(reaisFromBrlMask("R$ 150.000,50")).toBe(150000.5);
     expect(reaisFromBrlMask("R$ 0,50")).toBe(0.5);
