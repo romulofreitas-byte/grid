@@ -1,4 +1,4 @@
-/** Shared UI copy. Nav uses Início; GRID is the product name. */
+/** Shared UI copy. Nav uses Painel; GRID is the product name. */
 
 export const COPY = {
   landingMetaTitle: "GRID — lista, qualificação e CRM",
@@ -135,9 +135,21 @@ export const COPY = {
   emailFreeBody:
     "Gmail, Hotmail e similares — confiança menor para contato comercial.",
   dominioProprio: "E-mail no domínio da empresa, não Gmail ou Hotmail.",
-  especialidade: "No que você é especialista.",
-  area: "Em qual parte do negócio você atua.",
+  especialidade: "O nicho da sua lista — o mercado que você aborda.",
+  area: "O grupo desse nicho, gravado na primeira lista.",
   comoChama: "Como você se apresenta na ligação.",
+  setupIdentityTitle: "Quem liga",
+  setupIdentityHint:
+    "Isso entra na abertura da ligação. Depois você monta a primeira lista.",
+  setupGridTitle: "Sua primeira lista",
+  setupGridHint:
+    "Escolha o nicho e a região. A lista sai pronta para ligar.",
+  setupContinue: "Continuar",
+  setupGenerate: "Montar a lista",
+  setupNeedIdentity: "Preencha nome, empresa, cidade e a promessa.",
+  setupNeedNiche: "Escolha um nicho.",
+  setupNeedRegion: "Escolha um estado.",
+  setupWelcomeBack: "Bem-vindo de volta",
   promessa: "Uma linha do que você entrega.",
   promessaCompromisso:
     "O compromisso do dia. Entra no motivo, na consideração e no convite da reunião.",
@@ -313,6 +325,10 @@ export const COPY = {
   crmOutcomeOpen: "Em andamento",
   crmOutcomeWon: "Ganho",
   crmOutcomeLost: "Perdido",
+  crmDealAmount: "Valor",
+  crmDealAmountHint: "Entra no faturado do painel.",
+  crmDealAmountNeeded: "Informe o valor para contar no faturado.",
+  crmDealAmountPlaceholder: "0,00",
   crmWinChegada: "Chegada",
   crmWinP1: "P1",
   crmShowClosed: "Ganhos / perdidos",
@@ -358,6 +374,25 @@ export const COPY = {
     "Com a lista salva, os leads que você qualificar entram sozinhos no CRM do nicho. Na ficha você avança até a reunião; o restante das etapas fica no quadro.",
   crmBoxCta: "Abrir CRM",
   crmPistaPrefix: "CRM",
+  painelTitle: "Painel",
+  painelHint:
+    "Ligações e sequência são de hoje. Faturado e win rate seguem o recorte. Pipeline e follow-ups são o agora.",
+  painelCtaTitle: "Agora",
+  painelCallsLeft: "Faltam {n} ligações para a meta de hoje.",
+  painelCallsDone: "Meta de ligações do dia batida.",
+  painelOverdueCta: "{n} follow-ups atrasados. Resolver no CRM.",
+  painelNoNextCta: "{n} fichas sem próxima ação.",
+  painelEmptyCrm: "Nenhum negócio no CRM ainda. Gere uma lista e avance as fichas.",
+  painelFillAmount: "Preencha o valor nas fichas para ver o faturado.",
+  painelWonWithoutAmount: "{n} ganhos sem valor",
+  painelWonWithoutAmountOne: "1 ganho sem valor",
+  painelTasksOverdue: "Fila de follow-up",
+  painelTasksWon: "Ganhos recentes",
+  painelOpenCrm: "Abrir ficha",
+  painelNoOverdue: "Fila limpa. Nada atrasado.",
+  painelNoWins: "Nenhum ganho neste recorte.",
+  painelAllNiches: "Todos os nichos",
+  painelNoTasks: "Nada atrasado e nenhum ganho neste recorte.",
   conexoesStandbyBanner:
     "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do aparelho.",
   conexoesStandbyEmpty:

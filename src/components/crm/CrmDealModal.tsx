@@ -67,6 +67,7 @@ import type {
   CrmPerson,
   CrmStage,
 } from "@/lib/crm/types";
+import { formatCentsInput, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
@@ -160,6 +161,10 @@ export function CrmDealModal({
   const [celebrateCompany, setCelebrateCompany] = useState<string | null>(
     null,
   );
+  const [amountDraft, setAmountDraft] = useState(() =>
+    formatCentsInput(deal.amount_cents),
+  );
+  const [needAmount, setNeedAmount] = useState(false);
   const reduce = useReducedMotion();
   const presence = {
     duration: reduce ? 0 : 0.2,
@@ -172,6 +177,7 @@ export function CrmDealModal({
   const secretariesRef = useRef(secretaries);
   secretariesRef.current = secretaries;
   const companyPhoneRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -190,7 +196,13 @@ export function CrmDealModal({
     );
     setExpandedEventId(null);
     setDrafts({});
+    setAmountDraft(formatCentsInput(deal.amount_cents));
+    setNeedAmount(false);
   }, [deal.id]);
+
+  useEffect(() => {
+    setAmountDraft(formatCentsInput(deal.amount_cents));
+  }, [deal.amount_cents]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +330,34 @@ export function CrmDealModal({
 
   function flushSecretaries(next = secretariesRef.current) {
     void persistSecretaries(next);
+  }
+
+  async function persistAmount(raw: string) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setAmountDraft("");
+      if (deal.amount_cents == null) return;
+      try {
+        await patch({ amount_cents: null });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Não salvou o valor.");
+      }
+      return;
+    }
+    const cents = parseBrlToCents(trimmed);
+    if (cents == null) {
+      setAmountDraft(formatCentsInput(deal.amount_cents));
+      setError("Valor inválido.");
+      return;
+    }
+    setAmountDraft(formatCentsInput(cents));
+    if (cents === deal.amount_cents) return;
+    try {
+      await patch({ amount_cents: cents });
+      setNeedAmount(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não salvou o valor.");
+    }
   }
 
   function prependEvent(event: CrmEvent) {
@@ -458,6 +498,10 @@ export function CrmDealModal({
       prependEvent(res.event);
       if (outcome === "won" && !wasWon) {
         setCelebrateCompany(res.deal.company_name);
+        if (res.deal.amount_cents == null) {
+          setNeedAmount(true);
+          window.setTimeout(() => amountRef.current?.focus(), 80);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não atualizou o status.");
@@ -856,6 +900,25 @@ export function CrmDealModal({
           </div>
 
           <aside className="flex w-full shrink-0 flex-col gap-3 overflow-y-auto md:w-[17rem]">
+            <div className="rounded-md border border-zinc-200 bg-white p-2.5">
+              <p className={CRM_LABEL_LIGHT}>{COPY.crmDealAmount}</p>
+              <input
+                ref={amountRef}
+                className={CRM_FIELD_LIGHT}
+                value={amountDraft}
+                inputMode="decimal"
+                autoComplete="off"
+                name="crm-deal-amount"
+                placeholder={COPY.crmDealAmountPlaceholder}
+                onChange={(event) => setAmountDraft(event.target.value)}
+                onBlur={() => void persistAmount(amountDraft)}
+              />
+              <p className="mt-1 text-[10px] text-zinc-400">
+                {needAmount && deal.amount_cents == null
+                  ? COPY.crmDealAmountNeeded
+                  : COPY.crmDealAmountHint}
+              </p>
+            </div>
             <div className="rounded-md border border-zinc-200 bg-white p-2.5">
               <p className={CRM_LABEL_LIGHT}>{COPY.crmContactLabel}</p>
               <div className="mt-1.5 flex flex-col gap-1.5">

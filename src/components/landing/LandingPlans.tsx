@@ -40,7 +40,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
             const href =
               plan.sku === "free"
                 ? signedIn
-                  ? "/box"
+                  ? "/painel"
                   : "/entrar?modo=cadastro"
                 : pagarHref(plan.sku);
             const cta =

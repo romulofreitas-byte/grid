@@ -297,7 +297,7 @@ function ConexoesInner() {
     });
 
   return (
-    <AppShell title="Conexões" back={BACK.box}>
+    <AppShell title="Conexões" back={BACK.painel}>
       <SectionTitle>Conexões VoIP</SectionTitle>
       {CONNECTIONS_STANDBY ? (
         <p
@@ -519,7 +519,7 @@ export default function ConexoesPage() {
   return (
     <Suspense
       fallback={
-        <AppShell title="Conexões" back={BACK.box}>
+        <AppShell title="Conexões" back={BACK.painel}>
           <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
         </AppShell>
       }

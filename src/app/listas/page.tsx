@@ -49,7 +49,7 @@ async function ListasPageInner() {
   ]);
 
   return (
-    <AppShell title="Listas" back={BACK.box}>
+    <AppShell title="Listas" back={BACK.painel}>
       <ListsBoard
         initial={[...saved, ...unsaved]}
         pipelineNomes={pipelineNomes}

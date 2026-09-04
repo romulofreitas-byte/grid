@@ -59,7 +59,7 @@ export default function LandingPage() {
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
           <div>
             <motion.h1
-              className="max-w-xl text-3xl font-extrabold leading-tight tracking-tight text-podium-white md:text-5xl md:leading-tight"
+              className="max-w-xl text-balance text-3xl font-extrabold leading-tight tracking-tight text-podium-white md:text-5xl md:leading-tight"
               initial={reduce ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease }}
@@ -68,7 +68,7 @@ export default function LandingPage() {
             </motion.h1>
 
             <motion.p
-              className="mt-5 max-w-xl text-base leading-relaxed text-podium-gray md:text-lg"
+              className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-podium-gray md:text-lg"
               initial={reduce ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: reduce ? 0 : 0.08, ease }}
@@ -78,7 +78,7 @@ export default function LandingPage() {
 
             {!signedIn ? (
               <motion.p
-                className="mt-3 max-w-xl text-sm text-podium-muted md:text-base"
+                className="mt-3 max-w-xl text-pretty text-sm text-podium-muted md:text-base"
                 initial={reduce ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: reduce ? 0 : 0.14, ease }}
@@ -94,7 +94,7 @@ export default function LandingPage() {
               transition={{ duration: 0.45, delay: reduce ? 0 : 0.18, ease }}
             >
               <Link
-                href={signedIn ? "/box" : "/entrar?modo=cadastro"}
+                href={signedIn ? "/painel" : "/entrar?modo=cadastro"}
                 className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
               >
                 {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}

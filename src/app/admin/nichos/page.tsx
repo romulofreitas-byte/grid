@@ -120,7 +120,7 @@ export default function AdminNichosPage() {
   });
 
   return (
-    <AppShell title="Nichos" back={BACK.box}>
+    <AppShell title="Nichos" back={BACK.painel}>
       <SectionTitle>Curadoria de segmentos</SectionTitle>
       <Hint className="mt-2 max-w-2xl text-sm">
         Escolha o segmento e marque as atividades (CNAE) que entram na busca.

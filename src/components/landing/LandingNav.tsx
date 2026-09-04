@@ -37,7 +37,7 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
 
         <div className="flex items-center gap-3">
           <Link
-            href={signedIn ? "/box" : "/entrar?modo=cadastro"}
+            href={signedIn ? "/painel" : "/entrar?modo=cadastro"}
             className="rounded-xl bg-podium-yellow px-4 py-2 text-sm font-bold text-podium-navy transition hover:brightness-110"
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}

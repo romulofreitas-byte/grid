@@ -28,11 +28,11 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: "box-largada-grid",
     category: "Começar",
-    question: "O que é o Início, a Nova lista e os resultados?",
+    question: "O que é o Painel, a Nova lista e os resultados?",
     answer:
-      "O Início é a home do dia. O dia de ligações começa com uma lista salva. Nova lista é onde você escolhe nicho e região. Os resultados saem na ordem de quem ligar primeiro. Na lista, marque as empresas e clique em Qualificar.",
+      "O Painel é a home do dia: meta, pipeline e o que fazer agora. Ligar agora abre a próxima ficha. Nova lista é onde você escolhe nicho e região. Os resultados saem na ordem de quem ligar primeiro. Na lista, marque as empresas e clique em Qualificar.",
     links: [
-      { href: "/box", label: "Abrir o Início" },
+      { href: "/painel", label: "Abrir o Painel" },
       { href: largadaNovaHref, label: "Nova lista" },
     ],
   },
@@ -49,8 +49,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o perfil da ligação?",
     answer:
-      "Nome, empresa, cidade e a promessa. Quem você é e o que entrega. A especialidade não vira prosa na ligação.",
-    links: [{ href: "/setup", label: "Completar o perfil" }],
+      "No primeiro acesso você se apresenta e monta a primeira lista. Nome, empresa, cidade e a promessa entram na ligação. O nicho que você escolhe é o mercado da lista.",
+    links: [{ href: "/setup", label: "Montar a primeira lista" }],
   },
   {
     id: "minuto-de-ouro",
@@ -71,7 +71,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Qual a diferença entre Minhas listas e Não salvas?",
     answer:
-      "Minhas listas são as que você guardou para ligar de novo — e são elas que o Início usa no dia. Não salvas são rascunhos: no máximo 3, você só abre de novo. Para guardar de verdade ou excluir, salve a lista. Fazer outra tira a mais antiga. Tirar da tela não exclui a lista salva.",
+      "Minhas listas são as que você guardou para ligar de novo — e são elas que o dia usa, pelo Ligar agora. Não salvas são rascunhos: no máximo 3, você só abre de novo. Para guardar de verdade ou excluir, salve a lista. Fazer outra tira a mais antiga. Tirar da tela não exclui a lista salva.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -165,7 +165,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Export e conexões",
     question: "Onde ligo o VoIP?",
     answer:
-      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca ao clicar (Início, lista e ficha).",
+      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca ao clicar (Painel, lista e ficha).",
     links: [{ href: "/conexoes", label: "Abrir conexões" }],
   },
   {

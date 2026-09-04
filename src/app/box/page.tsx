@@ -72,9 +72,9 @@ export default async function BoxPage() {
     unstable_rethrow(err);
     console.error("box_page_error", err);
     return (
-      <AppShell title="Início">
+      <AppShell title="Ligar">
         <GlassCard className="p-8">
-          <p className="text-lg font-bold">Não deu para carregar o Início.</p>
+          <p className="text-lg font-bold">Não deu para carregar as ligações.</p>
           <p className="mt-3 text-sm text-podium-gray">
             {userFacingDbBusyMessage(err)}
           </p>
@@ -137,7 +137,7 @@ async function BoxPageInner() {
   const savedLists = allSaved.map((s) => ({ id: s.id, nome: s.nome }));
 
   return (
-    <AppShell title="Início">
+    <AppShell title="Ligar">
       <div className="flex flex-col gap-8">
         {showPlatformCoupon ? <BoxPlatformCouponBanner /> : null}
         {billing.trialExpired ? (

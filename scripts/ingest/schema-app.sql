@@ -222,6 +222,8 @@ create index if not exists crm_deals_stage_idx
 create index if not exists crm_deals_pipeline_idx
   on crm_deals (pipeline_id);
 
+alter table crm_deals add column if not exists amount_cents int;
+
 create table if not exists crm_activities (
   id          uuid primary key default gen_random_uuid(),
   deal_id     uuid not null references crm_deals(id) on delete cascade,

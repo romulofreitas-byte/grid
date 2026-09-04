@@ -82,28 +82,20 @@ export default function ContaPage() {
   const fillCard = "hover:translate-y-0";
 
   return (
-    <AppShell fill title="Conta" back={BACK.box}>
+    <AppShell fill title="Conta" back={BACK.painel}>
       <SectionTitle className="shrink-0">Conta</SectionTitle>
       {!p ? (
         <div className="mt-6 min-h-0 flex-1 animate-pulse rounded-2xl bg-white/5" />
       ) : (
         <div className="mt-6 grid min-h-0 flex-1 gap-6 lg:grid-cols-2 lg:grid-rows-1">
           <GlassCard className={cn("flex h-full flex-col space-y-4 p-6 md:p-8", fillCard)}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                  Perfil
-                </p>
-                <p className="mt-1 text-sm text-podium-muted">
-                  {ready}% pronto · entra no briefing da ligação
-                </p>
-              </div>
-              <Link
-                href="/setup"
-                className="text-xs font-bold text-podium-yellow hover:underline"
-              >
-                Ritual de setup →
-              </Link>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                Perfil
+              </p>
+              <p className="mt-1 text-sm text-podium-muted">
+                {ready}% pronto · entra no briefing da ligação
+              </p>
             </div>
 
             <PhotoPicker

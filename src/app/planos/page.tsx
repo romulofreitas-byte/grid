@@ -75,7 +75,7 @@ export default async function PlanosPage({
               )}
               {plan.sku === "free" || isSkuOnSale(plan.sku) ? (
                 <Link
-                  href={plan.sku === "free" ? "/box" : pagarHref(plan.sku, from)}
+                  href={plan.sku === "free" ? "/painel" : pagarHref(plan.sku, from)}
                   className={cn(
                     "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
                     featured

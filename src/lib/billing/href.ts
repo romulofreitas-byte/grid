@@ -2,6 +2,7 @@ import { BACK } from "@/lib/back";
 import { safeInternalPath } from "@/lib/auth/next-path";
 
 const APP_PREFIXES = [
+  "/painel",
   "/box",
   "/largada",
   "/empresas",
@@ -86,6 +87,9 @@ export function pagarPendenteHref(orderId: string, from?: string | null): string
 
 function billingReturnLabel(path: string): string {
   const pathname = pathnameOf(path);
+  if (pathname === "/painel" || pathname.startsWith("/painel/")) {
+    return BACK.painel.label;
+  }
   if (pathname === "/box" || pathname.startsWith("/box/")) return BACK.box.label;
   if (pathname === "/conta" || pathname.startsWith("/conta/")) {
     return "Voltar à conta";
@@ -122,10 +126,13 @@ export function billingSuccessReturn(
 ): { href: string; label: string } {
   const origin = billingOrigin(from);
   if (!origin || !isAppPath(origin)) {
-    return { href: "/box", label: "Ir ao Início" };
+    return { href: "/painel", label: "Ir ao Painel" };
+  }
+  if (pathnameOf(origin) === "/painel") {
+    return { href: origin, label: "Ir ao Painel" };
   }
   if (pathnameOf(origin) === "/box") {
-    return { href: origin, label: "Ir ao Início" };
+    return { href: origin, label: "Ir a ligar" };
   }
   return { href: origin, label: billingReturnLabel(origin) };
 }

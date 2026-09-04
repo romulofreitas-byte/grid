@@ -22,6 +22,7 @@ function deal(outcome: CrmDealCard["outcome"]): CrmDealCard {
     cnpj: null,
     meta: {},
     outcome,
+    amount_cents: null,
     position: 0,
     created_at: "2026-09-01T12:00:00.000Z",
     updated_at: "2026-09-01T12:00:00.000Z",

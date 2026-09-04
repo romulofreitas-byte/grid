@@ -1,7 +1,7 @@
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { cloneDefaultCadenceEntries } from "@/lib/crm/cadence";
 import { peopleFromDeal } from "@/lib/crm/people";
-import type { CrmActivityKind } from "@/lib/crm/types";
+import type { CrmActivityKind, CrmOutcome } from "@/lib/crm/types";
 import type { MockStore } from "@/lib/data/mock-store";
 
 type SeedDeal = {
@@ -11,6 +11,8 @@ type SeedDeal = {
   phones?: string[];
   notes: string;
   stageIndex: number;
+  amountCents?: number | null;
+  outcome?: CrmOutcome;
   activity?: { kind: CrmActivityKind; dueOffsetMs: number };
 };
 
@@ -117,7 +119,17 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: [],
       notes: "Reunião marcada com o sócio.",
       stageIndex: 4,
+      amountCents: 480000,
       activity: { kind: "reuniao", dueOffsetMs: days(4) },
+    },
+    {
+      company: "Moinho Alto",
+      contact: "Teresa Lopes",
+      secretaries: ["Vera"],
+      notes: "Contrato assinado.",
+      stageIndex: 9,
+      amountCents: 1_250_000,
+      outcome: "won",
     },
     {
       company: "Lácteos da Serra",
@@ -125,6 +137,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: ["Elaine"],
       notes: "",
       stageIndex: 1,
+      amountCents: 320000,
     },
   ];
 
@@ -176,11 +189,23 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
         notes: row.notes,
         cnpj: null,
         meta: {},
-        outcome: "open",
+        outcome: row.outcome ?? "open",
+        amount_cents: row.amountCents ?? null,
         position,
         created_at: created,
         updated_at: created,
       });
+      if (row.outcome && row.outcome !== "open") {
+        store.crm_events.push({
+          id: crypto.randomUUID(),
+          deal_id: dealId,
+          kind: "outcome",
+          body: "",
+          meta: { outcome: row.outcome },
+          created_at: created,
+          updated_at: created,
+        });
+      }
       if (row.notes.trim()) {
         store.crm_events.push({
           id: crypto.randomUUID(),

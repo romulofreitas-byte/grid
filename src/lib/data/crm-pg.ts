@@ -87,6 +87,10 @@ function mapDeal(row: QueryResultRow): CrmDeal {
     cnpj: row.cnpj == null || row.cnpj === "" ? null : String(row.cnpj),
     meta,
     outcome: mapOutcome(row.outcome),
+    amount_cents:
+      row.amount_cents == null || row.amount_cents === ""
+        ? null
+        : Number(row.amount_cents),
     position: Number(row.position),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
@@ -777,6 +781,7 @@ export const crmPgMethods = {
                 people = coalesce($5::jsonb, people),
                 phones = coalesce($6::jsonb, phones),
                 notes = coalesce($7, notes),
+                amount_cents = case when $8::boolean then $9 else amount_cents end,
                 updated_at = now()
           where id = $1`,
         [
@@ -787,6 +792,8 @@ export const crmPgMethods = {
           people ? JSON.stringify(people) : null,
           patch.phones ? JSON.stringify(asStringList(patch.phones)) : null,
           patch.notes ?? null,
+          patch.amount_cents !== undefined,
+          patch.amount_cents ?? null,
         ],
       );
       return loadCard(q, dealId);

@@ -1,4 +1,6 @@
-const FALLBACK = "/box";
+export const APP_HOME = "/painel";
+
+const FALLBACK = APP_HOME;
 
 /** Only same-origin relative paths. Blocks open redirects. */
 export function safeInternalPath(

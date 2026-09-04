@@ -278,6 +278,23 @@ describe("crm mock board", () => {
     expect(events?.[0]?.kind).toBe("outcome");
   });
 
+  it("persists deal amount_cents including clear", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Com valor",
+    });
+    expect(created?.amount_cents).toBeNull();
+    const priced = await mockRepo.updateCrmDeal(USER, created!.id, {
+      amount_cents: 150000,
+    });
+    expect(priced?.amount_cents).toBe(150000);
+    const cleared = await mockRepo.updateCrmDeal(USER, created!.id, {
+      amount_cents: null,
+    });
+    expect(cleared?.amount_cents).toBeNull();
+  });
+
   it("persists people with email and phone and snapshots contact_name", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const created = await mockRepo.createCrmDeal(USER, {

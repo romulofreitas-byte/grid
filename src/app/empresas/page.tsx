@@ -184,7 +184,7 @@ export default function EmpresasPage() {
   }
 
   return (
-    <AppShell title="Empresas" back={{ href: "/box", label: "Voltar ao Início" }}>
+    <AppShell title="Empresas" back={{ href: "/painel", label: "Voltar ao Painel" }}>
       <h1 className="text-2xl font-extrabold">Buscar empresas</h1>
       <form
         className="mt-6 flex gap-2"

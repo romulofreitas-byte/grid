@@ -44,6 +44,11 @@ describe("largada hrefs", () => {
     expect(gridBack("box", "abc")).toEqual(BACK.box);
     expect(gridBack("listas")).toEqual(BACK.listas);
   });
+
+  it("sends unknown grid origin to the Painel", () => {
+    expect(gridBack(null)).toEqual(BACK.painel);
+    expect(leadBack(null, null)).toEqual(BACK.painel);
+  });
 });
 
 describe("conexoesHref", () => {

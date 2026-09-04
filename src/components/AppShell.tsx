@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   Columns3,
   Flag,
-  LayoutGrid,
   List,
   Search,
 } from "lucide-react";
@@ -23,7 +23,7 @@ import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/box", label: "Início", icon: LayoutGrid },
+  { href: "/painel", label: "Painel", icon: BarChart3 },
   { href: "/largada", label: "Nova lista", icon: Flag },
   { href: "/empresas", label: "Empresas", icon: Search },
   { href: "/listas", label: "Listas", icon: List },
@@ -130,7 +130,7 @@ export function AppShell({
       </div>
       <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
-          <Link href="/box" className="flex shrink-0 items-center">
+          <Link href="/painel" className="flex shrink-0 items-center">
             <BrandLogo
               variant="mark"
               className="h-8 w-auto text-[2rem] md:hidden"

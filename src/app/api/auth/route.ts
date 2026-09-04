@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       return json({ error: "Ação inválida" }, 400);
     }
     const dest = safeInternalPath(body.next);
-    const callbackNext = dest === "/box" ? "/entrar?go=1" : dest;
+    const callbackNext = dest === "/painel" || dest === "/box" ? "/entrar?go=1" : dest;
 
     if (action === "logout") {
       if (usesMockAuth()) {

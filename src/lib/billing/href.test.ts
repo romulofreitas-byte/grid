@@ -78,7 +78,11 @@ describe("billingReturn", () => {
   it("labels known app pages", () => {
     expect(billingReturn("/box")).toEqual({
       href: "/box",
-      label: "Voltar ao Início",
+      label: "Voltar a ligar",
+    });
+    expect(billingReturn("/painel")).toEqual({
+      href: "/painel",
+      label: "Voltar ao Painel",
     });
     expect(billingReturn("/lead/123?searchId=s&from=listas")).toEqual({
       href: "/lead/123?searchId=s&from=listas",
@@ -104,22 +108,26 @@ describe("billingReturn", () => {
 });
 
 describe("billingSuccessReturn", () => {
-  it("sends public origins to the Início", () => {
+  it("sends public origins to the Painel", () => {
     expect(billingSuccessReturn(null)).toEqual({
-      href: "/box",
-      label: "Ir ao Início",
+      href: "/painel",
+      label: "Ir ao Painel",
     });
     expect(billingSuccessReturn("/")).toEqual({
-      href: "/box",
-      label: "Ir ao Início",
+      href: "/painel",
+      label: "Ir ao Painel",
     });
     expect(billingSuccessReturn("/duvidas")).toEqual({
-      href: "/box",
-      label: "Ir ao Início",
+      href: "/painel",
+      label: "Ir ao Painel",
     });
     expect(billingSuccessReturn("/box")).toEqual({
       href: "/box",
-      label: "Ir ao Início",
+      label: "Ir a ligar",
+    });
+    expect(billingSuccessReturn("/painel")).toEqual({
+      href: "/painel",
+      label: "Ir ao Painel",
     });
   });
 

@@ -36,6 +36,7 @@ function deal(patch: Partial<CrmDeal> = {}): CrmDeal {
     cnpj: null,
     meta: {},
     outcome: "open",
+    amount_cents: null,
     position: 0,
     created_at: "2026-09-01T12:00:00.000Z",
     updated_at: "2026-09-01T12:00:00.000Z",

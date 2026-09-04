@@ -1,6 +1,7 @@
 export const BACK = {
   inicio: { href: "/", label: "Voltar ao início" },
-  box: { href: "/box", label: "Voltar ao Início" },
+  painel: { href: "/painel", label: "Voltar ao Painel" },
+  box: { href: "/box", label: "Voltar a ligar" },
   setup: { href: "/setup", label: "Voltar ao perfil" },
   largada: { href: "/largada", label: "Voltar à nova lista" },
   listas: { href: "/listas", label: "Voltar às Listas" },
@@ -43,6 +44,14 @@ export function largadaEditHref(searchId: string, from: GridFrom = "box") {
 
 export function gridBack(from: string | null, searchId?: string) {
   const origin = parseGridFrom(from);
+  if (
+    from !== "largada" &&
+    from !== "listas" &&
+    from !== "box" &&
+    from !== "empresas"
+  ) {
+    return BACK.painel;
+  }
   if (origin === "largada" && searchId) {
     return {
       href: largadaEditHref(searchId, "largada"),
@@ -61,7 +70,8 @@ export function leadBack(searchId: string | null | undefined, from: string | nul
     };
   }
   if (from === "empresas") return BACK.empresas;
-  return BACK.box;
+  if (from === "box") return BACK.box;
+  return BACK.painel;
 }
 
 export function gridHref(searchId: string, from: GridFrom) {

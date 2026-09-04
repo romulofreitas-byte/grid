@@ -434,6 +434,7 @@ export const crmMockMethods = {
       cnpj,
       meta: input.meta ?? {},
       outcome: "open",
+      amount_cents: null,
       position,
       created_at: created,
       updated_at: created,
@@ -560,6 +561,7 @@ export const crmMockMethods = {
     }
     if (patch.phones !== undefined) deal.phones = cleanList(patch.phones);
     if (patch.notes !== undefined) deal.notes = patch.notes;
+    if (patch.amount_cents !== undefined) deal.amount_cents = patch.amount_cents;
     deal.updated_at = nowIso();
     return toCard(store, deal);
   },

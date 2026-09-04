@@ -75,6 +75,8 @@ export type CrmDeal = {
   cnpj: string | null;
   meta: CrmDealMeta;
   outcome: CrmOutcome;
+  /** Null until the piloto fills the deal value. */
+  amount_cents: number | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -146,6 +148,7 @@ export type CrmDealPatch = {
   phones?: string[];
   notes?: string;
   outcome?: CrmOutcome;
+  amount_cents?: number | null;
 };
 
 export type LeadCrmFirstMileStage = {

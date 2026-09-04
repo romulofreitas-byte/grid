@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_DEAL_AMOUNT_CENTS } from "@/lib/crm/money";
 import { CRM_ACTIVITY_KINDS, CRM_EVENT_KINDS, CRM_OUTCOMES } from "@/lib/crm/types";
 
 export const crmPersonSchema = z.object({
@@ -74,6 +75,13 @@ export const dealPatchSchema = z.object({
   people: z.array(crmPersonSchema).max(12).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   notes: z.string().max(4000).optional(),
+  amount_cents: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_DEAL_AMOUNT_CENTS)
+    .nullable()
+    .optional(),
 });
 
 export const dealMoveSchema = z.object({

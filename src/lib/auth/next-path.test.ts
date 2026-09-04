@@ -17,15 +17,15 @@ describe("safeInternalPath", () => {
   });
 
   it("rejects open redirects", () => {
-    expect(safeInternalPath("https://evil.example/phish")).toBe("/box");
-    expect(safeInternalPath("//evil.example")).toBe("/box");
-    expect(safeInternalPath("/\\evil")).toBe("/box");
-    expect(safeInternalPath("javascript:alert(1)")).toBe("/box");
+    expect(safeInternalPath("https://evil.example/phish")).toBe("/painel");
+    expect(safeInternalPath("//evil.example")).toBe("/painel");
+    expect(safeInternalPath("/\\evil")).toBe("/painel");
+    expect(safeInternalPath("javascript:alert(1)")).toBe("/painel");
   });
 
   it("falls back on empty or login loops", () => {
-    expect(safeInternalPath(null)).toBe("/box");
-    expect(safeInternalPath("/entrar?next=/pagar")).toBe("/box");
+    expect(safeInternalPath(null)).toBe("/painel");
+    expect(safeInternalPath("/entrar?next=/pagar")).toBe("/painel");
     expect(safeInternalPath("/entrar?go=1")).toBe("/entrar?go=1");
     expect(safeInternalPath("/entrar?definir=1")).toBe("/entrar?definir=1");
   });

@@ -32,6 +32,7 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const protectedPath =
+    path.startsWith("/painel") ||
     path.startsWith("/box") ||
     path.startsWith("/largada") ||
     path.startsWith("/empresas") ||
@@ -55,7 +56,7 @@ export async function middleware(request: NextRequest) {
 
   if (path.startsWith("/admin") && user && !isAdminEmail(user.email)) {
     const redirect = request.nextUrl.clone();
-    redirect.pathname = "/box";
+    redirect.pathname = "/painel";
     redirect.search = "";
     return NextResponse.redirect(redirect);
   }
@@ -65,6 +66,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/painel",
+    "/painel/:path*",
     "/box",
     "/box/:path*",
     "/largada",
