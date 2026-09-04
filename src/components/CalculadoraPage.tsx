@@ -3,17 +3,25 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
 import type { CalculadoraPayload } from "@/lib/calculadora/payload";
 import {
   calculateFunnel,
+  DEFAULT_TAXAS,
   defaultFunnelPlan,
   type FunnelPlan,
 } from "@/lib/calculadora/funnel";
 import type { CrmRateSample, CrmRateSuggestions } from "@/lib/calculadora/crm-rates";
-import { COPY } from "@/lib/copy";
+import {
+  eachTen,
+  formatBrl,
+  maskBrlTyping,
+  reaisFromBrlMask,
+} from "@/lib/calculadora/money";
+import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const fieldClass =
@@ -23,10 +31,6 @@ const CALCULADORA_QUERY = ["calculadora"] as const;
 
 function formatInt(n: number): string {
   return n.toLocaleString("pt-BR");
-}
-
-function formatReais(n: number): string {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function CrmChip({ sample }: { sample: CrmRateSample | null }) {
@@ -67,6 +71,92 @@ function FunnelStep({
       >
         {formatInt(value)}
       </p>
+    </div>
+  );
+}
+
+function MoneyInput({
+  value,
+  onChange,
+  onBlur,
+}: {
+  value: number;
+  onChange: (reais: number) => void;
+  onBlur: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState("");
+  const display = focused ? draft : formatBrl(value);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      placeholder="R$ 0,00"
+      value={display}
+      onFocus={(e) => {
+        setFocused(true);
+        setDraft(value > 0 ? formatBrl(value) : "");
+        e.target.select();
+      }}
+      onChange={(e) => {
+        const next = maskBrlTyping(e.target.value);
+        setDraft(next);
+        onChange(reaisFromBrlMask(next));
+      }}
+      onBlur={() => {
+        setFocused(false);
+        onBlur();
+      }}
+      className={fieldClass}
+    />
+  );
+}
+
+function PercentInput({
+  value,
+  fallback,
+  onChange,
+  onBlur,
+}: {
+  value: number;
+  fallback: number;
+  onChange: (percent: number) => void;
+  onBlur: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState("");
+  const display = focused ? draft : String(value);
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={display}
+        onFocus={(e) => {
+          setFocused(true);
+          setDraft(String(value));
+          e.target.select();
+        }}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, 3);
+          setDraft(digits);
+          onChange(digits ? Number(digits) : 0);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          if (value < 1) onChange(fallback);
+          else if (value > 100) onChange(100);
+          onBlur();
+        }}
+        className={cn(fieldClass, "pr-9")}
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-podium-yellow">
+        %
+      </span>
     </div>
   );
 }
@@ -118,31 +208,27 @@ export function CalculadoraPage() {
 
   function patch(partial: Partial<FunnelPlan>, origem?: FunnelPlan["taxasOrigem"]) {
     setJustApplied(false);
-    setPlan((current) => {
-      const next = {
-        ...current,
-        ...partial,
-        taxasOrigem: origem ?? current.taxasOrigem,
-      };
-      planRef.current = next;
-      return next;
-    });
+    const next = {
+      ...planRef.current,
+      ...partial,
+      taxasOrigem: origem ?? planRef.current.taxasOrigem,
+    };
+    planRef.current = next;
+    setPlan(next);
   }
 
   function applyCrmRates(next: CrmRateSuggestions) {
     setJustApplied(false);
-    setPlan((current) => {
-      const updated = {
-        ...current,
-        taxa1: next.taxa1?.percent ?? current.taxa1,
-        taxa2: next.taxa2?.percent ?? current.taxa2,
-        taxa3: next.taxa3?.percent ?? current.taxa3,
-        taxa4: next.taxa4?.percent ?? current.taxa4,
-        taxasOrigem: "crm" as const,
-      };
-      planRef.current = updated;
-      return updated;
-    });
+    const updated = {
+      ...planRef.current,
+      taxa1: next.taxa1?.percent ?? planRef.current.taxa1,
+      taxa2: next.taxa2?.percent ?? planRef.current.taxa2,
+      taxa3: next.taxa3?.percent ?? planRef.current.taxa3,
+      taxa4: next.taxa4?.percent ?? planRef.current.taxa4,
+      taxasOrigem: "crm" as const,
+    };
+    planRef.current = updated;
+    setPlan(updated);
   }
 
   const hasCrmRates = Boolean(
@@ -185,14 +271,10 @@ export function CalculadoraPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <label className="block text-sm text-podium-gray">
             {COPY.calculadoraMetaFaturamento}
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={plan.metaFaturamento || ""}
-              onChange={(e) => patch({ metaFaturamento: Number(e.target.value) || 0 })}
+            <MoneyInput
+              value={plan.metaFaturamento}
+              onChange={(metaFaturamento) => patch({ metaFaturamento })}
               onBlur={() => save.mutate({ plan: planRef.current })}
-              className={fieldClass}
             />
           </label>
           <label className="block text-sm text-podium-gray">
@@ -204,14 +286,10 @@ export function CalculadoraPage() {
                 </span>
               ) : null}
             </span>
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={plan.ticket || ""}
-              onChange={(e) => patch({ ticket: Number(e.target.value) || 0 })}
+            <MoneyInput
+              value={plan.ticket}
+              onChange={(ticket) => patch({ ticket })}
               onBlur={() => save.mutate({ plan: planRef.current })}
-              className={fieldClass}
             />
             {suggestions?.ticket ? (
               <button
@@ -227,7 +305,7 @@ export function CalculadoraPage() {
                   save.mutate({ plan: next });
                 }}
               >
-                {COPY.calculadoraUsarTicketCrm} ({formatReais(suggestions.ticket.reais)})
+                {COPY.calculadoraUsarTicketCrm} ({formatBrl(suggestions.ticket.reais)})
               </button>
             ) : null}
           </label>
@@ -266,29 +344,26 @@ export function CalculadoraPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {(
             [
-              ["taxa1", COPY.calculadoraTaxa1, COPY.calculadoraTaxa1Hint, suggestions?.taxa1],
-              ["taxa2", COPY.calculadoraTaxa2, COPY.calculadoraTaxa2Hint, suggestions?.taxa2],
-              ["taxa3", COPY.calculadoraTaxa3, COPY.calculadoraTaxa3Hint, suggestions?.taxa3],
-              ["taxa4", COPY.calculadoraTaxa4, COPY.calculadoraTaxa4Hint, suggestions?.taxa4],
+              ["taxa1", COPY.calculadoraTaxa1, COPY.calculadoraTaxa1Hint, suggestions?.taxa1, DEFAULT_TAXAS.taxa1],
+              ["taxa2", COPY.calculadoraTaxa2, COPY.calculadoraTaxa2Hint, suggestions?.taxa2, DEFAULT_TAXAS.taxa2],
+              ["taxa3", COPY.calculadoraTaxa3, COPY.calculadoraTaxa3Hint, suggestions?.taxa3, DEFAULT_TAXAS.taxa3],
+              ["taxa4", COPY.calculadoraTaxa4, COPY.calculadoraTaxa4Hint, suggestions?.taxa4, DEFAULT_TAXAS.taxa4],
             ] as const
-          ).map(([key, label, hint, sample]) => (
+          ).map(([key, label, hint, sample, fallback]) => (
             <label key={key} className="block text-sm text-podium-gray">
               <span className="flex items-center justify-between gap-2">
                 {label}
                 <CrmChip sample={sample ?? null} />
               </span>
-              <input
-                type="number"
-                min={1}
-                max={100}
+              <PercentInput
                 value={plan[key]}
-                onChange={(e) =>
-                  patch({ [key]: Number(e.target.value) || 0 }, "manual")
-                }
+                fallback={fallback}
+                onChange={(percent) => patch({ [key]: percent }, "manual")}
                 onBlur={() => save.mutate({ plan: planRef.current })}
-                className={fieldClass}
               />
-              <Hint className="mt-1">{hint}</Hint>
+              <Hint className="mt-1">
+                {hint.replace("{n}", eachTen(plan[key] || fallback))}
+              </Hint>
             </label>
           ))}
         </div>
@@ -323,7 +398,7 @@ export function CalculadoraPage() {
         <Hint className="mt-4">{COPY.calculadoraPremissas}</Hint>
         {result.ready && result.dataFinal ? (
           <p className="mt-2 text-sm text-podium-gray">
-            {formatReais(plan.metaFaturamento)} em {plan.prazoMeses}{" "}
+            {formatBrl(plan.metaFaturamento)} em {plan.prazoMeses}{" "}
             {plan.prazoMeses === 1 ? "mês" : "meses"}, até{" "}
             {result.dataFinal.toLocaleDateString("pt-BR")}. {result.semanas} semanas ·{" "}
             {result.diasProspeccao} dias de prospecção.
@@ -361,6 +436,28 @@ export function CalculadoraPage() {
               : "Não foi possível salvar."}
           </p>
         ) : null}
+      </GlassCard>
+
+      <GlassCard className="p-5 md:p-6" hover={false}>
+        <SectionTitle>{COPY.calculadoraGlossario}</SectionTitle>
+        <Hint className="mt-2">{COPY.calculadoraGlossarioLead}</Hint>
+        <div className="mt-4 space-y-2">
+          {CALCULADORA_GLOSSARIO.map((item, index) => (
+            <details
+              key={item.id}
+              open={index === 0}
+              className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-podium-white [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 text-balance">{item.title}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+              </summary>
+              <p className="px-4 pb-4 text-pretty text-sm leading-relaxed text-podium-gray">
+                {item.body}
+              </p>
+            </details>
+          ))}
+        </div>
       </GlassCard>
     </div>
   );

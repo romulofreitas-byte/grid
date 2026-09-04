@@ -110,7 +110,9 @@ describe("parseFunnelPlan", () => {
       appliedAt: "2026-09-03T12:00:00.000Z",
     });
     expect(parsed?.taxasOrigem).toBe("crm");
+    expect(parsed?.metaFaturamento).toBe(80_000);
     expect(funnelPlanApplied(parsed)).toBe(true);
     expect(funnelPlanApplied(defaultFunnelPlan())).toBe(false);
+    expect(parseFunnelPlan({ metaFaturamento: "150.000,50", ticket: "8.867,00" })?.metaFaturamento).toBe(150000.5);
   });
 });

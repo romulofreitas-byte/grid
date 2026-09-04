@@ -1,5 +1,6 @@
 import { isCrmStageKey, type CrmStageKey } from "@/lib/crm/cadence";
 import type { CrmOutcome } from "@/lib/crm/types";
+import { roundReais } from "@/lib/calculadora/money";
 
 export const MIN_RATE_SAMPLE = 5;
 export const MIN_TICKET_SAMPLE = 2;
@@ -40,7 +41,6 @@ export type CrmRateSuggestions = {
 
 export type CrmRateInput = {
   deals: readonly CrmRateDeal[];
-  calledCnpjs: number;
 };
 
 function rankOf(deal: CrmRateDeal): number {
@@ -52,6 +52,12 @@ function rankOf(deal: CrmRateDeal): number {
 
 function reached(deal: CrmRateDeal, minRank: number): boolean {
   return rankOf(deal) >= minRank;
+}
+
+/** Spoke with the decision-maker. Scheduled / gatekeeper stages do not count. */
+export function isDecisorEfetivado(deal: CrmRateDeal): boolean {
+  const rank = rankOf(deal);
+  return rank === STAGE_RANK.followup_decisor || rank >= STAGE_RANK.reuniao_realizada;
 }
 
 function sample(numerador: number, denominador: number): CrmRateSample | null {
@@ -66,14 +72,15 @@ function sample(numerador: number, denominador: number): CrmRateSample | null {
 
 export function suggestCrmRates(input: CrmRateInput): CrmRateSuggestions {
   const deals = input.deals.filter((deal) => rankOf(deal) >= 0);
+  const decisor = deals.filter(isDecisorEfetivado).length;
   const r1 = deals.filter((deal) => reached(deal, STAGE_RANK.reuniao_realizada)).length;
-  const r2 = deals.filter((deal) => reached(deal, STAGE_RANK.proposta_apresentada)).length;
-  const negociacao = deals.filter((deal) => reached(deal, STAGE_RANK.negociacao)).length;
+  const r2 = deals.filter((deal) =>
+    reached(deal, STAGE_RANK.proposta_apresentada),
+  ).length;
+  const negociacao = deals.filter((deal) =>
+    reached(deal, STAGE_RANK.negociacao),
+  ).length;
   const won = deals.filter((deal) => deal.outcome === "won").length;
-  const leftEntrada = deals.filter((deal) => reached(deal, STAGE_RANK.tentando_contato)).length;
-
-  const callDenom =
-    input.calledCnpjs >= MIN_RATE_SAMPLE ? input.calledCnpjs : leftEntrada;
 
   const wonAmounts = deals
     .filter((deal) => deal.outcome === "won" && deal.amount_cents != null && deal.amount_cents > 0)
@@ -81,15 +88,17 @@ export function suggestCrmRates(input: CrmRateInput): CrmRateSuggestions {
   const ticket =
     wonAmounts.length >= MIN_TICKET_SAMPLE
       ? {
-          reais: Math.round(
-            wonAmounts.reduce((sum, cents) => sum + cents, 0) / wonAmounts.length / 100,
+          reais: roundReais(
+            wonAmounts.reduce((sum, cents) => sum + cents, 0) /
+              wonAmounts.length /
+              100,
           ),
           amostra: wonAmounts.length,
         }
       : null;
 
   return {
-    taxa1: sample(Math.min(r1, callDenom), callDenom),
+    taxa1: sample(Math.min(r1, decisor), decisor),
     taxa2: sample(r2, r1),
     taxa3: sample(negociacao, r2),
     taxa4: sample(won, negociacao),

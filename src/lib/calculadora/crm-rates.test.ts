@@ -20,7 +20,6 @@ describe("suggestCrmRates", () => {
         deal({ canonical_key: "negociacao" }),
         deal({ canonical_key: "contrato_fechado", outcome: "won", amount_cents: 1_500_000 }),
       ],
-      calledCnpjs: 3,
     });
     expect(suggestions.taxa1).toBeNull();
     expect(suggestions.taxa2).toBeNull();
@@ -29,9 +28,11 @@ describe("suggestCrmRates", () => {
     expect(suggestions.ticket).toBeNull();
   });
 
-  it("computes percents when denominators have at least 5 deals", () => {
+  it("computes percents from realized stages, not dials or scheduled meetings", () => {
     const deals: CrmRateDeal[] = [
       ...Array.from({ length: 20 }, () => deal({ canonical_key: "tentando_contato" })),
+      ...Array.from({ length: 8 }, () => deal({ canonical_key: "reuniao_agendada" })),
+      ...Array.from({ length: 10 }, () => deal({ canonical_key: "followup_decisor" })),
       ...Array.from({ length: 8 }, () => deal({ canonical_key: "reuniao_realizada" })),
       ...Array.from({ length: 6 }, () => deal({ canonical_key: "proposta_apresentada" })),
       ...Array.from({ length: 5 }, () => deal({ canonical_key: "negociacao" })),
@@ -51,11 +52,11 @@ describe("suggestCrmRates", () => {
         amount_cents: null,
       }),
     ];
-    const suggestions = suggestCrmRates({ deals, calledCnpjs: 40 });
+    const suggestions = suggestCrmRates({ deals });
     expect(suggestions.taxa1).toEqual({
-      percent: 55,
+      percent: 69,
       numerador: 22,
-      denominador: 40,
+      denominador: 32,
     });
     expect(suggestions.taxa2).toEqual({
       percent: 64,
@@ -75,18 +76,15 @@ describe("suggestCrmRates", () => {
     expect(suggestions.ticket).toEqual({ reais: 20000, amostra: 2 });
   });
 
-  it("falls back to deals that left Entrada when call sample is thin", () => {
+  it("does not fall back to attempts when decision-maker sample is thin", () => {
     const deals: CrmRateDeal[] = [
-      ...Array.from({ length: 4 }, () => deal({ canonical_key: "entrada" })),
       ...Array.from({ length: 10 }, () => deal({ canonical_key: "tentando_contato" })),
+      ...Array.from({ length: 4 }, () => deal({ canonical_key: "reuniao_agendada" })),
       ...Array.from({ length: 2 }, () => deal({ canonical_key: "reuniao_realizada" })),
     ];
-    const suggestions = suggestCrmRates({ deals, calledCnpjs: 2 });
-    expect(suggestions.taxa1).toEqual({
-      percent: 17,
-      numerador: 2,
-      denominador: 12,
-    });
+    const suggestions = suggestCrmRates({ deals });
+    expect(suggestions.taxa1).toBeNull();
+    expect(suggestions.taxa2).toBeNull();
   });
 
   it("ignores discarded deals and won-without-amount in the ticket", () => {
@@ -94,7 +92,7 @@ describe("suggestCrmRates", () => {
       ...Array.from({ length: 5 }, () => deal({ canonical_key: "descartado" })),
       deal({ canonical_key: "contrato_fechado", outcome: "won", amount_cents: 1_000_000 }),
     ];
-    const suggestions = suggestCrmRates({ deals, calledCnpjs: 0 });
+    const suggestions = suggestCrmRates({ deals });
     expect(suggestions.taxa1).toBeNull();
     expect(suggestions.ticket).toBeNull();
   });

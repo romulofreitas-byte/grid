@@ -1,3 +1,5 @@
+import { roundReais } from "@/lib/calculadora/money";
+
 export const DEFAULT_TAXAS = {
   taxa1: 20,
   taxa2: 70,
@@ -65,7 +67,10 @@ export function defaultFunnelPlan(): FunnelPlan {
 function finiteNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
-    const n = Number(value.replace(",", "."));
+    const text = value.trim();
+    const n = text.includes(",")
+      ? Number(text.replace(/\./g, "").replace(",", "."))
+      : Number(text);
     if (Number.isFinite(n)) return n;
   }
   return null;
@@ -174,8 +179,8 @@ export function parseFunnelPlan(raw: unknown): FunnelPlan | null {
       ? row.appliedAt
       : null;
   return {
-    metaFaturamento: Math.max(0, finiteNumber(row.metaFaturamento) ?? 0),
-    ticket: Math.max(0, finiteNumber(row.ticket) ?? 0),
+    metaFaturamento: roundReais(Math.max(0, finiteNumber(row.metaFaturamento) ?? 0)),
+    ticket: roundReais(Math.max(0, finiteNumber(row.ticket) ?? 0)),
     prazoMeses: Math.max(0, Math.floor(finiteNumber(row.prazoMeses) ?? 0)),
     taxa1: clampPercent(row.taxa1, DEFAULT_TAXAS.taxa1),
     taxa2: clampPercent(row.taxa2, DEFAULT_TAXAS.taxa2),

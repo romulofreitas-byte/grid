@@ -419,22 +419,27 @@ export const COPY = {
   calculadoraTicket: "Ticket médio do contrato",
   calculadoraPrazo: "Prazo para bater a meta (meses)",
   calculadoraTaxas: "Taxas do funil",
-  calculadoraTaxa1: "Ligação com decisor → R1",
-  calculadoraTaxa1Hint: "De cada 10 ligações com o decisor, quantas viram R1.",
-  calculadoraTaxa2: "R1 → R2",
-  calculadoraTaxa2Hint: "De cada 10 R1, quantas avançam para a proposta (R2).",
-  calculadoraTaxa3: "R2 → Negociação",
-  calculadoraTaxa3Hint: "De cada 10 R2, quantas entram em negociação.",
+  calculadoraTaxa1: "Ligações com decisor → R1 realizada",
+  calculadoraTaxa1Hint:
+    "De cada 10 ligações com o decisor, {n} viram R1 realizada.",
+  calculadoraTaxa2: "R1 realizada → R2 realizada",
+  calculadoraTaxa2Hint: "De cada 10 R1 realizadas, {n} viram R2 realizada.",
+  calculadoraTaxa3: "R2 realizada → Negociação",
+  calculadoraTaxa3Hint:
+    "De cada 10 R2 realizadas, {n} entram em negociação — não recusaram na proposta.",
   calculadoraTaxa4: "Negociação → Contrato",
-  calculadoraTaxa4Hint: "De cada 10 negociações, quantas fecham.",
+  calculadoraTaxa4Hint: "De cada 10 negociações, {n} fecham contrato.",
   calculadoraUsarCrm: "Usar taxas do CRM",
   calculadoraUsarTicketCrm: "Usar ticket do CRM",
   calculadoraFunil: "Do contrato à ligação",
   calculadoraPassoContratos: "Contratos",
   calculadoraPassoNegociacoes: "Negociações",
-  calculadoraPassoR2: "Reuniões R2",
-  calculadoraPassoR1: "Reuniões R1",
+  calculadoraPassoR2: "R2s realizadas",
+  calculadoraPassoR1: "R1s realizadas",
   calculadoraPassoDecisor: "Ligações com decisor",
+  calculadoraGlossario: "Glossário",
+  calculadoraGlossarioLead:
+    "O que conta em cada etapa: realizado, não agendado. Sem no-show, sem secretária, sem tentativa.",
   calculadoraPlano: "Plano do dia",
   calculadoraTotais: "Ligações totais (discagens)",
   calculadoraDecisor: "Ligações com decisor",
@@ -451,6 +456,39 @@ export const COPY = {
     "Quantas ligações fecham a meta no período. O anel do dia sai deste número.",
   boxMetaCta: "Abrir calculadora",
 } as const;
+
+export const CALCULADORA_GLOSSARIO = [
+  {
+    id: "r1-r2",
+    title: "R1 e R2 no Método Pódium",
+    body: "R1 é o levantamento de necessidades — a reunião de diagnóstico, realizada. R2 é a apresentação da proposta, também realizada, com base no que a R1 apurou. Agendar não conta; no-show não conta.",
+  },
+  {
+    id: "ligacao-efetivada",
+    title: "O que é ligação com o decisor",
+    body: "Só conta quando você fala com quem decide. Tentativa, caixa postal, secretária e recepção ficam de fora. No plano do dia, as ligações totais já estimam esse filtro: totais = efetivadas × 3.",
+  },
+  {
+    id: "o-que-nao-conta",
+    title: "O que não entra na taxa",
+    body: "Reunião agendada não é R1. Quem não apareceu não avança o funil. Contato com secretária não é ligação com decisor. A taxa mede etapa realizada → próxima etapa realizada.",
+  },
+  {
+    id: "taxas",
+    title: "Taxas de conversão por etapa",
+    body: "Cada campo é o percentual de avanço: ligação com decisor → R1 realizada → R2 realizada → entrou em negociação (não recusou na proposta) → contrato. Quando uma taxa sobe, a demanda de ligações cai.",
+  },
+  {
+    id: "ticket-meta",
+    title: "Ticket médio e meta de faturamento",
+    body: "Ticket é o valor médio por contrato fechado. Meta é o faturamento desejado no período. A calculadora divide um pelo outro para achar quantos contratos — e daí volta o funil até as ligações.",
+  },
+  {
+    id: "regressivo",
+    title: "Como o cálculo regressivo funciona",
+    body: "Começa no objetivo (contratos) e volta etapa por etapa até as ligações com decisor. O volume do dia reparte essas discagens em 3 dias de prospecção por semana.",
+  },
+] as const;
 
 export const PORTE_LABELS: Record<string, string> = {
   "01": "ME · micro",
