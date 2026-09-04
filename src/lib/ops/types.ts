@@ -1,4 +1,7 @@
 import type { OpsCohort } from "@/lib/ops/classify";
+import type { OpsFunnel } from "@/lib/ops/funnel";
+import type { OpsNicheCount, OpsNicheUfCell, OpsUfCount } from "@/lib/ops/market";
+import type { OpsRange } from "@/lib/ops/filters";
 import type {
   BillingOrder,
   BillingSubscription,
@@ -9,25 +12,73 @@ import type {
 
 export type OpsUsageCounts = {
   searchesTotal: number;
-  searches7d: number;
+  searchesPeriod: number;
   enrichTotal: number;
-  enrich7d: number;
+  enrichPeriod: number;
   callsTotal: number;
-  calls7d: number;
+  callsPeriod: number;
 };
 
 export type OpsRevenue = {
   totalCents: number;
+  periodCents: number;
   last30dCents: number;
   monthCents: number;
+  byKind: { kind: string; cents: number }[];
 };
 
 export type OpsCredits = {
   remaining: number;
   spent: number;
+  spentPeriod: number;
+  packRemaining: number;
+  packSpentPeriod: number;
+  bySource: { source: string; remaining: number }[];
+  debitByReason: { reason: string; amount: number }[];
+};
+
+export type OpsDayCohort = {
+  day: string;
+  active: number;
+  trial: number;
+  free: number;
+};
+
+export type OpsUsageDay = {
+  day: string;
+  searches: number;
+  enrich: number;
+  calls: number;
+};
+
+export type OpsRevenueDay = {
+  day: string;
+  subscription_cycle: number;
+  credit_pack: number;
+  platform: number;
+};
+
+export type OpsPackMix = {
+  sku: string;
+  orders: number;
+  users: number;
+  cents: number;
+};
+
+export type OpsRechargeStats = {
+  users: number;
+  orders: number;
+  cents: number;
+  activeUsers: number;
+  activeRecharged: number;
+  enrichRecharged: number;
+  enrichNotRecharged: number;
+  usersRecharged: number;
+  usersNotRecharged: number;
 };
 
 export type OpsMetrics = {
+  range: OpsRange;
   users: number;
   active: number;
   trial: number;
@@ -35,9 +86,24 @@ export type OpsMetrics = {
   activated: number;
   byPlan: Record<string, number>;
   mrrCents: number;
+  canceling: number;
+  pastDue: number;
   revenue: OpsRevenue;
   credits: OpsCredits;
   usage: OpsUsageCounts;
+  funnel: OpsFunnel;
+  signups: OpsDayCohort[];
+  niches: OpsNicheCount[];
+  segments: OpsNicheCount[];
+  ufs: OpsUfCount[];
+  nicheUf: OpsNicheUfCell[];
+  intentSearches: number;
+  enrichSeries: { day: string; count: number }[];
+  packs: OpsPackMix[];
+  recharge: OpsRechargeStats;
+  revenueSeries: OpsRevenueDay[];
+  usageSeries: OpsUsageDay[];
+  jobStatus: { status: string; count: number }[];
 };
 
 export type OpsUserListItem = {
@@ -54,6 +120,13 @@ export type OpsUserListItem = {
   createdAt: string;
   periodEndsAt: string | null;
   cancelAtPeriodEnd: boolean;
+  recharged: boolean;
+  enrichInPeriod: number;
+};
+
+export type OpsUserListPage = {
+  users: OpsUserListItem[];
+  total: number;
 };
 
 export type OpsUserDetail = OpsUserListItem & {

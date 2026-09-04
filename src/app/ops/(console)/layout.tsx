@@ -17,7 +17,7 @@ export default async function OpsConsoleLayout({
   const token = (await cookies()).get(OPS_COOKIE)?.value;
   if (!token || !verifyOpsToken(token)) redirect("/ops/entrar");
   return (
-    <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 md:px-6">
+    <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 md:px-6">
       <OpsHeader />
       <p className="sr-only">
         Área interna do Grid. <Link href="/ops">Dashboard</Link>
