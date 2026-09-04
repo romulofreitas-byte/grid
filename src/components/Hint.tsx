@@ -8,7 +8,7 @@ export function Hint({
   className?: string;
 }) {
   return (
-    <p className={cn("text-xs leading-snug text-podium-muted", className)}>
+    <p className={cn("text-balance text-xs leading-snug text-podium-muted", className)}>
       {children}
     </p>
   );

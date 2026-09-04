@@ -255,8 +255,9 @@ export default function ContaPage() {
                 {billing?.balance.plan ?? 0} do plano · {billing?.balance.pack ?? 0} de
                 recarga
               </p>
-              <p className="mt-1 text-xs text-podium-muted">
-                O do plano zera no mês. Recarga fica e não reabre o CRM.
+              <p className="mt-1 text-balance text-xs text-podium-muted">
+                O crédito do plano zera no mês. Recarga fica e não reabre o
+                {"\u00a0"}CRM.
               </p>
               {billing?.balance.trialExpired ? (
                 <p className="mt-2 text-xs text-podium-yellow">
@@ -348,7 +349,7 @@ export default function ContaPage() {
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
                 Dúvidas e suporte
               </p>
-              <p className="mt-2 text-sm text-podium-gray">
+              <p className="mt-2 text-balance text-sm text-podium-gray">
                 Respostas rápidas antes de chamar o atendimento.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-3">

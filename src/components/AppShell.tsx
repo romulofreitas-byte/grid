@@ -97,7 +97,9 @@ function ShellNavFace({
       <Icon
         className={cn(mobile ? "h-5 w-5" : "h-4 w-4", pending && "animate-pulse")}
       />
-      {opening ? COPY.crmOpeningNav : label}
+      <span className={cn(mobile && "whitespace-nowrap")}>
+        {opening ? COPY.crmOpeningNav : label}
+      </span>
     </span>
   );
 }

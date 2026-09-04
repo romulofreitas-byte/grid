@@ -229,7 +229,9 @@ function PagarInner() {
               <div className="flex min-h-0 flex-1 flex-col justify-center gap-5">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <StartingLights litCount={litCount} phase={phase} />
-                  <h3 className="text-xl font-extrabold">Aguardando o sinal do banco</h3>
+                  <h3 className="text-balance text-xl font-extrabold">
+                    Aguardando o sinal do banco
+                  </h3>
                 </div>
                 {order?.pixQr ? (
                   <div className="pix-qr-ring mx-auto w-fit rounded-2xl">
@@ -249,7 +251,7 @@ function PagarInner() {
                     actionLabel="Copiar código"
                   />
                 ) : null}
-                <p className="text-center text-sm text-podium-gray">
+                <p className="text-balance text-center text-sm text-podium-gray">
                   {phase === "go"
                     ? "Pagamento confirmado — crédito a caminho"
                     : "Pague o QR; o GRID confirma sozinho"}

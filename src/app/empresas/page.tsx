@@ -289,7 +289,7 @@ export default function EmpresasPage() {
             <p className="text-sm font-bold text-podium-yellow">
               {COPY.empresasListaCta.replace("{nicho}", activity.nome)}
             </p>
-            <p className="mt-1 text-xs text-podium-muted">
+            <p className="mt-1 text-pretty text-xs text-podium-muted">
               {COPY.empresasListaHint}
             </p>
           </Link>

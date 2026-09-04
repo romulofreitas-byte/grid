@@ -41,7 +41,7 @@ export const PLANS: PlanDefinition[] = [
     sku: "free",
     kind: "plan",
     nome: "Treino livre",
-    tagline: "Buscar, ver a lista e qualificar 25 empresas.",
+    tagline: "Buscar, ver a lista e qualificar 25\u00a0empresas.",
     priceCents: 0,
     credits: 25,
     enrichAllowed: false,

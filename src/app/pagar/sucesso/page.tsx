@@ -94,11 +94,11 @@ function SucessoInner() {
               <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
                 Tudo certo
               </p>
-              <h1 className="mt-3 text-3xl font-extrabold md:text-4xl">
+              <h1 className="mt-3 text-balance text-3xl font-extrabold md:text-4xl">
                 Pagamento confirmado
               </h1>
               {item ? (
-                <p className="mt-3 text-base text-podium-gray md:text-lg">
+                <p className="mt-3 text-pretty text-base text-podium-gray md:text-lg">
                   {item.nome}
                   {" · "}
                   <span className="font-extrabold text-podium-yellow">
@@ -107,7 +107,7 @@ function SucessoInner() {
                   na conta
                 </p>
               ) : (
-                <p className="mt-3 text-base text-podium-gray md:text-lg">
+                <p className="mt-3 text-pretty text-base text-podium-gray md:text-lg">
                   Créditos já estão na conta.
                 </p>
               )}
@@ -116,7 +116,7 @@ function SucessoInner() {
               </div>
             </div>
             <div className="flex flex-col justify-center gap-6 border-t border-white/10 px-6 py-10 md:px-10 lg:border-l lg:border-t-0">
-              <p className="text-sm leading-relaxed text-podium-gray md:text-base">
+              <p className="text-pretty text-sm leading-relaxed text-podium-gray md:text-base">
                 A mensalidade libera o CRM e o volume de créditos. Qualificar
                 custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha
                 custa mais.

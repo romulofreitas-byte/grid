@@ -471,7 +471,7 @@ export function CrmBoard({
               pipelines.find((row) => row.id === selectedPipelineId)?.nome ??
               COPY.crmTitle}
           </h1>
-          <p className="mt-1 max-w-xl text-sm text-podium-gray">{COPY.crmHint}</p>
+          <p className="mt-1 max-w-xl text-pretty text-sm text-podium-gray">{COPY.crmHint}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

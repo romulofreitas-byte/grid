@@ -52,7 +52,7 @@ export function CrmCadencePanel({
           <div>
             <p className={CRM_LABEL}>{COPY.crmCadenceTitle}</p>
             <h2 className="mt-1 text-base font-semibold">{COPY.crmAdjustCadence}</h2>
-            <p className="mt-2 text-xs leading-relaxed text-podium-gray">
+            <p className="mt-2 text-pretty text-xs leading-relaxed text-podium-gray">
               {COPY.crmCadenceHint}
             </p>
           </div>

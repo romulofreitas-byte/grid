@@ -168,8 +168,8 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
   if (state.kind === "trial") {
     return {
       eyebrow: "30 dias",
-      title: "Os 30 dias do Piloto acabaram",
-      body: "Assine o Piloto para reabrir o CRM e a qualificação. Recarga só soma crédito — não substitui a mensalidade.",
+      title: "Os 30 dias do Piloto\u00a0acabaram",
+      body: "Assine o Piloto para reabrir o CRM e a qualificação. Recarga só soma crédito — não substitui a\u00a0mensalidade.",
       primary: { href: PLANOS_URL, label: "Ver planos" },
       secondary: { href: RECARGA_URL, label: "Recarregar créditos" },
     };
@@ -178,16 +178,16 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     if (state.feature === "crm") {
       return {
         eyebrow: "Plano Piloto",
-        title: "CRM só a partir do Plano Piloto",
-        body: "Buscar e ver a lista continua grátis. O CRM do nicho entra no Piloto.",
+        title: "CRM só a partir do Plano\u00a0Piloto",
+        body: "Buscar e ver a lista continua grátis. O CRM do nicho entra no\u00a0Piloto.",
         primary: { href: PLANOS_URL, label: "Ver planos" },
         secondary: { action: "close", label: "Fechar" },
       };
     }
     return {
       eyebrow: "Treino livre",
-      title: "Os 25 créditos do Treino livre acabaram",
-      body: "Você já viu o que a qualificação entrega. No Piloto são 900 créditos por mês e o CRM do nicho.",
+      title: "Os 25 créditos do Treino livre\u00a0acabaram",
+      body: "Você já viu o que a qualificação entrega. No Piloto são 900 créditos por mês e o CRM do\u00a0nicho.",
       primary: { href: PLANOS_URL, label: "Ver planos" },
       secondary: { action: "close", label: "Fechar" },
     };

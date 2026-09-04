@@ -38,7 +38,7 @@ export function HowItWorks() {
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
           {COPY.landingHowEyebrow}
         </p>
-        <h2 className="mt-3 max-w-lg text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+        <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
           {COPY.landingHowTitle}
         </h2>
       </motion.div>
@@ -65,10 +65,10 @@ export function HowItWorks() {
               {step.n}
             </span>
             <div className="min-w-0 pt-1 md:pt-2">
-              <h3 className="text-lg font-bold text-podium-white md:text-xl">
+              <h3 className="text-balance text-lg font-bold text-podium-white md:text-xl">
                 {step.title}
               </h3>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-podium-muted md:text-base">
+              <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
                 {step.body}
               </p>
             </div>
@@ -77,7 +77,7 @@ export function HowItWorks() {
       </ol>
 
       <motion.p
-        className="mt-10 max-w-xl text-sm leading-relaxed text-podium-muted/80 md:mt-12"
+        className="mt-10 max-w-xl text-pretty text-sm leading-relaxed text-podium-muted/80 md:mt-12"
         initial={reduce ? false : { opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-40px" }}

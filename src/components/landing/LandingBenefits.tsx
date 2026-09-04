@@ -39,7 +39,7 @@ export function LandingBenefits() {
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
             {COPY.landingBenefitsEyebrow}
           </p>
-          <h2 className="mt-3 max-w-lg text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
             {COPY.landingBenefitsTitle}
           </h2>
         </motion.div>
@@ -79,12 +79,12 @@ export function LandingBenefits() {
                 >
                   0{slot.pos}
                 </span>
-                <h3 className="mt-4 font-bold text-podium-white md:text-lg">
+                <h3 className="mt-4 text-balance font-bold text-podium-white md:text-lg">
                   {slot.t}
                 </h3>
                 <p
                   className={cn(
-                    "mt-2 text-sm leading-relaxed text-podium-muted transition-opacity duration-300 md:text-base",
+                    "mt-2 text-pretty text-sm leading-relaxed text-podium-muted transition-opacity duration-300 md:text-base",
                     on ? "opacity-100" : "opacity-70",
                   )}
                 >

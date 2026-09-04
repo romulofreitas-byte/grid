@@ -4,7 +4,7 @@ import { COPY } from "./copy";
 describe("COPY login", () => {
   it("publishes PILOTO for active platform subscribers", () => {
     expect(COPY.boxPlatformCoupon).toMatch(/PILOTO/);
-    expect(COPY.boxPlatformCoupon).toMatch(/assinantes ativos da Plataforma/);
+    expect(COPY.boxPlatformCoupon).toMatch(/assinantes ativos da[\s\u00a0]Plataforma/);
   });
 
   it("does not advertise passwordless or magic link", () => {
@@ -37,8 +37,10 @@ describe("COPY login", () => {
     expect(COPY.entrarToggleLogin).toBe("Entrar");
     expect(COPY.entrarToggleSignup).toBe("Criar conta");
     expect(COPY.entrarTrialBadge).toBe("Treino livre");
-    expect(COPY.entrarTrialHint).toMatch(/sem cartão/i);
+    expect(COPY.entrarTrialHint).toMatch(/sem[\s\u00a0]cartão/i);
     expect(COPY.entrarSignupHook).toMatch(/grátis/i);
+    expect(COPY.entrarSignupHook).toMatch(/25[\s\u00a0]qualifica/i);
+    expect(COPY.entrarSignupHook).toMatch(/sem[\s\u00a0]cartão/i);
     expect(COPY.entrarLoginHook).toMatch(/continuar a lista/i);
     expect(COPY.entrarLoginCta).toBe("Entrar no GRID");
     expect(COPY.entrarGoogleCta).toBe("Continuar com Google");

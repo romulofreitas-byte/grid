@@ -302,18 +302,18 @@ function ConexoesInner() {
       {CONNECTIONS_STANDBY ? (
         <p
           role="status"
-          className="mt-3 max-w-2xl rounded-xl border border-podium-yellow/30 bg-podium-yellow/10 px-4 py-3 text-sm text-podium-yellow"
+          className="mt-3 max-w-2xl text-pretty rounded-xl border border-podium-yellow/30 bg-podium-yellow/10 px-4 py-3 text-sm text-podium-yellow"
         >
           {COPY.conexoesStandbyBanner}
         </p>
       ) : (
-        <p className="mt-2 max-w-2xl text-sm text-podium-muted">
+        <p className="mt-2 max-w-2xl text-pretty text-sm text-podium-muted">
           Cole o token e o ramal. O GRID disca ao clicar em Ligar. Conectar CRM e
           discador externos ainda não está nesta versão.
         </p>
       )}
       {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
-        <p className="mt-3 max-w-2xl text-sm text-podium-yellow">
+        <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-yellow">
           {kindFromUrl === "crm" ? "CRM" : "Discador"} ainda não conecta nativo.
           Por agora, ligue um VoIP para discar da ficha.
         </p>

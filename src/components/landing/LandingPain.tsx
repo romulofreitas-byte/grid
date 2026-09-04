@@ -24,7 +24,7 @@ export function LandingPain() {
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
             {COPY.landingPainEyebrow}
           </p>
-          <h2 className="mt-3 max-w-xl text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <h2 className="mt-3 max-w-xl text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
             {COPY.landingPainTitle}
           </h2>
         </motion.div>
@@ -46,10 +46,10 @@ export function LandingPain() {
               <span className="text-sm font-extrabold tabular-nums text-podium-yellow">
                 0{i + 1}
               </span>
-              <h3 className="mt-3 text-lg font-bold text-podium-white">
+              <h3 className="mt-3 text-balance text-lg font-bold text-podium-white">
                 {pain.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-podium-muted md:text-base">
+              <p className="mt-2 text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
                 {pain.body}
               </p>
             </motion.article>

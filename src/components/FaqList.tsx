@@ -49,10 +49,10 @@ export function FaqList({
                   className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
                 >
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-podium-white [&::-webkit-details-marker]:hidden">
-                    <span>{item.question}</span>
+                    <span className="min-w-0 text-balance">{item.question}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
                   </summary>
-                  <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
+                  <div className="space-y-2 px-4 pb-4 text-pretty text-sm leading-relaxed text-podium-gray">
                     <p>{item.answer}</p>
                     {item.links?.length ? (
                       <p className="flex flex-wrap gap-x-3 gap-y-1">

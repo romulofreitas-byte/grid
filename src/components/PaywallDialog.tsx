@@ -131,13 +131,16 @@ function PaywallDialog({
               <span className="sr-only">Fechar</span>
             </button>
             <StartingLights litCount={5} phase="hold" className="justify-center" />
-            <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <p className="mt-5 text-balance text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
               {copy.eyebrow}
             </p>
-            <h2 id={titleId} className="mt-3 text-2xl font-extrabold md:text-3xl">
+            <h2
+              id={titleId}
+              className="mt-3 text-balance text-2xl font-extrabold md:text-3xl"
+            >
               {copy.title}
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-podium-gray md:text-base">
+            <p className="mt-3 text-pretty text-sm leading-relaxed text-podium-gray md:text-base">
               {copy.body}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">

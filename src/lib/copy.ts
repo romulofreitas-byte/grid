@@ -3,7 +3,7 @@
 export const COPY = {
   landingMetaTitle: "GRID — lista, qualificação e CRM",
   landingHeadline:
-    "Monte a lista, encontre quem decide e ligue — com CRM incluído.",
+    "Monte a lista, encontre quem decide e ligue — com CRM\u00a0incluído.",
   landingPromessa:
     "Você escolhe o nicho e a cidade. Sai a lista na ordem de quem ligar, com telefone da empresa e o nome do sócio. Salve a lista, qualifique, e os leads entram no CRM.",
   landingPrimeiraVez: "Em minutos você sai com a lista pronta para ligar.",
@@ -14,7 +14,7 @@ export const COPY = {
   landingNavCrm: "CRM",
   landingNavPlans: "Planos",
   landingHowEyebrow: "Como funciona",
-  landingHowTitle: "Busque, monte a lista e ligue no mesmo dia",
+  landingHowTitle: "Busque, monte a lista e ligue no mesmo\u00a0dia",
   landingHowStep1Title: "Escolha o nicho e a região",
   landingHowStep1Body:
     "Você define o mercado e a cidade. A busca é na Receita — não em mapa. MEI fica de fora por padrão.",
@@ -27,7 +27,7 @@ export const COPY = {
   landingMeiNote:
     "MEI fica de fora da busca padrão: o faturamento ainda não entra no filtro, e em geral há menos espaço para investir.",
   landingPainEyebrow: "O que trava a ligação",
-  landingPainTitle: "Três tarefas lentas. A lista resolve as três.",
+  landingPainTitle: "Três tarefas lentas. A lista resolve as\u00a0três.",
   landingPain1Title: "Montar a lista",
   landingPain1Body:
     "Buscar empresa por empresa, copiar telefone, jogar na planilha. Horas antes da primeira ligação.",
@@ -63,13 +63,13 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano e comece pela lista",
   landingPlansBody:
-    "No Treino livre você busca, vê a lista e qualifica 25 empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
+    "No Treino livre você busca, vê a lista e qualifica 25\u00a0empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
   landingPlansCtaSoon: "Em breve",
   landingPlansFeatured: "Mais escolhido",
-  landingFinalTitle: "Comece pela lista. Ligue no mesmo dia.",
+  landingFinalTitle: "Comece pela lista. Ligue no mesmo\u00a0dia.",
   landingFinalBody:
     "Crie a conta, escolha o nicho e saia com telefone e o nome de quem decide.",
   landingPreviewLabel: "Assim sai a lista",
@@ -88,16 +88,17 @@ export const COPY = {
   entrarToggleLogin: "Entrar",
   entrarToggleSignup: "Criar conta",
   entrarTrialBadge: "Treino livre",
-  entrarTrialHint: "Sem cartão",
-  entrarSignupHook: "Buscar e ver a lista é grátis. Qualifique 25 empresas. Sem cartão.",
+  entrarTrialHint: "Sem\u00a0cartão",
+  entrarSignupHook:
+    "Buscar e ver a lista é grátis. 25\u00a0qualificações, sem\u00a0cartão.",
   entrarLoginHook: "Entre para continuar a lista de hoje.",
   entrarLoginCta: "Entrar no GRID",
   entrarGoogleCta: "Continuar com Google",
   entrarOrDivider: "ou",
   boxPlatformCoupon:
-    "Você assina o Mundo Pódium. Use o cupom PILOTO — vale só para assinantes ativos da Plataforma.",
+    "Você assina o Mundo Pódium. Use o cupom PILOTO — vale só para assinantes ativos da\u00a0Plataforma.",
   boxPlatformTrialEnded:
-    "Os 30 dias do Piloto acabaram. Assine o Piloto para continuar. Recarga só soma crédito — não reabre o CRM.",
+    "Os 30 dias do Piloto acabaram. Assine o Piloto para continuar. Recarga só soma crédito — não reabre o\u00a0CRM.",
   cnae: "Código da atividade da empresa na Receita.",
   decisor: "Sócio que pode decidir (quadro de sócios).",
   outrasPortas: "Outros contatos",
@@ -140,7 +141,7 @@ export const COPY = {
   comoChama: "Como você se apresenta na ligação.",
   setupIdentityTitle: "Quem liga",
   setupIdentityHint:
-    "Isso entra na abertura da ligação. Depois você monta a primeira lista.",
+    "Isso entra na abertura da ligação. Depois você monta a primeira\u00a0lista.",
   setupGridTitle: "Sua primeira lista",
   setupGridHint:
     "Escolha o nicho e a região. A lista sai pronta para ligar.",
@@ -199,7 +200,7 @@ export const COPY = {
   fichaSealToolLive: "No site",
   fichaSealToolMissing: "Não encontrada",
   boxSemLista:
-    "Salve uma lista para começar o dia. Depois você qualifica e liga — salvar a lista não substitui a ligação.",
+    "Salve uma lista para começar o dia. Depois você qualifica e liga — salvar a lista não substitui a\u00a0ligação.",
   boxPistaFechada: "Sem lista salva",
   boxSequenciaHintZero:
     "Nenhuma sequência ainda. Ligue hoje para começar.",
@@ -229,9 +230,9 @@ export const COPY = {
   largadaContinuarHint:
     "As escolhas desta sessão ainda estão aqui. Continue nos 3 passos — nada foi apagado.",
   largadaAjustarHint:
-    "As escolhas desta lista já estão preenchidas. Mude nicho, região ou qualidade e gere uma lista nova — a lista original não some.",
+    "As escolhas desta lista já estão preenchidas. Mude nicho, região ou qualidade e gere uma lista nova — a lista original não\u00a0some.",
   gridEmptyAdjust:
-    "Nenhum lead nesta busca. Ajuste nicho, região ou qualidade — as escolhas atuais já vêm preenchidas.",
+    "Nenhum lead nesta busca. Ajuste nicho, região ou qualidade — as escolhas atuais já vêm\u00a0preenchidas.",
   gridLigarOrdem: "ligar nesta ordem",
   salvarLista: "Salvar lista",
   salvarNaPista: "Salvar no CRM",
@@ -346,7 +347,7 @@ export const COPY = {
   crmAddSecretary: "Adicionar secretária",
   crmCadenceTitle: "Cadência",
   crmCadenceHint:
-    "Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não apagar.",
+    "Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não\u00a0apagar.",
   crmAddStage: "Nova etapa",
   crmDeleteStage: "Excluir etapa",
   crmMoveDealsTo: "Mover negócios para",
@@ -376,7 +377,7 @@ export const COPY = {
   crmPistaPrefix: "CRM",
   painelTitle: "Painel",
   painelHint:
-    "Ligações e sequência são de hoje. Faturado e win rate seguem o recorte. Pipeline e follow-ups são o agora.",
+    "Ligações e sequência são de hoje. Faturado e win rate seguem o recorte. Pipeline e follow-ups são o\u00a0agora.",
   painelCtaTitle: "Agora",
   painelCallsLeft: "Faltam {n} ligações para a meta de hoje.",
   painelCallsDone: "Meta de ligações do dia batida.",
@@ -394,14 +395,14 @@ export const COPY = {
   painelAllNiches: "Todos os nichos",
   painelNoTasks: "Nada atrasado e nenhum ganho neste recorte.",
   conexoesStandbyBanner:
-    "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do aparelho.",
+    "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do\u00a0aparelho.",
   conexoesStandbyEmpty:
     "Nenhuma conexão nesta conta. A montagem fica para a próxima versão.",
   conexoesStandbyForm:
-    "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do aparelho.",
+    "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do\u00a0aparelho.",
   boxLigarStandbyTitle: "Ligar pelo aparelho",
   boxLigarStandbyBody:
-    "A ligação pela internet volta na próxima versão. Por agora o botão Ligar abre o telefone do aparelho.",
+    "A ligação pela internet volta na próxima versão. Por agora o botão Ligar abre o telefone do\u00a0aparelho.",
   boxLigarStandbyCta: "Em breve",
   filaMontando: "Na fila — montando sua lista",
   filaPodeFechar: "Pode sair: a lista aparece em Minhas listas.",

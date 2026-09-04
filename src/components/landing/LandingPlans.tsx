@@ -25,10 +25,10 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
             {COPY.landingPlansEyebrow}
           </p>
-          <h2 className="mt-3 max-w-xl text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <h2 className="mt-3 max-w-xl text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
             {COPY.landingPlansTitle}
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-podium-muted md:text-base">
+          <p className="mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
             {COPY.landingPlansBody}
           </p>
         </motion.div>
@@ -80,7 +80,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                   </p>
                 )}
                 <h3 className="mt-2 text-xl font-extrabold">{plan.nome}</h3>
-                <p className="mt-1 text-sm text-podium-muted">{plan.tagline}</p>
+                <p className="mt-1 text-pretty text-sm text-podium-muted">{plan.tagline}</p>
                 <p className="mt-4 text-3xl font-extrabold text-podium-yellow">
                   {plan.priceCents === 0 ? "Grátis" : formatBrl(plan.priceCents)}
                   {plan.priceCents > 0 ? (

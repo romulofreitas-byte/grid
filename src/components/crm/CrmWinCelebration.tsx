@@ -163,7 +163,7 @@ function WinOverlay({
 
         <div className="relative z-[1] flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
           <StartingLights litCount={litCount} phase={phase} />
-          <p className="mt-6 text-xs font-bold uppercase tracking-[0.22em] text-podium-success">
+          <p className="mt-6 text-balance text-xs font-bold uppercase tracking-[0.22em] text-podium-success">
             {COPY.crmWinChegada}
           </p>
           <motion.p

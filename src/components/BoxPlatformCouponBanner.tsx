@@ -31,7 +31,7 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
         Mundo Pódium
       </p>
-      <p className="mt-2 text-lg font-extrabold leading-snug text-podium-white">
+      <p className="mt-2 text-pretty text-lg font-extrabold leading-snug text-podium-white">
         {ended ? COPY.boxPlatformTrialEnded : COPY.boxPlatformCoupon}
       </p>
       {ended ? (

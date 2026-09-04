@@ -119,8 +119,10 @@ function PendenteInner() {
             <div className="flex flex-col justify-center gap-8 p-6 md:p-10">
               <div>
                 <StartingLights litCount={litCount} phase={phase} />
-                <h1 className="mt-5 text-3xl font-extrabold md:text-4xl">Boleto gerado</h1>
-                <p className="mt-3 max-w-md text-sm text-podium-gray md:text-base">
+                <h1 className="mt-5 text-balance text-3xl font-extrabold md:text-4xl">
+                  Boleto gerado
+                </h1>
+                <p className="mt-3 max-w-md text-pretty text-sm text-podium-gray md:text-base">
                   O crédito entra depois da compensação (1 a 3 dias úteis). Guarde o
                   comprovante.
                 </p>

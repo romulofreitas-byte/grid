@@ -10,7 +10,7 @@ export default function DuvidasPage() {
   return (
     <PublicPage>
       <SectionTitle className="mt-8">Dúvidas</SectionTitle>
-      <p className="mt-3 max-w-2xl text-sm text-podium-gray">
+      <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
         Respostas rápidas sobre o GRID. Se não estiver aqui, o atendimento
         entra no WhatsApp.
       </p>

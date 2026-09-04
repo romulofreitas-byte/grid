@@ -22,10 +22,10 @@ export function LandingQualify() {
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
             {COPY.landingQualifyEyebrow}
           </p>
-          <h2 className="mt-3 max-w-lg text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
             {COPY.landingQualifyTitle}
           </h2>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-podium-muted md:text-base">
+          <p className="mt-4 max-w-xl text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
             {COPY.landingQualifyBody}
           </p>
         </motion.div>

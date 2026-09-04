@@ -16,8 +16,8 @@ export default function Error({
   return (
     <div className="flex min-h-svh items-center justify-center px-4">
       <div className="max-w-md rounded-2xl border border-white/10 bg-black/40 p-8 text-center backdrop-blur-xl">
-        <p className="text-lg font-bold">Não deu para carregar.</p>
-        <p className="mt-3 text-sm text-podium-gray">
+        <p className="text-balance text-lg font-bold">Não deu para carregar.</p>
+        <p className="mt-3 text-pretty text-sm text-podium-gray">
           Tente de novo em instantes.
         </p>
         <button

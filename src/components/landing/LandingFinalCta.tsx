@@ -16,10 +16,10 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h2 className="text-3xl font-extrabold tracking-tight text-podium-white md:text-5xl">
+        <h2 className="text-balance text-3xl font-extrabold tracking-tight text-podium-white md:text-5xl">
           {COPY.landingFinalTitle}
         </h2>
-        <p className="mt-4 max-w-lg text-base leading-relaxed text-podium-muted md:text-lg">
+        <p className="mt-4 max-w-lg text-pretty text-base leading-relaxed text-podium-muted md:text-lg">
           {COPY.landingFinalBody}
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-4">

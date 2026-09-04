@@ -453,7 +453,7 @@ function EntrarInner() {
               >
                   {mode === "signup" ? (
                     <div className="space-y-2 text-center">
-                      <p className="inline-flex items-center gap-1.5 rounded-full bg-podium-yellow px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-podium-navy">
+                      <p className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-podium-yellow px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-podium-navy">
                         {COPY.entrarTrialBadge}
                         <span
                           className="h-1 w-1 rounded-full bg-podium-navy/35"
@@ -463,13 +463,13 @@ function EntrarInner() {
                           {COPY.entrarTrialHint}
                         </span>
                       </p>
-                      <p className="text-sm text-podium-muted">
+                      <p className="text-balance text-sm text-podium-muted">
                         {COPY.entrarSignupHook}
                       </p>
                     </div>
                   ) : null}
                   {mode === "login" ? (
-                    <p className="text-center text-sm text-podium-muted">
+                    <p className="text-balance text-center text-sm text-podium-muted">
                       {COPY.entrarLoginHook}
                     </p>
                   ) : null}
