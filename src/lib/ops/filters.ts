@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { OpsCohort } from "@/lib/ops/classify";
 
-export const OPS_RANGES = ["7d", "30d", "90d", "month", "all"] as const;
+export const OPS_RANGES = ["today", "7d", "30d", "90d", "month", "all"] as const;
 export type OpsRange = (typeof OPS_RANGES)[number];
 
 export const OPS_USERS_PAGE_SIZE = 50;
@@ -182,6 +182,7 @@ export function clearOpsDimensions(
 }
 
 export function opsRangeLabel(range: OpsRange): string {
+  if (range === "today") return "Hoje";
   if (range === "7d") return "7 dias";
   if (range === "30d") return "30 dias";
   if (range === "90d") return "90 dias";

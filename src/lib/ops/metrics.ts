@@ -24,6 +24,7 @@ import {
   daysCte,
   LIVE_SUB_JOIN,
   periodSql,
+  testerExcludeSql,
 } from "@/lib/ops/sql";
 import type {
   OpsCredits,
@@ -378,8 +379,12 @@ type SnapshotRow = {
   active_recharged: string | number | null;
 };
 
+function scoped(filters: OpsDashboardFilters) {
+  return beginScoped(filters, { withEmail: authUsersJoin !== false });
+}
+
 async function loadSnapshot(filters: OpsDashboardFilters) {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [snap, plans, pastDue] = await allQueries<
     [SnapshotRow[], { sku: string; n: string | number }[], { n: string | number | null }[]]
   >([
@@ -437,7 +442,7 @@ async function loadSnapshot(filters: OpsDashboardFilters) {
 }
 
 async function loadRevenue(filters: OpsDashboardFilters): Promise<OpsRevenue> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [totals, byKind] = await allQueries<
     [
       {
@@ -494,7 +499,7 @@ async function loadRevenue(filters: OpsDashboardFilters): Promise<OpsRevenue> {
 }
 
 async function loadCredits(filters: OpsDashboardFilters): Promise<OpsCredits> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [bySource, spent, spentPeriod, debitByReason, packSpent] = await allQueries<
     [
       { source: string; remaining: string | number }[],
@@ -583,7 +588,7 @@ async function loadCredits(filters: OpsDashboardFilters): Promise<OpsCredits> {
 }
 
 async function loadUsage(filters: OpsDashboardFilters): Promise<OpsUsageCounts> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [searchesTotal, searchesPeriod, enrichTotal, enrichPeriod, callsTotal, callsPeriod] =
     await allQueries<[number, number, number, number, number, number]>([
       () =>
@@ -649,7 +654,7 @@ async function loadUsage(filters: OpsDashboardFilters): Promise<OpsUsageCounts> 
 }
 
 async function loadFunnel(filters: OpsDashboardFilters) {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const rows = await optionalRows<{
     signed_up: string | number | null;
     activated: string | number | null;
@@ -699,7 +704,7 @@ async function loadFunnel(filters: OpsDashboardFilters) {
 }
 
 async function loadSignups(filters: OpsDashboardFilters): Promise<OpsDayCohort[]> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const rows = await optionalRows<{
     day: string | Date;
     active: string | number | null;
@@ -729,7 +734,7 @@ async function loadSignups(filters: OpsDashboardFilters): Promise<OpsDayCohort[]
 }
 
 async function loadMarket(filters: OpsDashboardFilters) {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const inPeriod = periodSql("s.created_at", filters.range);
   const fromSearches = `
     from searches s
@@ -851,7 +856,7 @@ async function loadPacks(filters: OpsDashboardFilters): Promise<{
   packs: OpsPackMix[];
   recharge: Pick<OpsRechargeStats, "users" | "orders" | "cents">;
 }> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [rows, totals] = await allQueries<
     [
       { sku: string; orders: string | number; users: string | number; cents: string | number }[],
@@ -906,7 +911,7 @@ async function loadPacks(filters: OpsDashboardFilters): Promise<{
 }
 
 async function loadQualifySplit(filters: OpsDashboardFilters) {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const rows = await optionalRows<{
     recharged: boolean;
     users: string | number;
@@ -940,7 +945,7 @@ async function loadSeries(filters: OpsDashboardFilters): Promise<{
   enrichSeries: { day: string; count: number }[];
   jobStatus: { status: string; count: number }[];
 }> {
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const [usage, revenue, jobs] = await allQueries<
     [
       {
@@ -1038,6 +1043,7 @@ export async function loadOpsMetrics(
   filters: OpsDashboardFilters = DEFAULT_OPS_FILTERS,
 ): Promise<OpsMetrics> {
   requireLiveDb();
+  await canJoinAuthUsers();
   const empty = emptyMetrics(filters.range);
   try {
     const [snapshot, revenue, credits, usage, funnel, signups, market, packs, split, series] =
@@ -1129,20 +1135,22 @@ async function loadProfileFallback(input: ListInput): Promise<OpsUserListPage> {
     total: string | number;
   }>(
     needle
-      ? `select id, nome, empresa_usuario as empresa, especialidade,
-               cidade_usuario as cidade, plano as cached_plan, creditos as cached_credits,
-               onboarding_completed_at, created_at,
+      ? `select p.id, p.nome, p.empresa_usuario as empresa, p.especialidade,
+               p.cidade_usuario as cidade, p.plano as cached_plan, p.creditos as cached_credits,
+               p.onboarding_completed_at, p.created_at,
                count(*) over() as total
-         from profiles
-         where nome ilike $1 or empresa_usuario ilike $1
-         order by created_at desc
+         from profiles p
+         where (${testerExcludeSql(false)})
+           and (p.nome ilike $1 or p.empresa_usuario ilike $1)
+         order by p.created_at desc
          limit $2 offset $3`
-      : `select id, nome, empresa_usuario as empresa, especialidade,
-               cidade_usuario as cidade, plano as cached_plan, creditos as cached_credits,
-               onboarding_completed_at, created_at,
+      : `select p.id, p.nome, p.empresa_usuario as empresa, p.especialidade,
+               p.cidade_usuario as cidade, p.plano as cached_plan, p.creditos as cached_credits,
+               p.onboarding_completed_at, p.created_at,
                count(*) over() as total
-         from profiles
-         order by created_at desc
+         from profiles p
+         where ${testerExcludeSql(false)}
+         order by p.created_at desc
          limit $1 offset $2`,
     needle ? [`%${needle}%`, limit, offset] : [limit, offset],
   );
@@ -1168,7 +1176,7 @@ async function listOpsUsersOnce(
   input: ListInput,
 ): Promise<OpsUserListPage> {
   const filters = input.filters ?? DEFAULT_OPS_FILTERS;
-  const { params, cte } = beginScoped(filters);
+  const { params, cte } = scoped(filters);
   const needle = input.q?.trim() ?? "";
   const limit = input.limit ?? OPS_USERS_PAGE_SIZE;
   const offset = input.offset ?? 0;

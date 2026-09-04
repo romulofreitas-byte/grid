@@ -273,8 +273,10 @@ export function OpsDashboard() {
       <div>
         <SectionTitle>Uso e faturamento</SectionTitle>
         <Hint className="mt-1">
-          Foto de pessoas = agora. Eventos e séries = período. Funil = quem
-          cadastrou no período. Clique cruza o recorte.
+          Hoje = quem buscou, qualificou, ligou ou pagou neste dia. Nos outros
+          períodos, foto de pessoas = agora e eventos = recorte. Funil = quem
+          cadastrou no período. Testes internos ficam de fora. Clique cruza o
+          recorte.
         </Hint>
       </div>
 

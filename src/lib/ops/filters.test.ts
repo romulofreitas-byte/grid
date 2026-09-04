@@ -60,6 +60,12 @@ describe("ops dashboard filters", () => {
     expect(clearOpsDimensions(current)).toEqual({ range: "90d" });
   });
 
+  it("parses today", () => {
+    expect(parseOpsDashboardFilters(new URLSearchParams("range=today")).range).toBe(
+      "today",
+    );
+  });
+
   it("parses user list pagination", () => {
     const parsed = parseOpsUserListParams(
       new URLSearchParams("q=ana&limit=999&offset=-4&range=7d"),

@@ -1,4 +1,5 @@
 import { PLANS } from "@/lib/billing/catalog";
+import { OPS_EXCLUDED_EMAILS, OPS_EXCLUDED_NAMES } from "@/lib/ops/exclude";
 import type { OpsDashboardFilters, OpsRange } from "@/lib/ops/filters";
 
 export class SqlParams {
@@ -66,6 +67,9 @@ export function mrrExpr(
 
 export function periodSql(column: string, range: OpsRange): string {
   if (range === "all") return "true";
+  if (range === "today") {
+    return `${column} >= (date_trunc('day', timezone('America/Sao_Paulo', now())) at time zone 'America/Sao_Paulo')`;
+  }
   if (range === "month") {
     return `${column} >= (date_trunc('month', timezone('America/Sao_Paulo', now())) at time zone 'America/Sao_Paulo')`;
   }
@@ -75,6 +79,7 @@ export function periodSql(column: string, range: OpsRange): string {
 
 export function seriesStartSql(range: OpsRange): string {
   const today = `(timezone('America/Sao_Paulo', now()))::date`;
+  if (range === "today") return today;
   if (range === "7d") return `${today} - 6`;
   if (range === "30d") return `${today} - 29`;
   if (range === "90d") return `${today} - 89`;
@@ -94,6 +99,43 @@ export function daysCte(range: OpsRange): string {
   )`;
 }
 
+export function testerExcludeSql(withEmail: boolean): string {
+  const names = sqlStringList([...OPS_EXCLUDED_NAMES]);
+  const emails = sqlStringList([...OPS_EXCLUDED_EMAILS]);
+  const byName = `lower(trim(coalesce(p.nome, ''))) not in (${names})`;
+  if (!withEmail) return byName;
+  return `${byName}
+    and not exists (
+      select 1 from auth.users au
+      where au.id = p.id
+        and lower(au.email) in (${emails})
+    )`;
+}
+
+function activityInPeriodSql(filters: OpsDashboardFilters): string | null {
+  if (filters.range !== "today") return null;
+  return `(
+    exists (
+      select 1 from searches s
+      where s.user_id = p.id and ${periodSql("s.created_at", filters.range)}
+    )
+    or exists (
+      select 1 from enrichment_jobs e
+      where e.requested_by = p.id and ${periodSql("e.created_at", filters.range)}
+    )
+    or exists (
+      select 1 from call_events c
+      where c.user_id = p.id and ${periodSql("c.created_at", filters.range)}
+    )
+    or exists (
+      select 1 from billing_orders o
+      where o.profile_id = p.id
+        and o.status = 'paid'
+        and ${periodSql("o.paid_at", filters.range)}
+    )
+  )`;
+}
+
 function rechargedExistsSql(filters: OpsDashboardFilters): string {
   return `exists (
     select 1 from billing_orders o
@@ -107,8 +149,9 @@ function rechargedExistsSql(filters: OpsDashboardFilters): string {
 export function scopedUsersSql(
   filters: OpsDashboardFilters,
   params: SqlParams,
+  opts?: { withEmail?: boolean },
 ): string {
-  const where = ["true"];
+  const where = ["true", testerExcludeSql(opts?.withEmail !== false)];
 
   if (filters.cohort) {
     where.push(`${cohortExpr()} = ${params.add(filters.cohort)}`);
@@ -144,6 +187,8 @@ export function scopedUsersSql(
   if (filters.recharged === false) {
     where.push(`not ${rechargedExistsSql(filters)}`);
   }
+  const activity = activityInPeriodSql(filters);
+  if (activity) where.push(activity);
 
   return `scoped_users as (
     select
@@ -164,10 +209,13 @@ export function scopedUsersSql(
   )`;
 }
 
-export function beginScoped(filters: OpsDashboardFilters): {
+export function beginScoped(
+  filters: OpsDashboardFilters,
+  opts?: { withEmail?: boolean },
+): {
   params: SqlParams;
   cte: string;
 } {
   const params = new SqlParams();
-  return { params, cte: scopedUsersSql(filters, params) };
+  return { params, cte: scopedUsersSql(filters, params, opts) };
 }
