@@ -947,7 +947,11 @@ export function CrmDealModal({
               <p className="mt-1 text-[10px] text-zinc-400">
                 {needAmount && deal.amount_cents == null
                   ? COPY.crmDealAmountNeeded
-                  : COPY.crmDealAmountHint}
+                  : deal.outcome === "won"
+                    ? COPY.crmDealAmountHintWon
+                    : deal.outcome === "lost"
+                      ? COPY.crmDealAmountHintLost
+                      : COPY.crmDealAmountHintOpen}
               </p>
             </div>
             <div className="rounded-md border border-zinc-200 bg-white p-2.5">
