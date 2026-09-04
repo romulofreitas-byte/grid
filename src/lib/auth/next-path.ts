@@ -39,3 +39,12 @@ function isAllowedEntrarPath(value: string): boolean {
 export function isPaymentNext(path: string): boolean {
   return path.startsWith("/pagar") || path.startsWith("/planos");
 }
+
+/** Where a signed-in visitor to `/entrar` should go, or null to stay (lights / set password). */
+export function signedInEntrarDestination(
+  searchParams: Pick<URLSearchParams, "get">,
+): string | null {
+  if (searchParams.get("go") === "1") return null;
+  if (searchParams.get("definir") === "1") return null;
+  return safeInternalPath(searchParams.get("next"));
+}

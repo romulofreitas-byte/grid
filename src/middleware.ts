@@ -2,9 +2,19 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { usesMockAuth } from "@/lib/auth/mock";
+import { signedInEntrarDestination } from "@/lib/auth/next-path";
+
+function redirectWithCookies(url: URL, from: NextResponse): NextResponse {
+  const redirect = NextResponse.redirect(url);
+  from.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
+}
 
 export async function middleware(request: NextRequest) {
-  if (usesMockAuth()) return NextResponse.next();
+  const mock = usesMockAuth();
+  const path = request.nextUrl.pathname;
+  // Mock skips route protection, but still bounce a signed-in visitor off /entrar.
+  if (mock && path !== "/entrar") return NextResponse.next();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,7 +40,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const protectedPath =
     path.startsWith("/painel") ||
     path.startsWith("/box") ||
@@ -55,6 +64,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
+  if (path === "/entrar" && user) {
+    const dest = signedInEntrarDestination(request.nextUrl.searchParams);
+    if (dest) {
+      return redirectWithCookies(new URL(dest, request.url), response);
+    }
+  }
+
+  if (mock) return response;
+
   if (path.startsWith("/admin") && user && !isAdminEmail(user.email)) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/painel";
@@ -67,6 +85,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/entrar",
     "/painel",
     "/painel/:path*",
     "/box",

@@ -10,7 +10,10 @@ import {
   signupErrorMessage,
 } from "@/lib/auth/messages";
 import { isValidEmail, validatePassword } from "@/lib/auth/password";
-import { isGoogleAuthEnabled } from "@/lib/auth/google-provider";
+import {
+  googleOAuthQueryParams,
+  isGoogleAuthEnabled,
+} from "@/lib/auth/google-provider";
 import { usesMockAuth } from "@/lib/auth/session";
 import { safeInternalPath } from "@/lib/auth/next-path";
 import { createRouteClient } from "@/lib/supabase/route-client";
@@ -73,10 +76,7 @@ export async function POST(req: NextRequest) {
         provider: "google",
         options: {
           redirectTo: callbackUrl(callbackNext),
-          queryParams: {
-            prompt: "select_account consent",
-            access_type: "offline",
-          },
+          queryParams: googleOAuthQueryParams(),
         },
       });
       if (error) return json({ error: oauthErrorMessage(error.message) }, 400);

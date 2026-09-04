@@ -1,3 +1,8 @@
+/** Account picker only. Google still shows consent on first grant; we do not force it. */
+export function googleOAuthQueryParams(): Record<string, string> {
+  return { prompt: "select_account" };
+}
+
 /** Public GoTrue settings: whether Google is enabled on this Supabase project. */
 export async function isGoogleAuthEnabled(): Promise<boolean | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

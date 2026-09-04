@@ -42,12 +42,14 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>
-          <Link
-            href="/entrar"
-            className="hidden text-sm font-bold text-podium-muted transition hover:text-podium-white sm:inline"
-          >
-            {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}
-          </Link>
+          {!signedIn ? (
+            <Link
+              href="/entrar"
+              className="hidden text-sm font-bold text-podium-muted transition hover:text-podium-white sm:inline"
+            >
+              {COPY.entrarLoginLane}
+            </Link>
+          ) : null}
           <button
             type="button"
             className="inline-flex h-9 w-9 flex-col items-center justify-center gap-1 rounded-lg border border-white/10 text-podium-gray lg:hidden"
@@ -89,13 +91,15 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
                 {item.label}
               </a>
             ))}
-            <Link
-              href="/entrar"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-2 py-2 text-sm font-semibold text-podium-muted sm:hidden"
-            >
-              {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}
-            </Link>
+            {!signedIn ? (
+              <Link
+                href="/entrar"
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-2 py-2 text-sm font-semibold text-podium-muted sm:hidden"
+              >
+                {COPY.entrarLoginLane}
+              </Link>
+            ) : null}
           </div>
         </nav>
       ) : null}

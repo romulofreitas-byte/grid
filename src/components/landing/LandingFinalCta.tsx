@@ -29,12 +29,14 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>
-          <Link
-            href="/entrar"
-            className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
-          >
-            {signedIn ? COPY.landingSwitchAccount : COPY.entrarLoginLane}
-          </Link>
+          {!signedIn ? (
+            <Link
+              href="/entrar"
+              className="text-sm font-bold text-podium-muted transition hover:text-podium-white"
+            >
+              {COPY.entrarLoginLane}
+            </Link>
+          ) : null}
           <a
             href="#planos"
             className="text-sm font-bold text-podium-muted transition hover:text-podium-white"

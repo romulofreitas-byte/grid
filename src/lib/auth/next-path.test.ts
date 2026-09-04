@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isPaymentNext, safeInternalPath } from "./next-path";
+import {
+  isPaymentNext,
+  safeInternalPath,
+  signedInEntrarDestination,
+} from "./next-path";
 
 describe("safeInternalPath", () => {
   it("allows internal paths with query", () => {
@@ -36,5 +40,29 @@ describe("isPaymentNext", () => {
     expect(isPaymentNext("/pagar?sku=piloto")).toBe(true);
     expect(isPaymentNext("/planos")).toBe(true);
     expect(isPaymentNext("/box")).toBe(false);
+  });
+});
+
+describe("signedInEntrarDestination", () => {
+  it("stays on /entrar for the lights animation and password set", () => {
+    expect(
+      signedInEntrarDestination(new URLSearchParams("go=1")),
+    ).toBeNull();
+    expect(
+      signedInEntrarDestination(new URLSearchParams("go=1&next=/painel")),
+    ).toBeNull();
+    expect(
+      signedInEntrarDestination(new URLSearchParams("definir=1")),
+    ).toBeNull();
+  });
+
+  it("sends a signed-in visitor to next or the painel", () => {
+    expect(signedInEntrarDestination(new URLSearchParams())).toBe("/painel");
+    expect(
+      signedInEntrarDestination(new URLSearchParams("next=/grid/abc")),
+    ).toBe("/grid/abc");
+    expect(
+      signedInEntrarDestination(new URLSearchParams("modo=cadastro")),
+    ).toBe("/painel");
   });
 });
