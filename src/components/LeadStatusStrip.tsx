@@ -84,12 +84,13 @@ export function LeadStatusStrip({
           <Button
             size="sm"
             variant="ghost"
+            title={COPY.callConfirmHint}
             disabled={recordPending}
             onClick={onRecordCall}
             className="ml-auto gap-1.5"
           >
             <Phone className="h-3.5 w-3.5" />
-            {recordPending ? "Registrando…" : "Registrei"}
+            {recordPending ? "Registrando…" : COPY.callConfirm}
           </Button>
         </div>
       ) : (
@@ -98,12 +99,13 @@ export function LeadStatusStrip({
           <Button
             size="sm"
             variant="ghost"
+            title={COPY.callConfirmHint}
             disabled={recordPending}
             onClick={onRecordCall}
             className="ml-auto gap-1.5"
           >
             <Phone className="h-3.5 w-3.5" />
-            {recordPending ? "Registrando…" : "Registrei"}
+            {recordPending ? "Registrando…" : COPY.callConfirm}
           </Button>
         </div>
       )}

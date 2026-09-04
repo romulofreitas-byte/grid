@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { BookmarkPlus, Check, Phone, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
@@ -49,7 +49,12 @@ import {
   normalizeLeadCnpj,
 } from "@/lib/lead-query";
 import { ExportMenu } from "@/components/ExportDownload";
+import {
+  ExportConfirmDialog,
+  useExportCostConfirm,
+} from "@/components/ExportConfirmDialog";
 import { GridMoreMenu } from "@/components/GridMoreMenu";
+import { formatEventWhen } from "@/lib/crm/events";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
@@ -209,9 +214,31 @@ function GridRowActions({
   onToggle: () => void;
   onRemove: () => void;
 }) {
+  const qc = useQueryClient();
+  const [dialed, setDialed] = useState(false);
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
   const qualified = isGridRowQualified(row, qualifying);
+  const recordCall = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/profile/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cnpj: normalizeLeadCnpj(row.cnpj),
+          searchId,
+        }),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
+      void qc.invalidateQueries({ queryKey: ["pilot-stats"] });
+      void qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(row.cnpj)] });
+    },
+  });
+  const calledToday = row.calledToday || recordCall.isSuccess;
   return (
     <div className="flex items-center gap-1 whitespace-nowrap">
       {qualified ? (
@@ -253,7 +280,35 @@ function GridRowActions({
         to={row.telefone ? `+55${row.telefone}` : undefined}
         variant="grid"
         className="px-2"
+        titleHint={COPY.callDialHint}
+        onCalled={() => setDialed(true)}
       />
+      {calledToday ? (
+        <Badge
+          variant="accent"
+          title={row.calledAt ? formatEventWhen(row.calledAt) : COPY.callConfirmHint}
+          className="h-6 shrink-0 px-1.5 text-[10px] uppercase"
+        >
+          {COPY.gridCalledToday}
+        </Badge>
+      ) : telHref || callConnection ? (
+        <button
+          type="button"
+          title={COPY.callConfirmHint}
+          aria-label={`${COPY.callConfirm} ${name}`}
+          disabled={recordCall.isPending}
+          onClick={() => recordCall.mutate()}
+          className={cn(
+            "inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold",
+            dialed
+              ? "bg-podium-yellow text-podium-navy"
+              : "text-podium-muted hover:bg-white/5 hover:text-podium-yellow",
+          )}
+        >
+          <Phone className="h-3.5 w-3.5" />
+          {recordCall.isPending ? "…" : COPY.callConfirm}
+        </button>
+      ) : null}
       {canRemove ? (
         <button
           type="button"
@@ -454,6 +509,11 @@ export default function GridPage() {
       if (isBillingGateError(err)) return;
       setCreditHint(err.message);
     },
+  });
+
+  const exportCost = useExportCostConfirm({
+    searchId,
+    onPush: (id) => pushMutation.mutateAsync(id),
   });
 
   const jobsQuery = useQuery({
@@ -695,7 +755,7 @@ export default function GridPage() {
           variant="primary"
           disabled={pushMutation.isPending || rows.length === 0 || !canExport}
           onClick={() =>
-            pushMutation.mutate(connectionId || destinations[0]!.id)
+            exportCost.askPush(connectionId || destinations[0]!.id)
           }
           className="gap-1.5"
           title={canExport ? exportCostHint : COPY.exportNeedsQualify}
@@ -946,9 +1006,9 @@ export default function GridPage() {
             }
             onQualifyAll={() => requestQualify({ scope: "all_unaudited" })}
             onAskConfirmAll={() => setConfirmAll(true)}
-            searchId={searchId}
             canExport={canExport}
             exportCostHint={exportCostHint}
+            onPickFormat={exportCost.askExport}
             sendSection={renderSendControls()}
           />
         </div>
@@ -1000,10 +1060,10 @@ export default function GridPage() {
           )}
           {renderSendControls()}
           <ExportMenu
-            searchId={searchId}
             disabled={!canExport}
             disabledHint={COPY.exportNeedsQualify}
             costHint={exportCostHint}
+            onPickFormat={exportCost.askExport}
           />
         </div>
         <p className="hidden text-[11px] text-podium-muted md:block">
@@ -1050,6 +1110,8 @@ export default function GridPage() {
           })
         }
       />
+
+      <ExportConfirmDialog {...exportCost.dialogProps} />
 
       {query.isLoading ? (
         <div className="space-y-3">

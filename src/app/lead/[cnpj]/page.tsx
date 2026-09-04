@@ -631,11 +631,6 @@ export default function LeadPage() {
 
   function markLigando() {
     setCalling(true);
-    const atEntrada =
-      d?.crm?.stageKey === "entrada" || (!d?.crm && d?.status === "novo");
-    if (atEntrada || d?.status === "novo") {
-      saveMutation.mutate({ status: "ligando" });
-    }
   }
 
   const cityLine = [d.municipioNome, est.uf].filter(Boolean).join(" · ");
@@ -812,6 +807,7 @@ export default function LeadPage() {
                     searchId={searchId}
                     to={primaryE164 ? `+${primaryE164}` : undefined}
                     variant="cockpit"
+                    titleHint={COPY.callDialHint}
                     onCalled={markLigando}
                   />
                 </div>
@@ -880,6 +876,7 @@ export default function LeadPage() {
                           : undefined
                       }
                       variant="ficha"
+                      titleHint={COPY.callDialHint}
                       onCalled={markLigando}
                     />
                   </div>
@@ -989,6 +986,7 @@ export default function LeadPage() {
                 searchId={searchId}
                 to={primaryE164 ? `+${primaryE164}` : undefined}
                 variant="cockpit"
+                titleHint={COPY.callDialHint}
                 onCalled={markLigando}
               />
             ) : null

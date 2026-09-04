@@ -42,6 +42,7 @@ import {
   type CreditLot,
   type NormalizedPaymentEvent,
 } from "@/lib/billing/types";
+import type { ExportQuote } from "@/lib/export/quote";
 
 export function pgBillingEnabled(): boolean {
   if (process.env.BILLING_STORE === "memory") return false;
@@ -726,18 +727,51 @@ export async function filterQualifiedCnpjs(
   return unique.filter((cnpj) => billedSet.has(cnpj));
 }
 
+async function planExportCharge(
+  profileId: string,
+  cnpjs: string[],
+): Promise<{ unique: string[]; qualified: string[]; toCharge: string[] }> {
+  const unique = [
+    ...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0"))),
+  ];
+  const qualified = await filterQualifiedCnpjs(profileId, unique);
+  if (qualified.length === 0) {
+    return { unique, qualified, toCharge: [] };
+  }
+  const store = await getBillingStore();
+  const billed = new Set(
+    await store.listBilledCnpjs(profileId, qualified, "export"),
+  );
+  return {
+    unique,
+    qualified,
+    toCharge: qualified.filter((cnpj) => !billed.has(cnpj)),
+  };
+}
+
+export async function quoteExport(
+  profileId: string,
+  cnpjs: string[],
+): Promise<ExportQuote> {
+  const { qualified, toCharge } = await planExportCharge(profileId, cnpjs);
+  const balance = await getBalance(profileId);
+  return {
+    companies: qualified.length,
+    chargeable: toCharge.length,
+    skipped: qualified.length - toCharge.length,
+    unitCost: EXPORT_CREDIT_COST,
+    needed: toCharge.length * EXPORT_CREDIT_COST,
+    available: balance.total,
+  };
+}
+
 export async function debitExport(
   profileId: string,
   cnpjs: string[],
   searchId: string,
 ): Promise<{ charged: number; skipped: number; balance: CreditBalance }> {
   const store = await getBillingStore();
-  const unique = [...new Set(cnpjs.map((c) => c.replace(/\D/g, "").padStart(14, "0")))];
-  const qualified = await filterQualifiedCnpjs(profileId, unique);
-  const toCharge: string[] = [];
-  for (const cnpj of qualified) {
-    if (!(await store.isCnpjBilled(profileId, cnpj, "export"))) toCharge.push(cnpj);
-  }
+  const { unique, toCharge } = await planExportCharge(profileId, cnpjs);
   const needed = toCharge.length * EXPORT_CREDIT_COST;
   const balance = needed
     ? await debitCredits(profileId, needed, "export", searchId)

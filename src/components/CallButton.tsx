@@ -22,6 +22,7 @@ export function CallButton({
   label,
   onCalled,
   className,
+  titleHint,
 }: {
   telHref: string | null;
   connection: CallConnectionPick | null;
@@ -32,6 +33,7 @@ export function CallButton({
   label?: string;
   onCalled?: () => void;
   className?: string;
+  titleHint?: string;
 }) {
   const qc = useQueryClient();
   const callMutation = useMutation({
@@ -109,7 +111,7 @@ export function CallButton({
     <a
       href={telHref}
       aria-label={idleLabel}
-      title={idleLabel}
+      title={titleHint ?? idleLabel}
       onClick={() => onCalled?.()}
       className={cn(base)}
     >

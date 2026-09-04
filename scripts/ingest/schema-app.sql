@@ -65,7 +65,7 @@ create table if not exists call_events (
   user_id        uuid not null references profiles(id) on delete cascade,
   cnpj           char(14) not null,
   saved_lead_id  uuid references saved_leads(id) on delete set null,
-  source         text not null check (source in ('status', 'dialer', 'manual')),
+  source         text not null check (source in ('status', 'dialer', 'manual', 'crm')),
   created_at     timestamptz not null default now(),
   day_sp         date not null default (timezone('America/Sao_Paulo', now())::date),
   unique (user_id, cnpj, day_sp)

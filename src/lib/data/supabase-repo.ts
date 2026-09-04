@@ -3212,18 +3212,10 @@ export const supabaseRepo: GridRepo = {
       sets.push(`notas = $${params.length}`);
     }
     if (!sets.length) return;
-    const { rows } = await query(
-      `update saved_leads set ${sets.join(", ")} where id = $1 returning *`,
+    await query(
+      `update saved_leads set ${sets.join(", ")} where id = $1`,
       params,
     );
-    const lead = rows[0];
-    if (lead && patch.status === "ligando") {
-      await this.recordCallEvent(String(lead.user_id), {
-        cnpj: trimChar(lead.cnpj),
-        savedLeadId: String(lead.id),
-        source: "status",
-      });
-    }
   },
 
   async updateProfile(userId, patch) {
@@ -3269,9 +3261,32 @@ export const supabaseRepo: GridRepo = {
        values ($1, $2, $3, $4)
        on conflict (user_id, cnpj, day_sp) do nothing
        returning id`,
-      [userId, input.cnpj, input.savedLeadId ?? null, input.source],
+      [userId, digitsCnpj(input.cnpj), input.savedLeadId ?? null, input.source],
     );
     return Boolean(rows[0]);
+  },
+
+  async listCallEventsToday(userId, cnpjs) {
+    const digits = [
+      ...new Set(
+        cnpjs
+          .map((value) => digitsCnpj(value))
+          .filter((value) => value.length === 14),
+      ),
+    ];
+    if (digits.length === 0) return [];
+    const { rows } = await query<{ cnpj: string; created_at: string }>(
+      `select cnpj, created_at
+         from call_events
+        where user_id = $1
+          and day_sp = timezone('America/Sao_Paulo', now())::date
+          and cnpj = any($2::char(14)[])`,
+      [userId, digits],
+    );
+    return rows.map((row) => ({
+      cnpj: trimChar(row.cnpj),
+      created_at: isoStr(row.created_at),
+    }));
   },
 
   async findNextCallLead(userId, searchId?: string | null): Promise<NextCallLead | null> {

@@ -12,6 +12,7 @@ import {
   debitExport,
   filterQualifiedCnpjs,
   getBalance,
+  quoteExport,
   getBillingMe,
   grantManualCredits,
   handleNormalizedEvent,
@@ -156,6 +157,70 @@ describe("billing service", () => {
     expect(push.charged).toBe(0);
     expect(push.skipped).toBe(2);
     expect(push.balance.total).toBe(798);
+  });
+
+  it("quotes export cost without debiting", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    await debitEnrich(profileId, ["12345678000190", "98765432000100"], "search-1");
+    const before = await getBalance(profileId);
+    const quote = await quoteExport(profileId, [
+      "12345678000190",
+      "98765432000100",
+    ]);
+    expect(quote).toEqual({
+      companies: 2,
+      chargeable: 2,
+      skipped: 0,
+      unitCost: 50,
+      needed: 100,
+      available: before.total,
+    });
+    expect((await getBalance(profileId)).total).toBe(before.total);
+    const billed = await debitExport(
+      profileId,
+      ["12345678000190", "98765432000100"],
+      "search-1",
+    );
+    expect(billed.charged).toBe(2);
+    expect(billed.balance.total).toBe(before.total - 100);
+  });
+
+  it("quotes zero after the CNPJs were already exported", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    await debitEnrich(profileId, ["12345678000190"], "search-1");
+    await debitExport(profileId, ["12345678000190"], "search-1");
+    const quote = await quoteExport(profileId, ["12345678000190"]);
+    expect(quote.companies).toBe(1);
+    expect(quote.chargeable).toBe(0);
+    expect(quote.skipped).toBe(1);
+    expect(quote.needed).toBe(0);
+  });
+
+  it("quotes nothing for CNPJs that were never qualified", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const quote = await quoteExport(profileId, ["12345678000190"]);
+    expect(quote.companies).toBe(0);
+    expect(quote.chargeable).toBe(0);
+    expect(quote.needed).toBe(0);
+    expect(quote.available).toBe(900);
   });
 
   it("does not bill export for CNPJs that were never qualified", async () => {

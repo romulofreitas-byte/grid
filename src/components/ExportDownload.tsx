@@ -20,6 +20,11 @@ export const GRID_EXPORT_FORMATS: {
   { format: "pdf", label: "PDF" },
 ];
 
+export type GridExportResult =
+  | { status: "ok" }
+  | { status: "paywall" }
+  | { status: "error"; message: string };
+
 export function useGridExport(searchId: string) {
   const { openPaywall } = usePaywall();
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,7 @@ export function useGridExport(searchId: string) {
   );
 
   const runExport = useCallback(
-    async (format: GridExportFormat) => {
+    async (format: GridExportFormat): Promise<GridExportResult> => {
       setError(null);
       setPendingFormat(format);
       try {
@@ -43,7 +48,7 @@ export function useGridExport(searchId: string) {
               needed: gate.needed,
               available: gate.available,
             });
-            return;
+            return { status: "paywall" };
           }
           const message =
             typeof json === "object" &&
@@ -53,7 +58,7 @@ export function useGridExport(searchId: string) {
               ? json.error
               : "Não foi possível exportar";
           setError(message);
-          return;
+          return { status: "error", message };
         }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -62,6 +67,11 @@ export function useGridExport(searchId: string) {
         a.download = `grid-${searchId}.${format}`;
         a.click();
         URL.revokeObjectURL(url);
+        return { status: "ok" };
+      } catch {
+        const message = "Não foi possível exportar";
+        setError(message);
+        return { status: "error", message };
       } finally {
         setPendingFormat(null);
       }
@@ -76,17 +86,16 @@ const menuItemClass =
   "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-podium-gray hover:bg-white/5 hover:text-podium-yellow disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-podium-gray";
 
 export function ExportMenu({
-  searchId,
   disabled,
   disabledHint,
   costHint,
+  onPickFormat,
 }: {
-  searchId: string;
   disabled?: boolean;
   disabledHint?: string;
   costHint?: string;
+  onPickFormat: (format: GridExportFormat) => void;
 }) {
-  const { runExport, error, pendingFormat } = useGridExport(searchId);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -155,21 +164,19 @@ export function ExportMenu({
               key={item.format}
               type="button"
               role="menuitem"
-              disabled={disabled || pendingFormat !== null}
+              disabled={disabled}
               title={disabled ? disabledHint : undefined}
               onClick={() => {
                 if (disabled) return;
-                void runExport(item.format).then(() => setOpen(false));
+                setOpen(false);
+                onPickFormat(item.format);
               }}
               className={menuItemClass}
             >
               <Download className="h-3.5 w-3.5" />
-              {pendingFormat === item.format ? "Exportando…" : item.label}
+              {item.label}
             </button>
           ))}
-          {error ? (
-            <p className="px-3 py-1.5 text-[11px] text-podium-yellow">{error}</p>
-          ) : null}
         </div>
       </AnchorPopover>
     </div>
@@ -177,17 +184,16 @@ export function ExportMenu({
 }
 
 export function ExportMenuItems({
-  searchId,
   disabled,
   disabledHint,
+  onPickFormat,
   onDone,
 }: {
-  searchId: string;
   disabled?: boolean;
   disabledHint?: string;
+  onPickFormat: (format: GridExportFormat) => void;
   onDone?: () => void;
 }) {
-  const { runExport, error, pendingFormat } = useGridExport(searchId);
   return (
     <>
       {GRID_EXPORT_FORMATS.map((item) => (
@@ -195,21 +201,19 @@ export function ExportMenuItems({
           key={item.format}
           type="button"
           role="menuitem"
-          disabled={disabled || pendingFormat !== null}
+          disabled={disabled}
           title={disabled ? disabledHint : undefined}
           onClick={() => {
             if (disabled) return;
-            void runExport(item.format).then(() => onDone?.());
+            onPickFormat(item.format);
+            onDone?.();
           }}
           className={menuItemClass}
         >
           <Download className="h-3.5 w-3.5" />
-          {pendingFormat === item.format ? "Exportando…" : item.label}
+          {item.label}
         </button>
       ))}
-      {error ? (
-        <p className="px-3 py-1.5 text-[11px] text-podium-yellow">{error}</p>
-      ) : null}
     </>
   );
 }

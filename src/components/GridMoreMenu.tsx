@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
-import { ExportMenuItems } from "@/components/ExportDownload";
+import { ExportMenuItems, type GridExportFormat } from "@/components/ExportDownload";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +19,9 @@ export function GridMoreMenu({
   onQualifyBatch,
   onQualifyAll,
   onAskConfirmAll,
-  searchId,
   canExport,
   exportCostHint,
+  onPickFormat,
   sendSection,
 }: {
   qualifyPending: boolean;
@@ -32,9 +32,9 @@ export function GridMoreMenu({
   onQualifyBatch: (limit: number) => void;
   onQualifyAll: () => void;
   onAskConfirmAll: () => void;
-  searchId: string;
   canExport: boolean;
   exportCostHint: string;
+  onPickFormat: (format: GridExportFormat) => void;
   sendSection?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -130,9 +130,9 @@ export function GridMoreMenu({
             {exportCostHint}
           </p>
           <ExportMenuItems
-            searchId={searchId}
             disabled={!canExport}
             disabledHint={COPY.exportNeedsQualify}
+            onPickFormat={onPickFormat}
             onDone={() => setOpen(false)}
           />
           {sendSection ? (

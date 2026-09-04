@@ -6,6 +6,7 @@ import { insufficientCreditsPayload } from "@/lib/billing/paywall";
 import { InsufficientCreditsError } from "@/lib/billing/types";
 import { getRepo } from "@/lib/data";
 import {
+  EXPORT_LIST_LIMIT,
   EXPORT_NEEDS_QUALIFY,
   padCnpj,
   qualifiedLeadsForExport,
@@ -40,7 +41,11 @@ export async function POST(req: Request) {
     );
   }
 
-  const leads = await qualifiedLeadsForExport(gated.userId, search.id, 1000);
+  const leads = await qualifiedLeadsForExport(
+    gated.userId,
+    search.id,
+    EXPORT_LIST_LIMIT,
+  );
   if (leads.length === 0) {
     return NextResponse.json({ error: EXPORT_NEEDS_QUALIFY }, { status: 400 });
   }

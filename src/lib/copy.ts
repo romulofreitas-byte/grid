@@ -77,7 +77,6 @@ export const COPY = {
   landingPreviewBuilding: "Montando a lista",
   landingPreviewReady: "Lista pronta",
   landingSignedInCta: "Abrir o GRID",
-  landingSwitchAccount: "Entrar com outra conta",
   landingFooterNote: "Um produto Mundo Pódium",
   loginConfirm:
     "Enviamos um link de confirmação. Veja a caixa de entrada e o spam. Se o e-mail estiver errado, volte e cadastre de novo. Se você já tem conta, entre.",
@@ -165,6 +164,26 @@ export const COPY = {
   maisAcoes: "Mais",
   exportNeedsQualify:
     "Qualifique pelo menos uma empresa para exportar. No CRM do GRID isso já está incluído.",
+  exportCostEyebrow: "Ação custosa",
+  exportCostCalculating: "Calculando o custo…",
+  exportCostTitlePush: "Enviar lista",
+  exportCostTitleExport: "Exportar {format}",
+  exportCostCompaniesOne: "Esta ação inclui 1 empresa já qualificada.",
+  exportCostCompaniesMany:
+    "Esta ação inclui {n} empresas já qualificadas.",
+  exportCostDebit: "Vai debitar {credits}.",
+  exportCostDetailOne: "1 empresa × {unit}.",
+  exportCostDetailMany: "{n} empresas × {unit}.",
+  exportCostAlreadyBilledOne: "1 já cobrada — não cobramos de novo.",
+  exportCostAlreadyBilledMany: "{n} já cobradas — não cobramos de novo.",
+  exportCostBalance: "Você tem {credits}.",
+  exportCostNothing: "Nada a debitar — esta lista já foi cobrada.",
+  exportCostConfirmExport: "Confirmar exportação",
+  exportCostConfirmPush: "Confirmar envio",
+  exportCostExporting: "Exportando…",
+  exportCostSending: "Enviando…",
+  exportCostCancel: "Cancelar",
+  exportCostRecarregar: "Recarregar",
   qualificarMarque:
     "Selecione as empresas para buscar site, redes e Google. Custa 1 crédito cada. Telefone e nome saem mais confiáveis, e a ordem da lista pode se ajustar.",
   qualificarEstaEmpresa: "Qualificar esta empresa",
@@ -291,7 +310,7 @@ export const COPY = {
   crmNoActivity: "Sem próxima ação",
   crmLogCall: "Salvar",
   crmLogCallHint:
-    "Guarda no histórico. Se houver data, deixa a próxima no card.",
+    "Registra a ligação no histórico e na meta do dia. Se houver data, deixa a próxima no card.",
   crmSchedule: "Só agendar próxima",
   crmScheduleHint:
     "Atualiza data e ação no card. Não registra a ligação.",
@@ -395,6 +414,10 @@ export const COPY = {
   painelNoWins: "Nenhum ganho neste recorte.",
   painelAllNiches: "Todos os nichos",
   painelNoTasks: "Nada atrasado e nenhum ganho neste recorte.",
+  callConfirm: "Registrei",
+  callConfirmHint: "Conta na meta e registra no CRM.",
+  callDialHint: "Abre o telefone. Não conta na meta.",
+  gridCalledToday: "Ligou",
   conexoesStandbyBanner:
     "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do\u00a0aparelho.",
   conexoesStandbyEmpty:

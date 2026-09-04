@@ -313,7 +313,7 @@ export type NichePresetCnae = {
 
 export type Tratamento = "o" | "a" | "e";
 
-export type CallEventSource = "status" | "dialer" | "manual";
+export type CallEventSource = "status" | "dialer" | "manual" | "crm";
 
 export type Profile = {
   id: string;
@@ -497,6 +497,8 @@ export type GridRow = {
   enrichmentStatus: EnrichmentJobStatus | null;
   hasAudit: boolean;
   inCrm?: boolean;
+  calledToday?: boolean;
+  calledAt?: string | null;
 };
 
 export type CompanySearchHit = {

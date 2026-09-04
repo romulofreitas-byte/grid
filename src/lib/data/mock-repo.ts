@@ -1239,13 +1239,6 @@ export const mockRepo: GridRepo = {
     if (!lead) return;
     if (patch.status) lead.status = patch.status;
     if (patch.notas !== undefined) lead.notas = patch.notas;
-    if (patch.status === "ligando") {
-      await this.recordCallEvent(lead.user_id, {
-        cnpj: lead.cnpj,
-        savedLeadId: lead.id,
-        source: "status",
-      });
-    }
   },
 
   async updateProfile(userId: string, patch: Partial<Profile>) {
@@ -1266,22 +1259,42 @@ export const mockRepo: GridRepo = {
   async recordCallEvent(userId, input) {
     const store = getMockStore();
     const today = saoPauloDay(new Date());
+    const cnpj = digitsCnpj(input.cnpj);
     const dup = store.call_events.find(
       (e) =>
         e.user_id === userId &&
-        e.cnpj === input.cnpj &&
+        digitsCnpj(e.cnpj) === cnpj &&
         saoPauloDay(e.created_at) === today,
     );
     if (dup) return false;
     store.call_events.push({
       id: randomId(),
       user_id: userId,
-      cnpj: input.cnpj,
+      cnpj,
       saved_lead_id: input.savedLeadId ?? null,
       source: input.source,
       created_at: new Date().toISOString(),
     });
     return true;
+  },
+
+  async listCallEventsToday(userId, cnpjs) {
+    const store = getMockStore();
+    const today = saoPauloDay(new Date());
+    const wanted = new Set(cnpjs.map((value) => digitsCnpj(value)));
+    if (wanted.size === 0) return [];
+    const latest = new Map<string, string>();
+    for (const event of store.call_events) {
+      if (event.user_id !== userId) continue;
+      const cnpj = digitsCnpj(event.cnpj);
+      if (!wanted.has(cnpj)) continue;
+      if (saoPauloDay(event.created_at) !== today) continue;
+      latest.set(cnpj, event.created_at);
+    }
+    return [...latest.entries()].map(([cnpj, created_at]) => ({
+      cnpj,
+      created_at,
+    }));
   },
 
   async findNextCallLead(userId, searchId?: string | null): Promise<NextCallLead | null> {

@@ -9,6 +9,7 @@ import { buildCsv, buildXlsx } from "@/lib/export/xlsx-csv";
 import { buildPdf } from "@/lib/export/pdf";
 import {
   EXPORT_NEEDS_QUALIFY,
+  exportLimitForFormat,
   qualifiedLeadsForExport,
 } from "@/lib/export/qualified";
 
@@ -31,7 +32,7 @@ export async function GET(
   const leads = await qualifiedLeadsForExport(
     gated.userId,
     searchId,
-    format === "pdf" ? 50 : 1000,
+    exportLimitForFormat(format),
   );
   if (leads.length === 0) {
     return NextResponse.json({ error: EXPORT_NEEDS_QUALIFY }, { status: 400 });

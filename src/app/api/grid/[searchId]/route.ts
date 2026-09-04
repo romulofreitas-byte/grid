@@ -59,6 +59,26 @@ export async function GET(
         inCrm: inCrm.has(row.cnpj.replace(/\D/g, "").padStart(14, "0")),
       }));
     }
+    if (rows.length > 0) {
+      const called = await getRepo().listCallEventsToday(
+        gated.userId,
+        rows.map((row) => row.cnpj),
+      );
+      const calledAt = new Map(
+        called.map((row) => [
+          row.cnpj.replace(/\D/g, "").padStart(14, "0"),
+          row.created_at,
+        ]),
+      );
+      rows = rows.map((row) => {
+        const at = calledAt.get(row.cnpj.replace(/\D/g, "").padStart(14, "0"));
+        return {
+          ...row,
+          calledToday: Boolean(at),
+          calledAt: at ?? null,
+        };
+      });
+    }
     const retryCnpjs =
       discoveryRetryCnpjs?.length && !balance.enrichAllowed
         ? await filterQualifiedCnpjs(gated.userId, discoveryRetryCnpjs)

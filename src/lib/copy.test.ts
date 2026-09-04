@@ -77,6 +77,23 @@ describe("COPY box cluster", () => {
   });
 });
 
+describe("COPY export cost", () => {
+  it("states the debit in credits and interpolates counts", () => {
+    expect(COPY.exportCostEyebrow.toLowerCase()).toMatch(/custosa/);
+    expect(COPY.exportCostDebit.replace("{credits}", "500 créditos")).toBe(
+      "Vai debitar 500 créditos.",
+    );
+    expect(
+      COPY.exportCostDetailMany.replace("{n}", "10").replace("{unit}", "50"),
+    ).toBe("10 empresas × 50.");
+    expect(COPY.exportCostNothing.toLowerCase()).toMatch(/nada a debitar/);
+    expect(COPY.exportCostTitleExport.replace("{format}", "Excel")).toBe(
+      "Exportar Excel",
+    );
+    expect(COPY.exportCostTitlePush).toBe("Enviar lista");
+  });
+});
+
 describe("COPY listas", () => {
   it("keeps list hints short and without grid jargon", () => {
     expect(COPY.listasSalvasHint.toLowerCase()).not.toMatch(/grid/);
@@ -103,6 +120,10 @@ describe("COPY crm", () => {
     expect(COPY.crmWeekLater).toMatch(/semana/i);
     expect(COPY.crmCadenceHint).toMatch(/etapa/i);
     expect(COPY.crmScheduleHint).toMatch(/não registra/i);
+    expect(COPY.crmLogCallHint).toMatch(/meta/i);
+    expect(COPY.callConfirm).toBe("Registrei");
+    expect(COPY.callDialHint).toMatch(/não conta/i);
+    expect(COPY.gridCalledToday).toBe("Ligou");
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);

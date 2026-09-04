@@ -435,6 +435,26 @@ export function CrmDealModal({
     setSaving(true);
     setError(null);
     try {
+      if (composerKind === "ligar") {
+        const logged = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+          `/api/crm/deals/${deal.id}/call`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              notes: body,
+              next,
+              phone: (() => {
+                const phone = firstDialablePhone(dialTargets());
+                return phone && phone.length <= 24 ? phone : undefined;
+              })(),
+            }),
+          },
+        );
+        onChange(logged.deal);
+        prependEvent(logged.event);
+        setBody("");
+        return;
+      }
       const scheduled = await crmFetch<{ deal: CrmDealCard }>(
         `/api/crm/deals/${deal.id}/schedule`,
         { method: "POST", body: JSON.stringify(next) },
@@ -442,7 +462,13 @@ export function CrmDealModal({
       onChange(scheduled.deal);
       setBody("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não agendou.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : composerKind === "ligar"
+            ? "Não registrou a ligação."
+            : "Não agendou.",
+      );
     } finally {
       setSaving(false);
     }
@@ -754,6 +780,11 @@ export function CrmDealModal({
                   <button
                     type="button"
                     disabled={saving}
+                    title={
+                      composerKind === "ligar"
+                        ? COPY.crmLogCallHint
+                        : COPY.crmScheduleHint
+                    }
                     onClick={() => void saveComposer()}
                     className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
                   >

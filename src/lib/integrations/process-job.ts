@@ -1,11 +1,10 @@
-import { crmAllowed } from "@/lib/billing/service";
+import { recordCompletedCall } from "@/lib/crm/record-call";
 import { getRepo } from "@/lib/data";
 import {
   cnpjsFromJobPayload,
   padCnpj,
   qualifiedLeadsForExport,
 } from "@/lib/export/qualified";
-import { advanceCrmOnCall } from "@/lib/crm/lead-sync";
 import { toE164 } from "@/lib/format";
 import { normalizePhoneBR } from "@/lib/phone";
 import type { ConnectionCtx } from "./adapter";
@@ -183,25 +182,15 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       lead_status: "ligando",
       payload_summary: { accepted: result.accepted },
     });
-    await repo.recordCallEvent(job.user_id, {
+    await recordCompletedCall(repo, {
+      userId: job.user_id,
       cnpj,
       savedLeadId: dossier.savedLeadId,
+      search: job.search_id
+        ? ((await repo.getSearch(job.search_id)) ?? null)
+        : null,
       source: "dialer",
     });
-    if (dossier.savedLeadId) {
-      await repo.updateLead(dossier.savedLeadId, { status: "ligando" });
-    }
-    try {
-      if (await crmAllowed(job.user_id)) {
-        await advanceCrmOnCall(repo, {
-          userId: job.user_id,
-          cnpj,
-          search: job.search_id ? ((await repo.getSearch(job.search_id)) ?? null) : null,
-        });
-      }
-    } catch {
-      // Originate still succeeded.
-    }
     await repo.updateIntegrationJob(job.id, {
       status: "done",
       result: { accepted: result.accepted, externalId: result.externalId ?? null },

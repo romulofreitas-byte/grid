@@ -162,6 +162,10 @@ export type GridRepo = {
       source: CallEventSource;
     },
   ): Promise<boolean>;
+  listCallEventsToday(
+    userId: string,
+    cnpjs: string[],
+  ): Promise<Array<{ cnpj: string; created_at: string }>>;
   getPilotStats(
     userId: string,
     opts?: { includeNext?: boolean },

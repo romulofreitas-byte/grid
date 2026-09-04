@@ -4,6 +4,14 @@ import { getRepo } from "@/lib/data";
 import type { LeadDossier } from "@/lib/types";
 
 export const EXPORT_NEEDS_QUALIFY = COPY.exportNeedsQualify;
+export const EXPORT_PDF_LIMIT = 50;
+export const EXPORT_LIST_LIMIT = 1000;
+
+export function exportLimitForFormat(
+  format: string | null | undefined,
+): number {
+  return format === "pdf" ? EXPORT_PDF_LIMIT : EXPORT_LIST_LIMIT;
+}
 
 export function padCnpj(cnpj: string): string {
   return cnpj.replace(/\D/g, "").padStart(14, "0");
