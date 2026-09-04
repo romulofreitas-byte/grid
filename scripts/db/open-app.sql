@@ -12,6 +12,7 @@ alter table profiles add column if not exists promessa text;
 alter table profiles add column if not exists duracao_reuniao int not null default 20;
 alter table profiles add column if not exists meta_ligacoes_dia int not null default 20;
 alter table profiles add column if not exists onboarding_completed_at timestamptz;
+alter table profiles add column if not exists funnel_plan jsonb;
 
 alter table profiles drop constraint if exists profiles_tratamento_check;
 alter table profiles add constraint profiles_tratamento_check

@@ -231,6 +231,12 @@ export default function ContaPage() {
                   </button>
                 ))}
               </div>
+              <Link
+                href="/calculadora"
+                className="mt-3 inline-block text-xs font-bold text-podium-yellow"
+              >
+                {COPY.calculadoraContaLink}
+              </Link>
             </div>
             <AnatomyAssembler profile={p} />
             <Hint>{COPY.anatomiaDaLigacao}</Hint>
@@ -366,8 +372,14 @@ export default function ContaPage() {
                 />
               </div>
             </GlassCard>
-          </div>
-        </div>
+              </div>
+              <Link
+                href="/calculadora"
+                className="mt-3 inline-block text-xs font-bold text-podium-yellow"
+              >
+                {COPY.calculadoraContaLink}
+              </Link>
+            </div>
       )}
     </AppShell>
   );

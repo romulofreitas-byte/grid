@@ -1,12 +1,13 @@
 import { conexoesHref, largadaNovaHref } from "@/lib/back";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
+import { funnelPlanApplied } from "@/lib/calculadora/funnel";
 import {
   pickCallConnection,
   type CallConnectionPick,
 } from "@/lib/integrations/call-target";
 import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
-import { hasScriptIdentity } from "@/lib/pilot-profile";
+import { hasPresentationIdentity } from "@/lib/pilot-profile";
 import type { Profile } from "@/lib/types";
 
 export const BOX_SLOT_IDS = [
@@ -46,10 +47,9 @@ export type BoxEstruturaInput = {
     | "nome"
     | "empresa_usuario"
     | "cidade_usuario"
-    | "especialidade"
-    | "area"
     | "promessa"
     | "onboarding_completed_at"
+    | "funnel_plan"
   >;
   billing: {
     total: number;
@@ -66,9 +66,10 @@ function filled(value: string | null | undefined): boolean {
 export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const pistaAberta = input.savedCount > 0;
   const onboardingDone = Boolean(input.profile.onboarding_completed_at);
-  const helmetReady = hasScriptIdentity(input.profile) || onboardingDone;
+  const helmetReady =
+    hasPresentationIdentity(input.profile) || onboardingDone;
   const ofertaReady = filled(input.profile.promessa);
-  const metaReady = onboardingDone;
+  const metaReady = funnelPlanApplied(input.profile.funnel_plan);
   const ligarReady = pickCallConnection(input.connections) != null;
   const crmReady = Boolean(input.hasCrmPipeline);
   const creditosReady = input.billing.plano !== "free" && input.billing.total > 0;
@@ -79,8 +80,8 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       label: "Perfil",
       done: helmetReady,
       title: "Complete como você se apresenta",
-      body: "Nome, empresa e especialidade entram no roteiro da ligação.",
-      href: "/setup",
+      body: "Nome, empresa e cidade entram no roteiro da ligação.",
+      href: onboardingDone ? "/conta" : "/setup",
       cta: "Completar perfil",
     },
     {
@@ -96,10 +97,10 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       id: "meta",
       label: "Meta",
       done: metaReady,
-      title: "Defina a meta",
-      body: "Quantas ligações fecham a meta hoje. O anel só faz sentido com o perfil pronto.",
-      href: "/conta#meta",
-      cta: "Definir meta",
+      title: COPY.boxMetaTitle,
+      body: COPY.boxMetaBody,
+      href: "/calculadora",
+      cta: COPY.boxMetaCta,
     },
     {
       id: "lista",
@@ -137,7 +138,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       label: "Acesso",
       done: creditosReady,
       title: "Ative o plano",
-      body: "No Treino livre você qualifica 25 empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
+      body: "No Treino livre você qualifica 25\u00a0empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
       href: planosHref("/box"),
       cta: "Ver planos",
     },

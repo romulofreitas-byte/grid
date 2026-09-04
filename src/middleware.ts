@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
   const protectedPath =
     path.startsWith("/painel") ||
     path.startsWith("/box") ||
+    path.startsWith("/calculadora") ||
     path.startsWith("/largada") ||
     path.startsWith("/empresas") ||
     path.startsWith("/grid") ||
@@ -70,6 +71,8 @@ export const config = {
     "/painel/:path*",
     "/box",
     "/box/:path*",
+    "/calculadora",
+    "/calculadora/:path*",
     "/largada",
     "/largada/:path*",
     "/empresas",

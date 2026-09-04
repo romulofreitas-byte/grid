@@ -35,7 +35,7 @@
 * {
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--podium-muted) transparent;
+  scrollbar-color: var(--podium-muted) var(--podium-navy);
 }
 
 *::-webkit-scrollbar {
@@ -44,7 +44,7 @@
 }
 
 *::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--podium-navy);
 }
 
 *::-webkit-scrollbar-thumb {
@@ -52,9 +52,29 @@
   border-radius: 999px;
 }
 
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--podium-gray);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--podium-navy);
+}
+
 html,
 body {
   min-height: 100%;
+  color-scheme: dark;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 body {

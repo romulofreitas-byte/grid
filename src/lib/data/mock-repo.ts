@@ -1257,6 +1257,9 @@ export const mockRepo: GridRepo = {
     if (profile.meta_ligacoes_dia == null) {
       profile.meta_ligacoes_dia = DEFAULT_CALL_GOAL;
     }
+    if (profile.funnel_plan === undefined) {
+      profile.funnel_plan = null;
+    }
     return profile;
   },
 

@@ -21,6 +21,7 @@ create table if not exists profiles (
   duracao_reuniao int not null default 20,
   meta_ligacoes_dia int not null default 20,
   onboarding_completed_at timestamptz,
+  funnel_plan     jsonb,
   created_at      timestamptz default now()
 );
 
@@ -57,6 +58,7 @@ alter table profiles add column if not exists promessa text;
 alter table profiles add column if not exists duracao_reuniao int not null default 20;
 alter table profiles add column if not exists meta_ligacoes_dia int not null default 20;
 alter table profiles add column if not exists onboarding_completed_at timestamptz;
+alter table profiles add column if not exists funnel_plan jsonb;
 
 create table if not exists call_events (
   id             uuid primary key default gen_random_uuid(),

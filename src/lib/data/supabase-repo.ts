@@ -89,6 +89,7 @@ import {
   parseGridSnapshot,
 } from "@/lib/grid-snapshot";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
+import { parseFunnelPlan } from "@/lib/calculadora/funnel";
 import {
   DEFAULT_CALL_GOAL,
   DEFAULT_MEETING_MINUTES,
@@ -327,6 +328,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     promessa: r.promessa == null ? null : String(r.promessa),
     duracao_reuniao: Number(r.duracao_reuniao ?? DEFAULT_MEETING_MINUTES),
     meta_ligacoes_dia: Number(r.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL),
+    funnel_plan: parseFunnelPlan(r.funnel_plan),
     onboarding_completed_at:
       r.onboarding_completed_at == null ? null : isoStr(r.onboarding_completed_at),
     created_at: isoStr(r.created_at),
@@ -3234,7 +3236,7 @@ export const supabaseRepo: GridRepo = {
          documento = $9, documento_tipo = $10,
          foto_url = $11, como_chama = $12, tratamento = $13, promessa = $14,
          duracao_reuniao = $15, meta_ligacoes_dia = $16,
-         onboarding_completed_at = $17
+         onboarding_completed_at = $17, funnel_plan = $18::jsonb
        where id = $1
        returning *`,
       [
@@ -3255,6 +3257,7 @@ export const supabaseRepo: GridRepo = {
         next.duracao_reuniao,
         next.meta_ligacoes_dia,
         next.onboarding_completed_at,
+        next.funnel_plan == null ? null : JSON.stringify(next.funnel_plan),
       ],
     );
     return mapProfile(rows[0]);

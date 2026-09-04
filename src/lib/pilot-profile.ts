@@ -2,6 +2,7 @@ import type { Profile, Tratamento } from "@/lib/types";
 
 export const DEFAULT_MEETING_MINUTES = 20;
 export const DEFAULT_CALL_GOAL = 20;
+export const MAX_CALL_GOAL = 500;
 export const CALL_GOAL_OPTIONS = [5, 10, 20, 30] as const;
 
 export const PROFILE_WRITABLE_KEYS = [
@@ -38,7 +39,7 @@ export function clampCallGoal(value: unknown): number {
   if (CALL_GOAL_OPTIONS.includes(n as (typeof CALL_GOAL_OPTIONS)[number])) {
     return n;
   }
-  if (Number.isFinite(n) && n >= 1 && n <= 100) return Math.round(n);
+  if (Number.isFinite(n) && n >= 1 && n <= MAX_CALL_GOAL) return Math.round(n);
   return DEFAULT_CALL_GOAL;
 }
 
