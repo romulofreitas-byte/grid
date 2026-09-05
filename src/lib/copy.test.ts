@@ -126,6 +126,8 @@ describe("COPY crm", () => {
     expect(COPY.crmCadenceHint).toMatch(/etapa/i);
     expect(COPY.crmScheduleHint).toMatch(/não registra/i);
     expect(COPY.crmLogCallHint).toMatch(/não conta/i);
+    expect(COPY.confirmEyebrow).toBe("Confirmar");
+    expect(COPY.confirmCancel).toBe("Cancelar");
     expect(COPY.callAskConfirm).toBe("Ligar");
     expect(COPY.callAskCancel).toBe("Cancelar");
     expect(COPY.callAskTitle).toMatch(/ligar/i);

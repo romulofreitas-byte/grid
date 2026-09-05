@@ -7,6 +7,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ContactSealBadge } from "@/components/ContactSeal";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
@@ -320,6 +321,7 @@ export default function GridPage() {
   const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
   const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
+  const [askRemoveCnpj, setAskRemoveCnpj] = useState<string | null>(null);
   const [queueStuck, setQueueStuck] = useState(false);
   const [creditHint, setCreditHint] = useState<string | null>(null);
   const [crmHint, setCrmHint] = useState<string | null>(null);
@@ -402,7 +404,6 @@ export default function GridPage() {
 
   async function removeFromList(cnpj: string) {
     if (removingCnpj) return;
-    if (!window.confirm(COPY.tirarDaListaConfirm)) return;
     setRemovingCnpj(cnpj);
     try {
       const res = await fetch(
@@ -412,6 +413,7 @@ export default function GridPage() {
       if (!res.ok) throw new Error("Não foi possível tirar da lista");
       void qc.invalidateQueries({ queryKey: ["grid", searchId] });
       void qc.invalidateQueries({ queryKey: ["search", searchId] });
+      setAskRemoveCnpj(null);
     } finally {
       setRemovingCnpj(null);
     }
@@ -1082,6 +1084,22 @@ export default function GridPage() {
 
       <ExportConfirmDialog {...exportCost.dialogProps} />
 
+      <ConfirmDialog
+        open={Boolean(askRemoveCnpj)}
+        title={COPY.tirarDaLista}
+        body={COPY.tirarDaListaConfirm}
+        confirmLabel={COPY.tirarDaLista}
+        pendingLabel={COPY.tirarDaListaPending}
+        pending={Boolean(removingCnpj)}
+        onClose={() => {
+          if (removingCnpj) return;
+          setAskRemoveCnpj(null);
+        }}
+        onConfirm={() => {
+          if (askRemoveCnpj) void removeFromList(askRemoveCnpj);
+        }}
+      />
+
       {query.isLoading ? (
         <div className="space-y-3">
           <div className="h-64 animate-pulse rounded-lg bg-white/5" />
@@ -1194,7 +1212,7 @@ export default function GridPage() {
                       qualifying={qualifying}
                       canRemove={Boolean(search?.saved)}
                       onToggle={() => toggleRow(row)}
-                      onRemove={() => void removeFromList(row.cnpj)}
+                      onRemove={() => setAskRemoveCnpj(row.cnpj)}
                     />
                   </td>
                   <td className="px-2 py-2 align-middle">
@@ -1331,7 +1349,7 @@ export default function GridPage() {
                     qualifying={qualifying}
                     canRemove={Boolean(search?.saved)}
                     onToggle={() => toggleRow(row)}
-                    onRemove={() => void removeFromList(row.cnpj)}
+                    onRemove={() => setAskRemoveCnpj(row.cnpj)}
                   />
                 </div>
               </div>
