@@ -139,6 +139,16 @@ export class CrmNotAllowedError extends Error {
   }
 }
 
+export const AUTOMATIONS_NOT_ALLOWED_MESSAGE =
+  "Automações entra no Piloto Pro — em breve.";
+
+export class AutomationsNotAllowedError extends Error {
+  constructor(message = AUTOMATIONS_NOT_ALLOWED_MESSAGE) {
+    super(message);
+    this.name = "AutomationsNotAllowedError";
+  }
+}
+
 export class BillingError extends Error {
   status: number;
   constructor(message: string, status = 400) {

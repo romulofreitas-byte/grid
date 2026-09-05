@@ -3,7 +3,7 @@ export const RECARGA_URL = "/planos#recarga";
 
 export type BillingGateCode = "plan_required" | "insufficient_credits" | "trial_expired";
 export type PaywallKind = "plan" | "credits" | "trial";
-export type PaywallFeature = "qualify" | "export" | "crm_push" | "crm";
+export type PaywallFeature = "qualify" | "export" | "crm_push" | "crm" | "automations";
 
 export type BillingGate = {
   kind: PaywallKind;
@@ -175,6 +175,15 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     };
   }
   if (state.kind === "plan") {
+    if (state.feature === "automations") {
+      return {
+        eyebrow: "Piloto Pro",
+        title: "Automações entra no Piloto Pro — em\u00a0breve",
+        body: "Formulário, anúncio e Make alimentam o quadro no Pro. No Piloto você importa a planilha e liga pelo\u00a0CRM.",
+        primary: { href: PLANOS_URL, label: "Ver planos" },
+        secondary: { action: "close", label: "Fechar" },
+      };
+    }
     if (state.feature === "crm") {
       return {
         eyebrow: "Plano Piloto",

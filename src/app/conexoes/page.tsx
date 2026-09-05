@@ -28,7 +28,9 @@ import type {
 } from "@/lib/integrations/records";
 import { voipSetup, type VoipField } from "@/lib/integrations/voip-setup";
 import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
+import { planHasFeature } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
+import { useBillingMe } from "@/hooks/useBillingMe";
 import { cn } from "@/lib/utils";
 
 type CreateResponse = {
@@ -167,6 +169,7 @@ function emptyFields(): Record<string, string> {
 
 function ConexoesInner() {
   const qc = useQueryClient();
+  const billing = useBillingMe();
   const formRef = useRef<HTMLDivElement>(null);
   const kindFromUrl = useSearchParams().get("kind");
   const [selectedId, setSelectedId] = useState("api4com");
@@ -313,12 +316,14 @@ function ConexoesInner() {
           discador externos ainda não está nesta versão.
         </p>
       )}
-      <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-        {COPY.conexoesInboundHint}{" "}
-        <Link href="/importacoes" className="font-semibold text-podium-yellow">
-          Abrir Importações
-        </Link>
-      </p>
+      {planHasFeature(billing.data?.balance.plano, "automations") ? (
+        <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
+          {COPY.conexoesInboundHint}{" "}
+          <Link href="/automacoes" className="font-semibold text-podium-yellow">
+            Abrir Automações
+          </Link>
+        </p>
+      ) : null}
       {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
         <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-yellow">
           {kindFromUrl === "crm" ? "CRM" : "Discador"} ainda não conecta nativo.

@@ -16,6 +16,7 @@ import {
   isPackSku,
   isPlanSku,
   isSkuOnSale,
+  planHasFeature,
   orderKindFor,
   SKU_OFF_SALE_MESSAGE,
   type BillingSku,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/billing/providers/types";
 import type { BillingStore } from "@/lib/billing/store";
 import {
+  AutomationsNotAllowedError,
   BillingError,
   CrmNotAllowedError,
   EnrichmentNotAllowedError,
@@ -290,6 +292,16 @@ export async function assertCrmAccess(profileId: string): Promise<CreditBalance>
     );
   }
   rememberCrmAccess(profileId, balance);
+  return balance;
+}
+
+export async function assertAutomationsAccess(
+  profileId: string,
+): Promise<CreditBalance> {
+  const balance = await assertCrmAccess(profileId);
+  if (!planHasFeature(balance.plano, "automations")) {
+    throw new AutomationsNotAllowedError();
+  }
   return balance;
 }
 

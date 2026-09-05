@@ -63,7 +63,7 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano e comece pela lista",
   landingPlansBody:
-    "No Treino livre você busca, vê a lista e qualifica 25\u00a0empresas. A mensalidade libera o CRM e o volume do mês. Qualificar custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa mais.",
+    "No Treino livre você busca, vê a lista e qualifica 25\u00a0empresas. O Piloto libera o CRM, a Meta e importar a planilha. O Pro traz volume e Automações.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",

@@ -8,6 +8,7 @@ import {
   isBilledPlanSku,
   isSkuOnSale,
   orderKindFor,
+  planHasFeature,
   PACKS,
   PLANS,
 } from "./catalog";
@@ -35,9 +36,40 @@ describe("catalog", () => {
     );
   });
 
-  it("lists native CRM on Piloto", () => {
+  it("lists native CRM, Meta and spreadsheet import on Piloto", () => {
     const piloto = getCatalogItem("piloto");
-    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain("CRM nativo");
+    const highlights = piloto?.kind === "plan" ? piloto.highlights : [];
+    expect(highlights).toContain("CRM nativo");
+    expect(highlights).toContain("Meta do dia no Box");
+    expect(highlights).toContain("Importar planilha para o quadro");
+    expect(highlights.join(" ")).not.toMatch(/automaç/i);
+  });
+
+  it("puts automations on Pro and Escuderia, not on Piloto or the platform coupon", () => {
+    expect(planHasFeature("free", "crm")).toBe(false);
+    expect(planHasFeature("free", "import")).toBe(false);
+    expect(planHasFeature("free", "automations")).toBe(false);
+    expect(planHasFeature("piloto", "crm")).toBe(true);
+    expect(planHasFeature("piloto", "import")).toBe(true);
+    expect(planHasFeature("piloto", "automations")).toBe(false);
+    expect(planHasFeature("membro_plataforma", "crm")).toBe(true);
+    expect(planHasFeature("membro_plataforma", "import")).toBe(true);
+    expect(planHasFeature("membro_plataforma", "automations")).toBe(false);
+    expect(planHasFeature("piloto_pro", "automations")).toBe(true);
+    expect(planHasFeature("escuderia", "automations")).toBe(true);
+    expect(planHasFeature("escuderia", "import")).toBe(true);
+    expect(planHasFeature("unknown", "crm")).toBe(false);
+    const pro = getCatalogItem("piloto_pro");
+    const escuderia = getCatalogItem("escuderia");
+    expect(pro?.kind === "plan" ? pro.highlights : []).toContain(
+      "Automações: formulário, anúncio, Make",
+    );
+    expect(escuderia?.kind === "plan" ? escuderia.highlights : []).toContain(
+      "Tudo do Piloto Pro",
+    );
+    expect(escuderia?.kind === "plan" ? escuderia.highlights : []).toContain(
+      "Um usuário nesta versão",
+    );
   });
 
   it("prices packs above the subscription unit cost", () => {
@@ -72,12 +104,9 @@ describe("catalog", () => {
 
   it("sizes Piloto around a month of daily calls, not bulk export", () => {
     const piloto = getCatalogItem("piloto");
-    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
-      "~20 fichas por dia no mês",
-    );
-    expect(piloto?.kind === "plan" ? piloto.highlights : []).toContain(
-      "Exportar: 50 créditos por empresa já qualificada",
-    );
+    const highlights = piloto?.kind === "plan" ? piloto.highlights : [];
+    expect(highlights).toContain("~20 fichas por dia no mês");
+    expect(highlights.join(" ")).not.toMatch(/export/i);
   });
 
   it("charges one credit to qualify and fifty to export", () => {

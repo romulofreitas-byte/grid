@@ -211,6 +211,14 @@ describe("COPY landing", () => {
     expect(COPY.landingPain3Title.toLowerCase()).toMatch(/digital/);
   });
 
+  it("ladders plans from Treino to Pro without putting automations on Piloto", () => {
+    expect(COPY.landingPlansBody).toMatch(/Treino livre/);
+    expect(COPY.landingPlansBody).toMatch(/Piloto libera o CRM/);
+    expect(COPY.landingPlansBody).toMatch(/importar a planilha/);
+    expect(COPY.landingPlansBody).toMatch(/Automações/);
+    expect(COPY.landingPlansBody).not.toMatch(/export/i);
+  });
+
   it("sells missing digital assets as an approach hook", () => {
     expect(COPY.landingQualifyBody.toLowerCase()).toMatch(/falta/);
     expect(COPY.landingQualifyBody.toLowerCase()).toMatch(/abordagem/);

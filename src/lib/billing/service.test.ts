@@ -4,6 +4,7 @@ import { SKU_OFF_SALE_MESSAGE } from "@/lib/billing/catalog";
 import { memoryBillingStore, resetBillingMemory } from "@/lib/billing/memory-store";
 import {
   applyPaymentPaid,
+  assertAutomationsAccess,
   assertCrmAccess,
   createCheckout,
   crmAllowed,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/billing/service";
 import {
   CrmNotAllowedError,
+  AutomationsNotAllowedError,
   EnrichmentNotAllowedError,
   FREE_QUALIFY_EXHAUSTED_MESSAGE,
   InsufficientCreditsError,
@@ -352,6 +354,46 @@ describe("billing service", () => {
       enrichAllowed: true,
       plano: "piloto",
     });
+    await expect(assertAutomationsAccess(profileId)).rejects.toBeInstanceOf(
+      AutomationsNotAllowedError,
+    );
+  });
+
+  it("allows automations on Piloto Pro and Escuderia, not on the platform coupon", async () => {
+    const cache = globalThis as typeof globalThis & {
+      __crmAccessCache?: Map<string, unknown>;
+    };
+    cache.__crmAccessCache?.clear();
+
+    await seedPaidPlatformPlan();
+    await expect(assertCrmAccess(profileId)).resolves.toMatchObject({
+      plano: "membro_plataforma",
+    });
+    await expect(assertAutomationsAccess(profileId)).rejects.toBeInstanceOf(
+      AutomationsNotAllowedError,
+    );
+
+    const now = new Date();
+    const end = new Date(now.getTime() + 30 * 86_400_000);
+    for (const plan of ["piloto_pro", "escuderia"] as const) {
+      resetBillingMemory();
+      cache.__crmAccessCache?.clear();
+      await memoryBillingStore.insertSubscription({
+        id: crypto.randomUUID(),
+        profileId,
+        plan,
+        status: "active",
+        provider: "mock",
+        providerSubId: null,
+        currentPeriodStart: now.toISOString(),
+        currentPeriodEnd: end.toISOString(),
+        cancelAtPeriodEnd: false,
+      });
+      await expect(assertAutomationsAccess(profileId)).resolves.toMatchObject({
+        plano: plan,
+        enrichAllowed: true,
+      });
+    }
   });
 
   it("debits enrich once per CNPJ", async () => {

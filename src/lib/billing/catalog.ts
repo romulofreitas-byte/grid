@@ -36,6 +36,24 @@ export type PackDefinition = {
 
 export type CatalogItem = PlanDefinition | PackDefinition;
 
+export type PlanFeature = "crm" | "import" | "automations";
+
+const PLAN_FEATURES: Record<PlanSku, readonly PlanFeature[]> = {
+  free: [],
+  piloto: ["crm", "import"],
+  piloto_pro: ["crm", "import", "automations"],
+  escuderia: ["crm", "import", "automations"],
+  membro_plataforma: ["crm", "import"],
+};
+
+export function planHasFeature(
+  sku: string | null | undefined,
+  feature: PlanFeature,
+): boolean {
+  if (!sku || !isPlanSku(sku)) return false;
+  return PLAN_FEATURES[sku].includes(feature);
+}
+
 export const PLANS: PlanDefinition[] = [
   {
     sku: "free",
@@ -64,7 +82,8 @@ export const PLANS: PlanDefinition[] = [
       "900 créditos / mês",
       "~20 fichas por dia no mês",
       "CRM nativo",
-      "Exportar: 50 créditos por empresa já qualificada",
+      "Meta do dia no Box",
+      "Importar planilha para o quadro",
     ],
   },
   {
@@ -78,8 +97,9 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "4.000 créditos / mês",
-      "Volume de quem vive de lista",
       "Prioridade na fila de qualificação",
+      "Automações: formulário, anúncio, Make",
+      "Tudo do Piloto",
     ],
   },
   {
@@ -93,6 +113,7 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "6.000 créditos / mês",
+      "Tudo do Piloto Pro",
       "Um usuário nesta versão",
       "Seats extras entram na próxima etapa",
     ],

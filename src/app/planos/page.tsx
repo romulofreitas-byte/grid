@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
-import { formatBrl, EXPORT_CREDIT_COST, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
+import { formatBrl, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
 import { getBalance } from "@/lib/billing/service";
 import { requireSession } from "@/lib/auth/session";
@@ -27,12 +27,8 @@ export default async function PlanosPage({
     <PublicPage className="max-w-6xl" back={back}>
       <SectionTitle className="mt-8">Planos e créditos</SectionTitle>
       <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-        Buscar e ver a lista é grátis. No Treino livre você qualifica 25
-        {"\u00a0"}empresas. A mensalidade libera o CRM e o volume do mês. Qualificar
-        custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha custa{" "}
-        {EXPORT_CREDIT_COST} créditos por empresa já qualificada. O crédito do
-        plano zera no mês — recarga fica e não substitui a assinatura. Pix é o
-        caminho padrão — cartão e boleto também entram.
+        Buscar e ligar pela ficha é grátis. Qualificar custa 1 crédito. Crédito do
+        plano zera no mês.
       </p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -61,18 +57,14 @@ export default async function PlanosPage({
                   <span className="text-sm font-medium text-podium-muted">/mês</span>
                 ) : null}
               </p>
-              {plan.sku === "piloto_pro" || plan.sku === "escuderia" ? (
-                <div className="mt-4 flex-1" />
-              ) : (
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
-                  {plan.highlights.map((h) => (
-                    <li key={h} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
+                {plan.highlights.map((h) => (
+                  <li key={h} className="flex gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
+                    {h}
+                  </li>
+                ))}
+              </ul>
               {plan.sku === "free" || isSkuOnSale(plan.sku) ? (
                 <Link
                   href={plan.sku === "free" ? "/painel" : pagarHref(plan.sku, from)}
@@ -101,9 +93,8 @@ export default async function PlanosPage({
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
         <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-          Pacotes não expiram e não substituem o plano — nem reabrem o CRM, nem
-          a qualificação depois dos 25 do Treino livre. O custo por crédito é
-          pior que a assinatura: serve para o meio do mês ou para exportar.
+          Créditos extras para o meio do mês. Não expiram e não substituem o
+          plano.
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {PACKS.map((pack) => (
