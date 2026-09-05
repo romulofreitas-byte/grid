@@ -721,49 +721,19 @@ export const crmPgMethods = {
   ): Promise<CrmDealSearchHit[]> {
     if (!canSearchDeals(q)) return [];
     const limit = clampDealSearchLimit(opts?.limit);
+    const trimmed = q.trim();
     const folded = normalizeText(q);
-    const like =
-      dealSearchHasLetters(q) && folded.length >= DEAL_SEARCH_MIN_CHARS
-        ? `%${escapeIlike(folded)}%`
-        : null;
-    const prefix =
-      dealSearchHasLetters(q) && folded.length >= DEAL_SEARCH_MIN_CHARS
-        ? `${escapeIlike(folded)}%`
-        : null;
+    const nameOk =
+      dealSearchHasLetters(q) && folded.length >= DEAL_SEARCH_MIN_CHARS;
+    const rawLike = nameOk ? `%${escapeIlike(trimmed)}%` : "";
+    const foldedLike = nameOk ? `%${escapeIlike(folded)}%` : "";
+    const prefix = nameOk ? `${escapeIlike(folded)}%` : null;
     const digits = dealSearchDigits(q);
     const digitNeedle =
       digits.length >= DEAL_SEARCH_MIN_DIGITS ? digits : "";
     const companyFold = sqlFoldAccent("d.company_name");
     const contactFold = sqlFoldAccent("coalesce(d.contact_name, '')");
-    const personNameFold = sqlFoldAccent("coalesce(person->>'name', '')");
-    const nameClause = like
-      ? `(
-          ${companyFold} like $2 escape '\\'
-          or ${contactFold} like $2 escape '\\'
-          or exists (
-            select 1
-              from jsonb_array_elements(coalesce(d.people, '[]'::jsonb)) person
-             where ${personNameFold} like $2 escape '\\'
-          )
-        )`
-      : "false";
-    const digitClause = digitNeedle
-      ? `(
-          coalesce(d.cnpj, '') like '%' || $3 || '%'
-          or exists (
-            select 1
-              from jsonb_array_elements(coalesce(d.phones, '[]'::jsonb)) ph
-             where regexp_replace(ph #>> '{}', '\\D', '', 'g')
-                   like '%' || $3 || '%'
-          )
-          or exists (
-            select 1
-              from jsonb_array_elements(coalesce(d.people, '[]'::jsonb)) person
-             where regexp_replace(coalesce(person->>'phone', ''), '\\D', '', 'g')
-                   like '%' || $3 || '%'
-          )
-        )`
-      : "false";
+    const peopleFold = sqlFoldAccent("coalesce(d.people::text, '')");
     const { rows } = await query(
       `select d.id,
               d.pipeline_id,
@@ -772,11 +742,35 @@ export const crmPgMethods = {
               d.company_name,
               d.contact_name,
               d.outcome
-         from crm_deals d
-         join crm_pipelines p on p.id = d.pipeline_id
+         from crm_pipelines p
+         join crm_deals d on d.pipeline_id = p.id
          join crm_stages s on s.id = d.stage_id
         where p.user_id = $1
-          and (${nameClause} or ${digitClause})
+          and (
+            (
+              $2::text <> ''
+              and (
+                d.company_name ilike $2 escape '\\'
+                or coalesce(d.contact_name, '') ilike $2 escape '\\'
+                or coalesce(d.people::text, '') ilike $2 escape '\\'
+                or ${companyFold} like $7 escape '\\'
+                or ${contactFold} like $7 escape '\\'
+                or ${peopleFold} like $7 escape '\\'
+              )
+            )
+            or (
+              $3::text <> ''
+              and (
+                coalesce(d.cnpj, '') like '%' || $3 || '%'
+                or regexp_replace(
+                     coalesce(d.phones::text, '') || coalesce(d.people::text, ''),
+                     '\\D',
+                     '',
+                     'g'
+                   ) like '%' || $3 || '%'
+              )
+            )
+          )
         order by
           case when d.pipeline_id = $4::uuid then 0 else 1 end,
           case
@@ -784,14 +778,15 @@ export const crmPgMethods = {
             then 0 else 1
           end,
           d.updated_at desc
-        limit $6`,
+        limit $6::int`,
       [
         userId,
-        like ?? "",
+        rawLike,
         digitNeedle,
         opts?.preferredPipelineId ?? null,
         prefix,
         limit,
+        foldedLike,
       ],
     );
     return rows.map((row) => ({

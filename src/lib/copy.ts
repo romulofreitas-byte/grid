@@ -361,6 +361,7 @@ export const COPY = {
   crmSearchDealsPlaceholder: "Empresa, contato, CNPJ…",
   crmSearchDealsEmpty: "Nenhum negócio com esse termo.",
   crmSearchDealsSearching: "Buscando…",
+  crmSearchDealsError: "Não foi possível buscar.",
   crmPhonesLabel: "Telefones",
   crmAddPhone: "Adicionar telefone",
   crmNextAction: "Próxima ação",

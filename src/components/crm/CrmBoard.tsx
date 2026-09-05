@@ -20,6 +20,7 @@ import { CrmAddDealDialog } from "@/components/crm/CrmAddDealDialog";
 import { CrmCadencePanel } from "@/components/crm/CrmCadencePanel";
 import { CrmDealCardView } from "@/components/crm/CrmDealCard";
 import { CrmDealModal } from "@/components/crm/CrmDealModal";
+import { CrmDealSearch } from "@/components/crm/CrmDealSearch";
 import { CrmLane } from "@/components/crm/CrmLane";
 import { CrmLanesSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { CrmPipelineRail } from "@/components/crm/CrmPipelineRail";
@@ -34,12 +35,15 @@ import {
 import type {
   CrmBoard as Board,
   CrmDealCard as Deal,
+  CrmDealSearchHit,
   CrmPipelineSummary,
+  CrmStage,
 } from "@/lib/crm/types";
 
 type Columns = Record<string, string[]>;
 
 const EMPTY_DEALS: Deal[] = [];
+const EMPTY_STAGES: CrmStage[] = [];
 
 function cloneColumns(columns: Columns): Columns {
   return Object.fromEntries(
@@ -237,16 +241,27 @@ export function CrmBoard({
     }
   }
 
+  async function pickSearchHit(hit: CrmDealSearchHit) {
+    if (hit.outcome !== "open") setShowClosed(true);
+    const currentId = requestedPipelineRef.current ?? selectedPipelineId;
+    if (hit.pipelineId !== currentId) {
+      await loadPipeline(hit.pipelineId, { openDealId: hit.dealId });
+      return;
+    }
+    openDealCard(hit.dealId);
+  }
+
   async function loadPipeline(
     pipelineId: string,
-    opts?: { force?: boolean },
+    opts?: { force?: boolean; openDealId?: string | null },
   ): Promise<Board | null> {
     if (pipelineId === selectedPipelineId && board && !opts?.force) return board;
     setError(null);
     setSelectedPipelineId(pipelineId);
     requestedPipelineRef.current = pipelineId;
-    setOpenDealId(null);
-    writeUrl(pipelineId, null);
+    const nextDealId = opts?.openDealId ?? null;
+    setOpenDealId(nextDealId);
+    writeUrl(pipelineId, nextDealId);
     const cached = cacheRef.current.get(pipelineId);
     const fresh =
       Boolean(cached) &&
@@ -473,7 +488,14 @@ export function CrmBoard({
           </h1>
           <p className="mt-1 max-w-xl text-pretty text-sm text-podium-gray">{COPY.crmHint}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <CrmDealSearch
+            pipelineId={selectedPipelineId}
+            localDeals={board?.deals ?? EMPTY_DEALS}
+            localStages={board?.stages ?? EMPTY_STAGES}
+            localPipelineNome={board?.pipeline.nome ?? ""}
+            onPick={(hit) => void pickSearchHit(hit)}
+          />
           <Button
             type="button"
             size="sm"

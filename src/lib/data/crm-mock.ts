@@ -4,13 +4,7 @@ import {
   briefingPresenceFromFields,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
-import {
-  canSearchDeals,
-  clampDealSearchLimit,
-  dealMatchesSearch,
-  rankDealSearchHits,
-  toDealSearchHit,
-} from "@/lib/crm/deal-search";
+import { searchHitsFromDeals } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
@@ -521,33 +515,20 @@ export const crmMockMethods = {
     q: string,
     opts?: { preferredPipelineId?: string | null; limit?: number },
   ): Promise<CrmDealSearchHit[]> {
-    if (!canSearchDeals(q)) return [];
     const store = getMockStore();
     const owned = pipelinesOf(store, userId);
     const pipelineById = new Map(owned.map((row) => [row.id, row]));
     const stageById = new Map(store.crm_stages.map((row) => [row.id, row]));
-    const matches = store.crm_deals.filter((deal) => {
-      if (!pipelineById.has(deal.pipeline_id)) return false;
-      return dealMatchesSearch(deal, q);
-    });
-    const ranked = rankDealSearchHits(
-      matches,
+    return searchHitsFromDeals(
+      store.crm_deals.filter((deal) => pipelineById.has(deal.pipeline_id)),
       q,
-      opts?.preferredPipelineId,
+      {
+        preferredPipelineId: opts?.preferredPipelineId,
+        limit: opts?.limit,
+        pipelineNome: (id) => pipelineById.get(id)?.nome ?? "",
+        stageNome: (id) => stageById.get(id)?.nome ?? "",
+      },
     );
-    const limit = clampDealSearchLimit(opts?.limit);
-    return ranked.slice(0, limit).map((deal) => {
-      const people = peopleFromDeal(deal);
-      return toDealSearchHit({
-        dealId: deal.id,
-        pipelineId: deal.pipeline_id,
-        pipelineNome: pipelineById.get(deal.pipeline_id)?.nome ?? "",
-        stageNome: stageById.get(deal.stage_id)?.nome ?? "",
-        company_name: deal.company_name,
-        contact_name: deal.contact_name || people[0]?.name || "",
-        outcome: deal.outcome,
-      });
-    });
   },
 
   async getCrmDeal(

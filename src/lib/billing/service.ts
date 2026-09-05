@@ -133,6 +133,36 @@ function emptyFreeBalance(credits: number): CreditBalance {
   };
 }
 
+const CRM_ACCESS_TTL_MS = 20_000;
+
+const globalForCrmAccess = globalThis as typeof globalThis & {
+  __crmAccessCache?: Map<string, { until: number; balance: CreditBalance }>;
+};
+
+function crmAccessCache() {
+  if (!globalForCrmAccess.__crmAccessCache) {
+    globalForCrmAccess.__crmAccessCache = new Map();
+  }
+  return globalForCrmAccess.__crmAccessCache;
+}
+
+function rememberCrmAccess(profileId: string, balance: CreditBalance) {
+  crmAccessCache().set(profileId, {
+    until: Date.now() + CRM_ACCESS_TTL_MS,
+    balance,
+  });
+}
+
+function cachedCrmAccess(profileId: string): CreditBalance | null {
+  const hit = crmAccessCache().get(profileId);
+  if (!hit) return null;
+  if (hit.until <= Date.now()) {
+    crmAccessCache().delete(profileId);
+    return null;
+  }
+  return hit.balance;
+}
+
 async function syncCache(store: BillingStore, profileId: string): Promise<CreditBalance> {
   const lots = (await store.listOpenLots(profileId)).filter((l) => lotOpen(l));
   let plan = 0;
@@ -248,14 +278,18 @@ export async function crmAllowed(profileId: string): Promise<boolean> {
 }
 
 export async function assertCrmAccess(profileId: string): Promise<CreditBalance> {
+  const cached = cachedCrmAccess(profileId);
+  if (cached) return cached;
   const balance = await getBalance(profileId);
   if (!balance.enrichAllowed) {
+    crmAccessCache().delete(profileId);
     throw new CrmNotAllowedError(
       balance.trialExpired
         ? "Os 30 dias do Piloto da Plataforma acabaram. Assine o Piloto para continuar."
         : undefined,
     );
   }
+  rememberCrmAccess(profileId, balance);
   return balance;
 }
 

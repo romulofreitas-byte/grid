@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   canSearchDeals,
   dealMatchesSearch,
+  mergeDealSearchHits,
   rankDealSearchHits,
+  searchHitsFromDeals,
+  type DealSearchHitSource,
   type DealSearchRankable,
 } from "./deal-search";
 import type { CrmPerson } from "@/lib/crm/types";
@@ -103,5 +106,71 @@ describe("rankDealSearchHits", () => {
     });
     const ranked = rankDealSearchHits([other, later, prefix], "padaria", "p1");
     expect(ranked.map((row) => row.id)).toEqual(["prefix", "later", "other"]);
+  });
+});
+
+describe("searchHitsFromDeals", () => {
+  it("maps matching board deals without waiting on the API", () => {
+    const source = (patch: Partial<DealSearchHitSource> & { id: string }): DealSearchHitSource => ({
+      pipeline_id: "p1",
+      stage_id: "s1",
+      company_name: "Padaria do João",
+      contact_name: "",
+      cnpj: null,
+      phones: [],
+      people: [],
+      updated_at: "2026-09-01T12:00:00.000Z",
+      outcome: "open",
+      ...patch,
+    });
+    const hits = searchHitsFromDeals(
+      [
+        source({ id: "a", company_name: "Padaria do João" }),
+        source({ id: "b", company_name: "Oficina Norte" }),
+      ],
+      "padaria",
+      {
+        preferredPipelineId: "p1",
+        pipelineNome: () => "Metalurgia",
+        stageNome: () => "Prospecção",
+      },
+    );
+    expect(hits).toEqual([
+      {
+        dealId: "a",
+        pipelineId: "p1",
+        pipelineNome: "Metalurgia",
+        stageNome: "Prospecção",
+        company_name: "Padaria do João",
+        contact_name: "",
+        outcome: "open",
+      },
+    ]);
+  });
+});
+
+describe("mergeDealSearchHits", () => {
+  it("keeps local hits first and fills remaining slots from other pipelines", () => {
+    const local = {
+      dealId: "local",
+      pipelineId: "p1",
+      pipelineNome: "Metalurgia",
+      stageNome: "Prospecção",
+      company_name: "Padaria Local",
+      contact_name: "",
+      outcome: "open" as const,
+    };
+    const remoteDup = { ...local, pipelineNome: "Outro" };
+    const remoteOther = {
+      ...local,
+      dealId: "other",
+      pipelineId: "p2",
+      pipelineNome: "Meu nicho",
+      company_name: "Padaria Imperial",
+    };
+    expect(mergeDealSearchHits([local], [remoteDup, remoteOther], 8)).toEqual([
+      local,
+      remoteOther,
+    ]);
   });
 });

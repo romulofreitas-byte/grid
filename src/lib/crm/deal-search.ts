@@ -5,6 +5,7 @@ export const DEAL_SEARCH_MIN_CHARS = 2;
 export const DEAL_SEARCH_MIN_DIGITS = 4;
 export const DEAL_SEARCH_LIMIT = 8;
 export const DEAL_SEARCH_LIMIT_MAX = 20;
+export const DEAL_SEARCH_DEBOUNCE_MS = 120;
 
 export type DealSearchable = {
   company_name: string;
@@ -18,6 +19,11 @@ export type DealSearchRankable = DealSearchable & {
   id: string;
   pipeline_id: string;
   updated_at: string;
+};
+
+export type DealSearchHitSource = DealSearchRankable & {
+  stage_id: string;
+  outcome: CrmOutcome;
 };
 
 export type CrmDealSearchOpts = {
@@ -137,4 +143,48 @@ export function toDealSearchHit(input: {
     contact_name: input.contact_name,
     outcome: input.outcome,
   };
+}
+
+export function searchHitsFromDeals(
+  deals: DealSearchHitSource[],
+  q: string,
+  opts: {
+    preferredPipelineId?: string | null;
+    limit?: number;
+    pipelineNome: (pipelineId: string) => string;
+    stageNome: (stageId: string) => string;
+  },
+): CrmDealSearchHit[] {
+  if (!canSearchDeals(q)) return [];
+  const matches = deals.filter((deal) => dealMatchesSearch(deal, q));
+  const ranked = rankDealSearchHits(matches, q, opts.preferredPipelineId);
+  const limit = clampDealSearchLimit(opts.limit);
+  return ranked.slice(0, limit).map((deal) =>
+    toDealSearchHit({
+      dealId: deal.id,
+      pipelineId: deal.pipeline_id,
+      pipelineNome: opts.pipelineNome(deal.pipeline_id),
+      stageNome: opts.stageNome(deal.stage_id),
+      company_name: deal.company_name,
+      contact_name: deal.contact_name || deal.people?.[0]?.name || "",
+      outcome: deal.outcome,
+    }),
+  );
+}
+
+export function mergeDealSearchHits(
+  local: CrmDealSearchHit[],
+  remote: CrmDealSearchHit[] | undefined,
+  limit?: number,
+): CrmDealSearchHit[] {
+  const cap = clampDealSearchLimit(limit);
+  const seen = new Set<string>();
+  const out: CrmDealSearchHit[] = [];
+  for (const hit of [...local, ...(remote ?? [])]) {
+    if (seen.has(hit.dealId)) continue;
+    seen.add(hit.dealId);
+    out.push(hit);
+    if (out.length >= cap) break;
+  }
+  return out;
 }
