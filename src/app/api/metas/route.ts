@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { sanitizeMetaCreate } from "@/lib/calculadora/meta";
-import { loadMetasPayload } from "@/lib/calculadora/load";
+import { loadMetasPayload, jsonMetasPersistError } from "@/lib/calculadora/load";
 import { getRepo } from "@/lib/data";
 
 export async function GET(req: Request) {
@@ -37,9 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ...payload, meta });
   } catch (err) {
     console.error("metas_post_error", err);
-    return NextResponse.json(
-      { error: "Não foi possível salvar a meta" },
-      { status: 500 },
-    );
+    return jsonMetasPersistError(err, "Não foi possível salvar a meta");
   }
 }

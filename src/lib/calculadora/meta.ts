@@ -10,6 +10,8 @@ import { clampCallGoal } from "@/lib/pilot-profile";
 
 export const META_NAME_MAX = 80;
 export const META_TIPO_MAX = 80;
+export const METAS_SCHEMA_MISSING =
+  "A tabela de metas ainda não está no banco.";
 
 export type MetaInput = {
   nome: string;
@@ -146,4 +148,17 @@ export function parseTaxasOrigem(value: unknown): TaxasOrigem {
   return TAXAS_ORIGEM.includes(value as TaxasOrigem)
     ? (value as TaxasOrigem)
     : "padrao";
+}
+
+export function sortMetasForList(
+  metas: readonly PilotMeta[],
+  activeMetaId: string | null,
+): PilotMeta[] {
+  return metas.slice().sort((a, b) => {
+    if (activeMetaId) {
+      if (a.id === activeMetaId) return -1;
+      if (b.id === activeMetaId) return 1;
+    }
+    return b.updated_at.localeCompare(a.updated_at) || b.id.localeCompare(a.id);
+  });
 }

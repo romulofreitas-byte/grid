@@ -62,7 +62,8 @@ export const metasPgMethods = {
         `select ${META_COLUMNS}
            from metas
           where user_id = $1
-          order by updated_at desc`,
+          order by (id = (select active_meta_id from profiles where id = $1)) desc nulls last,
+                   updated_at desc`,
         [userId],
       );
       return rows.map(mapMeta);

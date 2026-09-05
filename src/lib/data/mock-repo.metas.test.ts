@@ -44,12 +44,30 @@ describe("mock metas", () => {
 
     const listed = await mockRepo.listMetas(LOCAL_USER_ID);
     expect(listed).toHaveLength(2);
+    expect(listed[0].id).toBe(second.id);
 
     const ring = profile.meta_ligacoes_dia;
     expect(await mockRepo.deleteMeta(LOCAL_USER_ID, second.id)).toBe(true);
     expect(profile.active_meta_id).toBeNull();
     expect(profile.meta_ligacoes_dia).toBe(ring);
     expect(await mockRepo.listMetas(LOCAL_USER_ID)).toHaveLength(1);
+  });
+
+  it("lists the Box meta first even when another is newer", async () => {
+    const store = getMockStore();
+    store.metas = [];
+    const profile = store.profiles.find((row) => row.id === LOCAL_USER_ID)!;
+    profile.active_meta_id = null;
+
+    const first = await mockRepo.createMeta(LOCAL_USER_ID, ready);
+    await mockRepo.createMeta(LOCAL_USER_ID, {
+      ...ready,
+      nome: "Indústria",
+    });
+
+    const applied = await mockRepo.applyMeta(LOCAL_USER_ID, first.id);
+    expect(applied.status).toBe("ok");
+    expect((await mockRepo.listMetas(LOCAL_USER_ID))[0].id).toBe(first.id);
   });
 
   it("rejects apply until the funnel is ready", async () => {

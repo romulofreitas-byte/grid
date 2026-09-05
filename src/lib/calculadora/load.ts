@@ -2,7 +2,9 @@ import { suggestCrmRates, type CrmRateDeal, type CrmRateSuggestions } from "@/li
 import type { MetasPayload } from "@/lib/calculadora/payload";
 import { getDataSource, getRepo, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
+import { METAS_SCHEMA_MISSING, sortMetasForList } from "@/lib/calculadora/meta";
 import { isUndefinedColumnError, isUndefinedTableError, query } from "@/lib/data/pg";
+import { NextResponse } from "next/server";
 
 async function optionalQuery<T extends Record<string, unknown>>(
   text: string,
@@ -80,9 +82,16 @@ export async function loadMetasPayload(userId: string): Promise<MetasPayload> {
     loadCrmSuggestions(userId),
   ]);
   return {
-    metas,
+    metas: sortMetasForList(metas, profile.active_meta_id),
     activeMetaId: profile.active_meta_id,
     metaLigacoesDia: profile.meta_ligacoes_dia,
     suggestions,
   };
+}
+
+export function jsonMetasPersistError(err: unknown, fallback: string) {
+  if (isUndefinedTableError(err) || isUndefinedColumnError(err)) {
+    return NextResponse.json({ error: METAS_SCHEMA_MISSING }, { status: 503 });
+  }
+  return NextResponse.json({ error: fallback }, { status: 500 });
 }

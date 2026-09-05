@@ -1,5 +1,6 @@
 import {
   dailyGoalFromMeta,
+  sortMetasForList,
   type MetaInput,
   type MetaApplyResult,
   type PilotMeta,
@@ -16,11 +17,13 @@ function clone(meta: PilotMeta): PilotMeta {
 
 export const metasMockMethods = {
   async listMetas(userId: string): Promise<PilotMeta[]> {
-    return getMockStore()
-      .metas.filter((row) => row.user_id === userId)
-      .slice()
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-      .map(clone);
+    const store = getMockStore();
+    const activeMetaId =
+      store.profiles.find((row) => row.id === userId)?.active_meta_id ?? null;
+    return sortMetasForList(
+      store.metas.filter((row) => row.user_id === userId),
+      activeMetaId,
+    ).map(clone);
   },
 
   async createMeta(userId: string, input: MetaInput): Promise<PilotMeta> {

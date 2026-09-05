@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -16,6 +17,7 @@ import {
 import {
   defaultMetaInput,
   funnelFromMeta,
+  sortMetasForList,
   type MetaInput,
   type PilotMeta,
 } from "@/lib/calculadora/meta";
@@ -54,12 +56,32 @@ function metaToInput(meta: PilotMeta): MetaInput {
   };
 }
 
-function CrmChip({ sample }: { sample: CrmRateSample | null }) {
+function CrmChip({ sample, title }: { sample: CrmRateSample | null; title: string }) {
   if (!sample) return null;
   return (
-    <span className="rounded-full border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow">
+    <span
+      title={title}
+      className="cursor-help rounded-full border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow"
+    >
       CRM · {sample.numerador}/{sample.denominador}
     </span>
+  );
+}
+
+function PlanoFact({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-bold text-podium-white">{value}</p>
+    </div>
   );
 }
 
@@ -99,11 +121,9 @@ function FunnelStep({
 function MoneyInput({
   value,
   onChange,
-  onBlur,
 }: {
   value: number;
   onChange: (reais: number) => void;
-  onBlur: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -144,7 +164,6 @@ function MoneyInput({
       }}
       onBlur={() => {
         setFocused(false);
-        onBlur();
       }}
       className={fieldClass}
     />
@@ -240,12 +259,10 @@ function PercentInput({
   value,
   fallback,
   onChange,
-  onBlur,
 }: {
   value: number;
   fallback: number;
   onChange: (percent: number) => void;
-  onBlur: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -272,7 +289,6 @@ function PercentInput({
           setFocused(false);
           if (value < 1) onChange(fallback);
           else if (value > 100) onChange(100);
-          onBlur();
         }}
         className={cn(fieldClass, "pr-9")}
       />
@@ -305,6 +321,8 @@ export function MetasPage() {
   const selectedIdRef = useRef(selectedId);
   const [hydrated, setHydrated] = useState(false);
   const [justApplied, setJustApplied] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<PilotMeta | null>(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -325,8 +343,11 @@ export function MetasPage() {
   }, [query.data, hydrated]);
 
   const suggestions = query.data?.suggestions;
-  const metas = query.data?.metas ?? [];
   const activeMetaId = query.data?.activeMetaId ?? null;
+  const metas = useMemo(
+    () => sortMetasForList(query.data?.metas ?? [], activeMetaId),
+    [query.data?.metas, activeMetaId],
+  );
   const result = useMemo(
     () => calculateFunnel(funnelFromMeta(draft)),
     [draft],
@@ -339,10 +360,10 @@ export function MetasPage() {
   }
 
   const save = useMutation({
-    mutationFn: async (opts: { apply?: boolean } = {}) => {
+    mutationFn: async (opts: { apply?: boolean; list?: boolean } = {}) => {
       const current = draftRef.current;
       if (!current.nome.trim()) {
-        if (opts.apply) throw new Error(COPY.metasNeedNome);
+        if (opts.apply || opts.list) throw new Error(COPY.metasNeedNome);
         return null;
       }
       let id = selectedIdRef.current;
@@ -388,6 +409,15 @@ export function MetasPage() {
         setDraft(next);
       }
       setJustApplied(Boolean(vars.apply));
+      if (vars.list) {
+        setJustSaved(true);
+        requestAnimationFrame(() => {
+          document.getElementById("suas-metas")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        });
+      }
     },
   });
 
@@ -411,6 +441,7 @@ export function MetasPage() {
     },
     onSuccess: (data, id) => {
       setCache(data);
+      setPendingDelete(null);
       if (selectedIdRef.current !== id) return;
       const nextMeta =
         data.metas.find((row) => row.id === data.activeMetaId) ?? data.metas[0];
@@ -431,6 +462,7 @@ export function MetasPage() {
     origem?: FunnelPlan["taxasOrigem"],
   ) {
     setJustApplied(false);
+    setJustSaved(false);
     const next = {
       ...draftRef.current,
       ...partial,
@@ -442,6 +474,7 @@ export function MetasPage() {
 
   function selectMeta(meta: PilotMeta) {
     setJustApplied(false);
+    setJustSaved(false);
     const next = metaToInput(meta);
     draftRef.current = next;
     setDraft(next);
@@ -451,6 +484,7 @@ export function MetasPage() {
 
   function startNew() {
     setJustApplied(false);
+    setJustSaved(false);
     const next = defaultMetaInput();
     draftRef.current = next;
     setDraft(next);
@@ -460,6 +494,7 @@ export function MetasPage() {
 
   function applyCrmRates(next: CrmRateSuggestions) {
     setJustApplied(false);
+    setJustSaved(false);
     const updated = {
       ...draftRef.current,
       taxa1: next.taxa1?.percent ?? draftRef.current.taxa1,
@@ -467,6 +502,21 @@ export function MetasPage() {
       taxa3: next.taxa3?.percent ?? draftRef.current.taxa3,
       taxa4: next.taxa4?.percent ?? draftRef.current.taxa4,
       taxasOrigem: "crm" as const,
+    };
+    draftRef.current = updated;
+    setDraft(updated);
+  }
+
+  function applyDefaultRates() {
+    setJustApplied(false);
+    setJustSaved(false);
+    const updated = {
+      ...draftRef.current,
+      taxa1: DEFAULT_TAXAS.taxa1,
+      taxa2: DEFAULT_TAXAS.taxa2,
+      taxa3: DEFAULT_TAXAS.taxa3,
+      taxa4: DEFAULT_TAXAS.taxa4,
+      taxasOrigem: "padrao" as const,
     };
     draftRef.current = updated;
     setDraft(updated);
@@ -508,7 +558,7 @@ export function MetasPage() {
         </p>
       </div>
 
-      <GlassCard className="p-5 md:p-6" hover={false}>
+      <GlassCard id="suas-metas" className="p-5 md:p-6" hover={false}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <SectionTitle>{COPY.metasLista}</SectionTitle>
@@ -529,15 +579,6 @@ export function MetasPage() {
           <p className="mt-4 text-sm text-podium-muted">{COPY.metasEmpty}</p>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {selectedId === null ? (
-              <MetaPickCard
-                title={draft.nome.trim() || COPY.metasNova}
-                subtitle={draft.tipo_empresa.trim() || undefined}
-                detail={COPY.metasRascunho}
-                selected
-                draft
-              />
-            ) : null}
             {metas.map((meta) => {
               const daily = calculateFunnel(funnelFromMeta(meta)).ligacoesPorDia;
               const selected = meta.id === selectedId;
@@ -558,14 +599,20 @@ export function MetasPage() {
                   onDelete={
                     remove.isPending
                       ? undefined
-                      : () => {
-                          if (!window.confirm(COPY.metasConfirmDelete)) return;
-                          remove.mutate(meta.id);
-                        }
+                      : () => setPendingDelete(meta)
                   }
                 />
               );
             })}
+            {selectedId === null ? (
+              <MetaPickCard
+                title={draft.nome.trim() || COPY.metasNova}
+                subtitle={draft.tipo_empresa.trim() || undefined}
+                detail={COPY.metasRascunho}
+                selected
+                draft
+              />
+            ) : null}
           </div>
         )}
       </GlassCard>
@@ -581,7 +628,6 @@ export function MetasPage() {
                   maxLength={80}
                   value={draft.nome}
                   onChange={(e) => patch({ nome: e.target.value })}
-                  onBlur={() => save.mutate({})}
                   className={fieldClass}
                 />
               </label>
@@ -592,7 +638,6 @@ export function MetasPage() {
                   maxLength={80}
                   value={draft.tipo_empresa}
                   onChange={(e) => patch({ tipo_empresa: e.target.value })}
-                  onBlur={() => save.mutate({})}
                   className={fieldClass}
                 />
               </label>
@@ -603,14 +648,19 @@ export function MetasPage() {
                 <MoneyInput
                   value={draft.metaFaturamento}
                   onChange={(metaFaturamento) => patch({ metaFaturamento })}
-                  onBlur={() => save.mutate({})}
                 />
               </label>
               <label className="block text-sm text-podium-gray">
                 <span className="flex items-center justify-between gap-2">
                   {COPY.calculadoraTicket}
                   {suggestions?.ticket ? (
-                    <span className="rounded-full border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow">
+                    <span
+                      title={COPY.calculadoraCrmTicketTip.replace(
+                        "{n}",
+                        String(suggestions.ticket.amostra),
+                      )}
+                      className="cursor-help rounded-full border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow"
+                    >
                       CRM · {suggestions.ticket.amostra}
                     </span>
                   ) : null}
@@ -618,15 +668,17 @@ export function MetasPage() {
                 <MoneyInput
                   value={draft.ticket}
                   onChange={(ticket) => patch({ ticket })}
-                  onBlur={() => save.mutate({})}
                 />
                 {suggestions?.ticket ? (
                   <button
                     type="button"
                     className="mt-1.5 text-xs font-bold text-podium-yellow"
+                    title={COPY.calculadoraCrmTicketTip.replace(
+                      "{n}",
+                      String(suggestions.ticket.amostra),
+                    )}
                     onClick={() => {
                       patch({ ticket: suggestions.ticket!.reais });
-                      save.mutate({});
                     }}
                   >
                     {COPY.calculadoraUsarTicketCrm} (
@@ -644,7 +696,6 @@ export function MetasPage() {
                   onChange={(e) =>
                     patch({ prazoMeses: Number(e.target.value) || 0 })
                   }
-                  onBlur={() => save.mutate({})}
                   className={fieldClass}
                 />
               </label>
@@ -657,14 +708,23 @@ export function MetasPage() {
               {hasCrmRates ? (
                 <button
                   type="button"
+                  title={
+                    draft.taxasOrigem === "crm"
+                      ? COPY.calculadoraUsarPadraoTip
+                      : COPY.calculadoraUsarCrmTip
+                  }
                   className="rounded-xl border border-podium-yellow/40 px-3 py-1.5 text-xs font-bold text-podium-yellow"
                   onClick={() => {
-                    if (!suggestions) return;
-                    applyCrmRates(suggestions);
-                    save.mutate({});
+                    if (draft.taxasOrigem === "crm") {
+                      applyDefaultRates();
+                    } else if (suggestions) {
+                      applyCrmRates(suggestions);
+                    }
                   }}
                 >
-                  {COPY.calculadoraUsarCrm}
+                  {draft.taxasOrigem === "crm"
+                    ? COPY.calculadoraUsarPadrao
+                    : COPY.calculadoraUsarCrm}
                 </button>
               ) : null}
             </div>
@@ -704,13 +764,21 @@ export function MetasPage() {
                 <label key={key} className="block text-sm text-podium-gray">
                   <span className="flex items-center justify-between gap-2">
                     {label}
-                    <CrmChip sample={sample ?? null} />
+                    <CrmChip
+                      sample={sample ?? null}
+                      title={
+                        sample
+                          ? COPY.calculadoraCrmTaxaTip
+                              .replace("{n}", String(sample.numerador))
+                              .replace("{d}", String(sample.denominador))
+                          : ""
+                      }
+                    />
                   </span>
                   <PercentInput
                     value={draft[key]}
                     fallback={fallback}
                     onChange={(percent) => patch({ [key]: percent }, "manual")}
-                    onBlur={() => save.mutate({})}
                   />
                   <Hint className="mt-1">
                     {hint.replace("{n}", eachTen(draft[key] || fallback))}
@@ -726,6 +794,7 @@ export function MetasPage() {
               <FunnelStep
                 label={COPY.calculadoraPassoContratos}
                 value={result.contratos}
+                featured
               />
               <FunnelStep
                 label={COPY.calculadoraPassoNegociacoes}
@@ -736,41 +805,85 @@ export function MetasPage() {
               <FunnelStep
                 label={COPY.calculadoraPassoDecisor}
                 value={result.ligacoesDecisor}
-                featured
               />
             </div>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={!draft.nome.trim() || save.isPending}
+                onClick={() => save.mutate({ list: true })}
+                className="rounded-xl bg-podium-yellow px-6 py-3 text-sm font-extrabold text-podium-navy transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {COPY.metasSalvar}
+              </button>
+            </div>
+            <Hint className="mt-3">{COPY.metasSalvarHint}</Hint>
+            {justSaved ? (
+              <p className="mt-2 text-sm font-bold text-podium-yellow">
+                {COPY.metasSalva}
+              </p>
+            ) : null}
+            {persistError ? (
+              <p className="mt-3 text-sm text-red-400">
+                {persistError instanceof Error
+                  ? persistError.message
+                  : "Não foi possível salvar."}
+              </p>
+            ) : null}
           </GlassCard>
 
           <GlassCard className="p-5 md:p-6" highlight hover={false}>
             <SectionTitle>{COPY.calculadoraPlano}</SectionTitle>
-            <div className="mt-4 grid gap-2 md:grid-cols-3">
-              <FunnelStep
-                label={COPY.calculadoraTotais}
-                value={result.ligacoesTotais}
+            <div className="mt-4 rounded-2xl border border-podium-yellow/40 bg-podium-yellow/10 px-5 py-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+                {COPY.calculadoraPorDia}
+              </p>
+              <p className="mt-1 text-5xl font-extrabold text-podium-yellow">
+                {formatInt(result.ligacoesPorDia)}
+              </p>
+              <p className="mt-2 text-sm text-podium-gray">
+                {COPY.calculadoraPlanoHero}
+              </p>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <PlanoFact
+                label={COPY.calculadoraPlanoHoje}
+                value={COPY.calculadoraPlanoHojeValue.replace(
+                  "{n}",
+                  formatInt(result.ligacoesPorDia),
+                )}
               />
-              <FunnelStep
-                label={COPY.calculadoraDecisor}
-                value={result.ligacoesDecisor}
+              <PlanoFact
+                label={COPY.calculadoraPlanoPeriodo}
+                value={COPY.calculadoraPlanoPeriodoValue
+                  .replace("{totais}", formatInt(result.ligacoesTotais))
+                  .replace("{decisor}", formatInt(result.ligacoesDecisor))}
               />
-              <FunnelStep
-                label={COPY.calculadoraPorDia}
-                value={result.ligacoesPorDia}
-                featured
+              <PlanoFact
+                label={COPY.calculadoraPlanoPrazo}
+                value={
+                  result.ready && result.dataFinal
+                    ? `${result.dataFinal.toLocaleDateString("pt-BR")} · ${formatInt(result.semanas)} sem. · ${formatInt(result.diasProspeccao)} dias`
+                    : COPY.calculadoraCtaNeed
+                }
               />
             </div>
-            <Hint className="mt-4">{COPY.calculadoraPremissas}</Hint>
-            {result.ready && result.dataFinal ? (
-              <p className="mt-2 text-sm text-podium-gray">
-                {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
-                {draft.prazoMeses === 1 ? "mês" : "meses"}, até{" "}
-                {result.dataFinal.toLocaleDateString("pt-BR")}. {result.semanas}{" "}
-                semanas · {result.diasProspeccao} dias de prospecção.
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-podium-muted">
-                {COPY.calculadoraCtaNeed}
-              </p>
-            )}
+            <details className="group mt-4 rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-podium-white [&::-webkit-details-marker]:hidden">
+                <span>{COPY.calculadoraPlanoComo}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+              </summary>
+              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
+                <p>{COPY.calculadoraPlanoComoTotais}</p>
+                <p>{COPY.calculadoraPlanoComoDia}</p>
+                {result.ready && result.dataFinal ? (
+                  <p>
+                    {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
+                    {draft.prazoMeses === 1 ? "mês" : "meses"}.
+                  </p>
+                ) : null}
+              </div>
+            </details>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -792,13 +905,6 @@ export function MetasPage() {
             {justApplied ? (
               <p className="mt-3 text-sm font-bold text-podium-yellow">
                 {COPY.calculadoraApplied}
-              </p>
-            ) : null}
-            {persistError ? (
-              <p className="mt-3 text-sm text-red-400">
-                {persistError instanceof Error
-                  ? persistError.message
-                  : "Não foi possível salvar."}
               </p>
             ) : null}
           </GlassCard>
@@ -825,6 +931,26 @@ export function MetasPage() {
           ))}
         </div>
       </GlassCard>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={COPY.metasConfirmDeleteTitle.replace(
+          "{nome}",
+          pendingDelete?.nome ?? "",
+        )}
+        body={COPY.metasConfirmDelete}
+        confirmLabel={COPY.metasDeleteConfirm}
+        pendingLabel={COPY.metasDeletePending}
+        pending={remove.isPending}
+        onClose={() => {
+          if (remove.isPending) return;
+          setPendingDelete(null);
+        }}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          remove.mutate(pendingDelete.id);
+        }}
+      />
     </div>
   );
 }
