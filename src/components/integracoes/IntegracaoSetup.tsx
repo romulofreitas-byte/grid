@@ -12,6 +12,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { TestRamalButton } from "@/components/TestRamalButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { BACK } from "@/lib/back";
 import {
   catalogAvailability,
@@ -541,20 +542,21 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
                 {dialer.fields.map((field: DialerField) => (
                   <Field key={field.id} label={field.label}>
                     {field.id === "campaign_id" && campaigns.length > 0 ? (
-                      <select
+                      <Select
                         value={fields.campaign_id}
-                        onChange={(e) =>
-                          setFields((prev) => ({ ...prev, campaign_id: e.target.value }))
+                        onChange={(campaign_id) =>
+                          setFields((prev) => ({ ...prev, campaign_id }))
                         }
-                        className={INPUT}
-                      >
-                        <option value="">Escolha a campanha</option>
-                        {campaigns.map((campaign) => (
-                          <option key={campaign.id} value={campaign.id}>
-                            {campaign.name}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="Escolha a campanha"
+                        className="w-full"
+                        options={[
+                          { value: "", label: "Escolha a campanha" },
+                          ...campaigns.map((campaign) => ({
+                            value: campaign.id,
+                            label: campaign.name,
+                          })),
+                        ]}
+                      />
                     ) : (
                       <input
                         value={fields[field.id] ?? ""}

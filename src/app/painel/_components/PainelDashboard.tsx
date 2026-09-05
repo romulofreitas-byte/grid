@@ -32,6 +32,7 @@ import {
   type PainelFilters,
 } from "@/lib/painel/filters";
 import type { PainelMetrics, PainelRange, PainelTaskRow } from "@/lib/painel/types";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 
 const PIPELINE_UUID =
@@ -289,19 +290,22 @@ export function PainelDashboard() {
           {(m?.pipelines.length ?? 0) > 1 ? (
             <label className="block min-w-[220px]">
               <span className="sr-only">Nicho</span>
-              <select
+              <Select
                 value={filters.pipelineId ?? PAINEL_PIPELINE_ALL}
-                onChange={(event) => selectPipeline(event.target.value)}
-                className="h-9 w-full rounded-lg border border-white/10 bg-podium-panel px-3 text-sm text-podium-white outline-none focus:border-podium-yellow/40"
-              >
-                <option value={PAINEL_PIPELINE_ALL}>{COPY.painelAllNiches}</option>
-                {m?.pipelines.map((pipeline) => (
-                  <option key={pipeline.id} value={pipeline.id}>
-                    {pipeline.nome}
-                    {pipeline.openDeals > 0 ? ` · ${pipeline.openDeals}` : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={selectPipeline}
+                aria-label="Nicho"
+                className="w-full"
+                options={[
+                  { value: PAINEL_PIPELINE_ALL, label: COPY.painelAllNiches },
+                  ...(m?.pipelines.map((pipeline) => ({
+                    value: pipeline.id,
+                    label:
+                      pipeline.openDeals > 0
+                        ? `${pipeline.nome} · ${pipeline.openDeals}`
+                        : pipeline.nome,
+                  })) ?? []),
+                ]}
+              />
             </label>
           ) : null}
         </div>

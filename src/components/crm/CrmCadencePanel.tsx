@@ -7,6 +7,7 @@ import { isLockedStageKey } from "@/lib/crm/cadence";
 import { CRM_FIELD, CRM_LABEL, sectorLabel } from "@/lib/crm/client";
 import type { CrmDealCard, CrmStage } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/Select";
 
 export function CrmCadencePanel({
   stages,
@@ -129,19 +130,18 @@ export function CrmCadencePanel({
                     {count > 0 ? (
                       <label className="block">
                         <span className={CRM_LABEL}>{COPY.crmMoveDealsTo}</span>
-                        <select
-                          className={cn(CRM_FIELD, "mt-1.5")}
+                        <Select
+                          size="sm"
+                          className="mt-1.5 w-full"
                           value={moveTo}
-                          onChange={(event) => setMoveTo(event.target.value)}
-                        >
-                          {stages
+                          onChange={setMoveTo}
+                          options={stages
                             .filter((row) => row.id !== stage.id)
-                            .map((row) => (
-                              <option key={row.id} value={row.id}>
-                                {row.nome}
-                              </option>
-                            ))}
-                        </select>
+                            .map((row) => ({
+                              value: row.id,
+                              label: row.nome,
+                            }))}
+                        />
                       </label>
                     ) : null}
                     <div className="flex gap-2">

@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { crmFetch } from "@/lib/crm/client";
@@ -124,18 +125,18 @@ function DestinationFields({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="Lista no CRM">
-        <select
-          className={INPUT}
+        <Select
           value={pipelineValue}
-          onChange={(event) => onPipeline(event.target.value)}
-        >
-          <option value={NEW_PIPELINE}>Nova lista no CRM</option>
-          {pipelines.map((pipeline) => (
-            <option key={pipeline.id} value={pipeline.id}>
-              {pipeline.nome}
-            </option>
-          ))}
-        </select>
+          onChange={onPipeline}
+          className="w-full"
+          options={[
+            { value: NEW_PIPELINE, label: "Nova lista no CRM" },
+            ...pipelines.map((pipeline) => ({
+              value: pipeline.id,
+              label: pipeline.nome,
+            })),
+          ]}
+        />
       </Field>
       {pipelineValue === NEW_PIPELINE ? (
         <Field label="Nome da lista">
@@ -148,17 +149,15 @@ function DestinationFields({
         </Field>
       ) : (
         <Field label="Etapa">
-          <select
-            className={INPUT}
+          <Select
             value={stageId}
-            onChange={(event) => onStage(event.target.value)}
-          >
-            {stages.map((stage) => (
-              <option key={stage.id} value={stage.id}>
-                {stage.nome}
-              </option>
-            ))}
-          </select>
+            onChange={onStage}
+            className="w-full"
+            options={stages.map((stage) => ({
+              value: stage.id,
+              label: stage.nome,
+            }))}
+          />
         </Field>
       )}
     </div>
@@ -421,28 +420,26 @@ export function AutomacoesPanel({
                   />
                 </Field>
                 <Field label="Canal">
-                  <select
-                    className={INPUT}
+                  <Select
                     value={channel}
-                    onChange={(event) =>
-                      setChannel(event.target.value as CrmFormChannel)
-                    }
-                  >
-                    <option value="site">Site / formulário</option>
-                    <option value="ads">Anúncio</option>
-                  </select>
+                    onChange={(value) => setChannel(value as CrmFormChannel)}
+                    className="w-full"
+                    options={[
+                      { value: "site", label: "Site / formulário" },
+                      { value: "ads", label: "Anúncio" },
+                    ]}
+                  />
                 </Field>
                 <Field label="Tipo de lead">
-                  <select
-                    className={INPUT}
+                  <Select
                     value={leadKind}
-                    onChange={(event) =>
-                      setLeadKind(event.target.value as CrmLeadKind)
-                    }
-                  >
-                    <option value="company">Empresa</option>
-                    <option value="person">Pessoa</option>
-                  </select>
+                    onChange={(value) => setLeadKind(value as CrmLeadKind)}
+                    className="w-full"
+                    options={[
+                      { value: "company", label: "Empresa" },
+                      { value: "person", label: "Pessoa" },
+                    ]}
+                  />
                 </Field>
               </div>
 

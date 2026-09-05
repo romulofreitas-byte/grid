@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useLayoutEffect,
   useState,
   type ReactNode,
@@ -11,6 +12,16 @@ import { cn } from "@/lib/utils";
 
 const GAP = 6;
 const EDGE = 8;
+
+export const POPOVER_FADE_MS = 120;
+
+export function popoverFadeMs(reducedMotion: boolean): number {
+  return reducedMotion ? 0 : POPOVER_FADE_MS;
+}
+
+function reducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 export function placeAnchorPopover(input: {
   anchor: DOMRect;
@@ -46,6 +57,8 @@ export function AnchorPopover({
   panelRef,
   id,
   align = "start",
+  fade = false,
+  matchAnchorWidth = false,
   className,
   children,
 }: {
@@ -54,34 +67,66 @@ export function AnchorPopover({
   panelRef?: RefObject<HTMLDivElement | null>;
   id?: string;
   align?: "start" | "end";
+  fade?: boolean;
+  matchAnchorWidth?: boolean;
   className?: string;
   children: ReactNode;
 }) {
-  const [box, setBox] = useState<{ top: number; left: number } | null>(null);
+  const [box, setBox] = useState<{
+    top: number;
+    left: number;
+    width?: number;
+  } | null>(null);
+  const [shown, setShown] = useState(false);
+  const [opaque, setOpaque] = useState(false);
   const placed = box != null;
 
-  useLayoutEffect(() => {
-    if (!open) {
+  useEffect(() => {
+    if (open) {
+      setShown(true);
+      return;
+    }
+    const ms = fade ? popoverFadeMs(reducedMotion()) : 0;
+    if (ms <= 0) {
+      setShown(false);
+      setOpaque(false);
       setBox(null);
       return;
     }
+    setOpaque(false);
+    const t = window.setTimeout(() => {
+      setShown(false);
+      setBox(null);
+    }, ms);
+    return () => window.clearTimeout(t);
+  }, [open, fade]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
     let ro: ResizeObserver | null = null;
     function place() {
       const el = anchorRef.current;
       if (!el) return;
       const panel = panelRef?.current;
+      const anchor = el.getBoundingClientRect();
       const next = placeAnchorPopover({
-        anchor: el.getBoundingClientRect(),
-        panelWidth: panel?.offsetWidth ?? 192,
+        anchor,
+        panelWidth: matchAnchorWidth
+          ? anchor.width
+          : (panel?.offsetWidth ?? 192),
         panelHeight: panel?.offsetHeight ?? 160,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
         align,
       });
+      const width = matchAnchorWidth ? anchor.width : undefined;
       setBox((prev) =>
-        prev && prev.top === next.top && prev.left === next.left
+        prev &&
+        prev.top === next.top &&
+        prev.left === next.left &&
+        prev.width === width
           ? prev
-          : next,
+          : { ...next, width },
       );
     }
     place();
@@ -99,19 +144,39 @@ export function AnchorPopover({
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [open, placed, anchorRef, panelRef, align]);
+  }, [open, placed, anchorRef, panelRef, align, matchAnchorWidth]);
 
-  if (!open || !box) return null;
+  useLayoutEffect(() => {
+    if (!open || !placed) return;
+    const ms = fade ? popoverFadeMs(reducedMotion()) : 0;
+    if (ms <= 0) {
+      setOpaque(true);
+      return;
+    }
+    setOpaque(false);
+    const raf = window.requestAnimationFrame(() => setOpaque(true));
+    return () => window.cancelAnimationFrame(raf);
+  }, [open, placed, fade]);
+
+  if (!box) return null;
+  if (!open && (!fade || !shown)) return null;
+
+  const ms = fade ? popoverFadeMs(reducedMotion()) : 0;
 
   return createPortal(
     <div
       ref={panelRef}
       id={id}
+      data-anchor-popover=""
       style={{
         position: "fixed",
         top: box.top,
         left: box.left,
         zIndex: 80,
+        width: box.width,
+        opacity: !fade || opaque ? 1 : 0,
+        transition:
+          fade && ms > 0 ? `opacity ${POPOVER_FADE_MS}ms ease-out` : undefined,
       }}
       className={cn(
         "rounded-xl border border-white/10 bg-podium-navy shadow-2xl",

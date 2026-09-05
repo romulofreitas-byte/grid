@@ -45,12 +45,17 @@ export function GridMoreMenu({
   useEffect(() => {
     if (!open) return;
     function onDoc(event: MouseEvent) {
+      const target = event.target as Node;
       if (
-        !rootRef.current?.contains(event.target as Node) &&
-        !panelRef.current?.contains(event.target as Node)
+        rootRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
       ) {
-        setOpen(false);
+        return;
       }
+      if ((event.target as HTMLElement | null)?.closest?.("[data-anchor-popover]")) {
+        return;
+      }
+      setOpen(false);
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);

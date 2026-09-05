@@ -5,6 +5,7 @@ import { Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
 import { Badge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import { BILLING_ME_QUERY_KEY } from "@/hooks/useBillingMe";
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
@@ -426,27 +427,29 @@ export function CrmAddDealDialog({
             <label className="block">
               <span className={CRM_LABEL}>{COPY.crmPipelineSelectLabel}</span>
               <span className="mt-1.5 flex gap-1.5">
-                <select
-                  className={cn(CRM_FIELD, "min-w-0 flex-1")}
+                <Select
+                  size="sm"
+                  className="min-w-0 flex-1"
                   value={pipelineId}
                   disabled={creatingPipelineBusy}
-                  onChange={(event) => {
-                    if (event.target.value === CREATE_PIPELINE_VALUE) {
+                  onChange={(value) => {
+                    if (value === CREATE_PIPELINE_VALUE) {
                       startCreatePipeline();
                       return;
                     }
-                    setPipelineId(event.target.value);
+                    setPipelineId(value);
                   }}
-                >
-                  <option value={CREATE_PIPELINE_VALUE}>
-                    + {COPY.crmNewPipeline}
-                  </option>
-                  {pipelineOptions.map((pipeline) => (
-                    <option key={pipeline.id} value={pipeline.id}>
-                      {pipeline.nome}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    {
+                      value: CREATE_PIPELINE_VALUE,
+                      label: `+ ${COPY.crmNewPipeline}`,
+                    },
+                    ...pipelineOptions.map((pipeline) => ({
+                      value: pipeline.id,
+                      label: pipeline.nome,
+                    })),
+                  ]}
+                />
                 {creatingNew ? null : (
                   <button
                     type="button"
@@ -485,18 +488,17 @@ export function CrmAddDealDialog({
             ) : (
               <label className="block">
                 <span className={CRM_LABEL}>{COPY.crmStageSelectLabel}</span>
-                <select
-                  className={cn(CRM_FIELD, "mt-1.5")}
+                <Select
+                  size="sm"
+                  className="mt-1.5 w-full"
                   value={stageId}
                   disabled={stages.length === 0}
-                  onChange={(event) => setStageId(event.target.value)}
-                >
-                  {stages.map((stage) => (
-                    <option key={stage.id} value={stage.id}>
-                      {stage.nome}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setStageId}
+                  options={stages.map((stage) => ({
+                    value: stage.id,
+                    label: stage.nome,
+                  }))}
+                />
               </label>
             )}
           </div>

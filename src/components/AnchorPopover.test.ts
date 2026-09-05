@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeAnchorPopover } from "./AnchorPopover";
+import { placeAnchorPopover, popoverFadeMs, POPOVER_FADE_MS } from "./AnchorPopover";
 
 describe("placeAnchorPopover", () => {
   const anchor = {
@@ -40,5 +40,15 @@ describe("placeAnchorPopover", () => {
         align: "end",
       }),
     ).toEqual({ top: 334, left: 44 });
+  });
+});
+
+describe("popoverFadeMs", () => {
+  it("holds the panel for the fade duration", () => {
+    expect(popoverFadeMs(false)).toBe(POPOVER_FADE_MS);
+  });
+
+  it("unmounts immediately when motion is reduced", () => {
+    expect(popoverFadeMs(true)).toBe(0);
   });
 });

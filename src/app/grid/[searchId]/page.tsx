@@ -19,6 +19,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { QualifyPendingButton, SelectToggle } from "@/components/SelectToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_CALL_GOAL } from "@/lib/pilot-profile";
@@ -659,17 +660,16 @@ export default function GridPage() {
     }
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <Select
           value={connectionId || destinations[0]?.id || ""}
-          onChange={(e) => setConnectionId(e.target.value)}
-          className="h-7 min-w-0 rounded-md border border-white/15 bg-podium-panel px-2.5 text-xs text-podium-white"
-        >
-          {destinations.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.display_name ?? c.provider}
-            </option>
-          ))}
-        </select>
+          onChange={setConnectionId}
+          size="sm"
+          className="w-40 min-w-0"
+          options={destinations.map((c) => ({
+            value: c.id,
+            label: c.display_name ?? c.provider,
+          }))}
+        />
         <Button
           size="sm"
           variant="primary"

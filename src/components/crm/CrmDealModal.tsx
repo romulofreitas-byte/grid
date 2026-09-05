@@ -20,6 +20,7 @@ import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { CallConfirmDialog } from "@/components/CallConfirmDialog";
+import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
 import { formatNichoCidade } from "@/lib/nicho-cidade";
 import { leadHrefForCnpj } from "@/lib/back";
@@ -1104,18 +1105,18 @@ export function CrmDealModal({
               <p className={cn(CRM_LABEL_LIGHT, "mt-3")}>{COPY.crmCompanyPhone}</p>
               <div className="mt-1.5">
                 {phoneOptions.length > 1 ? (
-                  <select
-                    className={CRM_FIELD_LIGHT}
+                  <Select
+                    size="sm"
+                    tone="light"
+                    className="w-full"
                     value={companyPhone}
                     name="crm-company-phone"
-                    onChange={(event) => selectCompanyPhone(event.target.value)}
-                  >
-                    {phoneOptions.map((phone) => (
-                      <option key={phone} value={phone}>
-                        {formatPhoneDisplay(phone)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={selectCompanyPhone}
+                    options={phoneOptions.map((phone) => ({
+                      value: phone,
+                      label: formatPhoneDisplay(phone),
+                    }))}
+                  />
                 ) : (
                   <input
                     ref={companyPhoneRef}

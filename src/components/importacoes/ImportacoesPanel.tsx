@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { ImportHistory, IMPORT_RUNS_QUERY_KEY } from "@/components/importacoes/ImportHistory";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { crmHref, gridHref } from "@/lib/back";
 import { ENRICH_CREDIT_COST, creditsPhrase, planHasFeature } from "@/lib/billing/catalog";
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
@@ -26,7 +27,6 @@ import { rowToRecord, type SpreadsheetTable } from "@/lib/crm/import-file";
 import { IMPORT_MAX_ROWS } from "@/lib/crm/schema";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import { useBillingMe } from "@/hooks/useBillingMe";
-import { cn } from "@/lib/utils";
 
 const NEW_PIPELINE = "__new__";
 
@@ -240,22 +240,21 @@ export function ImportacoesPanel({
             </p>
           )}
         </div>
-        <select
-          className={cn(INPUT, "py-1.5 text-xs")}
+        <Select
+          size="sm"
+          className="w-full"
           value={mapping[index] ?? "skip"}
-          onChange={(event) => {
+          onChange={(value) => {
             const next = [...mapping];
-            next[index] = event.target.value as ImportColumnKey;
+            next[index] = value as ImportColumnKey;
             setMapping(next);
           }}
           aria-label={`Campo do Grid para ${header || `coluna ${index + 1}`}`}
-        >
-          {COLUMN_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={COLUMN_OPTIONS.map((option) => ({
+            value: option.id,
+            label: option.label,
+          }))}
+        />
       </div>
     );
   }
@@ -452,18 +451,18 @@ export function ImportacoesPanel({
         <Step n={3} title="Destino desta subida">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nicho">
-              <select
-                className={INPUT}
+              <Select
                 value={dest}
-                onChange={(event) => setDest(event.target.value)}
-              >
-                <option value={NEW_PIPELINE}>Novo nicho</option>
-                {initialPipelines.map((pipeline) => (
-                  <option key={pipeline.id} value={pipeline.id}>
-                    {pipeline.nome}
-                  </option>
-                ))}
-              </select>
+                onChange={setDest}
+                className="w-full"
+                options={[
+                  { value: NEW_PIPELINE, label: "Novo nicho" },
+                  ...initialPipelines.map((pipeline) => ({
+                    value: pipeline.id,
+                    label: pipeline.nome,
+                  })),
+                ]}
+              />
             </Field>
             {dest === NEW_PIPELINE ? (
               <Field label="Nome do nicho">

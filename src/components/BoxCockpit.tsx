@@ -8,6 +8,7 @@ import { BoxDayCta } from "@/components/BoxDayCta";
 import { BoxEstrutura } from "@/components/BoxEstrutura";
 import { GlassCard } from "@/components/GlassCard";
 import { PilotAvatar } from "@/components/PilotAvatar";
+import { Select } from "@/components/ui/Select";
 import { VoltaRing } from "@/components/VoltaRing";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { planosHref } from "@/lib/billing/href";
@@ -226,20 +227,18 @@ export function BoxCockpit({
                       <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
                         {COPY.listaDaVolta}
                       </span>
-                      <select
+                      <Select
                         value={workingSearchId && savedLists.some((s) => s.id === workingSearchId) ? workingSearchId : (next?.searchId ?? savedLists[0]?.id ?? "")}
-                        onChange={(e) => {
-                          writeWorkingSearchCookie(e.target.value || null);
+                        onChange={(id) => {
+                          writeWorkingSearchCookie(id || null);
                           router.refresh();
                         }}
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm text-podium-white outline-none focus:border-podium-yellow/40"
-                      >
-                        {savedLists.map((list) => (
-                          <option key={list.id} value={list.id}>
-                            {list.nome}
-                          </option>
-                        ))}
-                      </select>
+                        className="mt-1 w-full"
+                        options={savedLists.map((list) => ({
+                          value: list.id,
+                          label: list.nome,
+                        }))}
+                      />
                       {workingMismatch ? (
                         <span className="mt-1 block text-[11px] text-podium-yellow">
                           {COPY.listaDaVoltaFallback}
