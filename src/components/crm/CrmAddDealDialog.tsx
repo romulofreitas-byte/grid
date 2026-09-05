@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
+import { Badge } from "@/components/ui/Badge";
 import { BILLING_ME_QUERY_KEY } from "@/hooks/useBillingMe";
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
@@ -18,6 +19,7 @@ import {
   type AddDealSelectedCompany,
   type AddDealSocio,
 } from "@/lib/crm/add-deal";
+import { digitsCnpj } from "@/lib/crm/bridge";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
 import type { CrmBoard, CrmPipelineSummary, CrmStage } from "@/lib/crm/types";
@@ -107,14 +109,11 @@ export function CrmAddDealDialog({
   const [pulled, setPulled] = useState(false);
   const [review, setReview] = useState<AddDealReviewBriefing | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pipelineId, setPipelineId] = useState(currentPipelineId);
-  const [stageId, setStageId] = useState(
-    () => pickEntradaStage(currentStages)?.id ?? "",
-  );
+  const [pipelineId, setPipelineId] = useState(CREATE_PIPELINE_VALUE);
+  const [stageId, setStageId] = useState("");
   const [createdPipelines, setCreatedPipelines] = useState<CrmPipelineSummary[]>(
     [],
   );
-  const [creatingPipeline, setCreatingPipeline] = useState(false);
   const [pipelineDraft, setPipelineDraft] = useState("");
   const [creatingPipelineBusy, setCreatingPipelineBusy] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -131,7 +130,24 @@ export function CrmAddDealDialog({
   const search = useCompanySearch(debounced.trim(), !selected);
   const hits = !selected && canSearchCompanies(debounced.trim()) ? (search.data ?? []) : [];
   const showList = listOpen && !selected && canSearchCompanies(debounced.trim());
+  const hitCnpjs = useMemo(
+    () => [...new Set(hits.map((hit) => digitsCnpj(hit.cnpj)))],
+    [hits],
+  );
+  const inCrmLookup = useQuery({
+    queryKey: ["crm-add-deal-in-crm", hitCnpjs],
+    queryFn: async () => {
+      const params = new URLSearchParams({ cnpjs: hitCnpjs.join(",") });
+      return crmFetch<{ cnpjs: string[] }>(`/api/crm/deals/cnpjs?${params}`);
+    },
+    enabled: hitCnpjs.length > 0,
+  });
+  const inCrmSet = useMemo(
+    () => new Set((inCrmLookup.data?.cnpjs ?? []).map(digitsCnpj)),
+    [inCrmLookup.data],
+  );
 
+  const creatingNew = pipelineId === CREATE_PIPELINE_VALUE;
   const remoteBoard = useQuery({
     queryKey: ["crm-add-deal-board", pipelineId],
     queryFn: async () => {
@@ -140,18 +156,24 @@ export function CrmAddDealDialog({
       );
       return res.board;
     },
-    enabled: pipelineId !== currentPipelineId,
+    enabled:
+      !creatingNew && Boolean(pipelineId) && pipelineId !== currentPipelineId,
   });
 
-  const stages =
-    pipelineId === currentPipelineId
+  const stages = creatingNew
+    ? EMPTY_STAGES
+    : pipelineId === currentPipelineId
       ? currentStages
       : (remoteBoard.data?.stages ?? EMPTY_STAGES);
-  const pipelineDeals =
-    pipelineId === currentPipelineId
+  const pipelineDeals = creatingNew
+    ? EMPTY_DEALS
+    : pipelineId === currentPipelineId
       ? currentDeals
       : (remoteBoard.data?.deals ?? EMPTY_DEALS);
-  const existing = selected ? findDealByCnpj(pipelineDeals, selected.cnpj) : null;
+  const existing =
+    !creatingNew && selected
+      ? findDealByCnpj(pipelineDeals, selected.cnpj)
+      : null;
 
   useEffect(() => {
     const next = pickEntradaStage(stages)?.id ?? "";
@@ -161,25 +183,16 @@ export function CrmAddDealDialog({
   }, [stages]);
 
   function startCreatePipeline() {
-    setCreatingPipeline(true);
+    setPipelineId(CREATE_PIPELINE_VALUE);
     setPipelineDraft("");
     setError(null);
   }
 
-  function cancelCreatePipeline() {
-    createPipelineLock.current = false;
-    setCreatingPipeline(false);
-    setPipelineDraft("");
-    setCreatingPipelineBusy(false);
-  }
-
-  async function submitNewPipeline() {
-    if (createPipelineLock.current) return;
-    const nome = pipelineDraft.trim();
-    if (!nome) {
-      cancelCreatePipeline();
-      return;
-    }
+  async function createNamedPipeline(nome: string): Promise<{
+    pipeline: CrmPipelineSummary;
+    board: CrmBoard;
+  } | null> {
+    if (createPipelineLock.current) return null;
     createPipelineLock.current = true;
     setCreatingPipelineBusy(true);
     setError(null);
@@ -199,12 +212,15 @@ export function CrmAddDealDialog({
       );
       qc.setQueryData(["crm-add-deal-board", created.id], res.board);
       setPipelineId(created.id);
-      cancelCreatePipeline();
+      createPipelineLock.current = false;
+      setCreatingPipelineBusy(false);
       onPipelineCreated(created, res.board);
+      return { pipeline: created, board: res.board };
     } catch (err) {
       createPipelineLock.current = false;
       setError(err instanceof Error ? err.message : "Não criou o nicho.");
       setCreatingPipelineBusy(false);
+      return null;
     }
   }
 
@@ -325,7 +341,29 @@ export function CrmAddDealDialog({
       setError(COPY.crmAddDealNeedFicha);
       return;
     }
-    if (!pipelineId || !stageId) {
+    let destPipelineId = pipelineId;
+    let destStageId = stageId;
+    if (creatingNew) {
+      const nome = pipelineDraft.trim();
+      if (!nome) {
+        setError(COPY.crmAddDealNeedPipeline);
+        return;
+      }
+      setSaving(true);
+      setError(null);
+      const created = await createNamedPipeline(nome);
+      if (!created) {
+        setSaving(false);
+        return;
+      }
+      destPipelineId = created.pipeline.id;
+      destStageId = pickEntradaStage(created.board.stages)?.id ?? "";
+    }
+    if (
+      !destPipelineId ||
+      destPipelineId === CREATE_PIPELINE_VALUE ||
+      !destStageId
+    ) {
       setError("Escolha o pipeline e a etapa.");
       return;
     }
@@ -333,8 +371,8 @@ export function CrmAddDealDialog({
     setError(null);
     try {
       await onCreate({
-        pipelineId,
-        stage_id: stageId,
+        pipelineId: destPipelineId,
+        stage_id: destStageId,
         company_name: company.trim(),
         contact_name: contact.trim(),
         secretaries: secretary.trim() ? [secretary.trim()] : [],
@@ -349,9 +387,13 @@ export function CrmAddDealDialog({
   }
 
   const canSubmit =
-    !creatingPipeline &&
+    !creatingPipelineBusy &&
     (Boolean(existing) ||
-      (Boolean(selected) && pulled && Boolean(pipelineId) && Boolean(stageId)));
+      (Boolean(selected) &&
+        pulled &&
+        (creatingNew
+          ? Boolean(pipelineDraft.trim())
+          : Boolean(pipelineId) && Boolean(stageId))));
 
   const placeLabel = review
     ? [review.municipio, review.uf].filter(Boolean).join("/")
@@ -383,52 +425,29 @@ export function CrmAddDealDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className={CRM_LABEL}>{COPY.crmPipelineSelectLabel}</span>
-              {creatingPipeline ? (
-                <input
-                  className={cn(CRM_FIELD, "mt-1.5")}
-                  value={pipelineDraft}
-                  placeholder={COPY.crmNewPipeline}
-                  autoComplete="off"
-                  spellCheck={false}
-                  autoFocus
+              <span className="mt-1.5 flex gap-1.5">
+                <select
+                  className={cn(CRM_FIELD, "min-w-0 flex-1")}
+                  value={pipelineId}
                   disabled={creatingPipelineBusy}
-                  onChange={(event) => setPipelineDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void submitNewPipeline();
+                  onChange={(event) => {
+                    if (event.target.value === CREATE_PIPELINE_VALUE) {
+                      startCreatePipeline();
+                      return;
                     }
-                    if (event.key === "Escape") {
-                      event.stopPropagation();
-                      cancelCreatePipeline();
-                    }
+                    setPipelineId(event.target.value);
                   }}
-                  onBlur={() => {
-                    if (!creatingPipelineBusy) void submitNewPipeline();
-                  }}
-                />
-              ) : (
-                <span className="mt-1.5 flex gap-1.5">
-                  <select
-                    className={cn(CRM_FIELD, "min-w-0 flex-1")}
-                    value={pipelineId}
-                    onChange={(event) => {
-                      if (event.target.value === CREATE_PIPELINE_VALUE) {
-                        startCreatePipeline();
-                        return;
-                      }
-                      setPipelineId(event.target.value);
-                    }}
-                  >
-                    <option value={CREATE_PIPELINE_VALUE}>
-                      + {COPY.crmNewPipeline}
+                >
+                  <option value={CREATE_PIPELINE_VALUE}>
+                    + {COPY.crmNewPipeline}
+                  </option>
+                  {pipelineOptions.map((pipeline) => (
+                    <option key={pipeline.id} value={pipeline.id}>
+                      {pipeline.nome}
                     </option>
-                    {pipelineOptions.map((pipeline) => (
-                      <option key={pipeline.id} value={pipeline.id}>
-                        {pipeline.nome}
-                      </option>
-                    ))}
-                  </select>
+                  ))}
+                </select>
+                {creatingNew ? null : (
                   <button
                     type="button"
                     aria-label={COPY.crmNewPipeline}
@@ -437,24 +456,49 @@ export function CrmAddDealDialog({
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
-                </span>
-              )}
+                )}
+              </span>
             </label>
-            <label className="block">
-              <span className={CRM_LABEL}>{COPY.crmStageSelectLabel}</span>
-              <select
-                className={cn(CRM_FIELD, "mt-1.5")}
-                value={stageId}
-                disabled={creatingPipeline || stages.length === 0}
-                onChange={(event) => setStageId(event.target.value)}
-              >
-                {stages.map((stage) => (
-                  <option key={stage.id} value={stage.id}>
-                    {stage.nome}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {creatingNew ? (
+              <label className="block">
+                <span className={CRM_LABEL}>{COPY.crmNewPipelineName}</span>
+                <input
+                  className={cn(CRM_FIELD, "mt-1.5")}
+                  value={pipelineDraft}
+                  placeholder={COPY.crmNewPipeline}
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={creatingPipelineBusy}
+                  onChange={(event) => setPipelineDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.stopPropagation();
+                      setPipelineId(currentPipelineId);
+                      setPipelineDraft("");
+                    }
+                  }}
+                />
+                <p className="mt-1.5 text-[11px] text-podium-muted">
+                  {COPY.crmAddDealNewPipelineHint}
+                </p>
+              </label>
+            ) : (
+              <label className="block">
+                <span className={CRM_LABEL}>{COPY.crmStageSelectLabel}</span>
+                <select
+                  className={cn(CRM_FIELD, "mt-1.5")}
+                  value={stageId}
+                  disabled={stages.length === 0}
+                  onChange={(event) => setStageId(event.target.value)}
+                >
+                  {stages.map((stage) => (
+                    <option key={stage.id} value={stage.id}>
+                      {stage.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           <div ref={wrapRef} className="relative">
             <label className="block">
@@ -504,9 +548,19 @@ export function CrmAddDealDialog({
                       className="block w-full px-2.5 py-2 text-left hover:bg-white/[0.04]"
                       onClick={() => pick(hit)}
                     >
-                      <p className="truncate text-xs font-semibold text-podium-white">
-                        {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
-                      </p>
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-podium-white">
+                          {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
+                        </span>
+                        {inCrmSet.has(digitsCnpj(hit.cnpj)) ? (
+                          <Badge
+                            variant="neutral"
+                            className="h-4 shrink-0 px-1.5 text-[9px] uppercase tracking-[0.08em]"
+                          >
+                            {COPY.crmOnGrid}
+                          </Badge>
+                        ) : null}
+                      </span>
                       <p className="mt-0.5 truncate text-[10px] tabular-nums text-podium-muted">
                         {formatCnpj(hit.cnpj)}
                         {hit.municipio ? ` · ${hit.municipio}/${hit.uf}` : ""}
@@ -534,28 +588,34 @@ export function CrmAddDealDialog({
               {phones[0] ? (
                 <span className="text-[10px] tabular-nums text-podium-muted">{phones[0]}</span>
               ) : null}
-              {!existing && !pulled ? (
-                <button
-                  type="button"
-                  disabled={pulling}
-                  onClick={() => void pullFicha()}
-                  className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow hover:text-podium-white disabled:opacity-50"
-                >
-                  {pulling ? COPY.crmPullFichaLoading : COPY.crmPullFicha}
-                  <span className="ml-1.5 font-normal normal-case tracking-normal text-podium-muted">
-                    · {COPY.crmPullFichaCredit}
-                  </span>
-                </button>
-              ) : null}
-              {!existing && pulled ? (
-                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                  {COPY.crmPullFichaDone}
-                </span>
-              ) : null}
             </div>
           ) : null}
-          {!existing && selected && !pulled ? (
-            <p className="text-[11px] text-podium-muted">{COPY.crmPullFichaHint}</p>
+          {selected && !existing && !pulled ? (
+            <div className="rounded-md border border-podium-yellow/25 bg-podium-yellow/5 px-3 py-2.5">
+              <button
+                type="button"
+                disabled={pulling}
+                onClick={() => void pullFicha()}
+                className="inline-flex items-center gap-2 disabled:opacity-50"
+              >
+                <span className="inline-flex items-center rounded-full border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow">
+                  {pulling ? COPY.crmPullFichaLoading : COPY.crmPullFicha}
+                </span>
+                {!pulling ? (
+                  <span className="text-[10px] font-normal text-podium-muted">
+                    {COPY.crmPullFichaCredit}
+                  </span>
+                ) : null}
+              </button>
+              <p className="mt-1.5 text-[11px] leading-snug text-podium-muted">
+                {COPY.crmPullFichaHint}
+              </p>
+            </div>
+          ) : null}
+          {selected && !existing && pulled ? (
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+              {COPY.crmPullFichaDone}
+            </span>
           ) : null}
           {existing ? (
             <p className="text-xs text-podium-yellow">{COPY.crmAddDealAlreadyInPipeline}</p>
