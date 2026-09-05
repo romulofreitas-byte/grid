@@ -25,7 +25,7 @@ function profile(over: Partial<Profile> = {}): Profile {
     promessa: null,
     duracao_reuniao: 20,
     meta_ligacoes_dia: 20,
-    funnel_plan: null,
+    active_meta_id: null,
     onboarding_completed_at: null,
     created_at: "2026-01-01T12:00:00.000Z",
     ...over,

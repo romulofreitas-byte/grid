@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { conexoesHref, largadaNovaHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import type { CallConnectionPick } from "@/lib/integrations/call-target";
-import { defaultFunnelPlan } from "@/lib/calculadora/funnel";
 import type { Profile } from "@/lib/types";
 import { BOX_SLOT_IDS, buildBoxEstrutura } from "./box-estrutura";
 
@@ -16,7 +15,7 @@ function profile(
       | "cidade_usuario"
       | "promessa"
       | "onboarding_completed_at"
-      | "funnel_plan"
+      | "active_meta_id"
     >
   > = {},
 ) {
@@ -27,15 +26,8 @@ function profile(
     cidade_usuario: null,
     promessa: null,
     onboarding_completed_at: null,
-    funnel_plan: null,
+    active_meta_id: null,
     ...over,
-  };
-}
-
-function appliedPlan() {
-  return {
-    ...defaultFunnelPlan(),
-    appliedAt: "2026-09-03T12:00:00.000Z",
   };
 }
 
@@ -173,7 +165,7 @@ describe("buildBoxEstrutura", () => {
     expect(identity.nextGap).toBe("meta");
   });
 
-  it("lights meta only after the funnel plan is applied", () => {
+  it("lights meta only after a meta is applied to the Box", () => {
     const skipped = slotMap({
       savedCount: 0,
       hasUnsavedSearch: false,
@@ -189,7 +181,7 @@ describe("buildBoxEstrutura", () => {
     const finished = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
-      profile: { ...finishedHelmet(), funnel_plan: appliedPlan() },
+      profile: { ...finishedHelmet(), active_meta_id: "meta-1" },
       billing: { total: 25, plano: "free" },
       connections: [],
     });
@@ -200,7 +192,7 @@ describe("buildBoxEstrutura", () => {
     expect(finished.nextGap).toBe("crm");
   });
 
-  it("keeps meta dark until the calculator is applied, even without onboarding", () => {
+  it("keeps meta dark until a meta is applied, even without onboarding", () => {
     const { byId, nextGap } = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
@@ -272,7 +264,7 @@ describe("buildBoxEstrutura", () => {
       slotMap({
         savedCount: 1,
         hasUnsavedSearch: false,
-        profile: { ...finishedHelmet(), funnel_plan: appliedPlan() },
+        profile: { ...finishedHelmet(), active_meta_id: "meta-1" },
         billing: { total: 25, plano: "free" },
         connections: [
           conn({ id: "v", kind: "voip" }),
@@ -284,7 +276,7 @@ describe("buildBoxEstrutura", () => {
       slotMap({
         savedCount: 1,
         hasUnsavedSearch: false,
-        profile: { ...finishedHelmet(), funnel_plan: appliedPlan() },
+        profile: { ...finishedHelmet(), active_meta_id: "meta-1" },
         billing: { total: 0, plano: "piloto" },
         connections: [
           conn({ id: "v", kind: "voip" }),
@@ -295,7 +287,7 @@ describe("buildBoxEstrutura", () => {
     const ready = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
-      profile: { ...finishedHelmet(), funnel_plan: appliedPlan() },
+      profile: { ...finishedHelmet(), active_meta_id: "meta-1" },
       billing: { total: 900, plano: "piloto" },
       connections: [
         conn({ id: "v", kind: "voip" }),
@@ -310,7 +302,7 @@ describe("buildBoxEstrutura", () => {
     const { nextGap, byId } = slotMap({
       savedCount: 1,
       hasUnsavedSearch: false,
-      profile: { ...finishedHelmet(), funnel_plan: appliedPlan() },
+      profile: { ...finishedHelmet(), active_meta_id: "meta-1" },
       billing: { total: 900, plano: "piloto" },
       connections: [],
       hasCrmPipeline: true,
@@ -321,7 +313,7 @@ describe("buildBoxEstrutura", () => {
     expect(nextGap).toBeNull();
   });
 
-  it("deep-links oferta to conta and meta to the calculator", () => {
+  it("deep-links oferta to conta and meta to /metas", () => {
     const { byId } = slotMap({
       savedCount: 0,
       hasUnsavedSearch: false,
@@ -330,7 +322,7 @@ describe("buildBoxEstrutura", () => {
       connections: [],
     });
     expect(byId.oferta.href).toBe("/conta#promessa");
-    expect(byId.meta.href).toBe("/calculadora");
+    expect(byId.meta.href).toBe("/metas");
     expect(byId.meta.cta).toBe(COPY.boxMetaCta);
     expect(byId.capacete.href).toBe("/setup");
     const done = slotMap({

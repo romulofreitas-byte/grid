@@ -1,4 +1,3 @@
-import type { FunnelPlan } from "@/lib/calculadora/funnel";
 
 export type ScoreProfile = "b2c_local" | "b2b_industria";
 
@@ -332,7 +331,7 @@ export type Profile = {
   promessa: string | null;
   duracao_reuniao: number;
   meta_ligacoes_dia: number;
-  funnel_plan: FunnelPlan | null;
+  active_meta_id: string | null;
   onboarding_completed_at: string | null;
   created_at: string;
 };

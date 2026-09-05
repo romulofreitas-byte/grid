@@ -34,6 +34,7 @@ import {
 } from "@/lib/data/company-search";
 import { municipioListLimit } from "@/lib/municipios";
 import { crmMockMethods } from "@/lib/data/crm-mock";
+import { metasMockMethods } from "@/lib/data/metas-mock";
 import { catchupMockMethods } from "@/lib/data/catchup-mock";
 import { listMemoryBilledCnpjs } from "@/lib/billing/memory-store";
 import { digitsCnpj } from "@/lib/crm/bridge";
@@ -1108,6 +1109,47 @@ export const mockRepo: GridRepo = {
     return search;
   },
 
+  async createSavedCnpjList(userId: string, nome: string, cnpjs: string[]) {
+    const unique = [
+      ...new Set(
+        cnpjs
+          .map((value) => value.replace(/\D/g, ""))
+          .filter((digits) => digits.length > 0 && digits.length <= 14)
+          .map((digits) => digits.padStart(14, "0")),
+      ),
+    ];
+    if (!unique.length) return null;
+    const store = getMockStore();
+    const search: Search = {
+      id: randomId(),
+      user_id: userId,
+      nome: nome.trim().slice(0, 80) || "Lista importada",
+      filtros: {
+        ...DEFAULT_FILTERS,
+        cnpjs: unique,
+      },
+      total_found: unique.length,
+      created_at: new Date().toISOString(),
+      saved: true,
+    };
+    store.searches.unshift(search);
+    unique.forEach((cnpj, index) => {
+      store.saved_leads.push({
+        id: randomId(),
+        search_id: search.id,
+        user_id: userId,
+        cnpj,
+        grid_score: 0,
+        grid_position: index + 1,
+        enrichment: null,
+        status: "novo",
+        notas: null,
+        created_at: search.created_at,
+      });
+    });
+    return search;
+  },
+
   async listCompanyBriefs(cnpjs: string[]) {
     const store = getMockStore();
     const idx = getIndexes(store);
@@ -1250,8 +1292,8 @@ export const mockRepo: GridRepo = {
     if (profile.meta_ligacoes_dia == null) {
       profile.meta_ligacoes_dia = DEFAULT_CALL_GOAL;
     }
-    if (profile.funnel_plan === undefined) {
-      profile.funnel_plan = null;
+    if (profile.active_meta_id === undefined) {
+      profile.active_meta_id = null;
     }
     return profile;
   },
@@ -1699,4 +1741,5 @@ export const mockRepo: GridRepo = {
 
   ...crmMockMethods,
   ...catchupMockMethods,
+  ...metasMockMethods,
 };

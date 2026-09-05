@@ -1,5 +1,6 @@
 import { suggestCrmRates, type CrmRateDeal, type CrmRateSuggestions } from "@/lib/calculadora/crm-rates";
-import { getDataSource, hasLiveDatabase } from "@/lib/data";
+import type { MetasPayload } from "@/lib/calculadora/payload";
+import { getDataSource, getRepo, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
 import { isUndefinedColumnError, isUndefinedTableError, query } from "@/lib/data/pg";
 
@@ -69,4 +70,19 @@ export async function loadCrmSuggestions(
       ? await loadCrmDealsPg(userId)
       : loadCrmDealsMock(userId);
   return suggestCrmRates({ deals });
+}
+
+export async function loadMetasPayload(userId: string): Promise<MetasPayload> {
+  const repo = getRepo();
+  const [profile, metas, suggestions] = await Promise.all([
+    repo.getProfile(userId),
+    repo.listMetas(userId),
+    loadCrmSuggestions(userId),
+  ]);
+  return {
+    metas,
+    activeMetaId: profile.active_meta_id,
+    metaLigacoesDia: profile.meta_ligacoes_dia,
+    suggestions,
+  };
 }

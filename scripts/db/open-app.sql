@@ -13,6 +13,7 @@ alter table profiles add column if not exists duracao_reuniao int not null defau
 alter table profiles add column if not exists meta_ligacoes_dia int not null default 20;
 alter table profiles add column if not exists onboarding_completed_at timestamptz;
 alter table profiles add column if not exists funnel_plan jsonb;
+alter table profiles add column if not exists active_meta_id uuid;
 
 alter table profiles drop constraint if exists profiles_tratamento_check;
 alter table profiles add constraint profiles_tratamento_check
@@ -185,3 +186,36 @@ create table if not exists user_catchup_state (
   primary key (user_id, task_id),
   constraint user_catchup_status_chk check (status in ('idle', 'running'))
 );
+
+create table if not exists metas (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references profiles(id) on delete cascade,
+  created_by       uuid not null references profiles(id) on delete cascade,
+  nome             text not null,
+  tipo_empresa     text not null default '',
+  meta_faturamento numeric not null default 0,
+  ticket           numeric not null default 0,
+  prazo_meses      int not null default 0,
+  taxa1            numeric not null default 20,
+  taxa2            numeric not null default 70,
+  taxa3            numeric not null default 80,
+  taxa4            numeric not null default 50,
+  taxas_origem     text not null default 'padrao',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  constraint metas_taxas_origem_chk
+    check (taxas_origem in ('padrao', 'crm', 'manual'))
+);
+create index if not exists metas_user_idx
+  on metas (user_id, updated_at desc);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'profiles_active_meta_id_fkey'
+  ) then
+    alter table profiles
+      add constraint profiles_active_meta_id_fkey
+      foreign key (active_meta_id) references metas(id) on delete set null;
+  end if;
+end $$;

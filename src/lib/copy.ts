@@ -452,6 +452,22 @@ export const COPY = {
     "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:
     "Formulário, anúncio e Make ficam em Automações, cada campanha com o próprio destino.",
+  importacoesHistoryTitle: "Última importação",
+  importacoesHistoryOlder: "Anteriores",
+  importacoesStatusOk: "Entrou",
+  importacoesStatusPartial: "Com erros",
+  importacoesStatusFailed: "Não entrou",
+  importacoesStatusDupes: "Já no quadro",
+  importacoesBadgeCreatedOne: "1 no CRM",
+  importacoesBadgeCreatedMany: "{n} no CRM",
+  importacoesBadgeSkippedOne: "1 já existia",
+  importacoesBadgeSkippedMany: "{n} já existiam",
+  importacoesBadgeErrorOne: "1 com erro",
+  importacoesBadgeErrorMany: "{n} com erro",
+  importacoesDownloadErrors: "Baixar linhas com erro",
+  importacoesFixHint:
+    "Abra o CSV, arrume a linha e suba de novo neste mesmo fluxo.",
+  importacoesSkippedHint: "Já estavam no quadro — não é erro.",
   automacoesTitle: "Automações",
   automacoesLead:
     "Formulário, anúncio ou Make. Cada campanha tem URL, chave e destino próprios.",
@@ -459,10 +475,29 @@ export const COPY = {
     "Até 10 campanhas. Cada uma tem endereço, token e o JSON que o Make envia.",
   automacoesUnlockBar:
     "Crie a campanha para liberar o endereço e a chave.",
+  automacoesReadyBar:
+    "Endereço e chave de {nome} já estão em Suas campanhas — a primeira linha, aberta.",
+  automacoesNewCta: "Nova automação",
   automacoesListHint:
     "Abra a campanha para copiar o endereço e a chave. Cada uma tem o seu par — não misture.",
+  automacoesEventsTitle: "Últimos envios",
+  automacoesEventsEmpty: "Ainda não chegou nada nesta campanha.",
+  automacoesEventsHint:
+    "Cada POST do Make ou do formulário aparece aqui. Token errado também.",
+  automacoesLastCreated: "Entrou",
+  automacoesLastSkipped: "Já no quadro",
+  automacoesLastError: "Recusado",
   automacoesPayloadLead:
     "No Make: módulo HTTP, método POST. Cole o endereço da campanha, o token no header Authorization e o JSON no body.",
+  automacoesPayloadSite:
+    "No formulário do site: POST no endereço, header Authorization com o token, JSON no body.",
+  automacoesPayloadAds:
+    "No Make: módulo HTTP, método POST. Cole o endereço, o token no header Authorization e o JSON no body.",
+  automacoesJsonBelow: "O JSON está no bloco abaixo.",
+  automacoesDeleteTitle: "Apagar {nome}?",
+  automacoesDeleteBody: "O endereço e a chave param de funcionar.",
+  automacoesDeleteConfirm: "Apagar",
+  automacoesDeletePending: "Apagando…",
   crmSearchGrid: "Procurar no Grid",
   crmQualifyNow: "Qualificar agora",
   crmQualifying: "Qualificando…",
@@ -475,7 +510,7 @@ export const COPY = {
   filaContando: "Contando — fila curta.",
   filaQualificando: "Na fila — qualificando",
   filaWorkerOcupado: "Na fila — o servidor está ocupado",
-  calculadoraTitle: "Calculadora",
+  calculadoraTitle: "Meta",
   calculadoraEyebrow: "Previsibilidade comercial",
   calculadoraLead:
     "Calcule o funil, salve várias metas e escolha qual define as ligações do dia.",
@@ -483,6 +518,20 @@ export const COPY = {
   calculadoraMetaFaturamento: "Meta de faturamento no período",
   calculadoraTicket: "Ticket médio do contrato",
   calculadoraPrazo: "Prazo para bater a meta (meses)",
+  metasNome: "Nome da meta",
+  metasTipoEmpresa: "Tipo de empresa",
+  metasNova: "Nova meta",
+  metasLista: "Suas metas",
+  metasListaHint: "Selecione uma meta para abrir o funil abaixo.",
+  metasEmpty:
+    "Nenhuma meta salva. Dê um nome e preencha o funil abaixo para guardar o primeiro cálculo.",
+  metasRascunho: "Rascunho — ainda não está no histórico.",
+  metasNoBox: "No Box",
+  metasUsarNoBox: "Usar no Box",
+  metasExcluir: "Excluir",
+  metasNeedNome: "Dê um nome à meta para salvar.",
+  metasConfirmDelete: "Apagar esta meta? O histórico some; as ligações do dia não zeram.",
+  metasLoadError: "Não foi possível carregar as metas. Recarregue a página.",
   calculadoraTaxas: "Taxas do funil",
   calculadoraTaxa1: "Ligações com decisor → R1 realizada",
   calculadoraTaxa1Hint:
@@ -515,11 +564,11 @@ export const COPY = {
   calculadoraCtaNeed: "Preencha meta, ticket e prazo para gerar o plano.",
   calculadoraApplied: "Ligações do dia atualizadas.",
   calculadoraOpenBox: "Ver no Box",
-  calculadoraContaLink: "Calcular pelo funil",
-  boxMetaTitle: "Calcule a meta",
+  calculadoraContaLink: "Definir meta",
+  boxMetaTitle: "Escolha a meta",
   boxMetaBody:
     "Quantas ligações fecham a meta no período. As ligações do dia saem da meta que você aplicar.",
-  boxMetaCta: "Abrir calculadora",
+  boxMetaCta: "Abrir meta",
 } as const;
 
 export const CALCULADORA_GLOSSARIO = [

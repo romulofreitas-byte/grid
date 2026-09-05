@@ -8,9 +8,12 @@ import type {
   CrmDeal,
   CrmEvent,
   CrmInboundEndpoint,
+  CrmInboundEvent,
+  CrmImportRun,
   CrmPipeline,
   CrmStage,
 } from "@/lib/crm/types";
+import type { PilotMeta } from "@/lib/calculadora/meta";
 import type { SearchJob } from "@/lib/search-jobs";
 import type {
   AddressUsage,
@@ -71,6 +74,7 @@ export type MockStore = {
     resolved_at: string;
   }>;
   profiles: Profile[];
+  metas: PilotMeta[];
   searches: Search[];
   search_jobs: SearchJob[];
   saved_leads: SavedLead[];
@@ -85,6 +89,8 @@ export type MockStore = {
   crm_activities: CrmActivity[];
   crm_events: CrmEvent[];
   crm_inbound_endpoints: CrmInboundEndpoint[];
+  crm_inbound_events: CrmInboundEvent[];
+  crm_import_runs: CrmImportRun[];
   billed_cnpjs: Array<{
     profile_id: string;
     cnpj: string;
@@ -657,11 +663,12 @@ function createMockStore(): MockStore {
         promessa: null,
         duracao_reuniao: 20,
         meta_ligacoes_dia: 20,
-        funnel_plan: null,
+        active_meta_id: null,
         onboarding_completed_at: "2026-01-01T12:00:00.000Z",
         created_at: "2026-01-01T12:00:00.000Z",
       },
     ],
+    metas: [],
     searches: [],
     search_jobs: [],
     saved_leads: [],
@@ -676,6 +683,8 @@ function createMockStore(): MockStore {
     crm_activities: [],
     crm_events: [],
     crm_inbound_endpoints: [],
+    crm_inbound_events: [],
+    crm_import_runs: [],
     billed_cnpjs: [],
     user_catchup_state: [],
   };
@@ -743,7 +752,7 @@ function seedApproachDoorsEnrichment(store: MockStore): void {
   });
 }
 
-const MOCK_STORE_VERSION = 14;
+const MOCK_STORE_VERSION = 15;
 
 const globalForMock = globalThis as typeof globalThis & {
   __gridMockStore?: MockStore;

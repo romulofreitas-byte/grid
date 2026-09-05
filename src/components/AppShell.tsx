@@ -6,11 +6,11 @@ import { Suspense } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
-  Calculator,
   Columns3,
   Flag,
   List,
   Search,
+  Target,
 } from "lucide-react";
 import { AngularBackground } from "@/components/AngularBackground";
 import { BackLink } from "@/components/BackLink";
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/painel", label: "Painel", icon: BarChart3 },
-  { href: "/calculadora", label: "Calculadora", icon: Calculator },
+  { href: "/metas", label: "Meta", icon: Target },
   { href: "/largada", label: "Nova lista", icon: Flag },
   { href: "/empresas", label: "Empresas", icon: Search },
   { href: "/listas", label: "Listas", icon: List },

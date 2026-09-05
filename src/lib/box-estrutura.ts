@@ -1,7 +1,6 @@
 import { conexoesHref, largadaNovaHref } from "@/lib/back";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
-import { funnelPlanApplied } from "@/lib/calculadora/funnel";
 import {
   pickCallConnection,
   type CallConnectionPick,
@@ -49,7 +48,7 @@ export type BoxEstruturaInput = {
     | "cidade_usuario"
     | "promessa"
     | "onboarding_completed_at"
-    | "funnel_plan"
+    | "active_meta_id"
   >;
   billing: {
     total: number;
@@ -69,7 +68,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const helmetReady =
     hasPresentationIdentity(input.profile) || onboardingDone;
   const ofertaReady = filled(input.profile.promessa);
-  const metaReady = funnelPlanApplied(input.profile.funnel_plan);
+  const metaReady = Boolean(input.profile.active_meta_id);
   const ligarReady = pickCallConnection(input.connections) != null;
   const crmReady = Boolean(input.hasCrmPipeline);
   const creditosReady = input.billing.plano !== "free" && input.billing.total > 0;
@@ -99,7 +98,7 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       done: metaReady,
       title: COPY.boxMetaTitle,
       body: COPY.boxMetaBody,
-      href: "/calculadora",
+      href: "/metas",
       cta: COPY.boxMetaCta,
     },
     {

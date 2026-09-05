@@ -238,7 +238,7 @@ export default function ContaPage() {
                 ))}
               </div>
               <Link
-                href="/calculadora"
+                href="/metas"
                 className="mt-3 inline-block text-xs font-bold text-podium-yellow"
               >
                 {COPY.calculadoraContaLink}
@@ -380,7 +380,7 @@ export default function ContaPage() {
             </GlassCard>
               </div>
               <Link
-                href="/calculadora"
+                href="/metas"
                 className="mt-3 inline-block text-xs font-bold text-podium-yellow"
               >
                 {COPY.calculadoraContaLink}

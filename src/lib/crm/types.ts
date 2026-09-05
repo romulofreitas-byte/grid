@@ -95,6 +95,87 @@ export type CrmInboundEndpoint = {
   updated_at: string;
 };
 
+export const CRM_INBOUND_EVENT_STATUSES = [
+  "created",
+  "skipped",
+  "error",
+] as const;
+export type CrmInboundEventStatus = (typeof CRM_INBOUND_EVENT_STATUSES)[number];
+
+export type CrmInboundEventSnapshot = {
+  company: string;
+  name: string;
+  phone: string;
+  email: string;
+  cnpj: string;
+};
+
+export type CrmInboundEvent = {
+  id: string;
+  endpoint_id: string;
+  user_id: string;
+  status: CrmInboundEventStatus;
+  http_status: number;
+  message: string;
+  deal_id: string | null;
+  snapshot: CrmInboundEventSnapshot;
+  payload: Record<string, string> | null;
+  created_at: string;
+};
+
+export type CrmInboundEventCreateInput = {
+  endpointId: string;
+  status: CrmInboundEventStatus;
+  httpStatus: number;
+  message: string;
+  dealId?: string | null;
+  snapshot: CrmInboundEventSnapshot;
+  payload?: Record<string, string> | null;
+};
+
+export const CRM_IMPORT_ISSUE_STATUSES = ["error", "skipped"] as const;
+export type CrmImportRunIssueStatus = (typeof CRM_IMPORT_ISSUE_STATUSES)[number];
+
+export type CrmImportRunIssue = {
+  row: number;
+  status: CrmImportRunIssueStatus;
+  message: string;
+  company: string;
+  name: string;
+  phone: string;
+  email: string;
+  cnpj: string;
+};
+
+export type CrmImportRun = {
+  id: string;
+  user_id: string;
+  pipeline_id: string | null;
+  pipeline_nome: string;
+  file_name: string | null;
+  created: number;
+  skipped: number;
+  error_count: number;
+  matched_cnpjs: number;
+  list_id: string | null;
+  qualified: number;
+  issues: CrmImportRunIssue[];
+  created_at: string;
+};
+
+export type CrmImportRunCreateInput = {
+  pipelineId: string | null;
+  pipelineNome: string;
+  fileName?: string | null;
+  created: number;
+  skipped: number;
+  errorCount: number;
+  matchedCnpjs: number;
+  listId?: string | null;
+  qualified: number;
+  issues: CrmImportRunIssue[];
+};
+
 export type CrmDeal = {
   id: string;
   pipeline_id: string;

@@ -89,7 +89,7 @@ import {
   parseGridSnapshot,
 } from "@/lib/grid-snapshot";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
-import { parseFunnelPlan } from "@/lib/calculadora/funnel";
+import { metasPgMethods } from "@/lib/data/metas-pg";
 import {
   DEFAULT_CALL_GOAL,
   DEFAULT_MEETING_MINUTES,
@@ -328,7 +328,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     promessa: r.promessa == null ? null : String(r.promessa),
     duracao_reuniao: Number(r.duracao_reuniao ?? DEFAULT_MEETING_MINUTES),
     meta_ligacoes_dia: Number(r.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL),
-    funnel_plan: parseFunnelPlan(r.funnel_plan),
+    active_meta_id: r.active_meta_id == null ? null : String(r.active_meta_id),
     onboarding_completed_at:
       r.onboarding_completed_at == null ? null : isoStr(r.onboarding_completed_at),
     created_at: isoStr(r.created_at),
@@ -3054,6 +3054,42 @@ export const supabaseRepo: GridRepo = {
     return search;
   },
 
+  async createSavedCnpjList(userId, nome, cnpjs) {
+    const unique = [
+      ...new Set(
+        cnpjs
+          .map((value) => value.replace(/\D/g, ""))
+          .filter((digits) => digits.length > 0 && digits.length <= 14)
+          .map((digits) => digits.padStart(14, "0")),
+      ),
+    ];
+    if (!unique.length) return null;
+    const filters: SearchFilters = {
+      ...DEFAULT_FILTERS,
+      cnpjs: unique,
+    };
+    const inserted = await query(
+      `insert into searches (user_id, nome, filtros, total_found, saved)
+       values ($1, $2, $3::jsonb, $4, true)
+       returning *`,
+      [
+        userId,
+        nome.trim().slice(0, 80) || "Lista importada",
+        JSON.stringify(filters),
+        unique.length,
+      ],
+    );
+    const search = mapSearch(inserted.rows[0]!);
+    for (let i = 0; i < unique.length; i += 1) {
+      await query(
+        `insert into saved_leads (search_id, user_id, cnpj, grid_score, grid_position, status)
+         values ($1, $2, $3::char(14), 0, $4, 'novo')`,
+        [search.id, userId, unique[i], i + 1],
+      );
+    }
+    return search;
+  },
+
   async listCompanyBriefs(cnpjs) {
     const padded = [...new Set(cnpjs.map(digitsCnpj))].filter(Boolean);
     if (!padded.length) return [];
@@ -3228,7 +3264,7 @@ export const supabaseRepo: GridRepo = {
          documento = $9, documento_tipo = $10,
          foto_url = $11, como_chama = $12, tratamento = $13, promessa = $14,
          duracao_reuniao = $15, meta_ligacoes_dia = $16,
-         onboarding_completed_at = $17, funnel_plan = $18::jsonb
+         onboarding_completed_at = $17, active_meta_id = $18
        where id = $1
        returning *`,
       [
@@ -3249,7 +3285,7 @@ export const supabaseRepo: GridRepo = {
         next.duracao_reuniao,
         next.meta_ligacoes_dia,
         next.onboarding_completed_at,
-        next.funnel_plan == null ? null : JSON.stringify(next.funnel_plan),
+        next.active_meta_id,
       ],
     );
     return mapProfile(rows[0]);
@@ -4042,4 +4078,5 @@ export const supabaseRepo: GridRepo = {
 
   ...crmPgMethods,
   ...catchupPgMethods,
+  ...metasPgMethods,
 };

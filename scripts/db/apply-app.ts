@@ -38,7 +38,11 @@ const FILES = [
   "supabase/migrations/20260910000000_call_event_source_crm.sql",
   "supabase/migrations/20260911000000_credit_lot_idempotency.sql",
   "supabase/migrations/20260912000000_crm_inbound_endpoints.sql",
+  "supabase/migrations/20260913000000_crm_inbound_automations.sql",
   "supabase/migrations/20260914000000_crm_deal_search.sql",
+  "supabase/migrations/20260915000000_crm_import_runs.sql",
+  "supabase/migrations/20260916000000_metas.sql",
+  "supabase/migrations/20260917000000_crm_inbound_events.sql",
 ] as const;
 
 async function main(): Promise<void> {
@@ -88,7 +92,7 @@ async function main(): Promise<void> {
            'call_events','integration_connections','integration_jobs',
            'integration_events','integration_external_ids','platform_subscribers',
            'crm_pipelines','crm_stages','crm_deals','crm_activities','crm_events',
-           'crm_inbound_endpoints','search_jobs','user_catchup_state'
+           'crm_inbound_endpoints','crm_inbound_events','crm_import_runs','search_jobs','user_catchup_state'
          )
        order by table_name`,
     );

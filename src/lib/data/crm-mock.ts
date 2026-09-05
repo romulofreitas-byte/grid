@@ -7,6 +7,11 @@ import {
 import { searchHitsFromDeals } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import {
+  INBOUND_EVENT_KEEP,
+  INBOUND_EVENT_LIST_LIMIT,
+} from "@/lib/crm/inbound-events";
+import { IMPORT_RUN_KEEP, IMPORT_RUN_LIST_LIMIT } from "@/lib/crm/import-history";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
 import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
@@ -23,7 +28,13 @@ import type {
   CrmEvent,
   CrmEventCreateInput,
   CrmEventKind,
+  CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEvent,
+  CrmInboundEventCreateInput,
+  CrmImportRun,
+  CrmImportRunCreateInput,
+  CrmLeadKind,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -594,6 +605,8 @@ export const crmMockMethods = {
     if (patch.phones !== undefined) deal.phones = cleanList(patch.phones);
     if (patch.notes !== undefined) deal.notes = patch.notes;
     if (patch.amount_cents !== undefined) deal.amount_cents = patch.amount_cents;
+    if (patch.cnpj !== undefined) deal.cnpj = patch.cnpj;
+    if (patch.meta !== undefined) deal.meta = { ...deal.meta, ...patch.meta };
     deal.updated_at = nowIso();
     return toCard(store, deal);
   },
@@ -747,12 +760,22 @@ export const crmMockMethods = {
     return { deal: toCard(store, deal), event };
   },
 
-  async getCrmInboundEndpoint(
+  async listCrmInboundEndpoints(
     userId: string,
+  ): Promise<CrmInboundEndpoint[]> {
+    return getMockStore()
+      .crm_inbound_endpoints.filter((row) => row.user_id === userId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  },
+
+  async getCrmInboundEndpointById(
+    userId: string,
+    endpointId: string,
   ): Promise<CrmInboundEndpoint | null> {
     return (
-      getMockStore().crm_inbound_endpoints.find((row) => row.user_id === userId) ??
-      null
+      getMockStore().crm_inbound_endpoints.find(
+        (row) => row.id === endpointId && row.user_id === userId,
+      ) ?? null
     );
   },
 
@@ -766,11 +789,23 @@ export const crmMockMethods = {
     );
   },
 
-  async upsertCrmInboundEndpoint(
+  async findCrmInboundEndpoint(
+    endpointId: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    return (
+      getMockStore().crm_inbound_endpoints.find((row) => row.id === endpointId) ??
+      null
+    );
+  },
+
+  async createCrmInboundEndpoint(
     userId: string,
     input: {
+      nome: string;
       pipelineId: string;
       stage_id?: string | null;
+      lead_kind: CrmLeadKind;
+      channel: CrmFormChannel;
       token_hash: string;
     },
   ): Promise<CrmInboundEndpoint | null> {
@@ -784,26 +819,183 @@ export const crmMockMethods = {
       if (!stage) return null;
     }
     const now = nowIso();
-    const existing = store.crm_inbound_endpoints.find(
-      (row) => row.user_id === userId,
-    );
-    if (existing) {
-      existing.pipeline_id = input.pipelineId;
-      existing.stage_id = input.stage_id ?? null;
-      existing.token_hash = input.token_hash;
-      existing.updated_at = now;
-      return existing;
-    }
     const row: CrmInboundEndpoint = {
       id: id(),
       user_id: userId,
       pipeline_id: input.pipelineId,
       stage_id: input.stage_id ?? null,
+      nome: input.nome.trim(),
+      lead_kind: input.lead_kind,
+      channel: input.channel,
       token_hash: input.token_hash,
       created_at: now,
       updated_at: now,
     };
     store.crm_inbound_endpoints.push(row);
     return row;
+  },
+
+  async updateCrmInboundEndpoint(
+    userId: string,
+    endpointId: string,
+    input: {
+      nome?: string;
+      pipelineId?: string;
+      stage_id?: string | null;
+      lead_kind?: CrmLeadKind;
+      channel?: CrmFormChannel;
+      token_hash?: string;
+    },
+  ): Promise<CrmInboundEndpoint | null> {
+    const store = getMockStore();
+    const existing = store.crm_inbound_endpoints.find(
+      (row) => row.id === endpointId && row.user_id === userId,
+    );
+    if (!existing) return null;
+    const pipelineId = input.pipelineId ?? existing.pipeline_id;
+    if (!ownPipeline(store, userId, pipelineId)) return null;
+    const stageId =
+      input.stage_id !== undefined ? input.stage_id : existing.stage_id;
+    if (stageId) {
+      const stage = store.crm_stages.find(
+        (row) => row.id === stageId && row.pipeline_id === pipelineId,
+      );
+      if (!stage) return null;
+    }
+    if (input.nome !== undefined) existing.nome = input.nome.trim();
+    if (input.lead_kind !== undefined) existing.lead_kind = input.lead_kind;
+    if (input.channel !== undefined) existing.channel = input.channel;
+    if (input.token_hash !== undefined) existing.token_hash = input.token_hash;
+    existing.pipeline_id = pipelineId;
+    existing.stage_id = stageId;
+    existing.updated_at = nowIso();
+    return existing;
+  },
+
+  async deleteCrmInboundEndpoint(
+    userId: string,
+    endpointId: string,
+  ): Promise<boolean> {
+    const store = getMockStore();
+    const before = store.crm_inbound_endpoints.length;
+    store.crm_inbound_endpoints = store.crm_inbound_endpoints.filter(
+      (row) => !(row.id === endpointId && row.user_id === userId),
+    );
+    return store.crm_inbound_endpoints.length < before;
+  },
+
+  async createCrmInboundEvent(
+    userId: string,
+    input: CrmInboundEventCreateInput,
+  ): Promise<CrmInboundEvent | null> {
+    const store = getMockStore();
+    const endpoint = store.crm_inbound_endpoints.find(
+      (row) => row.id === input.endpointId && row.user_id === userId,
+    );
+    if (!endpoint) return null;
+    const row: CrmInboundEvent = {
+      id: id(),
+      endpoint_id: input.endpointId,
+      user_id: userId,
+      status: input.status,
+      http_status: input.httpStatus,
+      message: input.message.slice(0, 200),
+      deal_id: input.dealId ?? null,
+      snapshot: input.snapshot,
+      payload: input.payload ?? null,
+      created_at: nowIso(),
+    };
+    store.crm_inbound_events.push(row);
+    const kept = store.crm_inbound_events
+      .filter((item) => item.endpoint_id === input.endpointId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, INBOUND_EVENT_KEEP)
+      .map((item) => item.id);
+    const keep = new Set(kept);
+    store.crm_inbound_events = store.crm_inbound_events.filter(
+      (item) => item.endpoint_id !== input.endpointId || keep.has(item.id),
+    );
+    return row;
+  },
+
+  async listCrmInboundEvents(
+    userId: string,
+    endpointId: string,
+    limit = INBOUND_EVENT_LIST_LIMIT,
+  ): Promise<CrmInboundEvent[]> {
+    const cap = Math.min(Math.max(limit, 1), INBOUND_EVENT_LIST_LIMIT);
+    return getMockStore()
+      .crm_inbound_events.filter(
+        (row) => row.user_id === userId && row.endpoint_id === endpointId,
+      )
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, cap);
+  },
+
+  async listCrmInboundLastEvents(userId: string): Promise<CrmInboundEvent[]> {
+    const byEndpoint = new Map<string, CrmInboundEvent>();
+    for (const row of getMockStore().crm_inbound_events) {
+      if (row.user_id !== userId) continue;
+      const current = byEndpoint.get(row.endpoint_id);
+      if (!current || row.created_at > current.created_at) {
+        byEndpoint.set(row.endpoint_id, row);
+      }
+    }
+    return [...byEndpoint.values()];
+  },
+
+  async createCrmImportRun(
+    userId: string,
+    input: CrmImportRunCreateInput,
+  ): Promise<CrmImportRun | null> {
+    const store = getMockStore();
+    const row: CrmImportRun = {
+      id: id(),
+      user_id: userId,
+      pipeline_id: input.pipelineId,
+      pipeline_nome: input.pipelineNome.slice(0, 80),
+      file_name: input.fileName?.trim().slice(0, 200) || null,
+      created: input.created,
+      skipped: input.skipped,
+      error_count: input.errorCount,
+      matched_cnpjs: input.matchedCnpjs,
+      list_id: input.listId ?? null,
+      qualified: input.qualified,
+      issues: input.issues.slice(0, 500),
+      created_at: nowIso(),
+    };
+    store.crm_import_runs.push(row);
+    const kept = store.crm_import_runs
+      .filter((item) => item.user_id === userId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, IMPORT_RUN_KEEP)
+      .map((item) => item.id);
+    const keep = new Set(kept);
+    store.crm_import_runs = store.crm_import_runs.filter(
+      (item) => item.user_id !== userId || keep.has(item.id),
+    );
+    return row;
+  },
+
+  async listCrmImportRuns(
+    userId: string,
+    limit = IMPORT_RUN_LIST_LIMIT,
+  ): Promise<CrmImportRun[]> {
+    const cap = Math.min(Math.max(limit, 1), IMPORT_RUN_LIST_LIMIT);
+    return getMockStore()
+      .crm_import_runs.filter((row) => row.user_id === userId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, cap)
+      .map((row) => ({ ...row, issues: [] }));
+  },
+
+  async getCrmImportRun(
+    userId: string,
+    runId: string,
+  ): Promise<CrmImportRun | null> {
+    const row = getMockStore().crm_import_runs.find(
+      (item) => item.id === runId && item.user_id === userId,
+    );
+    return row ? { ...row, issues: [...row.issues] } : null;
   },
 };

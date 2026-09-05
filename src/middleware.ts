@@ -44,6 +44,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/painel") ||
     path.startsWith("/box") ||
     path.startsWith("/calculadora") ||
+    path.startsWith("/metas") ||
     path.startsWith("/largada") ||
     path.startsWith("/empresas") ||
     path.startsWith("/grid") ||
@@ -55,6 +56,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/pagar") ||
     path.startsWith("/conexoes") ||
     path.startsWith("/importacoes") ||
+    path.startsWith("/automacoes") ||
     path.startsWith("/admin");
 
   if (protectedPath && !user) {
@@ -93,6 +95,8 @@ export const config = {
     "/box/:path*",
     "/calculadora",
     "/calculadora/:path*",
+    "/metas",
+    "/metas/:path*",
     "/largada",
     "/largada/:path*",
     "/empresas",
@@ -113,6 +117,8 @@ export const config = {
     "/conexoes/:path*",
     "/importacoes",
     "/importacoes/:path*",
+    "/automacoes",
+    "/automacoes/:path*",
     "/admin/:path*",
   ],
 };

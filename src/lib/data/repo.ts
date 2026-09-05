@@ -1,3 +1,4 @@
+import type { MetaInput, MetaApplyResult, PilotMeta } from "@/lib/calculadora/meta";
 import type {
   CatchUpCandidate,
   CatchUpLockResult,
@@ -20,7 +21,13 @@ import type {
   CrmDealSearchHit,
   CrmEvent,
   CrmEventCreateInput,
+  CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEvent,
+  CrmInboundEventCreateInput,
+  CrmImportRun,
+  CrmImportRunCreateInput,
+  CrmLeadKind,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -135,6 +142,11 @@ export type GridRepo = {
     cnpj: string,
     nome?: string,
   ): Promise<Search | null>;
+  createSavedCnpjList(
+    userId: string,
+    nome: string,
+    cnpjs: string[],
+  ): Promise<Search | null>;
   listGridRows(
     searchId: string,
     cursor?: number,
@@ -156,6 +168,15 @@ export type GridRepo = {
     patch: { status?: LeadStatus; notas?: string },
   ): Promise<void>;
   updateProfile(userId: string, patch: Partial<Profile>): Promise<Profile>;
+  listMetas(userId: string): Promise<PilotMeta[]>;
+  createMeta(userId: string, input: MetaInput): Promise<PilotMeta>;
+  updateMeta(
+    userId: string,
+    metaId: string,
+    patch: Partial<MetaInput>,
+  ): Promise<PilotMeta | null>;
+  deleteMeta(userId: string, metaId: string): Promise<boolean>;
+  applyMeta(userId: string, metaId: string): Promise<MetaApplyResult>;
   recordCallEvent(
     userId: string,
     input: {
@@ -372,18 +393,55 @@ export type GridRepo = {
     dealId: string,
     outcome: CrmOutcome,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
-  getCrmInboundEndpoint(userId: string): Promise<CrmInboundEndpoint | null>;
+  listCrmInboundEndpoints(userId: string): Promise<CrmInboundEndpoint[]>;
+  getCrmInboundEndpointById(
+    userId: string,
+    endpointId: string,
+  ): Promise<CrmInboundEndpoint | null>;
   getCrmInboundEndpointByTokenHash(
     tokenHash: string,
   ): Promise<CrmInboundEndpoint | null>;
-  upsertCrmInboundEndpoint(
+  findCrmInboundEndpoint(endpointId: string): Promise<CrmInboundEndpoint | null>;
+  createCrmInboundEndpoint(
     userId: string,
     input: {
+      nome: string;
       pipelineId: string;
       stage_id?: string | null;
+      lead_kind: CrmLeadKind;
+      channel: CrmFormChannel;
       token_hash: string;
     },
   ): Promise<CrmInboundEndpoint | null>;
+  updateCrmInboundEndpoint(
+    userId: string,
+    endpointId: string,
+    input: {
+      nome?: string;
+      pipelineId?: string;
+      stage_id?: string | null;
+      lead_kind?: CrmLeadKind;
+      channel?: CrmFormChannel;
+      token_hash?: string;
+    },
+  ): Promise<CrmInboundEndpoint | null>;
+  deleteCrmInboundEndpoint(userId: string, endpointId: string): Promise<boolean>;
+  createCrmInboundEvent(
+    userId: string,
+    input: CrmInboundEventCreateInput,
+  ): Promise<CrmInboundEvent | null>;
+  listCrmInboundEvents(
+    userId: string,
+    endpointId: string,
+    limit?: number,
+  ): Promise<CrmInboundEvent[]>;
+  listCrmInboundLastEvents(userId: string): Promise<CrmInboundEvent[]>;
+  createCrmImportRun(
+    userId: string,
+    input: CrmImportRunCreateInput,
+  ): Promise<CrmImportRun | null>;
+  listCrmImportRuns(userId: string, limit?: number): Promise<CrmImportRun[]>;
+  getCrmImportRun(userId: string, runId: string): Promise<CrmImportRun | null>;
   listCatchUpQualifiedCnpjs(
     userId: string,
     opts?: { searchId?: string; limit?: number },

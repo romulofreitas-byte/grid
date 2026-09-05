@@ -22,6 +22,7 @@ create table if not exists profiles (
   meta_ligacoes_dia int not null default 20,
   onboarding_completed_at timestamptz,
   funnel_plan     jsonb,
+  active_meta_id  uuid,
   created_at      timestamptz default now()
 );
 
@@ -59,6 +60,7 @@ alter table profiles add column if not exists duracao_reuniao int not null defau
 alter table profiles add column if not exists meta_ligacoes_dia int not null default 20;
 alter table profiles add column if not exists onboarding_completed_at timestamptz;
 alter table profiles add column if not exists funnel_plan jsonb;
+alter table profiles add column if not exists active_meta_id uuid;
 
 create table if not exists call_events (
   id             uuid primary key default gen_random_uuid(),
@@ -248,11 +250,89 @@ create table if not exists crm_inbound_endpoints (
   user_id      uuid not null references profiles(id) on delete cascade,
   pipeline_id  uuid not null references crm_pipelines(id) on delete cascade,
   stage_id     uuid references crm_stages(id) on delete set null,
+  nome         text not null default 'Campanha',
+  lead_kind    text not null default 'company',
+  channel      text not null default 'site',
   token_hash   text not null,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
-  constraint crm_inbound_endpoints_user_uidx unique (user_id)
+  constraint crm_inbound_endpoints_lead_kind_chk
+    check (lead_kind in ('company', 'person')),
+  constraint crm_inbound_endpoints_channel_chk
+    check (channel in ('ads', 'site'))
 );
-create index if not exists crm_inbound_endpoints_token_idx
+create unique index if not exists crm_inbound_endpoints_token_uidx
   on crm_inbound_endpoints (token_hash);
+create index if not exists crm_inbound_endpoints_user_idx
+  on crm_inbound_endpoints (user_id);
+
+create table if not exists crm_inbound_events (
+  id           uuid primary key default gen_random_uuid(),
+  endpoint_id  uuid not null references crm_inbound_endpoints(id) on delete cascade,
+  user_id      uuid not null references profiles(id) on delete cascade,
+  status       text not null,
+  http_status  int not null,
+  message      text not null default '',
+  deal_id      uuid,
+  snapshot     jsonb not null default '{}'::jsonb,
+  payload      jsonb,
+  created_at   timestamptz not null default now(),
+  constraint crm_inbound_events_status_chk
+    check (status in ('created', 'skipped', 'error'))
+);
+create index if not exists crm_inbound_events_endpoint_idx
+  on crm_inbound_events (endpoint_id, created_at desc);
+create index if not exists crm_inbound_events_user_idx
+  on crm_inbound_events (user_id, created_at desc);
+
+create table if not exists crm_import_runs (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references profiles(id) on delete cascade,
+  pipeline_id     uuid references crm_pipelines(id) on delete set null,
+  pipeline_nome   text not null,
+  file_name       text,
+  created_count   int not null default 0,
+  skipped_count   int not null default 0,
+  error_count     int not null default 0,
+  matched_cnpjs   int not null default 0,
+  list_id         uuid,
+  qualified       int not null default 0,
+  issues          jsonb not null default '[]'::jsonb,
+  created_at      timestamptz not null default now()
+);
+create index if not exists crm_import_runs_user_idx
+  on crm_import_runs (user_id, created_at desc);
+
+create table if not exists metas (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references profiles(id) on delete cascade,
+  created_by       uuid not null references profiles(id) on delete cascade,
+  nome             text not null,
+  tipo_empresa     text not null default '',
+  meta_faturamento numeric not null default 0,
+  ticket           numeric not null default 0,
+  prazo_meses      int not null default 0,
+  taxa1            numeric not null default 20,
+  taxa2            numeric not null default 70,
+  taxa3            numeric not null default 80,
+  taxa4            numeric not null default 50,
+  taxas_origem     text not null default 'padrao',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  constraint metas_taxas_origem_chk
+    check (taxas_origem in ('padrao', 'crm', 'manual'))
+);
+create index if not exists metas_user_idx
+  on metas (user_id, updated_at desc);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'profiles_active_meta_id_fkey'
+  ) then
+    alter table profiles
+      add constraint profiles_active_meta_id_fkey
+      foreign key (active_meta_id) references metas(id) on delete set null;
+  end if;
+end $$;
 

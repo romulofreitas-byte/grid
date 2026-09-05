@@ -18,6 +18,16 @@ import {
 } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import {
+  INBOUND_EVENT_KEEP,
+  INBOUND_EVENT_LIST_LIMIT,
+  mapInboundEventRow,
+} from "@/lib/crm/inbound-events";
+import {
+  IMPORT_RUN_KEEP,
+  IMPORT_RUN_LIST_LIMIT,
+  parseImportRunIssues,
+} from "@/lib/crm/import-history";
 import { escapeIlike, sqlFoldAccent } from "@/lib/data/company-search";
 import { normalizeText } from "@/lib/normalize-text";
 import { formatPhone } from "@/lib/format";
@@ -35,7 +45,13 @@ import type {
   CrmEvent,
   CrmEventCreateInput,
   CrmEventKind,
+  CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEvent,
+  CrmInboundEventCreateInput,
+  CrmImportRun,
+  CrmImportRunCreateInput,
+  CrmLeadKind,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -155,10 +171,28 @@ function mapInboundEndpoint(row: QueryResultRow): CrmInboundEndpoint {
     user_id: String(row.user_id),
     pipeline_id: String(row.pipeline_id),
     stage_id: row.stage_id == null || row.stage_id === "" ? null : String(row.stage_id),
+    nome: String(row.nome ?? "Campanha"),
+    lead_kind: row.lead_kind === "person" ? "person" : "company",
+    channel: row.channel === "ads" ? "ads" : "site",
     token_hash: String(row.token_hash),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
   };
+}
+
+function mapInboundEvent(row: QueryResultRow): CrmInboundEvent | null {
+  return mapInboundEventRow({
+    id: row.id,
+    endpoint_id: row.endpoint_id,
+    user_id: row.user_id,
+    status: row.status,
+    http_status: row.http_status,
+    message: row.message,
+    deal_id: row.deal_id,
+    snapshot: row.snapshot,
+    payload: row.payload,
+    created_at: row.created_at,
+  });
 }
 
 async function ownedPipeline(
@@ -352,6 +386,30 @@ async function insertOpen(
      values ($1, $2, $3::timestamptz, 'open')`,
     [dealId, kind, dueAt],
   );
+}
+
+function mapImportRun(row: QueryResultRow, includeIssues: boolean): CrmImportRun {
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    pipeline_id:
+      row.pipeline_id == null || row.pipeline_id === ""
+        ? null
+        : String(row.pipeline_id),
+    pipeline_nome: String(row.pipeline_nome ?? ""),
+    file_name:
+      row.file_name == null || row.file_name === ""
+        ? null
+        : String(row.file_name),
+    created: Number(row.created_count ?? 0),
+    skipped: Number(row.skipped_count ?? 0),
+    error_count: Number(row.error_count ?? 0),
+    matched_cnpjs: Number(row.matched_cnpjs ?? 0),
+    list_id: row.list_id == null || row.list_id === "" ? null : String(row.list_id),
+    qualified: Number(row.qualified ?? 0),
+    issues: includeIssues ? parseImportRunIssues(row.issues) : [],
+    created_at: asIso(row.created_at),
+  };
 }
 
 export const crmPgMethods = {
@@ -898,6 +956,8 @@ export const crmPgMethods = {
                 phones = coalesce($6::jsonb, phones),
                 notes = coalesce($7, notes),
                 amount_cents = case when $8::boolean then $9 else amount_cents end,
+                cnpj = case when $10::boolean then $11 else cnpj end,
+                meta = case when $12::boolean then $13::jsonb else meta end,
                 updated_at = now()
           where id = $1`,
         [
@@ -910,6 +970,10 @@ export const crmPgMethods = {
           patch.notes ?? null,
           patch.amount_cents !== undefined,
           patch.amount_cents ?? null,
+          patch.cnpj !== undefined,
+          patch.cnpj ?? null,
+          patch.meta !== undefined,
+          patch.meta ? JSON.stringify(patch.meta) : null,
         ],
       );
       return loadCard(q, dealId);
@@ -1114,13 +1178,33 @@ export const crmPgMethods = {
     });
   },
 
-  async getCrmInboundEndpoint(
+  async listCrmInboundEndpoints(
     userId: string,
+  ): Promise<CrmInboundEndpoint[]> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_endpoints
+          where user_id = $1
+          order by created_at desc`,
+        [userId],
+      );
+      return rows.map(mapInboundEndpoint);
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async getCrmInboundEndpointById(
+    userId: string,
+    endpointId: string,
   ): Promise<CrmInboundEndpoint | null> {
     try {
       const { rows } = await query(
-        `select * from crm_inbound_endpoints where user_id = $1 limit 1`,
-        [userId],
+        `select * from crm_inbound_endpoints
+          where id = $1 and user_id = $2
+          limit 1`,
+        [endpointId, userId],
       );
       return rows[0] ? mapInboundEndpoint(rows[0]) : null;
     } catch (err) {
@@ -1144,11 +1228,29 @@ export const crmPgMethods = {
     }
   },
 
-  async upsertCrmInboundEndpoint(
+  async findCrmInboundEndpoint(
+    endpointId: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_endpoints where id = $1 limit 1`,
+        [endpointId],
+      );
+      return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async createCrmInboundEndpoint(
     userId: string,
     input: {
+      nome: string;
       pipelineId: string;
       stage_id?: string | null;
+      lead_kind: CrmLeadKind;
+      channel: CrmFormChannel;
       token_hash: string;
     },
   ): Promise<CrmInboundEndpoint | null> {
@@ -1161,23 +1263,265 @@ export const crmPgMethods = {
         }
         const { rows } = await q(
           `insert into crm_inbound_endpoints (
-             user_id, pipeline_id, stage_id, token_hash
-           ) values ($1, $2, $3, $4)
-           on conflict (user_id) do update set
-             pipeline_id = excluded.pipeline_id,
-             stage_id = excluded.stage_id,
-             token_hash = excluded.token_hash,
-             updated_at = now()
+             user_id, pipeline_id, stage_id, nome, lead_kind, channel, token_hash
+           ) values ($1, $2, $3, $4, $5, $6, $7)
            returning *`,
           [
             userId,
             input.pipelineId,
             input.stage_id ?? null,
+            input.nome.trim(),
+            input.lead_kind,
+            input.channel,
             input.token_hash,
           ],
         );
         return rows[0] ? mapInboundEndpoint(rows[0]) : null;
       });
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async updateCrmInboundEndpoint(
+    userId: string,
+    endpointId: string,
+    input: {
+      nome?: string;
+      pipelineId?: string;
+      stage_id?: string | null;
+      lead_kind?: CrmLeadKind;
+      channel?: CrmFormChannel;
+      token_hash?: string;
+    },
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      return await withTransaction(async (q) => {
+        const current = await q(
+          `select * from crm_inbound_endpoints where id = $1 and user_id = $2`,
+          [endpointId, userId],
+        );
+        if (!current.rows[0]) return null;
+        const pipelineId =
+          input.pipelineId ?? String(current.rows[0].pipeline_id);
+        if (!(await ownedPipeline(q, userId, pipelineId))) return null;
+        const stageId =
+          input.stage_id !== undefined
+            ? input.stage_id
+            : current.rows[0].stage_id == null
+              ? null
+              : String(current.rows[0].stage_id);
+        if (stageId) {
+          const stages = await listStages(q, pipelineId);
+          if (!stages.some((stage) => stage.id === stageId)) return null;
+        }
+        const { rows } = await q(
+          `update crm_inbound_endpoints
+              set pipeline_id = $3,
+                  stage_id = $4,
+                  nome = coalesce($5, nome),
+                  lead_kind = coalesce($6, lead_kind),
+                  channel = coalesce($7, channel),
+                  token_hash = coalesce($8, token_hash),
+                  updated_at = now()
+            where id = $1 and user_id = $2
+            returning *`,
+          [
+            endpointId,
+            userId,
+            pipelineId,
+            stageId,
+            input.nome?.trim() ?? null,
+            input.lead_kind ?? null,
+            input.channel ?? null,
+            input.token_hash ?? null,
+          ],
+        );
+        return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+      });
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async deleteCrmInboundEndpoint(
+    userId: string,
+    endpointId: string,
+  ): Promise<boolean> {
+    try {
+      const { rowCount } = await query(
+        `delete from crm_inbound_endpoints where id = $1 and user_id = $2`,
+        [endpointId, userId],
+      );
+      return (rowCount ?? 0) > 0;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return false;
+      throw err;
+    }
+  },
+
+  async createCrmInboundEvent(
+    userId: string,
+    input: CrmInboundEventCreateInput,
+  ): Promise<CrmInboundEvent | null> {
+    try {
+      const { rows } = await query(
+        `insert into crm_inbound_events (
+           endpoint_id, user_id, status, http_status, message, deal_id, snapshot, payload
+         )
+         select $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb
+           from crm_inbound_endpoints
+          where id = $1 and user_id = $2
+         returning *`,
+        [
+          input.endpointId,
+          userId,
+          input.status,
+          input.httpStatus,
+          input.message.slice(0, 200),
+          input.dealId ?? null,
+          JSON.stringify(input.snapshot),
+          input.payload ? JSON.stringify(input.payload) : null,
+        ],
+      );
+      await query(
+        `delete from crm_inbound_events
+         where endpoint_id = $1
+           and id not in (
+             select id from crm_inbound_events
+             where endpoint_id = $1
+             order by created_at desc
+             limit $2
+           )`,
+        [input.endpointId, INBOUND_EVENT_KEEP],
+      );
+      return rows[0] ? mapInboundEvent(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async listCrmInboundEvents(
+    userId: string,
+    endpointId: string,
+    limit = INBOUND_EVENT_LIST_LIMIT,
+  ): Promise<CrmInboundEvent[]> {
+    const cap = Math.min(Math.max(limit, 1), INBOUND_EVENT_LIST_LIMIT);
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_events
+          where user_id = $1 and endpoint_id = $2
+          order by created_at desc
+          limit $3`,
+        [userId, endpointId, cap],
+      );
+      return rows
+        .map(mapInboundEvent)
+        .filter((row): row is CrmInboundEvent => Boolean(row));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async listCrmInboundLastEvents(userId: string): Promise<CrmInboundEvent[]> {
+    try {
+      const { rows } = await query(
+        `select distinct on (endpoint_id) *
+           from crm_inbound_events
+          where user_id = $1
+          order by endpoint_id, created_at desc`,
+        [userId],
+      );
+      return rows
+        .map(mapInboundEvent)
+        .filter((row): row is CrmInboundEvent => Boolean(row));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async createCrmImportRun(
+    userId: string,
+    input: CrmImportRunCreateInput,
+  ): Promise<CrmImportRun | null> {
+    try {
+      const { rows } = await query(
+        `insert into crm_import_runs (
+           user_id, pipeline_id, pipeline_nome, file_name,
+           created_count, skipped_count, error_count, matched_cnpjs,
+           list_id, qualified, issues
+         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb)
+         returning *`,
+        [
+          userId,
+          input.pipelineId,
+          input.pipelineNome.slice(0, 80),
+          input.fileName?.trim().slice(0, 200) || null,
+          input.created,
+          input.skipped,
+          input.errorCount,
+          input.matchedCnpjs,
+          input.listId ?? null,
+          input.qualified,
+          JSON.stringify(input.issues.slice(0, 500)),
+        ],
+      );
+      await query(
+        `delete from crm_import_runs
+         where user_id = $1
+           and id not in (
+             select id from crm_import_runs
+             where user_id = $1
+             order by created_at desc
+             limit $2
+           )`,
+        [userId, IMPORT_RUN_KEEP],
+      );
+      return rows[0] ? mapImportRun(rows[0], true) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async listCrmImportRuns(
+    userId: string,
+    limit = IMPORT_RUN_LIST_LIMIT,
+  ): Promise<CrmImportRun[]> {
+    const cap = Math.min(Math.max(limit, 1), IMPORT_RUN_LIST_LIMIT);
+    try {
+      const { rows } = await query(
+        `select id, user_id, pipeline_id, pipeline_nome, file_name,
+                created_count, skipped_count, error_count, matched_cnpjs,
+                list_id, qualified, created_at
+         from crm_import_runs
+         where user_id = $1
+         order by created_at desc
+         limit $2`,
+        [userId, cap],
+      );
+      return rows.map((row) => mapImportRun(row, false));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async getCrmImportRun(
+    userId: string,
+    runId: string,
+  ): Promise<CrmImportRun | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_import_runs where id = $1 and user_id = $2`,
+        [runId, userId],
+      );
+      return rows[0] ? mapImportRun(rows[0], true) : null;
     } catch (err) {
       if (isUndefinedTableError(err)) return null;
       throw err;

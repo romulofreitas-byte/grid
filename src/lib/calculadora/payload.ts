@@ -1,8 +1,9 @@
 import type { CrmRateSuggestions } from "@/lib/calculadora/crm-rates";
-import type { FunnelPlan } from "@/lib/calculadora/funnel";
+import type { PilotMeta } from "@/lib/calculadora/meta";
 
-export type CalculadoraPayload = {
-  plan: FunnelPlan;
+export type MetasPayload = {
+  metas: PilotMeta[];
+  activeMetaId: string | null;
   metaLigacoesDia: number;
   suggestions: CrmRateSuggestions;
 };
