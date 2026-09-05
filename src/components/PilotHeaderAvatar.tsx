@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
-import { Cable, LogOut, Settings, Upload, UserRound, Wallet } from "lucide-react";
-import { PilotAvatar } from "@/components/PilotAvatar";
+import { Cable, ChevronDown, LogOut, Upload, UserRound, Wallet, Workflow } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
+import { displayName } from "@/lib/pilot-profile";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +16,8 @@ const menu = [
   { href: "/conta", label: "Conta", icon: UserRound },
   { href: "/conexoes", label: "Conexões", icon: Cable },
   { href: "/importacoes", label: "Importações", icon: Upload },
+  { href: "/automacoes", label: "Automações", icon: Workflow },
   { href: "/planos", label: "Planos", icon: Wallet },
-  { href: "/admin/nichos", label: "Admin", icon: Settings, adminOnly: true },
 ] as const;
 
 const itemClass =
@@ -42,7 +42,7 @@ export function PilotHeaderAvatar() {
     queryFn: async () => {
       const res = await fetch("/api/profile");
       if (!res.ok) return null;
-      return (await res.json()) as Profile & { isAdmin?: boolean };
+      return (await res.json()) as Profile;
     },
   });
 
@@ -85,29 +85,41 @@ export function PilotHeaderAvatar() {
   const from = pathWithSearch(pathname, searchParams.toString());
   const p = query.data;
   if (!p) return null;
+  const name = displayName(p);
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <div ref={rootRef} className="relative min-w-0 shrink-0">
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label="Abrir menu"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-full outline-none ring-offset-2 ring-offset-podium-navy focus-visible:ring-2 focus-visible:ring-podium-yellow"
-        title="Conta"
+        className={cn(
+          "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-podium-gray outline-none transition hover:text-podium-white",
+          "ring-offset-2 ring-offset-podium-navy focus-visible:ring-2 focus-visible:ring-podium-yellow",
+          open && "text-podium-white",
+        )}
       >
-        <PilotAvatar profile={p} size="sm" />
+        Menu
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-podium-muted transition-transform",
+            open && "rotate-180 text-podium-white",
+          )}
+        />
       </button>
       <AnchorPopover
         open={open}
         anchorRef={rootRef}
         panelRef={panelRef}
         align="end"
-        className="w-48 overflow-hidden py-1"
+        className="w-52 overflow-hidden py-1"
       >
         <div role="menu">
-          {menu
-            .filter((item) => !("adminOnly" in item && item.adminOnly) || p.isAdmin)
-            .map((item) => {
+          <div className="border-b border-white/10 px-3 py-2">
+            <p className="truncate text-sm font-medium text-podium-white">{name}</p>
+          </div>
+          {menu.map((item) => {
             const Icon = item.icon;
             const href =
               item.href === "/planos" ? planosHref(from) : item.href;

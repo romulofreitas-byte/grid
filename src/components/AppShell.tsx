@@ -163,7 +163,7 @@ export function AppShell({
                 {title}
               </p>
             ) : null}
-            <Suspense fallback={<span className="inline-block h-8 w-8" />}>
+            <Suspense fallback={<span className="inline-block h-8 w-14" />}>
               <PilotHeaderAvatar />
             </Suspense>
           </div>

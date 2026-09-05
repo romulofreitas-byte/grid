@@ -117,16 +117,16 @@ export default function ContaPage() {
                 Importações
               </Link>
               <Link
+                href="/automacoes"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+              >
+                Automações
+              </Link>
+              <Link
                 href={planosHref("/conta")}
                 className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
               >
                 Planos
-              </Link>
-              <Link
-                href="/admin/nichos"
-                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-muted hover:border-white/20 hover:text-podium-white"
-              >
-                Admin
               </Link>
             </div>
 
