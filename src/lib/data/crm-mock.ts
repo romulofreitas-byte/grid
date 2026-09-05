@@ -252,6 +252,16 @@ export const crmMockMethods = {
     return assembleBoard(store, pipeline);
   },
 
+  async listCrmStages(
+    userId: string,
+    pipelineId: string,
+  ): Promise<CrmStage[] | null> {
+    const store = getMockStore();
+    const pipeline = ownPipeline(store, userId, pipelineId);
+    if (!pipeline) return null;
+    return stagesOf(store, pipelineId);
+  },
+
   async createCrmPipeline(
     userId: string,
     nome: string,

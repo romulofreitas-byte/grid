@@ -35,6 +35,14 @@ describe("crm mock board", () => {
     expect(board?.stages.at(-1)?.canonical_key).toBe("descartado");
   });
 
+  it("lists stages without assembling the full board", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const stages = await mockRepo.listCrmStages(USER, pipeline.id);
+    expect(stages).toHaveLength(11);
+    expect(stages?.[0]?.canonical_key).toBe("entrada");
+    expect(await mockRepo.listCrmStages(USER, "missing")).toBeNull();
+  });
+
   it("refuses to delete a first-mile faixa", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);

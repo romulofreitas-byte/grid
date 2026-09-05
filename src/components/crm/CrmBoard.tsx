@@ -29,6 +29,7 @@ import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
 import { closedDealCount, visibleKanbanDeals } from "@/lib/crm/events";
 import {
+  createLatestPrefetch,
   dedupeInflight,
   isBoardCacheFresh,
 } from "@/lib/crm/pipeline-cache";
@@ -140,6 +141,21 @@ export function CrmBoard({
     ),
   );
   const inflightRef = useRef(new Map<string, Promise<Board>>());
+  const fetchBoardRef = useRef<(pipelineId: string) => Promise<Board>>(
+    async () => {
+      throw new Error("fetchBoard not ready");
+    },
+  );
+  const prefetchRef = useRef(
+    createLatestPrefetch({
+      isFresh: (id) =>
+        cacheRef.current.has(id) &&
+        isBoardCacheFresh(fetchedAtRef.current.get(id)),
+      run: (id) => fetchBoardRef.current(id),
+    }),
+  );
+
+  useEffect(() => () => prefetchRef.current.cancel(), []);
   const requestedPipelineRef = useRef<string | null>(
     initialBoard?.pipeline.id ?? null,
   );
@@ -226,19 +242,10 @@ export function CrmBoard({
       return res.board;
     });
   }
+  fetchBoardRef.current = fetchBoard;
 
-  async function prefetchPipeline(pipelineId: string) {
-    if (
-      cacheRef.current.has(pipelineId) &&
-      isBoardCacheFresh(fetchedAtRef.current.get(pipelineId))
-    ) {
-      return;
-    }
-    try {
-      await fetchBoard(pipelineId);
-    } catch {
-      /* prefetch is best-effort */
-    }
+  function prefetchPipeline(pipelineId: string) {
+    prefetchRef.current.hover(pipelineId);
   }
 
   async function pickSearchHit(hit: CrmDealSearchHit) {

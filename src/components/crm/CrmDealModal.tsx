@@ -439,11 +439,16 @@ export function CrmDealModal({
     setCallPrompt({ phone: target });
   }
 
-  async function confirmCall() {
+  function confirmCall() {
     const phone = callPrompt?.phone;
     if (!phone) return;
-    setSaving(true);
     setError(null);
+    setCallPrompt(null);
+    if (!dialPhone(phone)) return;
+    void recordCallAfterDial();
+  }
+
+  async function recordCallAfterDial() {
     try {
       if (deal.next_activity?.kind === "ligar") {
         const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
@@ -452,29 +457,24 @@ export function CrmDealModal({
         );
         onChange(res.deal);
         prependEvent(res.event);
-      } else {
-        const cnpj = deal.cnpj ? digitsCnpj(deal.cnpj) : "";
-        if (cnpj.length === 14) {
-          const res = await fetch("/api/profile/call", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cnpj }),
-          });
-          const body = (await res.json()) as { error?: string };
-          if (!res.ok) throw new Error(body.error ?? "Não registrou a ligação.");
-          const extra = await crmFetch<{ events: CrmEvent[] }>(
-            `/api/crm/deals/${deal.id}/events`,
-          );
-          setCachedDealEvents(deal.id, extra.events);
-          setEvents(extra.events);
-        }
+        return;
       }
-      setCallPrompt(null);
-      dialPhone(phone);
+      const cnpj = deal.cnpj ? digitsCnpj(deal.cnpj) : "";
+      if (cnpj.length !== 14) return;
+      const res = await fetch("/api/profile/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cnpj }),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Não registrou a ligação.");
+      const extra = await crmFetch<{ events: CrmEvent[] }>(
+        `/api/crm/deals/${deal.id}/events`,
+      );
+      setCachedDealEvents(deal.id, extra.events);
+      setEvents(extra.events);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não registrou a ligação.");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -1264,12 +1264,9 @@ export function CrmDealModal({
         open={Boolean(callPrompt)}
         companyName={deal.company_name}
         phoneLabel={callPrompt ? formatPhoneDisplay(callPrompt.phone) : null}
-        pending={saving}
-        onClose={() => {
-          if (saving) return;
-          setCallPrompt(null);
-        }}
-        onConfirm={() => void confirmCall()}
+        pending={false}
+        onClose={() => setCallPrompt(null)}
+        onConfirm={() => confirmCall()}
       />
     </>
   );

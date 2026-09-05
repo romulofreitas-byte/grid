@@ -9,6 +9,9 @@ import type { CrmDealCard as Deal } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 import { CrmTelemetryPip } from "@/components/crm/CrmTelemetryPip";
 
+const CARD_SHELL =
+  "w-full [contain-intrinsic-size:auto_5.5rem] [content-visibility:auto]";
+
 export const CrmDealCardView = memo(function CrmDealCardView({
   deal,
   overlay = false,
@@ -71,7 +74,7 @@ export const CrmDealCard = memo(function CrmDealCard({
       <button
         type="button"
         onClick={() => onOpen?.(deal.id)}
-        className="w-full"
+        className={CARD_SHELL}
       >
         <DealCardFace deal={deal} />
       </button>
@@ -107,7 +110,7 @@ function CrmSortableDealCard({
       {...sortable.attributes}
       {...sortable.listeners}
       onClick={() => onOpen?.(deal.id)}
-      className="w-full"
+      className={CARD_SHELL}
     >
       <DealCardFace deal={deal} />
     </button>

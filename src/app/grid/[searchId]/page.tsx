@@ -31,6 +31,7 @@ import {
   throwIfBillingGate,
 } from "@/lib/billing/paywall";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
+import { useMinWidth } from "@/hooks/useMinWidth";
 import { sealLabel } from "@/lib/seal-display";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
@@ -329,6 +330,7 @@ export default function GridPage() {
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
   const rowsRef = useRef<GridRow[]>([]);
   const pendingOnlySinceRef = useRef<number | null>(null);
+  const desktop = useMinWidth(1024);
 
   const searchQuery = useQuery({
     queryKey: ["search", searchId],
@@ -1049,8 +1051,14 @@ export default function GridPage() {
 
       {query.isLoading ? (
         <div className="space-y-3">
-          <div className="h-64 animate-pulse rounded-lg bg-white/5" />
-          <div className="h-24 animate-pulse rounded-lg bg-white/5 lg:hidden" />
+          {desktop ? (
+            <div className="h-64 animate-pulse rounded-lg bg-white/5" />
+          ) : (
+            <>
+              <div className="h-24 animate-pulse rounded-lg bg-white/5" />
+              <div className="h-24 animate-pulse rounded-lg bg-white/5" />
+            </>
+          )}
         </div>
       ) : query.isError && !query.data ? (
         <GlassCard className="p-5 text-sm text-podium-muted">
@@ -1104,7 +1112,8 @@ export default function GridPage() {
         </div>
       ) : null}
 
-      <GlassCard className="hidden hover:translate-y-0 lg:block">
+      {desktop ? (
+      <GlassCard className="hover:translate-y-0">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
             <col className="w-[18rem]" />
@@ -1146,7 +1155,7 @@ export default function GridPage() {
                   onClick={(e) => onRowClick(e, row)}
                   onPointerEnter={() => warmLead(row)}
                   className={cn(
-                    "cursor-pointer border-b border-white/5 hover:bg-white/[0.03]",
+                    "cursor-pointer border-b border-white/5 [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto] hover:bg-white/[0.03]",
                     selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
                   )}
                 >
@@ -1225,8 +1234,8 @@ export default function GridPage() {
           </tbody>
         </table>
       </GlassCard>
-
-      <div className="space-y-3 lg:hidden">
+      ) : (
+      <div className="space-y-3">
         {rows.map((row) => {
           const ddd = row.telefone?.slice(0, 2) ?? null;
           const tel = row.telefone?.slice(2) ?? null;
@@ -1304,6 +1313,7 @@ export default function GridPage() {
           );
         })}
       </div>
+      )}
 
       {query.hasNextPage && (
         <button

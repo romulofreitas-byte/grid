@@ -296,6 +296,7 @@ export type GridRepo = {
   ): Promise<SavedLeadRef | null>;
   listCrmPipelines(userId: string): Promise<CrmPipelineSummary[]>;
   getCrmBoard(userId: string, pipelineId: string): Promise<CrmBoard | null>;
+  listCrmStages(userId: string, pipelineId: string): Promise<CrmStage[] | null>;
   createCrmPipeline(userId: string, nome: string): Promise<CrmPipeline>;
   updateCrmPipeline(
     userId: string,

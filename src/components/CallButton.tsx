@@ -61,6 +61,17 @@ export function CallButton({
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
+  function invalidateAfterCall() {
+    qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(cnpj)] });
+    qc.invalidateQueries({ queryKey: ["pilot-stats"] });
+    qc.invalidateQueries(
+      searchId
+        ? { queryKey: ["grid", searchId] }
+        : { queryKey: ["grid"] },
+    );
+    qc.invalidateQueries({ queryKey: ["integration-jobs"] });
+  }
+
   const callMutation = useMutation({
     mutationFn: async () => {
       if (connection) {
@@ -79,16 +90,15 @@ export function CallButton({
         return;
       }
       if (!telHref) throw new Error("Sem telefone");
-      await recordManualCall({ cnpj, searchId });
       window.location.href = telHref;
+      void recordManualCall({ cnpj, searchId })
+        .then(() => invalidateAfterCall())
+        .catch(() => undefined);
     },
     onSuccess: () => {
       setOpen(false);
       onCalled?.();
-      qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(cnpj)] });
-      qc.invalidateQueries({ queryKey: ["pilot-stats"] });
-      qc.invalidateQueries({ queryKey: ["grid"] });
-      qc.invalidateQueries({ queryKey: ["integration-jobs"] });
+      if (connection) invalidateAfterCall();
     },
   });
 

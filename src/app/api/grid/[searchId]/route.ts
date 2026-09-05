@@ -42,43 +42,39 @@ export async function GET(
     const limit = Number(searchParams.get("limit") ?? "50");
     const result = await getRepo().listGridRows(searchId, cursor, limit);
     const { discoveryRetryCnpjs, ...grid } = result;
-    const balance = await getBalance(gated.userId);
+    const pageCnpjs = grid.rows.map((row) => row.cnpj);
+    const repo = getRepo();
+    const [balance, inCrmList, called] = await Promise.all([
+      getBalance(gated.userId),
+      search.saved && pageCnpjs.length > 0
+        ? repo.listCrmDealCnpjs(gated.userId, pageCnpjs)
+        : Promise.resolve([] as string[]),
+      pageCnpjs.length > 0
+        ? repo.listCallEventsToday(gated.userId, pageCnpjs)
+        : Promise.resolve([] as { cnpj: string; created_at: string }[]),
+    ]);
     const revealed = balance.enrichAllowed
       ? undefined
-      : new Set(await filterQualifiedCnpjs(gated.userId, grid.rows.map((row) => row.cnpj)));
-    let rows = redactGridRows(grid.rows, balance.enrichAllowed, revealed);
-    if (search.saved && rows.length > 0) {
-      const inCrm = new Set(
-        await getRepo().listCrmDealCnpjs(
-          gated.userId,
-          rows.map((row) => row.cnpj),
-        ),
-      );
-      rows = rows.map((row) => ({
-        ...row,
-        inCrm: inCrm.has(row.cnpj.replace(/\D/g, "").padStart(14, "0")),
-      }));
-    }
-    if (rows.length > 0) {
-      const called = await getRepo().listCallEventsToday(
-        gated.userId,
-        rows.map((row) => row.cnpj),
-      );
-      const calledAt = new Map(
-        called.map((row) => [
-          row.cnpj.replace(/\D/g, "").padStart(14, "0"),
-          row.created_at,
-        ]),
-      );
-      rows = rows.map((row) => {
-        const at = calledAt.get(row.cnpj.replace(/\D/g, "").padStart(14, "0"));
+      : new Set(await filterQualifiedCnpjs(gated.userId, pageCnpjs));
+    const inCrm = new Set(inCrmList);
+    const calledAt = new Map(
+      called.map((row) => [
+        row.cnpj.replace(/\D/g, "").padStart(14, "0"),
+        row.created_at,
+      ]),
+    );
+    const rows = redactGridRows(grid.rows, balance.enrichAllowed, revealed).map(
+      (row) => {
+        const padded = row.cnpj.replace(/\D/g, "").padStart(14, "0");
+        const at = calledAt.get(padded);
         return {
           ...row,
+          inCrm: inCrm.has(padded),
           calledToday: Boolean(at),
           calledAt: at ?? null,
         };
-      });
-    }
+      },
+    );
     const retryCnpjs =
       discoveryRetryCnpjs?.length && !balance.enrichAllowed
         ? await filterQualifiedCnpjs(gated.userId, discoveryRetryCnpjs)

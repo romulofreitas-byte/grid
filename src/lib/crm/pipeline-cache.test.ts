@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CRM_BOARD_CACHE_TTL_MS,
+  createLatestPrefetch,
   dedupeInflight,
   isBoardCacheFresh,
 } from "./pipeline-cache";
@@ -36,3 +37,59 @@ describe("pipeline board cache", () => {
     expect(inflight.size).toBe(0);
   });
 });
+
+describe("createLatestPrefetch", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("runs only the last hovered id after the delay", async () => {
+    vi.useFakeTimers();
+    const ran: string[] = [];
+    const prefetch = createLatestPrefetch({
+      delayMs: 280,
+      isFresh: () => false,
+      run: async (id) => {
+        ran.push(id);
+      },
+    });
+    prefetch.hover("a");
+    prefetch.hover("b");
+    prefetch.hover("c");
+    await vi.advanceTimersByTimeAsync(280);
+    expect(ran).toEqual(["c"]);
+  });
+
+  it("skips a fresh id and queues only the latest while one run is in flight", async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: () => void;
+    const ran: string[] = [];
+    const prefetch = createLatestPrefetch({
+      delayMs: 10,
+      isFresh: (id) => id === "fresh",
+      run: (id) => {
+        ran.push(id);
+        if (id === "a") {
+          return new Promise<void>((resolve) => {
+            resolveFirst = resolve;
+          });
+        }
+        return Promise.resolve();
+      },
+    });
+    prefetch.hover("fresh");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ran).toEqual([]);
+
+    prefetch.hover("a");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ran).toEqual(["a"]);
+
+    prefetch.hover("b");
+    prefetch.hover("c");
+    resolveFirst();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(ran).toEqual(["a", "c"]);
+  });
+});
+

@@ -2962,9 +2962,8 @@ export const supabaseRepo: GridRepo = {
   async pruneUnsavedSearches(userId, opts) {
     const unsaved = await this.listRecentSearches(userId, { saved: false });
     const ids = unsavedIdsToPrune(unsaved, opts);
-    for (const id of ids) {
-      await this.deleteSearch(id);
-    }
+    if (ids.length === 0) return ids;
+    await query("delete from searches where id = any($1::uuid[])", [ids]);
     return ids;
   },
 

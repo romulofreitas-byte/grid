@@ -72,8 +72,9 @@ async function loadPainelMetricsPg(
       [userId],
     ),
     optionalQuery<{ created_at: string }>(
-      `select created_at from call_events where user_id = $1`,
-      [userId],
+      `select created_at from call_events
+        where user_id = $1 and created_at >= $2::timestamptz`,
+      [userId, new Date(now.getTime() - 120 * 86_400_000).toISOString()],
     ),
     optionalQuery<{ created_at: string; saved: boolean }>(
       `select created_at, saved from searches where user_id = $1`,

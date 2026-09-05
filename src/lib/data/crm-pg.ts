@@ -443,6 +443,15 @@ export const crmPgMethods = {
     return assembleBoard(pipeline);
   },
 
+  async listCrmStages(
+    userId: string,
+    pipelineId: string,
+  ): Promise<CrmStage[] | null> {
+    const pipeline = await ownedPipeline(query, userId, pipelineId);
+    if (!pipeline) return null;
+    return listStages(query, pipelineId);
+  },
+
   async createCrmPipeline(userId: string, nome: string): Promise<CrmPipeline> {
     return withTransaction((q) => createPipelineRow(q, userId, nome));
   },
