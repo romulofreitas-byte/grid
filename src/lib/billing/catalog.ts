@@ -21,7 +21,12 @@ export type PlanDefinition = {
   credits: number;
   enrichAllowed: boolean;
   billed: boolean;
+  /** Face of the pricing card — keep exactly four on plans shown in the grid. */
   highlights: string[];
+  /** Extra lines revealed by “Ver tudo”. */
+  details: string[];
+  /** Caveats without a check, e.g. seats still in development. */
+  notes?: string[];
 };
 
 export type PackDefinition = {
@@ -66,7 +71,16 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "25 qualificações / mês",
-      "CRM e export a partir do Piloto",
+      "Buscar e ver a lista grátis",
+      "Telefone da empresa e nome do sócio",
+      "Briefing da ligação na ficha",
+    ],
+    details: [
+      "Sem cartão",
+      "Lista na ordem de quem ligar",
+      "Qualificar: site, redes e Google",
+      "Ficha da empresa para ligar",
+      "Salvar listas para o dia",
     ],
   },
   {
@@ -83,7 +97,13 @@ export const PLANS: PlanDefinition[] = [
       "~20 fichas por dia no mês",
       "CRM nativo",
       "Meta do dia no Box",
+    ],
+    details: [
+      "Qualificados entram no quadro",
       "Importar planilha para o quadro",
+      "Pipeline do nicho até reunião",
+      "Ligar agora pelo Painel",
+      "Follow-up no CRM",
     ],
   },
   {
@@ -97,9 +117,12 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "4.000 créditos / mês",
-      "Prioridade na fila de qualificação",
-      "Automações: formulário, anúncio, Make",
       "Tudo do Piloto",
+      "Automações: formulário, anúncio, Make",
+      "~130 fichas por dia no mês",
+    ],
+    details: [
+      "Formulário, anúncio e Make criam negócio no CRM",
     ],
   },
   {
@@ -114,9 +137,11 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       "6.000 créditos / mês",
       "Tudo do Piloto Pro",
-      "Um usuário nesta versão",
-      "Seats extras entram na próxima etapa",
+      "~200 fichas por dia no mês",
+      "Volume para a operação inteira",
     ],
+    details: ["Formulário, anúncio e Make criam negócio no CRM"],
+    notes: ["Seats extras em desenvolvimento"],
   },
   {
     sku: "membro_plataforma",
@@ -132,6 +157,7 @@ export const PLANS: PlanDefinition[] = [
       "~20 fichas por dia",
       "Depois: assine o Piloto",
     ],
+    details: [],
   },
 ];
 
@@ -143,7 +169,7 @@ export const PACKS: PackDefinition[] = [
     tagline: "Créditos que não expiram.",
     priceCents: 4_700,
     credits: 100,
-    highlights: ["100 créditos", "Não substitui o plano", "Não reabre o CRM"],
+    highlights: ["100 créditos", "Não expiram", "Extra no meio do mês"],
   },
   {
     sku: "pack_500",
@@ -152,16 +178,16 @@ export const PACKS: PackDefinition[] = [
     tagline: "Créditos extras no meio do mês.",
     priceCents: 16_700,
     credits: 500,
-    highlights: ["500 créditos", "Não reabre o CRM", "Usa depois do saldo do plano"],
+    highlights: ["500 créditos", "Não expiram", "Somam no saldo da conta"],
   },
   {
     sku: "pack_2000",
     kind: "pack",
     nome: "Recarga 2.000",
-    tagline: "Campanha pesada, sem upgrade.",
+    tagline: "Volume extra para campanha pesada.",
     priceCents: 49_700,
     credits: 2_000,
-    highlights: ["2.000 créditos", "Não reabre o CRM", "Custo por crédito maior que o da assinatura"],
+    highlights: ["2.000 créditos", "Não expiram", "Volume para campanha pesada"],
   },
 ];
 
@@ -187,6 +213,12 @@ export function isSkuOnSale(sku: string): boolean {
 
 export function getCatalogItem(sku: string): CatalogItem | undefined {
   return BY_SKU[sku];
+}
+
+/** Full benefit list for checkout and expanded cards. Packs have no details. */
+export function catalogBenefitLines(item: CatalogItem): string[] {
+  if (item.kind === "pack") return item.highlights;
+  return [...item.highlights, ...item.details];
 }
 
 export function isBilledPlanSku(sku: string | null | undefined): boolean {

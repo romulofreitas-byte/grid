@@ -69,6 +69,8 @@ export const COPY = {
   landingPlansCtaPaid: "Assinar",
   landingPlansCtaSoon: "Em breve",
   landingPlansFeatured: "Mais escolhido",
+  landingPlansShowAll: "Ver tudo",
+  landingPlansShowLess: "Ver menos",
   landingFinalTitle: "Comece pela lista. Ligue no mesmo\u00a0dia.",
   landingFinalBody:
     "Crie a conta, escolha o nicho e saia com telefone e o nome de quem decide.",

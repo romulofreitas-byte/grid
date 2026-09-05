@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ENRICH_CREDIT_COST,
   EXPORT_CREDIT_COST,
+  catalogBenefitLines,
   creditsPhrase,
   formatBrl,
   getCatalogItem,
@@ -11,7 +12,18 @@ import {
   planHasFeature,
   PACKS,
   PLANS,
+  type PlanDefinition,
 } from "./catalog";
+
+const GRID_PLANS = PLANS.filter((plan) => plan.sku !== "membro_plataforma");
+
+function asPlan(sku: string): PlanDefinition {
+  const item = getCatalogItem(sku);
+  if (!item || item.kind !== "plan") throw new Error(`missing plan ${sku}`);
+  return item;
+}
+
+const BLOCKER_COPY = /a partir do|não inclui|entra na próxima etapa/i;
 
 describe("catalog", () => {
   it("keeps approved plan prices", () => {
@@ -22,27 +34,29 @@ describe("catalog", () => {
   });
 
   it("keeps CRM gated on Treino livre and advertises 25 qualifications", () => {
-    const free = getCatalogItem("free");
+    const free = asPlan("free");
     expect(free).toMatchObject({
       kind: "plan",
       enrichAllowed: false,
       credits: 25,
     });
-    expect(free?.kind === "plan" ? free.highlights : []).toContain(
-      "25 qualificações / mês",
-    );
-    expect(free?.kind === "plan" ? free.highlights : []).toContain(
-      "CRM e export a partir do Piloto",
-    );
+    expect(free.highlights).toContain("25 qualificações / mês");
+    expect(catalogBenefitLines(free).join(" ")).not.toMatch(/crm|export/i);
+  });
+
+  it("lists four face benefits on every pricing-grid plan", () => {
+    for (const plan of GRID_PLANS) {
+      expect(plan.highlights).toHaveLength(4);
+      expect(plan.details.length).toBeGreaterThan(0);
+    }
   });
 
   it("lists native CRM, Meta and spreadsheet import on Piloto", () => {
-    const piloto = getCatalogItem("piloto");
-    const highlights = piloto?.kind === "plan" ? piloto.highlights : [];
-    expect(highlights).toContain("CRM nativo");
-    expect(highlights).toContain("Meta do dia no Box");
-    expect(highlights).toContain("Importar planilha para o quadro");
-    expect(highlights.join(" ")).not.toMatch(/automaç/i);
+    const piloto = asPlan("piloto");
+    expect(piloto.highlights).toContain("CRM nativo");
+    expect(piloto.highlights).toContain("Meta do dia no Box");
+    expect(piloto.details).toContain("Importar planilha para o quadro");
+    expect(catalogBenefitLines(piloto).join(" ")).not.toMatch(/automaç/i);
   });
 
   it("puts automations on Pro and Escuderia, not on Piloto or the platform coupon", () => {
@@ -59,22 +73,32 @@ describe("catalog", () => {
     expect(planHasFeature("escuderia", "automations")).toBe(true);
     expect(planHasFeature("escuderia", "import")).toBe(true);
     expect(planHasFeature("unknown", "crm")).toBe(false);
-    const pro = getCatalogItem("piloto_pro");
-    const escuderia = getCatalogItem("escuderia");
-    expect(pro?.kind === "plan" ? pro.highlights : []).toContain(
-      "Automações: formulário, anúncio, Make",
-    );
-    expect(escuderia?.kind === "plan" ? escuderia.highlights : []).toContain(
-      "Tudo do Piloto Pro",
-    );
-    expect(escuderia?.kind === "plan" ? escuderia.highlights : []).toContain(
-      "Um usuário nesta versão",
-    );
+    const pro = asPlan("piloto_pro");
+    const escuderia = asPlan("escuderia");
+    expect(pro.highlights).toContain("Automações: formulário, anúncio, Make");
+    expect(pro.highlights).toContain("Tudo do Piloto");
+    expect(escuderia.highlights).toContain("Tudo do Piloto Pro");
+    expect(escuderia.notes).toContain("Seats extras em desenvolvimento");
+  });
+
+  it("does not sell blockers as checked benefits", () => {
+    for (const plan of GRID_PLANS) {
+      const lines = catalogBenefitLines(plan).join(" ");
+      expect(lines).not.toMatch(BLOCKER_COPY);
+      expect(lines).not.toMatch(/buscas de lista por dia/i);
+    }
+  });
+
+  it("sells credit packs as extras that do not expire", () => {
+    for (const pack of PACKS) {
+      const lines = pack.highlights.join(" ");
+      expect(lines).toMatch(/não expiram/i);
+      expect(lines).not.toMatch(/não reabre|não substitui|custo por crédito/i);
+    }
   });
 
   it("prices packs above the subscription unit cost", () => {
-    const piloto = getCatalogItem("piloto");
-    if (!piloto || piloto.kind !== "plan") throw new Error("missing piloto");
+    const piloto = asPlan("piloto");
     const perCredit = piloto.priceCents / piloto.credits;
     for (const pack of PACKS) {
       expect(pack.priceCents / pack.credits).toBeGreaterThan(perCredit);
@@ -103,10 +127,9 @@ describe("catalog", () => {
   });
 
   it("sizes Piloto around a month of daily calls, not bulk export", () => {
-    const piloto = getCatalogItem("piloto");
-    const highlights = piloto?.kind === "plan" ? piloto.highlights : [];
-    expect(highlights).toContain("~20 fichas por dia no mês");
-    expect(highlights.join(" ")).not.toMatch(/export/i);
+    const piloto = asPlan("piloto");
+    expect(piloto.highlights).toContain("~20 fichas por dia no mês");
+    expect(catalogBenefitLines(piloto).join(" ")).not.toMatch(/export/i);
   });
 
   it("charges one credit to qualify and fifty to export", () => {

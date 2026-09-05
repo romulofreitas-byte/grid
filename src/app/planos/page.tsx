@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { PlanCard } from "@/components/billing/PlanCard";
 import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
+import { COPY } from "@/lib/copy";
 import { formatBrl, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
 import { getBalance } from "@/lib/billing/service";
@@ -31,61 +33,49 @@ export default async function PlanosPage({
         plano zera no mês.
       </p>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-8 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         {billed.map((plan) => {
           const featured = plan.sku === "piloto";
+          const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
+          const ctaClass = cn(
+            "inline-flex w-full justify-center rounded-xl py-3 text-sm font-extrabold transition",
+            featured
+              ? "bg-podium-yellow text-podium-navy hover:brightness-110"
+              : onSale
+                ? "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+                : "cursor-not-allowed border border-white/10 text-podium-muted",
+          );
           return (
-            <GlassCard
+            <PlanCard
               key={plan.sku}
-              highlight={featured}
-              className={cn("flex flex-col p-5", featured && "ring-1 ring-podium-yellow/30")}
-            >
-              {featured ? (
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                  Mais escolhido
-                </p>
-              ) : (
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                  {plan.sku === "free" ? "Começar" : "Assinatura"}
-                </p>
-              )}
-              <h3 className="mt-2 text-xl font-extrabold">{plan.nome}</h3>
-              <p className="mt-1 text-sm text-podium-muted">{plan.tagline}</p>
-              <p className="mt-4 text-3xl font-extrabold text-podium-yellow">
-                {plan.priceCents === 0 ? "Grátis" : formatBrl(plan.priceCents)}
-                {plan.priceCents > 0 ? (
-                  <span className="text-sm font-medium text-podium-muted">/mês</span>
-                ) : null}
-              </p>
-              <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
-                {plan.highlights.map((h) => (
-                  <li key={h} className="flex gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
-              {plan.sku === "free" || isSkuOnSale(plan.sku) ? (
-                <Link
-                  href={plan.sku === "free" ? "/painel" : pagarHref(plan.sku, from)}
-                  className={cn(
-                    "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
-                    featured
-                      ? "bg-podium-yellow text-podium-navy hover:brightness-110"
-                      : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
-                  )}
-                >
-                  {plan.sku === "free" ? "Continuar no treino" : "Pagar com Pix"}
-                </Link>
-              ) : (
-                <span
-                  aria-disabled="true"
-                  className="mt-6 inline-flex cursor-not-allowed justify-center rounded-xl border border-white/10 py-3 text-sm font-extrabold text-podium-muted"
-                >
-                  Em breve
-                </span>
-              )}
-            </GlassCard>
+              plan={plan}
+              featured={featured}
+              eyebrow={
+                featured
+                  ? COPY.landingPlansFeatured
+                  : plan.sku === "free"
+                    ? "Começar"
+                    : "Assinatura"
+              }
+              cta={
+                onSale ? (
+                  <Link
+                    href={
+                      plan.sku === "free" ? "/painel" : pagarHref(plan.sku, from)
+                    }
+                    className={ctaClass}
+                  >
+                    {plan.sku === "free"
+                      ? "Continuar no treino"
+                      : "Pagar com Pix"}
+                  </Link>
+                ) : (
+                  <span aria-disabled="true" className={ctaClass}>
+                    {COPY.landingPlansCtaSoon}
+                  </span>
+                )
+              }
+            />
           );
         })}
       </div>
@@ -93,18 +83,20 @@ export default async function PlanosPage({
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
         <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-          Créditos extras para o meio do mês. Não expiram e não substituem o
-          plano.
+          Créditos extras para o meio do mês. Não expiram e somam no saldo da
+          conta.
         </p>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid items-stretch gap-4 md:grid-cols-3">
           {PACKS.map((pack) => (
-            <GlassCard key={pack.sku} className="flex flex-col p-5">
+            <GlassCard key={pack.sku} className="flex h-full flex-col p-5">
               <h3 className="text-lg font-extrabold">{pack.nome}</h3>
-              <p className="mt-1 text-sm text-podium-muted">{pack.tagline}</p>
+              <p className="mt-1 min-h-[2.5rem] text-sm leading-5 text-podium-muted">
+                {pack.tagline}
+              </p>
               <p className="mt-4 text-2xl font-extrabold text-podium-yellow">
                 {formatBrl(pack.priceCents)}
               </p>
-              <ul className="mt-3 flex-1 space-y-2 text-sm text-podium-gray">
+              <ul className="mt-3 min-h-[4.75rem] flex-1 space-y-2 text-sm text-podium-gray">
                 {pack.highlights.map((h) => (
                   <li key={h} className="flex gap-2">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />

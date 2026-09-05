@@ -217,6 +217,8 @@ describe("COPY landing", () => {
     expect(COPY.landingPlansBody).toMatch(/importar a planilha/);
     expect(COPY.landingPlansBody).toMatch(/Automações/);
     expect(COPY.landingPlansBody).not.toMatch(/export/i);
+    expect(COPY.landingPlansShowAll).toBe("Ver tudo");
+    expect(COPY.landingPlansShowLess).toBe("Ver menos");
   });
 
   it("sells missing digital assets as an approach hook", () => {

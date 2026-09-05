@@ -13,6 +13,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { StartingLights } from "@/components/StartingLights";
 import { useHoldLights, usePodiumWait } from "@/hooks/usePodiumWait";
 import {
+  catalogBenefitLines,
   formatBrl,
   getCatalogItem,
   isSkuOnSale,
@@ -194,7 +195,7 @@ function PagarInner() {
               {item.credits.toLocaleString("pt-BR")} créditos
             </p>
             <ul className="mt-8 space-y-3 border-t border-white/10 pt-6">
-              {item.highlights.map((line) => (
+              {catalogBenefitLines(item).map((line) => (
                 <li key={line} className="flex gap-3 text-sm text-podium-gray">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-podium-yellow" />
                   {line}

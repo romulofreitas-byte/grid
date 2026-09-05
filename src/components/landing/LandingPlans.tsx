@@ -1,10 +1,10 @@
 "use client";
 
 import { COPY } from "@/lib/copy";
-import { formatBrl, isSkuOnSale, PLANS } from "@/lib/billing/catalog";
+import { isSkuOnSale, PLANS } from "@/lib/billing/catalog";
 import { pagarHref } from "@/lib/billing/href";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { PlanCard } from "@/components/billing/PlanCard";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 
@@ -33,7 +33,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
           </p>
         </motion.div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-12 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
           {BILLED.map((plan, i) => {
             const featured = plan.sku === "piloto";
             const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
@@ -43,7 +43,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                   ? "/painel"
                   : "/entrar?modo=cadastro"
                 : pagarHref(plan.sku);
-            const cta =
+            const ctaLabel =
               plan.sku === "free"
                 ? signedIn
                   ? COPY.landingSignedInCta
@@ -51,10 +51,19 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                 : onSale
                   ? COPY.landingPlansCtaPaid
                   : COPY.landingPlansCtaSoon;
+            const ctaClass = cn(
+              "inline-flex w-full justify-center rounded-xl py-3 text-sm font-extrabold transition",
+              featured
+                ? "bg-podium-yellow text-podium-navy hover:brightness-110"
+                : onSale
+                  ? "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+                  : "cursor-not-allowed border border-white/10 text-podium-muted",
+            );
 
             return (
-              <motion.article
+              <motion.div
                 key={plan.sku}
+                className="h-full"
                 initial={reduce ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-40px" }}
@@ -63,61 +72,31 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                   delay: reduce ? 0 : i * 0.06,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className={cn(
-                  "flex flex-col rounded-2xl border bg-white/[0.03] p-5",
-                  featured
-                    ? "border-podium-yellow/40 ring-1 ring-podium-yellow/25"
-                    : "border-white/[0.08]",
-                )}
               >
-                {featured ? (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
-                    {COPY.landingPlansFeatured}
-                  </p>
-                ) : (
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                    {plan.sku === "free" ? COPY.landingCtaStart : "Assinatura"}
-                  </p>
-                )}
-                <h3 className="mt-2 text-xl font-extrabold">{plan.nome}</h3>
-                <p className="mt-1 text-pretty text-sm text-podium-muted">{plan.tagline}</p>
-                <p className="mt-4 text-3xl font-extrabold text-podium-yellow">
-                  {plan.priceCents === 0 ? "Grátis" : formatBrl(plan.priceCents)}
-                  {plan.priceCents > 0 ? (
-                    <span className="text-sm font-medium text-podium-muted">
-                      /mês
-                    </span>
-                  ) : null}
-                </p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-podium-gray">
-                  {plan.highlights.map((h) => (
-                    <li key={h} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                      {h}
-                    </li>
-                  ))}
-                </ul>
-                {onSale ? (
-                  <Link
-                    href={href}
-                    className={cn(
-                      "mt-6 inline-flex justify-center rounded-xl py-3 text-sm font-extrabold transition",
-                      featured
-                        ? "bg-podium-yellow text-podium-navy hover:brightness-110"
-                        : "border border-white/15 text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white",
-                    )}
-                  >
-                    {cta}
-                  </Link>
-                ) : (
-                  <span
-                    aria-disabled="true"
-                    className="mt-6 inline-flex cursor-not-allowed justify-center rounded-xl border border-white/10 py-3 text-sm font-extrabold text-podium-muted"
-                  >
-                    {cta}
-                  </span>
-                )}
-              </motion.article>
+                <PlanCard
+                  plan={plan}
+                  featured={featured}
+                  variant="landing"
+                  eyebrow={
+                    featured
+                      ? COPY.landingPlansFeatured
+                      : plan.sku === "free"
+                        ? COPY.landingCtaStart
+                        : "Assinatura"
+                  }
+                  cta={
+                    onSale ? (
+                      <Link href={href} className={ctaClass}>
+                        {ctaLabel}
+                      </Link>
+                    ) : (
+                      <span aria-disabled="true" className={ctaClass}>
+                        {ctaLabel}
+                      </span>
+                    )
+                  }
+                />
+              </motion.div>
             );
           })}
         </div>
