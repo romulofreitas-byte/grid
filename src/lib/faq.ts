@@ -5,7 +5,7 @@ export const FAQ_CATEGORIES = [
   "Começar",
   "Lista e contato",
   "Créditos",
-  "Export e conexões",
+  "Export e integrações",
   "Privacidade",
 ] as const;
 
@@ -34,6 +34,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     links: [
       { href: "/painel", label: "Abrir o Painel" },
       { href: largadaNovaHref, label: "Nova lista" },
+      { href: "/tour", label: "Ver o tour" },
     ],
   },
   {
@@ -47,10 +48,10 @@ export const FAQ_ITEMS: FaqItem[] = [
   {
     id: "capacete",
     category: "Começar",
-    question: "O que é o perfil da ligação?",
+    question: "O que o GRID pede no começo?",
     answer:
-      "No primeiro acesso você se apresenta e monta a primeira lista. Nome, empresa, cidade e a promessa entram na ligação. O nicho que você escolhe é o mercado da lista.",
-    links: [{ href: "/setup", label: "Montar a primeira lista" }],
+      "No primeiro acesso o GRID pergunta como te chama na ligação, o mercado e o cargo. No último passo você fecha a identidade do piloto — a foto é opcional. Depois você cai na nova lista e gera na hora. Empresa, cidade e a promessa da ligação ficam na Conta, para quando for ligar.",
+    links: [{ href: "/setup", label: "Começar" }],
   },
   {
     id: "minuto-de-ouro",
@@ -154,7 +155,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     id: "exportar",
-    category: "Export e conexões",
+    category: "Export e integrações",
     question: "Como exporto a lista?",
     answer:
       `Na lista, baixe XLSX ou CSV — só CNPJs já qualificados. Cada um custa ${EXPORT_CREDIT_COST} créditos na primeira exportação. Destina-se ao uso operacional do assinante — a revenda da base bruta é proibida. No CRM nativo isso já está incluído.`,
@@ -162,15 +163,15 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     id: "conexoes",
-    category: "Export e conexões",
+    category: "Export e integrações",
     question: "Onde ligo o VoIP?",
     answer:
-      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Conexões e o GRID disca ao clicar (Painel, lista e ficha).",
-    links: [{ href: "/conexoes", label: "Abrir conexões" }],
+      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Integrações e o GRID disca ao clicar (Painel, lista e ficha).",
+    links: [{ href: "/integracoes/voip", label: "Abrir VoIP" }],
   },
   {
     id: "cpf",
-    category: "Export e conexões",
+    category: "Export e integrações",
     question: "O GRID mostra CPF?",
     answer:
       "Nunca. CPF não entra no banco, na tela nem no export. Sócio aparece pelo nome no quadro da Receita.",

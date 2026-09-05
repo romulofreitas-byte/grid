@@ -53,14 +53,15 @@ describe("maps FAQ", () => {
 });
 
 describe("capacete FAQ", () => {
-  it("describes first-list onboarding without specialty as script copy", () => {
+  it("describes a short identity setup without generating a list", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "capacete");
-    expect(item?.answer).toMatch(/primeira lista/);
-    expect(item?.answer).toMatch(/nicho/);
-    expect(item?.answer).not.toMatch(/especialidade/);
-    expect(item?.links).toEqual([
-      { href: "/setup", label: "Montar a primeira lista" },
-    ]);
+    expect(item?.answer).toMatch(/como te chama/);
+    expect(item?.answer).toMatch(/cargo/);
+    expect(item?.answer).toMatch(/nova lista/);
+    expect(item?.answer).toMatch(/foto é opcional/);
+    expect(item?.answer).not.toMatch(/primeira lista/);
+    expect(item?.answer.toLowerCase()).not.toMatch(/já te conhece/);
+    expect(item?.links).toEqual([{ href: "/setup", label: "Começar" }]);
   });
 });
 

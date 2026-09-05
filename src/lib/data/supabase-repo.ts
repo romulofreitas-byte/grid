@@ -317,6 +317,7 @@ function mapProfile(r: Record<string, unknown>): Profile {
     plano: String(r.plano ?? "free"),
     creditos: Number(r.creditos ?? 0),
     especialidade: r.especialidade == null ? null : String(r.especialidade),
+    cargo: r.cargo == null ? null : String(r.cargo),
     area: r.area == null ? null : String(r.area),
     empresa_usuario: r.empresa_usuario == null ? null : String(r.empresa_usuario),
     cidade_usuario: r.cidade_usuario == null ? null : String(r.cidade_usuario),
@@ -3259,11 +3260,11 @@ export const supabaseRepo: GridRepo = {
     const { rows } = await query(
       `update profiles set
          nome = $2, plano = $3, creditos = $4, especialidade = $5,
-         area = $6, empresa_usuario = $7, cidade_usuario = $8,
-         documento = $9, documento_tipo = $10,
-         foto_url = $11, como_chama = $12, tratamento = $13, promessa = $14,
-         duracao_reuniao = $15, meta_ligacoes_dia = $16,
-         onboarding_completed_at = $17, active_meta_id = $18
+         cargo = $6, area = $7, empresa_usuario = $8, cidade_usuario = $9,
+         documento = $10, documento_tipo = $11,
+         foto_url = $12, como_chama = $13, tratamento = $14, promessa = $15,
+         duracao_reuniao = $16, meta_ligacoes_dia = $17,
+         onboarding_completed_at = $18, active_meta_id = $19
        where id = $1
        returning *`,
       [
@@ -3272,6 +3273,7 @@ export const supabaseRepo: GridRepo = {
         next.plano,
         next.creditos,
         next.especialidade,
+        next.cargo,
         next.area,
         next.empresa_usuario,
         next.cidade_usuario,

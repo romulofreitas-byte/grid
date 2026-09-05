@@ -2,56 +2,62 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { AnatomyAssembler } from "@/components/AnatomyAssembler";
-import { AppShell } from "@/components/AppShell";
-import { GlassCard } from "@/components/GlassCard";
-import { Hint } from "@/components/Hint";
-import { SectionTitle } from "@/components/SectionTitle";
-import {
-  SetupFirstGrid,
-  type FirstGridNiche,
-} from "@/components/SetupFirstGrid";
-import { BACK, gridHref } from "@/lib/back";
+import { useEffect, useState } from "react";
+import { CargoFields } from "@/components/CargoFields";
+import { MarketFields } from "@/components/MarketFields";
+import { SetupIdentityCard } from "@/components/SetupIdentityCard";
+import { SetupStage } from "@/components/SetupStage";
+import { Button } from "@/components/ui/Button";
+import { largadaNovaHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
-  DEFAULT_MEETING_MINUTES,
-  hasScriptIdentity,
-  isTratamento,
+  cargoChoice,
+  hasSetupIdentity,
+  marketChoice,
+  setupEcho,
 } from "@/lib/pilot-profile";
-import type { Profile, Search, Tratamento } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import type { Profile } from "@/lib/types";
 
-const STEPS = ["Quem liga", "Primeira lista"] as const;
+const TOTAL_STEPS = 4;
 
 type Draft = {
   como_chama: string;
-  tratamento: Tratamento;
-  empresa_usuario: string;
-  cidade_usuario: string;
-  promessa: string;
-  duracao_reuniao: number;
+  especialidade: string;
+  cargo: string;
 };
 
 function draftFrom(p: Profile): Draft {
   return {
     como_chama: p.como_chama ?? p.nome?.split(/\s+/)[0] ?? "",
-    tratamento: isTratamento(p.tratamento) ? p.tratamento : "o",
-    empresa_usuario: p.empresa_usuario ?? "",
-    cidade_usuario: p.cidade_usuario ?? "",
-    promessa: p.promessa ?? "",
-    duracao_reuniao: p.duracao_reuniao || DEFAULT_MEETING_MINUTES,
+    especialidade: persistChoice(p.especialidade ?? "", marketChoice(p.especialidade)),
+    cargo: persistChoice(p.cargo ?? "", cargoChoice(p.cargo)),
   };
 }
 
-const fieldClass =
-  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
+function persistChoice(value: string, selectedId: string | null): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (!selectedId || selectedId === "outro") return trimmed === "outro" ? "outro" : trimmed;
+  return selectedId;
+}
+
+function pulseStage(step: number) {
+  return (
+    <SetupStage
+      step={step}
+      total={TOTAL_STEPS}
+      footer={<div className="h-9 w-28 animate-pulse rounded-md bg-white/5" />}
+    >
+      <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+    </SetupStage>
+  );
+}
 
 export default function SetupPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [step, setStep] = useState(1);
 
   const profileQuery = useQuery({
     queryKey: ["profile"],
@@ -86,218 +92,224 @@ export default function SetupPage() {
     },
   });
 
-  const previewProfile = useMemo(() => {
-    if (!profile || !form) return null;
-    return { ...profile, ...form };
-  }, [profile, form]);
-
-  async function persist(extra: Partial<Profile> = {}) {
-    if (!form) return false;
-    try {
-      await save.mutateAsync({ ...form, ...extra });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   const identityOk = form
-    ? hasScriptIdentity({
+    ? hasSetupIdentity({
         como_chama: form.como_chama,
         nome: profile?.nome ?? null,
-        empresa_usuario: form.empresa_usuario,
-        cidade_usuario: form.cidade_usuario,
-        promessa: form.promessa,
+        especialidade: form.especialidade,
+        cargo: form.cargo,
       })
     : false;
 
-  async function advance() {
-    if (!identityOk) return;
-    const ok = await persist();
-    if (ok) setStep(1);
+  const nameOk = Boolean(form?.como_chama.trim());
+  const marketOk = Boolean(
+    form && form.especialidade.trim() && form.especialidade.trim() !== "outro",
+  );
+  const cargoOk = Boolean(form && form.cargo.trim() && form.cargo.trim() !== "outro");
+  const echo =
+    form && nameOk
+      ? setupEcho({
+          como_chama: form.como_chama,
+          nome: profile?.nome ?? null,
+          especialidade: marketOk ? form.especialidade : null,
+          cargo: cargoOk ? form.cargo : null,
+        })
+      : "";
+
+  async function persistStep(patch: Partial<Profile>) {
+    await save.mutateAsync(patch);
   }
 
-  async function finishFirstList(search: Search, niche: FirstGridNiche) {
-    const ok = await persist({
-      especialidade: niche.segmentNome,
-      area: niche.parentNome,
-      onboarding_completed_at: new Date().toISOString(),
-    });
-    if (!ok) throw new Error("Não foi possível guardar o perfil");
-    router.push(gridHref(search.id, "box"));
-    router.refresh();
+  async function goNext() {
+    if (!form) return;
+    try {
+      if (step === 1) {
+        if (!nameOk) return;
+        await persistStep({ como_chama: form.como_chama.trim() });
+        setStep(2);
+        return;
+      }
+      if (step === 2) {
+        if (!marketOk) return;
+        await persistStep({
+          especialidade: persistChoice(
+            form.especialidade,
+            marketChoice(form.especialidade),
+          ),
+        });
+        setStep(3);
+        return;
+      }
+      if (step === 3) {
+        if (!cargoOk) return;
+        await persistStep({
+          cargo: persistChoice(form.cargo, cargoChoice(form.cargo)),
+        });
+        setStep(4);
+      }
+    } catch {
+      /* keep the step */
+    }
+  }
+
+  async function finish() {
+    if (!form || !identityOk) return;
+    try {
+      await save.mutateAsync({
+        como_chama: form.como_chama.trim(),
+        especialidade: persistChoice(
+          form.especialidade,
+          marketChoice(form.especialidade),
+        ),
+        cargo: persistChoice(form.cargo, cargoChoice(form.cargo)),
+        onboarding_completed_at: new Date().toISOString(),
+      });
+      router.push(largadaNovaHref);
+      router.refresh();
+    } catch {
+      /* keep the form */
+    }
   }
 
   const busy = save.isPending;
 
-  if (!profile || !form || !previewProfile) {
-    return (
-      <AppShell title="Começar" back={BACK.painel}>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
-      </AppShell>
-    );
-  }
+  if (!profile || !form) return pulseStage(1);
+  if (profile.onboarding_completed_at) return pulseStage(1);
 
-  if (profile.onboarding_completed_at) {
-    return (
-      <AppShell title="Começar" back={BACK.painel}>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
-      </AppShell>
-    );
-  }
+  const needCopy =
+    step === 1 && !nameOk
+      ? COPY.setupNeedName
+      : step === 2 && !marketOk
+        ? COPY.setupNeedMarket
+        : step === 3 && !cargoOk
+          ? COPY.setupNeedCargo
+          : null;
+
+  const canAdvance =
+    (step === 1 && nameOk) ||
+    (step === 2 && marketOk) ||
+    (step === 3 && cargoOk) ||
+    (step === 4 && identityOk);
 
   return (
-    <AppShell title="Começar" back={BACK.painel}>
-      <div className="mx-auto max-w-2xl">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
-          Passo {step + 1}/{STEPS.length}
-        </p>
-        <SectionTitle className="mt-2">
-          {step === 0 ? COPY.setupIdentityTitle : COPY.setupGridTitle}
-        </SectionTitle>
-        <Hint className="mt-2">
-          {step === 0 ? COPY.setupIdentityHint : COPY.setupGridHint}
-        </Hint>
-
-        <div className="mt-5 flex gap-2">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex-1">
-              <div
-                className={cn(
-                  "h-1 rounded-full",
-                  i <= step ? "bg-podium-yellow" : "bg-white/10",
-                )}
-              />
-              <p className="mt-1 hidden text-[10px] uppercase tracking-wider text-podium-muted sm:block">
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {step === 0 ? (
-          <>
-            <GlassCard className="mt-6 space-y-5 p-5" highlight>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm text-podium-gray sm:col-span-2">
-                  Como você se chama na ligação
-                  <Hint className="mt-0.5">{COPY.comoChama}</Hint>
-                  <input
-                    id="como_chama"
-                    value={form.como_chama}
-                    onChange={(e) =>
-                      setDraft({ ...form, como_chama: e.target.value })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-                <fieldset id="tratamento" className="sm:col-span-2">
-                  <legend className="text-sm text-podium-gray">
-                    Aqui é…
-                    <Hint className="mt-0.5">{COPY.tratamento}</Hint>
-                  </legend>
-                  <div className="mt-2 flex gap-2">
-                    {(["o", "a", "e"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setDraft({ ...form, tratamento: t })}
-                        className={cn(
-                          "rounded-xl border px-4 py-2 text-sm font-bold",
-                          form.tratamento === t
-                            ? "border-podium-yellow bg-podium-yellow/15 text-podium-yellow"
-                            : "border-white/10 text-podium-gray",
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-                <label className="block text-sm text-podium-gray">
-                  Empresa
-                  <input
-                    id="empresa_usuario"
-                    value={form.empresa_usuario}
-                    onChange={(e) =>
-                      setDraft({ ...form, empresa_usuario: e.target.value })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="block text-sm text-podium-gray">
-                  Cidade
-                  <input
-                    id="cidade_usuario"
-                    value={form.cidade_usuario}
-                    onChange={(e) =>
-                      setDraft({ ...form, cidade_usuario: e.target.value })
-                    }
-                    className={fieldClass}
-                  />
-                </label>
-              </div>
-              <label className="block rounded-2xl border border-podium-yellow/35 bg-podium-yellow/10 p-4 text-sm text-podium-gray">
-                A promessa do piloto
-                <Hint className="mt-0.5">{COPY.promessaCompromisso}</Hint>
-                <textarea
-                  id="promessa"
-                  rows={3}
-                  value={form.promessa}
-                  onChange={(e) =>
-                    setDraft({ ...form, promessa: e.target.value })
-                  }
-                  className={cn(
-                    fieldClass,
-                    "resize-none border-podium-yellow/30 bg-podium-navy/40 text-podium-white focus:border-podium-yellow/60",
-                  )}
-                />
-              </label>
-              <label className="block text-sm text-podium-gray">
-                Duração da reunião (minutos)
-                <input
-                  id="duracao_reuniao"
-                  type="number"
-                  min={5}
-                  max={120}
-                  value={form.duracao_reuniao}
-                  onChange={(e) =>
-                    setDraft({
-                      ...form,
-                      duracao_reuniao: Number(e.target.value),
-                    })
-                  }
-                  className={fieldClass}
-                />
-              </label>
-              <AnatomyAssembler profile={previewProfile} />
-            </GlassCard>
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-              <button
-                type="button"
-                disabled={busy || !identityOk}
-                onClick={() => void advance()}
-                className="rounded-xl bg-podium-yellow px-5 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-40"
+    <SetupStage
+      step={step}
+      total={TOTAL_STEPS}
+      center={step === 1 || step === 4}
+      footer={
+        <div className="flex w-full flex-col items-stretch gap-2">
+          {needCopy ? (
+            <p className="text-right text-xs text-podium-muted">{needCopy}</p>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {step > 1 ? (
+              <Button
+                variant="ghost"
+                size="lg"
+                className="mr-auto"
+                disabled={busy}
+                onClick={() => setStep((current) => Math.max(1, current - 1))}
+              >
+                {COPY.setupBack}
+              </Button>
+            ) : null}
+            {step < 4 ? (
+              <Button
+                variant="primary"
+                size="lg"
+                disabled={busy || !canAdvance}
+                onClick={() => void goNext()}
               >
                 {busy ? "Salvando…" : COPY.setupContinue}
-              </button>
-            </div>
-            {!identityOk ? (
-              <p className="mt-3 text-right text-xs text-podium-muted">
-                {COPY.setupNeedIdentity}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <div className="mt-6">
-            <SetupFirstGrid
-              cidadeUsuario={form.cidade_usuario}
-              onBack={() => setStep(0)}
-              onReady={finishFirstList}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                disabled={busy || !identityOk}
+                onClick={() => void finish()}
+              >
+                {busy ? "Salvando…" : COPY.setupCta}
+              </Button>
+            )}
+          </div>
+        </div>
+      }
+    >
+      {step === 1 ? (
+        <label className="block">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+            {COPY.setupIdentityTitle}
+          </p>
+          <h1 className="mt-3 font-[family-name:var(--font-sora)] text-3xl font-extrabold tracking-tight md:text-5xl">
+            {COPY.setupStepName}
+          </h1>
+          <p className="mt-3 text-sm text-podium-muted">{COPY.setupIdentityHint}</p>
+          <input
+            id="como_chama"
+            autoFocus
+            value={form.como_chama}
+            onChange={(e) => setDraft({ ...form, como_chama: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void goNext();
+              }
+            }}
+            className="mt-10 w-full border-b border-white/20 bg-transparent pb-3 text-2xl font-semibold outline-none focus:border-podium-yellow/60 md:text-4xl"
+          />
+        </label>
+      ) : null}
+
+      {step === 2 ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <h1 className="font-[family-name:var(--font-sora)] text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">
+            {COPY.setupStepMarket}
+          </h1>
+          <div className="mt-4 min-h-0 flex-1 md:mt-6">
+            <MarketFields
+              legend={false}
+              variant="setup"
+              especialidade={form.especialidade}
+              onEspecialidade={(especialidade) =>
+                setDraft({ ...form, especialidade })
+              }
             />
           </div>
-        )}
-      </div>
-    </AppShell>
+        </div>
+      ) : null}
+
+      {step === 3 ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <h1 className="font-[family-name:var(--font-sora)] text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">
+            {COPY.setupStepCargo}
+          </h1>
+          {echo ? (
+            <p className="mt-2 text-sm font-medium text-podium-yellow md:mt-3 md:text-base">
+              {echo}
+            </p>
+          ) : null}
+          <div className="mt-3 min-h-0 flex-1 md:mt-5">
+            <CargoFields
+              legend={false}
+              variant="setup"
+              cargo={form.cargo}
+              onCargo={(cargo) => setDraft({ ...form, cargo })}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {step === 4 ? (
+        <SetupIdentityCard
+          profile={{ ...profile, ...form }}
+          echo={echo}
+          nameOn={nameOk}
+          marketOn={marketOk}
+          cargoOn={cargoOk}
+          onUploaded={(next) => qc.setQueryData(["profile"], next)}
+        />
+      ) : null}
+    </SetupStage>
   );
 }

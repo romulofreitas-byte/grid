@@ -175,6 +175,25 @@ describe("COPY crm", () => {
   });
 });
 
+describe("COPY setup and conta", () => {
+  it("asks ritual questions and then sends the person to generate a list", () => {
+    expect(COPY.setupIdentityTitle).toBe("Vamos começar");
+    expect(COPY.setupStepName).toMatch(/como te chamo/i);
+    expect(COPY.setupStepMarket).toMatch(/mercado/);
+    expect(COPY.setupStepCargo).toMatch(/papel/);
+    expect(COPY.setupStepPhoto).toMatch(/piloto/);
+    expect(COPY.setupStepPhoto.toLowerCase()).not.toMatch(/opcional/);
+    expect(COPY.setupBadgePhoto).toBe("Foto");
+    expect(COPY.setupCta).toBe("Começar a gerar lista");
+    expect(COPY.setupNeedIdentity).toMatch(/mercado/);
+    expect(COPY.setupNeedIdentity).toMatch(/cargo/);
+    expect(COPY.setupIdentityHint.toLowerCase()).not.toMatch(/primeira lista/);
+    expect(COPY.contaExtrato).toBe("Extrato");
+    expect(COPY.contaCreditHint).toMatch(/1 crédito = 1 qualificação/);
+    expect(COPY.contaIdentityHint.toLowerCase()).toMatch(/não entra no briefing/);
+  });
+});
+
 describe("COPY authenticated app", () => {
   it("drops race jargon from body copy", () => {
     expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/pista/);
@@ -209,6 +228,8 @@ describe("COPY landing", () => {
     expect(COPY.landingPrimeiraVez).toMatch(/minutos/i);
     expect(COPY.landingCtaStart).toBe("Começar grátis");
     expect(COPY.landingSignedInCta).toBe("Abrir o GRID");
+    expect(COPY.landingNavTour).toBe("Ver o tour");
+    expect(COPY.landingHowTourCta).toMatch(/tour/i);
   });
 
   it("names the three commercial steps in plain language", () => {
@@ -248,6 +269,34 @@ describe("COPY empresas", () => {
     expect(COPY.empresasMinChars.toLowerCase()).toMatch(/cnpj/);
     expect(COPY.empresasListaCta).toMatch(/\{nicho\}/);
     expect(COPY.empresasListaHint.toLowerCase()).toMatch(/atividade/);
+  });
+});
+
+describe("COPY tour", () => {
+  it("guides Painel then lista without race jargon", () => {
+    expect(COPY.tourNext).toBe("Próximo");
+    expect(COPY.tourSkip).toBe("Pular");
+    expect(COPY.tourFinishApp).toMatch(/Painel/);
+    expect(COPY.tourFinishLanding).toBe("Começar grátis");
+    expect(COPY.tourReplay).toMatch(/tour/i);
+    expect(COPY.tourStepPainelWelcomeTitle.toLowerCase()).toMatch(/painel/);
+    expect(COPY.tourStepGridOrderBody.toLowerCase()).toMatch(/p1/);
+    expect(COPY.tourStepGridSaveTitle.toLowerCase()).toMatch(/crm/);
+    const blob = [
+      COPY.tourStepPainelWelcomeBody,
+      COPY.tourStepPainelGoalBody,
+      COPY.tourStepPainelCallBody,
+      COPY.tourStepPainelNewListBody,
+      COPY.tourStepGridOrderBody,
+      COPY.tourStepGridRowBody,
+      COPY.tourStepGridQualifyBody,
+      COPY.tourStepGridSaveBody,
+    ]
+      .join(" ")
+      .toLowerCase();
+    expect(blob).not.toMatch(/pista/);
+    expect(blob).not.toMatch(/capacete/);
+    expect(blob).not.toMatch(/\banel\b/);
   });
 });
 

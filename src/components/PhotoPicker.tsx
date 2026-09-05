@@ -5,6 +5,18 @@ import { Camera } from "lucide-react";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import type { Profile } from "@/lib/types";
 
+export async function uploadProfilePhoto(file: File): Promise<Profile> {
+  const dataUrl = await fileToSquareJpeg(file);
+  const res = await fetch("/api/profile/photo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dataUrl }),
+  });
+  const json = (await res.json()) as Profile & { error?: string };
+  if (!res.ok) throw new Error(json.error ?? "Não foi possível salvar a foto");
+  return json;
+}
+
 async function fileToSquareJpeg(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
@@ -32,9 +44,11 @@ async function fileToSquareJpeg(file: File): Promise<string> {
 export function PhotoPicker({
   profile,
   onUploaded,
+  caption = "Sua foto",
 }: {
   profile: Pick<Profile, "foto_url" | "como_chama" | "nome">;
   onUploaded: (profile: Profile) => void;
+  caption?: string | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -45,15 +59,7 @@ export function PhotoPicker({
     setBusy(true);
     setError(null);
     try {
-      const dataUrl = await fileToSquareJpeg(file);
-      const res = await fetch("/api/profile/photo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl }),
-      });
-      const json = (await res.json()) as Profile & { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível salvar a foto");
-      onUploaded(json);
+      onUploaded(await uploadProfilePhoto(file));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível salvar a foto");
     } finally {
@@ -75,7 +81,7 @@ export function PhotoPicker({
         </span>
       </button>
       <div>
-        <p className="text-sm font-bold">Sua foto</p>
+        {caption ? <p className="text-sm font-bold">{caption}</p> : null}
         {busy ? (
           <p className="mt-1 text-xs text-podium-muted">Enviando…</p>
         ) : null}

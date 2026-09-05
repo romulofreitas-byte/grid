@@ -320,6 +320,7 @@ export type Profile = {
   plano: string;
   creditos: number;
   especialidade: string | null;
+  cargo: string | null;
   area: string | null;
   empresa_usuario: string | null;
   cidade_usuario: string | null;

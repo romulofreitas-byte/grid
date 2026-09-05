@@ -652,6 +652,7 @@ function createMockStore(): MockStore {
         plano: "free",
         creditos: 25,
         especialidade: "marketing digital",
+        cargo: "diretor",
         area: "vendas",
         empresa_usuario: "Combustível",
         cidade_usuario: "BH",
