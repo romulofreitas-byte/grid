@@ -3,7 +3,6 @@ import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { fromDatetimeLocal } from "@/lib/crm/activity";
-import { countConfirmedCrmCall } from "@/lib/crm/record-call";
 import { eventCreateSchema } from "@/lib/crm/schema";
 
 export async function GET(
@@ -37,14 +36,12 @@ export async function POST(
     if (!dueAt) return jsonError("Horário da próxima ação inválido.");
     next = { kind: next.kind, dueAt };
   }
-  const repo = getRepo();
-  const result = await repo.createCrmEvent(gated.userId, dealId, {
+  const result = await getRepo().createCrmEvent(gated.userId, dealId, {
     kind: parsed.data.kind,
     body: parsed.data.body,
     meta: parsed.data.phone ? { phone: parsed.data.phone } : {},
     next,
   });
   if (!result) return jsonError("Negócio não encontrado.", 404);
-  await countConfirmedCrmCall(repo, gated.userId, result.deal, result.event.kind);
   return NextResponse.json(result);
 }

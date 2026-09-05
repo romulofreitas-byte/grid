@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Phone } from "lucide-react";
+import { CallConfirmDialog } from "@/components/CallConfirmDialog";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { buttonClassName } from "@/components/ui/Button";
+import { COPY } from "@/lib/copy";
 import { resolveCatalogItem } from "@/lib/integrations/catalog";
 import {
   callViaLabel,
@@ -11,6 +14,22 @@ import {
 } from "@/lib/integrations/call-target";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { cn } from "@/lib/utils";
+
+async function recordManualCall(input: {
+  cnpj: string;
+  searchId?: string | null;
+}) {
+  const res = await fetch("/api/profile/call", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cnpj: normalizeLeadCnpj(input.cnpj),
+      searchId: input.searchId ?? undefined,
+    }),
+  });
+  const body = (await res.json()) as { error?: string };
+  if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
+}
 
 export function CallButton({
   telHref,
@@ -23,6 +42,8 @@ export function CallButton({
   onCalled,
   className,
   titleHint,
+  companyName,
+  phoneLabel,
 }: {
   telHref: string | null;
   connection: CallConnectionPick | null;
@@ -34,27 +55,39 @@ export function CallButton({
   onCalled?: () => void;
   className?: string;
   titleHint?: string;
+  companyName?: string | null;
+  phoneLabel?: string | null;
 }) {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
   const callMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/integrations/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          connectionId: connection?.id,
-          cnpj,
-          searchId: searchId ?? null,
-          to,
-        }),
-      });
-      const body = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? "Não foi possível ligar");
+      if (connection) {
+        const res = await fetch("/api/integrations/call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connectionId: connection.id,
+            cnpj,
+            searchId: searchId ?? null,
+            to,
+          }),
+        });
+        const body = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(body.error ?? "Não foi possível ligar");
+        return;
+      }
+      if (!telHref) throw new Error("Sem telefone");
+      await recordManualCall({ cnpj, searchId });
+      window.location.href = telHref;
     },
     onSuccess: () => {
+      setOpen(false);
       onCalled?.();
       qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(cnpj)] });
       qc.invalidateQueries({ queryKey: ["pilot-stats"] });
+      qc.invalidateQueries({ queryKey: ["grid"] });
       qc.invalidateQueries({ queryKey: ["integration-jobs"] });
     },
   });
@@ -77,15 +110,16 @@ export function CallButton({
         })
       : buttonClassName({ variant: "secondary", size: "sm", className });
 
-  if (connection) {
-    const title = callMutation.error
-      ? callMutation.error.message
-      : callViaLabel(connection);
-    return (
+  const title = callMutation.error
+    ? callMutation.error.message
+    : titleHint ?? (connection ? callViaLabel(connection) : COPY.callAskTitle);
+
+  return (
+    <>
       <button
         type="button"
         disabled={callMutation.isPending}
-        onClick={() => callMutation.mutate()}
+        onClick={() => setOpen(true)}
         aria-label={title}
         title={title}
         className={cn(base)}
@@ -102,21 +136,17 @@ export function CallButton({
         )}
         {callMutation.isPending ? "Ligando…" : idleLabel}
       </button>
-    );
-  }
-
-  if (!telHref) return null;
-
-  return (
-    <a
-      href={telHref}
-      aria-label={idleLabel}
-      title={titleHint ?? idleLabel}
-      onClick={() => onCalled?.()}
-      className={cn(base)}
-    >
-      <Phone className={variant === "cockpit" ? "h-4 w-4" : "h-3.5 w-3.5"} />
-      {idleLabel}
-    </a>
+      <CallConfirmDialog
+        open={open}
+        companyName={companyName}
+        phoneLabel={phoneLabel}
+        pending={callMutation.isPending}
+        onClose={() => {
+          if (callMutation.isPending) return;
+          setOpen(false);
+        }}
+        onConfirm={() => callMutation.mutate()}
+      />
+    </>
   );
 }

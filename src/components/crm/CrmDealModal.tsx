@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
+import { CallConfirmDialog } from "@/components/CallConfirmDialog";
 import { COPY } from "@/lib/copy";
 import { formatNichoCidade } from "@/lib/nicho-cidade";
 import { leadHrefForCnpj } from "@/lib/back";
@@ -69,6 +70,7 @@ import type {
 } from "@/lib/crm/types";
 import { formatCentsInput, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
+import { digitsCnpj } from "@/lib/crm/bridge";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
@@ -158,6 +160,7 @@ export function CrmDealModal({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [callPrompt, setCallPrompt] = useState<{ phone: string } | null>(null);
   const [celebrateCompany, setCelebrateCompany] = useState<string | null>(
     null,
   );
@@ -258,12 +261,12 @@ export function CrmDealModal({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      if (celebrateCompany) return;
+      if (celebrateCompany || callPrompt) return;
       onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, celebrateCompany]);
+  }, [onClose, celebrateCompany, callPrompt]);
 
   async function patch(payload: Record<string, unknown>) {
     const res = await crmFetch<{ deal: CrmDealCard }>(
@@ -400,11 +403,58 @@ export function CrmDealModal({
     return true;
   }
 
-  function startCall(phone?: string) {
+  function askCall(phone?: string) {
     setError(null);
     const target = phone ?? firstDialablePhone(dialTargets());
-    if (!dialPhone(target ?? null) && !target) {
+    if (!target) {
       companyPhoneRef.current?.focus();
+      setError(COPY.crmNoPhone);
+      return;
+    }
+    const href = telHrefFromPhone(target);
+    if (!href) {
+      setError(COPY.crmNoPhone);
+      return;
+    }
+    setCallPrompt({ phone: target });
+  }
+
+  async function confirmCall() {
+    const phone = callPrompt?.phone;
+    if (!phone) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (deal.next_activity?.kind === "ligar") {
+        const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+          `/api/crm/deals/${deal.id}/complete`,
+          { method: "POST" },
+        );
+        onChange(res.deal);
+        prependEvent(res.event);
+      } else {
+        const cnpj = deal.cnpj ? digitsCnpj(deal.cnpj) : "";
+        if (cnpj.length === 14) {
+          const res = await fetch("/api/profile/call", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cnpj }),
+          });
+          const body = (await res.json()) as { error?: string };
+          if (!res.ok) throw new Error(body.error ?? "Não registrou a ligação.");
+          const extra = await crmFetch<{ events: CrmEvent[] }>(
+            `/api/crm/deals/${deal.id}/events`,
+          );
+          setCachedDealEvents(deal.id, extra.events);
+          setEvents(extra.events);
+        }
+      }
+      setCallPrompt(null);
+      dialPhone(phone);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não registrou a ligação.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -435,26 +485,6 @@ export function CrmDealModal({
     setSaving(true);
     setError(null);
     try {
-      if (composerKind === "ligar") {
-        const logged = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
-          `/api/crm/deals/${deal.id}/call`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              notes: body,
-              next,
-              phone: (() => {
-                const phone = firstDialablePhone(dialTargets());
-                return phone && phone.length <= 24 ? phone : undefined;
-              })(),
-            }),
-          },
-        );
-        onChange(logged.deal);
-        prependEvent(logged.event);
-        setBody("");
-        return;
-      }
       const scheduled = await crmFetch<{ deal: CrmDealCard }>(
         `/api/crm/deals/${deal.id}/schedule`,
         { method: "POST", body: JSON.stringify(next) },
@@ -462,13 +492,7 @@ export function CrmDealModal({
       onChange(scheduled.deal);
       setBody("");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : composerKind === "ligar"
-            ? "Não registrou a ligação."
-            : "Não agendou.",
-      );
+      setError(err instanceof Error ? err.message : "Não agendou.");
     } finally {
       setSaving(false);
     }
@@ -841,19 +865,32 @@ export function CrmDealModal({
                             {formatEventWhen(deal.next_activity.created_at)}
                           </p>
                         ) : null}
-                        <label className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-700">
-                          <input
-                            type="checkbox"
-                            disabled={saving}
-                            aria-label={COPY.crmMarkDone}
-                            onChange={(event) => {
-                              event.currentTarget.checked = false;
-                              void completePlanned();
-                            }}
-                            className="h-3 w-3 rounded-sm border-zinc-300 text-amber-700 accent-amber-600 disabled:opacity-50"
-                          />
-                          {COPY.crmMarkDone}
-                        </label>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          {deal.next_activity?.kind === "ligar" ? (
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => askCall()}
+                              className="inline-flex items-center gap-0.5 text-[10px] text-zinc-400 hover:text-zinc-800 disabled:opacity-50"
+                            >
+                              <Phone className="h-3 w-3" />
+                              {COPY.crmCallNow}
+                            </button>
+                          ) : null}
+                          <label className="inline-flex cursor-pointer items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-700">
+                            <input
+                              type="checkbox"
+                              disabled={saving}
+                              aria-label={COPY.crmMarkDone}
+                              onChange={(event) => {
+                                event.currentTarget.checked = false;
+                                void completePlanned();
+                              }}
+                              className="h-3 w-3 rounded-sm border-zinc-300 text-amber-700 accent-amber-600 disabled:opacity-50"
+                            />
+                            {COPY.crmMarkDone}
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -1009,7 +1046,7 @@ export function CrmDealModal({
               <button
                 type="button"
                 disabled={saving || !companyPhone.trim()}
-                onClick={() => startCall(companyPhone)}
+                onClick={() => askCall(companyPhone)}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-podium-yellow px-2.5 py-1.5 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
               >
                 <Phone className="h-3.5 w-3.5" />
@@ -1131,6 +1168,17 @@ export function CrmDealModal({
         </div>
       </motion.div>
     </motion.div>
+      <CallConfirmDialog
+        open={Boolean(callPrompt)}
+        companyName={deal.company_name}
+        phoneLabel={callPrompt ? formatPhoneDisplay(callPrompt.phone) : null}
+        pending={saving}
+        onClose={() => {
+          if (saving) return;
+          setCallPrompt(null);
+        }}
+        onConfirm={() => void confirmCall()}
+      />
     </>
   );
 }

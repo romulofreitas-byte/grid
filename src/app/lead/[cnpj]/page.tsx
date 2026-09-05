@@ -399,26 +399,6 @@ export default function LeadPage() {
     },
   });
 
-  const recordCall = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/profile/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cnpj: params.cnpj,
-          savedLeadId: d?.savedLeadId ?? null,
-          searchId,
-        }),
-      });
-      const body = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: leadQueryKey(params.cnpj, searchId) });
-      qc.invalidateQueries({ queryKey: ["pilot-stats"] });
-    },
-  });
-
   const qualifyMutation = useMutation({
     mutationFn: async (opts?: { refresh?: boolean }) => {
       const res = await fetch("/api/enrich", {
@@ -808,6 +788,8 @@ export default function LeadPage() {
                     to={primaryE164 ? `+${primaryE164}` : undefined}
                     variant="cockpit"
                     titleHint={COPY.callDialHint}
+                    companyName={companyTitle}
+                    phoneLabel={formatPhone(primary.ddd, primary.telefone)}
                     onCalled={markLigando}
                   />
                 </div>
@@ -847,12 +829,9 @@ export default function LeadPage() {
                     className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-white/10 px-2.5 py-1.5"
                   >
                     <div className="min-w-0">
-                      <a
-                        href={`tel:+55${c.ddd}${c.telefone}`}
-                        className="text-sm font-medium"
-                      >
+                      <p className="text-sm font-medium">
                         {formatPhone(c.ddd, c.telefone)}
-                      </a>
+                      </p>
                       <ContactSealBadge
                         seal={c.seal}
                         label={c.label}
@@ -877,6 +856,8 @@ export default function LeadPage() {
                       }
                       variant="ficha"
                       titleHint={COPY.callDialHint}
+                      companyName={companyTitle}
+                      phoneLabel={formatPhone(c.ddd, c.telefone)}
                       onCalled={markLigando}
                     />
                   </div>
@@ -973,9 +954,7 @@ export default function LeadPage() {
           searchSaved={Boolean(d.searchSaved)}
           wasQualified={Boolean(displayEnrichment) || Boolean(d.wasQualified)}
           notas={d.notas}
-          recordPending={recordCall.isPending}
           onStage={(crmStageKey) => saveMutation.mutate({ crmStageKey })}
-          onRecordCall={() => recordCall.mutate()}
           onNotasBlur={(notas) => saveMutation.mutate({ notas })}
           callAction={
             primary ? (
@@ -987,6 +966,8 @@ export default function LeadPage() {
                 to={primaryE164 ? `+${primaryE164}` : undefined}
                 variant="cockpit"
                 titleHint={COPY.callDialHint}
+                companyName={companyTitle}
+                phoneLabel={formatPhone(primary.ddd, primary.telefone)}
                 onCalled={markLigando}
               />
             ) : null

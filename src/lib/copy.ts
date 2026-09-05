@@ -427,7 +427,6 @@ export const COPY = {
   callAskConfirm: "Ligar",
   callAskCancel: "Cancelar",
   callAskPending: "Ligando…",
-  callConfirm: "Registrei",
   callConfirmHint: "Conta na meta e registra no CRM.",
   callDialHint: "Confirme para abrir o telefone e contar na meta.",
   gridCalledToday: "Ligou",

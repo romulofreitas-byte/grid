@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookmarkPlus, Check, Phone, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
@@ -214,31 +214,15 @@ function GridRowActions({
   onToggle: () => void;
   onRemove: () => void;
 }) {
-  const qc = useQueryClient();
   const [dialed, setDialed] = useState(false);
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
   const qualified = isGridRowQualified(row, qualifying);
-  const recordCall = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/profile/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cnpj: normalizeLeadCnpj(row.cnpj),
-          searchId,
-        }),
-      });
-      const body = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["grid", searchId] });
-      void qc.invalidateQueries({ queryKey: ["pilot-stats"] });
-      void qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(row.cnpj)] });
-    },
-  });
-  const calledToday = row.calledToday || recordCall.isSuccess;
+  const phoneLabel = formatPhone(
+    row.telefone?.slice(0, 2) ?? null,
+    row.telefone?.slice(2) ?? null,
+  );
+  const calledToday = row.calledToday || dialed;
   return (
     <div className="flex items-center gap-1 whitespace-nowrap">
       {qualified ? (
@@ -281,6 +265,8 @@ function GridRowActions({
         variant="grid"
         className="px-2"
         titleHint={COPY.callDialHint}
+        companyName={name}
+        phoneLabel={phoneLabel}
         onCalled={() => setDialed(true)}
       />
       {calledToday ? (
@@ -291,23 +277,6 @@ function GridRowActions({
         >
           {COPY.gridCalledToday}
         </Badge>
-      ) : telHref || callConnection ? (
-        <button
-          type="button"
-          title={COPY.callConfirmHint}
-          aria-label={`${COPY.callConfirm} ${name}`}
-          disabled={recordCall.isPending}
-          onClick={() => recordCall.mutate()}
-          className={cn(
-            "inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold",
-            dialed
-              ? "bg-podium-yellow text-podium-navy"
-              : "text-podium-muted hover:bg-white/5 hover:text-podium-yellow",
-          )}
-        >
-          <Phone className="h-3.5 w-3.5" />
-          {recordCall.isPending ? "…" : COPY.callConfirm}
-        </button>
       ) : null}
       {canRemove ? (
         <button

@@ -75,6 +75,7 @@ export function BoxDayCta({
           searchId={next.searchId}
           variant="cockpit"
           label={idleLabel}
+          companyName={next.nome}
           onCalled={() => router.push(fichaHref)}
         />
         <Link

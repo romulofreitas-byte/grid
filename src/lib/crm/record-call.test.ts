@@ -177,5 +177,55 @@ describe("countConfirmedCrmCall", () => {
     expect(stats.hoje).toBe(1);
     expect(store.call_events).toHaveLength(1);
     expect(store.call_events[0]?.source).toBe("crm");
+    expect(doneLigar!.deal.next_activity).toBeNull();
+    expect(doneWa!.deal.next_activity).toBeNull();
+  });
+
+  it("does not count scheduling or logging a ligar note without completing", async () => {
+    const store = getMockStore();
+    const cnpj = store.establishments[0]!.cnpj;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const deal = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Agenda",
+      cnpj,
+    });
+    const dueAt = new Date("2026-09-04T18:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, deal!.id, "ligar", dueAt);
+    await mockRepo.logCrmCall(USER, deal!.id, "Liguei depois");
+
+    const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
+    expect(stats.hoje).toBe(0);
+    expect(store.call_events).toHaveLength(0);
+
+    const card = await mockRepo.getCrmDeal(USER, deal!.id);
+    expect(card?.next_activity?.kind).toBe("ligar");
+    const events = await mockRepo.listCrmEvents(USER, deal!.id);
+    expect(events?.some((row) => row.kind === "ligar")).toBe(true);
+  });
+});
+
+describe("scheduleCrmActivity", () => {
+  afterEach(cleanup);
+
+  it("does not increment the ring when only the deadline is saved", async () => {
+    const store = getMockStore();
+    const cnpj = store.establishments[0]!.cnpj;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const deal = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Agenda",
+      cnpj,
+    });
+    const dueAt = new Date("2026-09-04T18:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, deal!.id, "ligar", dueAt);
+
+    const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
+    expect(stats.hoje).toBe(0);
+    expect(store.call_events).toHaveLength(0);
+    const card = await mockRepo.getCrmDeal(USER, deal!.id);
+    expect(card?.next_activity?.kind).toBe("ligar");
+    const events = await mockRepo.listCrmEvents(USER, deal!.id);
+    expect(events?.some((row) => row.kind === "ligar")).toBe(false);
   });
 });

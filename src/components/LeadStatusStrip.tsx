@@ -2,8 +2,6 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Phone } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { ChoiceTile } from "@/components/ui/ChoiceTile";
 import { GlassCard } from "@/components/GlassCard";
 import { COPY } from "@/lib/copy";
@@ -17,9 +15,7 @@ export function LeadStatusStrip({
   searchSaved,
   wasQualified = false,
   notas,
-  recordPending,
   onStage,
-  onRecordCall,
   onNotasBlur,
   callAction,
 }: {
@@ -27,9 +23,7 @@ export function LeadStatusStrip({
   searchSaved: boolean;
   wasQualified?: boolean;
   notas: string | null;
-  recordPending: boolean;
   onStage: (key: FichaMoveKey) => void;
-  onRecordCall: () => void;
   onNotasBlur: (notas: string) => void;
   callAction?: ReactNode;
 }) {
@@ -81,33 +75,9 @@ export function LeadStatusStrip({
               {FIRST_MILE_CHIP_LABELS[stage.key]}
             </ChoiceTile>
           ))}
-          <Button
-            size="sm"
-            variant="ghost"
-            title={COPY.callConfirmHint}
-            disabled={recordPending}
-            onClick={onRecordCall}
-            className="ml-auto gap-1.5"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {recordPending ? "Registrando…" : COPY.callConfirm}
-          </Button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm text-podium-muted">{promptCopy}</p>
-          <Button
-            size="sm"
-            variant="ghost"
-            title={COPY.callConfirmHint}
-            disabled={recordPending}
-            onClick={onRecordCall}
-            className="ml-auto gap-1.5"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            {recordPending ? "Registrando…" : COPY.callConfirm}
-          </Button>
-        </div>
+        <p className="text-sm text-podium-muted">{promptCopy}</p>
       )}
 
       <textarea
