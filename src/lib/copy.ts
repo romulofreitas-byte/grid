@@ -398,6 +398,8 @@ export const COPY = {
   crmSaveListToEnter:
     "Salve a lista para os leads qualificados entrarem no CRM.",
   crmEnteringPista: "Colocando no CRM…",
+  crmBridgeFailed: "Não foi possível colocar no CRM.",
+  crmBridgePartial: "{n} não entraram no CRM.",
   crmCatchUpToastOne: "1 lead das suas listas salvas entrou no CRM.",
   crmCatchUpToastMany: "{n} leads das suas listas salvas entraram no CRM.",
   crmPastFirstMile: "Daqui em diante você acompanha só no quadro, não na ficha.",

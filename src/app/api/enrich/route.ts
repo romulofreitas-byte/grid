@@ -6,7 +6,8 @@ import {
   planRequiredPayload,
 } from "@/lib/billing/paywall";
 import { EnrichmentNotAllowedError, InsufficientCreditsError } from "@/lib/billing/types";
-import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
+import { bridgeQualifiedLeadsToCrm, publicCrmBridge } from "@/lib/crm/bridge";
+import { COPY } from "@/lib/copy";
 import { getDataSource, getRepo } from "@/lib/data";
 import {
   applyPresenceCorrection,
@@ -326,22 +327,35 @@ export async function POST(req: Request) {
   });
   kickOwnedEnrichment(searchId, userId);
 
+  let crmBridge: ReturnType<typeof publicCrmBridge> | null = null;
   if (search?.saved) {
-    after(() =>
-      bridgeQualifiedLeadsToCrm(repo, {
-        userId,
-        search,
-        cnpjs,
-      }).catch((err) => {
-        console.error("crm_qualify_bridge_error", err);
-      }),
-    );
+    try {
+      crmBridge = publicCrmBridge(
+        await bridgeQualifiedLeadsToCrm(repo, {
+          userId,
+          search,
+          cnpjs,
+        }),
+      );
+    } catch (err) {
+      console.error("crm_qualify_bridge_error", err);
+      crmBridge = publicCrmBridge(
+        {
+          created: 0,
+          skipped: 0,
+          failed: cnpjs.length,
+          pipelineId: null,
+          pipelineNome: null,
+        },
+        COPY.crmBridgeFailed,
+      );
+    }
   }
 
   return NextResponse.json({
     ...result,
-    crmBridge: null,
-    crmPending: Boolean(search?.saved),
+    crmBridge,
+    crmPending: false,
   });
 }
 

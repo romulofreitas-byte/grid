@@ -1,5 +1,6 @@
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import type { CrmDealCard, CrmDealMeta } from "@/lib/crm/types";
+import { COPY } from "@/lib/copy";
 import type { GridRepo } from "@/lib/data/repo";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatPhone } from "@/lib/format";
@@ -104,6 +105,7 @@ export type CrmBridgeRepo = Pick<
 export type BridgeQualifyResult = {
   created: number;
   skipped: number;
+  failed: number;
   pipelineId: string | null;
   pipelineNome: string | null;
 };
@@ -137,6 +139,7 @@ export async function bridgeQualifiedLeadsToCrm(
   const empty: BridgeQualifyResult = {
     created: 0,
     skipped: 0,
+    failed: 0,
     pipelineId: null,
     pipelineNome: null,
   };
@@ -167,6 +170,7 @@ export async function bridgeQualifiedLeadsToCrm(
   );
   let created = 0;
   let skipped = 0;
+  let failed = 0;
 
   const briefs = await repo.listCompanyBriefs(input.cnpjs);
   const briefByCnpj = new Map(
@@ -199,7 +203,7 @@ export async function bridgeQualifiedLeadsToCrm(
     if (!brief) {
       const dossier = await repo.getDossier(cnpj, input.search.id);
       if (!dossier) {
-        skipped += 1;
+        failed += 1;
         continue;
       }
       company_name = displayCompanyName(
@@ -222,13 +226,74 @@ export async function bridgeQualifiedLeadsToCrm(
       notes: "",
     });
     if (deal) created += 1;
-    else skipped += 1;
+    else failed += 1;
   }
 
   return {
     created,
     skipped,
+    failed,
     pipelineId: pipeline.id,
     pipelineNome: pipeline.nome,
   };
 }
+
+export type PublicCrmBridge = {
+  created: number;
+  skipped: number;
+  failed: number;
+  pipelineId: string | null;
+  pipelineNome: string | null;
+  error: string | null;
+};
+
+export function publicCrmBridge(
+  result: BridgeQualifyResult,
+  error: string | null = null,
+): PublicCrmBridge {
+  return {
+    created: result.created,
+    skipped: result.skipped,
+    failed: result.failed,
+    pipelineId: result.pipelineId,
+    pipelineNome: result.pipelineNome,
+    error,
+  };
+}
+
+export function qualifyCrmHint(
+  saved: boolean,
+  bridge: PublicCrmBridge | null,
+): { hint: string; pipelineId: string | null } {
+  if (!saved) {
+    return { hint: COPY.crmSaveListToEnter, pipelineId: null };
+  }
+  if (!bridge || bridge.error) {
+    return {
+      hint: COPY.crmBridgeFailed,
+      pipelineId: bridge?.pipelineId ?? null,
+    };
+  }
+  if (bridge.created > 0) {
+    const nome = bridge.pipelineNome ?? COPY.crmNav;
+    const main =
+      bridge.created === 1
+        ? `1 lead no CRM · ${nome}`
+        : `${bridge.created} leads no CRM · ${nome}`;
+    if (bridge.failed > 0) {
+      return {
+        hint: `${main}. ${COPY.crmBridgePartial.replace("{n}", String(bridge.failed))}`,
+        pipelineId: bridge.pipelineId,
+      };
+    }
+    return { hint: main, pipelineId: bridge.pipelineId };
+  }
+  if (bridge.failed > 0) {
+    return { hint: COPY.crmBridgeFailed, pipelineId: bridge.pipelineId };
+  }
+  if (bridge.pipelineId) {
+    return { hint: COPY.crmOnGrid, pipelineId: bridge.pipelineId };
+  }
+  return { hint: COPY.crmBridgeFailed, pipelineId: null };
+}
+

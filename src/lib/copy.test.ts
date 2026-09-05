@@ -99,6 +99,27 @@ describe("COPY export cost", () => {
   });
 });
 
+describe("COPY importações", () => {
+  it("states last-run status and the fix path without race jargon", () => {
+    expect(COPY.importacoesHistoryTitle).toBe("Última importação");
+    expect(COPY.importacoesStatusPartial).toBe("Com erros");
+    expect(COPY.importacoesDownloadErrors.toLowerCase()).toMatch(/erro/);
+    expect(COPY.importacoesFixHint.toLowerCase()).toMatch(/suba/);
+    expect(COPY.importacoesSkippedHint.toLowerCase()).toMatch(/não é erro/);
+    expect(COPY.importacoesBadgeCreatedMany.replace("{n}", "11")).toBe("11 no CRM");
+  });
+});
+
+describe("COPY automações", () => {
+  it("names inbound delivery status without race jargon", () => {
+    expect(COPY.automacoesEventsTitle).toBe("Últimos envios");
+    expect(COPY.automacoesLastCreated).toBe("Entrou");
+    expect(COPY.automacoesLastSkipped).toBe("Já no quadro");
+    expect(COPY.automacoesLastError).toBe("Recusado");
+    expect(COPY.automacoesEventsHint.toLowerCase()).toMatch(/token/);
+  });
+});
+
 describe("COPY listas", () => {
   it("keeps list hints short and without grid jargon", () => {
     expect(COPY.listasSalvasHint.toLowerCase()).not.toMatch(/grid/);
@@ -138,6 +159,8 @@ describe("COPY crm", () => {
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
+    expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);
+    expect(COPY.crmBridgePartial).toMatch(/não entraram no crm/i);
     expect(COPY.salvarNaPista).toBe("Salvar no CRM");
     expect(COPY.listaDaVolta).toMatch(/lista/i);
   });

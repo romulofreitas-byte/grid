@@ -38,7 +38,7 @@ export async function runCrmQualifyBridge(
     });
     return {
       created: out.created,
-      skipped: out.skipped,
+      skipped: out.skipped + out.failed,
       hasMore: false,
       pipelineId: out.pipelineId,
       pipelineNome: out.pipelineNome,
@@ -76,7 +76,7 @@ export async function runCrmQualifyBridge(
       source: "catchup_bridge",
     });
     created += out.created;
-    skipped += out.skipped;
+    skipped += out.skipped + out.failed;
     if (out.pipelineId && !pipelineId) {
       pipelineId = out.pipelineId;
       pipelineNome = out.pipelineNome;

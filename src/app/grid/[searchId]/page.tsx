@@ -56,6 +56,7 @@ import {
 } from "@/components/ExportConfirmDialog";
 import { GridMoreMenu } from "@/components/GridMoreMenu";
 import { formatEventWhen } from "@/lib/crm/events";
+import { qualifyCrmHint, type PublicCrmBridge } from "@/lib/crm/bridge";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
@@ -506,12 +507,7 @@ export default function GridPage() {
       const json = (await res.json()) as {
         error?: string;
         upgradeUrl?: string;
-        crmBridge?: {
-          created: number;
-          skipped: number;
-          pipelineNome: string | null;
-          pipelineId: string | null;
-        } | null;
+        crmBridge?: PublicCrmBridge | null;
       };
       throwIfBillingGate(res.status, json, openPaywall, "qualify");
       if (!res.ok) throw new Error(json.error ?? "Não foi possível qualificar");
@@ -528,60 +524,11 @@ export default function GridPage() {
       }
       return { targets };
     },
-    onSuccess: (json, body) => {
+    onSuccess: (json) => {
       setCreditHint(null);
-      const bridge = json.crmBridge;
-      if (bridge?.pipelineId) {
-        if (bridge.created) {
-          setCrmHint(
-            bridge.created === 1
-              ? `1 lead no CRM · ${bridge.pipelineNome ?? COPY.crmNav}`
-              : `${bridge.created} leads no CRM · ${bridge.pipelineNome ?? COPY.crmNav}`,
-          );
-        } else {
-          setCrmHint(COPY.crmOnGrid);
-        }
-        setCrmPipelineId(bridge.pipelineId);
-      } else if (!search?.saved) {
-        setCrmHint(COPY.crmSaveListToEnter);
-        setCrmPipelineId(null);
-      } else {
-        setCrmHint(COPY.crmEnteringPista);
-        setCrmPipelineId(null);
-        const targets = resolveQualifyTargets(body, rowsRef.current);
-        void fetch("/api/session/catch-up", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            searchId,
-            ...(targets.length ? { cnpjs: targets } : {}),
-          }),
-        })
-          .then((res) => (res.ok ? res.json() : null))
-          .then(
-            (
-              data: {
-                created?: number;
-                pipelineId?: string | null;
-              } | null,
-            ) => {
-              if (data?.pipelineId) setCrmPipelineId(data.pipelineId);
-              if (data?.created) {
-                setCrmHint(
-                  data.created === 1
-                    ? COPY.crmCatchUpToastOne
-                    : COPY.crmCatchUpToastMany.replace(
-                        "{n}",
-                        String(data.created),
-                      ),
-                );
-              }
-              void qc.invalidateQueries({ queryKey: ["grid", searchId] });
-              void qc.invalidateQueries({ queryKey: ["lead"] });
-            },
-          )
-          .catch(() => undefined);
-      }
+      const shown = qualifyCrmHint(Boolean(search?.saved), json.crmBridge ?? null);
+      setCrmHint(shown.hint);
+      setCrmPipelineId(shown.pipelineId);
       setSelected(new Set());
       setConfirmAll(false);
       void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });

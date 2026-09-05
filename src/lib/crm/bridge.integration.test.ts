@@ -129,6 +129,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     });
     expect(second.created).toBe(0);
     expect(second.skipped).toBe(1);
+    expect(second.failed).toBe(0);
     expect(createCrmDeal).toHaveBeenCalledTimes(1);
   });
 
@@ -261,5 +262,40 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(out.created).toBe(1);
     expect(out.pipelineNome).toBe("Meu nicho");
     expect(createCrmPipeline).toHaveBeenCalledWith("user-1", "Meu nicho");
+  });
+
+  it("counts missing company data as failed, not skipped", async () => {
+    const pipeline: CrmPipelineSummary = {
+      id: "pipe-1",
+      user_id: "user-1",
+      nome: "Clínicas estética",
+      position: 0,
+      created_at: new Date().toISOString(),
+      deal_count: 0,
+    };
+    const repo: CrmBridgeRepo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
+      createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
+      createCrmDeal: vi.fn(),
+      getDossier: vi.fn().mockResolvedValue(null),
+      listCompanyBriefs: vi.fn().mockResolvedValue([]),
+      getPreset: vi.fn().mockResolvedValue({
+        id: "seg-1",
+        nome: "Clínicas estética",
+      }),
+    };
+    const out = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search(),
+      cnpjs: ["12345678000190"],
+    });
+    expect(out).toMatchObject({
+      created: 0,
+      skipped: 0,
+      failed: 1,
+      pipelineId: "pipe-1",
+    });
+    expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 });

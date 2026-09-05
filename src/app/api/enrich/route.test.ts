@@ -65,9 +65,13 @@ vi.mock("@/lib/enrichment/process-job", () => ({
   resolveJobScoreProfile: (...args: unknown[]) => resolveJobScoreProfile(...args),
 }));
 
-vi.mock("@/lib/crm/bridge", () => ({
-  bridgeQualifiedLeadsToCrm,
-}));
+vi.mock("@/lib/crm/bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crm/bridge")>();
+  return {
+    ...actual,
+    bridgeQualifiedLeadsToCrm,
+  };
+});
 
 import { GET, POST } from "./route";
 
@@ -372,7 +376,7 @@ describe("POST /api/enrich qualify bridge", () => {
     enqueueEnrichment.mockResolvedValue({ queued: 1, skippedOptOut: 0 });
   });
 
-  it("does not wait for the CRM bridge before responding", async () => {
+  it("waits for the CRM bridge and returns the result", async () => {
     getSearch.mockResolvedValue({
       id: "s1",
       user_id: "u1",
@@ -380,18 +384,83 @@ describe("POST /api/enrich qualify bridge", () => {
       nome: "Padaria do Zé",
       filtros: { cnpjs: ["00000000000000"], segmentIds: [] },
     });
-    let resolveBridge!: (value: {
-      created: number;
-      skipped: number;
-      pipelineId: string;
-      pipelineNome: string;
-    }) => void;
+    let released = false;
     bridgeQualifiedLeadsToCrm.mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveBridge = resolve;
+          queueMicrotask(() => {
+            released = true;
+            resolve({
+              created: 1,
+              skipped: 0,
+              failed: 0,
+              pipelineId: "pipe-1",
+              pipelineNome: "Meu nicho",
+            });
+          });
         }),
     );
+    const res = await POST(
+      correctRequest({
+        searchId: "s1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(released).toBe(true);
+    expect(await res.json()).toMatchObject({
+      queued: 1,
+      crmPending: false,
+      crmBridge: {
+        created: 1,
+        skipped: 0,
+        failed: 0,
+        pipelineId: "pipe-1",
+        pipelineNome: "Meu nicho",
+        error: null,
+      },
+    });
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({ priority: true }),
+    );
+    expect(bridgeQualifiedLeadsToCrm).toHaveBeenCalled();
+  });
+
+  it("keeps the qualify success when the CRM bridge throws", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: true,
+      nome: "Padaria do Zé",
+      filtros: { cnpjs: ["00000000000000"], segmentIds: [] },
+    });
+    bridgeQualifiedLeadsToCrm.mockRejectedValue(new Error("boom"));
+    const res = await POST(
+      correctRequest({
+        searchId: "s1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      queued: 1,
+      crmPending: false,
+      crmBridge: {
+        created: 0,
+        failed: 1,
+        error: "Não foi possível colocar no CRM.",
+      },
+    });
+  });
+
+  it("does not call the CRM bridge when the list is not saved", async () => {
+    getSearch.mockResolvedValue({
+      id: "s1",
+      user_id: "u1",
+      saved: false,
+      nome: "Lista",
+      filtros: {},
+    });
     const res = await POST(
       correctRequest({
         searchId: "s1",
@@ -402,18 +471,9 @@ describe("POST /api/enrich qualify bridge", () => {
     expect(await res.json()).toMatchObject({
       queued: 1,
       crmBridge: null,
-      crmPending: true,
+      crmPending: false,
     });
-    expect(enqueueEnrichment).toHaveBeenCalledWith(
-      expect.objectContaining({ priority: true }),
-    );
-    expect(bridgeQualifiedLeadsToCrm).toHaveBeenCalled();
-    resolveBridge({
-      created: 1,
-      skipped: 0,
-      pipelineId: "pipe-1",
-      pipelineNome: "Meu nicho",
-    });
+    expect(bridgeQualifiedLeadsToCrm).not.toHaveBeenCalled();
   });
 
   it("passes limit into listUnauditedCnpjs for Qualificar 10", async () => {
