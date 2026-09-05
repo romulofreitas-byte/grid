@@ -36,7 +36,7 @@ export function OpsUserSheet({ id }: { id: string }) {
   const qc = useQueryClient();
   const [qty, setQty] = useState("100");
   const [confirm, setConfirm] = useState<
-    null | "credits" | "cancel" | "trial" | "trial-force"
+    null | "credits" | "credits-revoke" | "cancel" | "trial" | "trial-force"
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -186,7 +186,7 @@ export function OpsUserSheet({ id }: { id: string }) {
                   onChange={(e) => setQty(e.target.value)}
                 />
               </label>
-              {confirm === "credits" ? (
+              {confirm === "credits" || confirm === "credits-revoke" ? (
                 <>
                   <button
                     type="button"
@@ -194,12 +194,17 @@ export function OpsUserSheet({ id }: { id: string }) {
                     onClick={() =>
                       act.mutate({
                         path: `/api/ops/users/${id}/credits`,
-                        body: { qty: creditsQty },
+                        body: {
+                          qty: creditsQty,
+                          action: confirm === "credits-revoke" ? "revoke" : "grant",
+                        },
                       })
                     }
                     className="rounded-xl bg-podium-yellow px-3 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-60"
                   >
-                    Confirmar {creditsPhrase(Number.isFinite(creditsQty) ? creditsQty : 0)}
+                    {confirm === "credits-revoke"
+                      ? `Confirmar retirada de ${creditsPhrase(Number.isFinite(creditsQty) ? creditsQty : 0)}`
+                      : `Confirmar ${creditsPhrase(Number.isFinite(creditsQty) ? creditsQty : 0)}`}
                   </button>
                   <button
                     type="button"
@@ -210,16 +215,28 @@ export function OpsUserSheet({ id }: { id: string }) {
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionError(null);
-                    setConfirm("credits");
-                  }}
-                  className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
-                >
-                  Dar créditos
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionError(null);
+                      setConfirm("credits");
+                    }}
+                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
+                  >
+                    Dar créditos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionError(null);
+                      setConfirm("credits-revoke");
+                    }}
+                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
+                  >
+                    Retirar créditos
+                  </button>
+                </>
               )}
             </div>
 

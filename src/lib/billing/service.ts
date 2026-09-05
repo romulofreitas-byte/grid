@@ -9,6 +9,7 @@ import {
   trialDaysRemaining,
 } from "@/lib/billing/access";
 import {
+  creditsPhrase,
   ENRICH_CREDIT_COST,
   EXPORT_CREDIT_COST,
   getCatalogItem,
@@ -857,6 +858,26 @@ export async function grantManualCredits(
     ref: "ops",
   });
   return syncCache(store, profileId);
+}
+
+export async function revokeManualCredits(
+  profileId: string,
+  qty: number,
+): Promise<CreditBalance> {
+  if (!Number.isInteger(qty) || qty < 1 || qty > 50_000) {
+    throw new BillingError("Quantidade de créditos inválida", 400);
+  }
+  try {
+    return await debitCredits(profileId, qty, "ops_revoke", "ops");
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      throw new BillingError(
+        `Só há ${creditsPhrase(err.available)} na conta`,
+        400,
+      );
+    }
+    throw err;
+  }
 }
 
 export async function opsGrantPlatformTrial(

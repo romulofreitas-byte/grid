@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { guardOpsApi } from "@/lib/auth/api-guard";
 import { BillingError } from "@/lib/billing/types";
-import { grantManualCredits } from "@/lib/billing/service";
+import {
+  grantManualCredits,
+  revokeManualCredits,
+} from "@/lib/billing/service";
 import { getOpsUser, isOpsProfileId } from "@/lib/ops/metrics";
+
+function parseCreditsBody(raw: unknown): { qty: number; action: "grant" | "revoke" } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const body = raw as { qty?: unknown; action?: unknown };
+  const qty = typeof body.qty === "number" ? body.qty : Number(body.qty);
+  const action = body.action === "revoke" ? "revoke" : "grant";
+  if (!Number.isFinite(qty)) return null;
+  return { qty, action };
+}
 
 export async function POST(
   req: Request,
@@ -14,15 +26,21 @@ export async function POST(
   if (!isOpsProfileId(id)) {
     return NextResponse.json({ error: "Usuário inválido" }, { status: 400 });
   }
-  let qty = 0;
+  let parsed: ReturnType<typeof parseCreditsBody> = null;
   try {
-    const body = (await req.json()) as { qty?: unknown };
-    qty = typeof body.qty === "number" ? body.qty : Number(body.qty);
+    parsed = parseCreditsBody(await req.json());
   } catch {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
+  if (!parsed) {
+    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  }
   try {
-    await grantManualCredits(id, qty);
+    if (parsed.action === "revoke") {
+      await revokeManualCredits(id, parsed.qty);
+    } else {
+      await grantManualCredits(id, parsed.qty);
+    }
     const user = await getOpsUser(id);
     return NextResponse.json(user);
   } catch (err) {
@@ -30,7 +48,12 @@ export async function POST(
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     return NextResponse.json(
-      { error: "Não foi possível creditar" },
+      {
+        error:
+          parsed.action === "revoke"
+            ? "Não foi possível debitar"
+            : "Não foi possível creditar",
+      },
       { status: 400 },
     );
   }

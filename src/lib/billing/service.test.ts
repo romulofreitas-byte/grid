@@ -17,6 +17,7 @@ import {
   grantManualCredits,
   handleNormalizedEvent,
   opsGrantPlatformTrial,
+  revokeManualCredits,
 } from "@/lib/billing/service";
 import {
   CrmNotAllowedError,
@@ -555,6 +556,32 @@ describe("billing service", () => {
     expect(bal.total).toBe(65);
     expect(bal.plano).toBe("free");
     await expect(grantManualCredits(profileId, 0)).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it("revokes credits from ops without granting extra", async () => {
+    await getBalance(profileId);
+    const bal = await revokeManualCredits(profileId, 10);
+    expect(bal.plan).toBe(15);
+    expect(bal.total).toBe(15);
+  });
+
+  it("rejects ops revoke above the balance without wiping the tank", async () => {
+    await getBalance(profileId);
+    await expect(revokeManualCredits(profileId, 40)).rejects.toMatchObject({
+      status: 400,
+      message: "Só há 25 créditos na conta",
+    });
+    expect((await getBalance(profileId)).total).toBe(25);
+  });
+
+  it("rejects invalid ops revoke qty", async () => {
+    await getBalance(profileId);
+    await expect(revokeManualCredits(profileId, 0)).rejects.toMatchObject({
+      status: 400,
+    });
+    await expect(revokeManualCredits(profileId, 1.5)).rejects.toMatchObject({
       status: 400,
     });
   });
