@@ -27,6 +27,19 @@ export function cnpjsFromJobPayload(
     .map(padCnpj);
 }
 
+export async function qualifiedCnpjsForExport(
+  profileId: string,
+  searchId: string,
+  limit: number,
+): Promise<string[]> {
+  const all = (await getRepo().listExportCnpjs(searchId))
+    .map(padCnpj)
+    .slice(0, limit);
+  if (all.length === 0) return [];
+  const allowed = new Set(await filterQualifiedCnpjs(profileId, all));
+  return all.filter((cnpj) => allowed.has(cnpj));
+}
+
 export async function qualifiedLeadsForExport(
   profileId: string,
   searchId: string,

@@ -1365,13 +1365,16 @@ export const mockRepo: GridRepo = {
     return getMockStore().ref_cnae;
   },
 
+  async listExportCnpjs(searchId: string) {
+    return getMockStore()
+      .saved_leads.filter((l) => l.search_id === searchId)
+      .sort((a, b) => a.grid_position - b.grid_position)
+      .map((l) => l.cnpj);
+  },
+
   async getAllLeadsForExport(searchId: string) {
-    const store = getMockStore();
-    const leads = store.saved_leads
-      .filter((l) => l.search_id === searchId)
-      .sort((a, b) => a.grid_position - b.grid_position);
-    return leads
-      .map((l) => dossierOf(l.cnpj, searchId))
+    return (await this.listExportCnpjs(searchId))
+      .map((cnpj) => dossierOf(cnpj, searchId))
       .filter((d): d is LeadDossier => !!d);
   },
 

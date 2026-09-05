@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const guardApi = vi.hoisted(() => vi.fn());
 const getSearchForUser = vi.hoisted(() => vi.fn());
-const qualifiedLeadsForExport = vi.hoisted(() => vi.fn());
+const qualifiedCnpjsForExport = vi.hoisted(() => vi.fn());
 const quoteExport = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/api-guard", () => ({
@@ -19,8 +19,8 @@ vi.mock("@/lib/export/qualified", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/export/qualified")>();
   return {
     ...actual,
-    qualifiedLeadsForExport: (...args: unknown[]) =>
-      qualifiedLeadsForExport(...args),
+    qualifiedCnpjsForExport: (...args: unknown[]) =>
+      qualifiedCnpjsForExport(...args),
   };
 });
 
@@ -44,7 +44,7 @@ describe("GET /api/export/[searchId]/quote", () => {
   beforeEach(() => {
     guardApi.mockReset();
     getSearchForUser.mockReset();
-    qualifiedLeadsForExport.mockReset();
+    qualifiedCnpjsForExport.mockReset();
     quoteExport.mockReset();
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     getSearchForUser.mockResolvedValue({ id: searchId, user_id: "u1" });
@@ -60,7 +60,7 @@ describe("GET /api/export/[searchId]/quote", () => {
   });
 
   it("returns 400 when nothing is qualified", async () => {
-    qualifiedLeadsForExport.mockResolvedValue([]);
+    qualifiedCnpjsForExport.mockResolvedValue([]);
     const res = await GET(request("xlsx"), {
       params: Promise.resolve({ searchId }),
     });
@@ -70,9 +70,7 @@ describe("GET /api/export/[searchId]/quote", () => {
   });
 
   it("quotes with the PDF cap", async () => {
-    qualifiedLeadsForExport.mockResolvedValue([
-      { establishment: { cnpj: "12345678000190" } },
-    ]);
+    qualifiedCnpjsForExport.mockResolvedValue(["12345678000190"]);
     quoteExport.mockResolvedValue({
       companies: 1,
       chargeable: 1,
@@ -85,15 +83,13 @@ describe("GET /api/export/[searchId]/quote", () => {
       params: Promise.resolve({ searchId }),
     });
     expect(res.status).toBe(200);
-    expect(qualifiedLeadsForExport).toHaveBeenCalledWith("u1", searchId, 50);
+    expect(qualifiedCnpjsForExport).toHaveBeenCalledWith("u1", searchId, 50);
     expect(quoteExport).toHaveBeenCalledWith("u1", ["12345678000190"]);
     expect(await res.json()).toMatchObject({ needed: 50, available: 900 });
   });
 
   it("quotes the list cap when format is omitted", async () => {
-    qualifiedLeadsForExport.mockResolvedValue([
-      { establishment: { cnpj: "12345678000190" } },
-    ]);
+    qualifiedCnpjsForExport.mockResolvedValue(["12345678000190"]);
     quoteExport.mockResolvedValue({
       companies: 1,
       chargeable: 0,
@@ -106,7 +102,7 @@ describe("GET /api/export/[searchId]/quote", () => {
       params: Promise.resolve({ searchId }),
     });
     expect(res.status).toBe(200);
-    expect(qualifiedLeadsForExport).toHaveBeenCalledWith("u1", searchId, 1000);
+    expect(qualifiedCnpjsForExport).toHaveBeenCalledWith("u1", searchId, 1000);
     expect(await res.json()).toMatchObject({ needed: 0, skipped: 1 });
   });
 });

@@ -5,7 +5,7 @@ import { quoteExport } from "@/lib/billing/service";
 import {
   EXPORT_NEEDS_QUALIFY,
   exportLimitForFormat,
-  qualifiedLeadsForExport,
+  qualifiedCnpjsForExport,
 } from "@/lib/export/qualified";
 
 export async function GET(
@@ -20,17 +20,14 @@ export async function GET(
   if (!search) {
     return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
   }
-  const leads = await qualifiedLeadsForExport(
+  const cnpjs = await qualifiedCnpjsForExport(
     gated.userId,
     searchId,
     exportLimitForFormat(format),
   );
-  if (leads.length === 0) {
+  if (cnpjs.length === 0) {
     return NextResponse.json({ error: EXPORT_NEEDS_QUALIFY }, { status: 400 });
   }
-  const quote = await quoteExport(
-    gated.userId,
-    leads.map((lead) => lead.establishment.cnpj),
-  );
+  const quote = await quoteExport(gated.userId, cnpjs);
   return NextResponse.json(quote);
 }

@@ -3392,14 +3392,18 @@ export const supabaseRepo: GridRepo = {
     return loadRefCnaes();
   },
 
-  async getAllLeadsForExport(searchId) {
-    const { rows } = await query(
+  async listExportCnpjs(searchId) {
+    const { rows } = await query<{ cnpj: string }>(
       "select cnpj from saved_leads where search_id = $1 order by grid_position",
       [searchId],
     );
+    return rows.map((r) => trimChar(r.cnpj));
+  },
+
+  async getAllLeadsForExport(searchId) {
     const out: LeadDossier[] = [];
-    for (const r of rows) {
-      const d = await dossierOf(trimChar(r.cnpj), searchId);
+    for (const cnpj of await this.listExportCnpjs(searchId)) {
+      const d = await dossierOf(cnpj, searchId);
       if (d) out.push(d);
     }
     return out;

@@ -180,6 +180,7 @@ export type GridRepo = {
     rows: Array<{ cnae: string; incluido: boolean }>,
   ): Promise<void>;
   listRefCnaes(): Promise<RefCnae[]>;
+  listExportCnpjs(searchId: string): Promise<string[]>;
   getAllLeadsForExport(searchId: string): Promise<LeadDossier[]>;
   addOptOut(documento: string, motivo: string | null): Promise<void>;
   isOptedOut(cnpj: string): Promise<boolean>;

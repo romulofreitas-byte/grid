@@ -138,7 +138,16 @@ export function GridMoreMenu({
           {sendSection ? (
             <>
               <div className="my-1 border-t border-white/10" />
-              <div className="px-2 py-1.5">{sendSection}</div>
+              <div
+                className="px-2 py-1.5"
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("button")) {
+                    setOpen(false);
+                  }
+                }}
+              >
+                {sendSection}
+              </div>
             </>
           ) : null}
         </div>

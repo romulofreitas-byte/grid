@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download } from "lucide-react";
 import { usePaywall } from "@/components/PaywallDialog";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { Badge } from "@/components/ui/Badge";
+import { BILLING_ME_QUERY_KEY } from "@/hooks/useBillingMe";
 import { parseBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ export type GridExportResult =
 
 export function useGridExport(searchId: string) {
   const { openPaywall } = usePaywall();
+  const qc = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [pendingFormat, setPendingFormat] = useState<GridExportFormat | null>(
     null,
@@ -67,6 +70,7 @@ export function useGridExport(searchId: string) {
         a.download = `grid-${searchId}.${format}`;
         a.click();
         URL.revokeObjectURL(url);
+        void qc.invalidateQueries({ queryKey: BILLING_ME_QUERY_KEY });
         return { status: "ok" };
       } catch {
         const message = "Não foi possível exportar";
@@ -76,7 +80,7 @@ export function useGridExport(searchId: string) {
         setPendingFormat(null);
       }
     },
-    [openPaywall, searchId],
+    [openPaywall, qc, searchId],
   );
 
   return { runExport, error, pendingFormat };
