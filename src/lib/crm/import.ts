@@ -251,6 +251,12 @@ export function parseImportCnpj(raw: string | undefined): {
   return { cnpj: padded };
 }
 
+/** Drops a CNPJ that would block the row, so the card can enter without it. */
+export function withoutInvalidCnpj(input: ImportLeadInput): ImportLeadInput {
+  if (!parseImportCnpj(input.cnpj).error) return input;
+  return { ...input, cnpj: undefined };
+}
+
 function clip(value: string, max: number): string {
   return value.trim().slice(0, max);
 }

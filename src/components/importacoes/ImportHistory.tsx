@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ImportErrorFix } from "@/components/importacoes/ImportErrorFix";
 import { Badge } from "@/components/ui/Badge";
@@ -19,6 +20,8 @@ import type { CrmImportRunIssue } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 
 export { IMPORT_RUNS_QUERY_KEY };
+
+const OLDER_PREVIEW = 5;
 
 function statusLabel(run: Pick<PublicImportRun, "created" | "skipped" | "error_count">) {
   if (run.error_count > 0 && run.created === 0 && run.skipped === 0) {
@@ -121,6 +124,8 @@ function RunBadges({ run }: { run: PublicImportRun }) {
 
 export function ImportHistory() {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAllOlder, setShowAllOlder] = useState(false);
+  const olderRef = useRef<HTMLDetailsElement>(null);
   const list = useQuery({
     queryKey: IMPORT_RUNS_QUERY_KEY,
     queryFn: async () => {
@@ -136,6 +141,13 @@ export function ImportHistory() {
 
   const last = list.data?.[0] ?? null;
   const older = list.data?.slice(1) ?? [];
+  const visibleOlder = showAllOlder ? older : older.slice(0, OLDER_PREVIEW);
+  const hiddenOlder = Math.max(0, older.length - visibleOlder.length);
+
+  useEffect(() => {
+    if (!showAllOlder) return;
+    olderRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [showAllOlder]);
 
   const lastDetail = useQuery({
     queryKey: [...IMPORT_RUNS_QUERY_KEY, last?.id],
@@ -173,7 +185,7 @@ export function ImportHistory() {
     lastDetail.data?.issues.filter((issue) => issue.status === "skipped") ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-10 md:pb-14">
       <GlassCard id="historico-importacao" className="space-y-3 p-6 hover:translate-y-0 md:p-8">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
@@ -205,12 +217,28 @@ export function ImportHistory() {
       </GlassCard>
 
       {older.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-            {COPY.importacoesHistoryOlder}
-          </p>
-          <ul className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
-            {older.map((run) => {
+        <details
+          ref={olderRef}
+          className="group mb-2 scroll-mb-10 rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
+          onToggle={(event) => {
+            const el = event.currentTarget;
+            if (!el.open) {
+              setShowAllOlder(false);
+              return;
+            }
+            requestAnimationFrame(() => {
+              el.scrollIntoView({ behavior: "smooth", block: "end" });
+            });
+          }}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+            <span>
+              {COPY.importacoesHistoryOlder} ({older.length})
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+          </summary>
+          <ul className="divide-y divide-white/10 border-t border-white/10">
+            {visibleOlder.map((run) => {
               const open = openId === run.id;
               const extra = open && olderDetail.data?.id === run.id ? olderDetail.data : null;
               const extraErrors =
@@ -247,7 +275,18 @@ export function ImportHistory() {
               );
             })}
           </ul>
-        </div>
+          {hiddenOlder > 0 ? (
+            <div className="border-t border-white/10 px-4 py-2.5">
+              <button
+                type="button"
+                className="text-[11px] font-medium text-podium-yellow underline-offset-2 hover:underline"
+                onClick={() => setShowAllOlder(true)}
+              >
+                {COPY.importacoesHistoryShowMore.replace("{n}", String(hiddenOlder))}
+              </button>
+            </div>
+          ) : null}
+        </details>
       ) : null}
     </div>
   );

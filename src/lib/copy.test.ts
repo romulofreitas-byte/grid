@@ -102,13 +102,18 @@ describe("COPY export cost", () => {
 describe("COPY importações", () => {
   it("states last-run status and the fix path without race jargon", () => {
     expect(COPY.importacoesHistoryTitle).toBe("Última importação");
+    expect(COPY.importacoesHistoryShowMore).toMatch(/\{n\}/);
     expect(COPY.importacoesStatusPartial).toBe("Com erros");
     expect(COPY.importacoesDownloadErrors.toLowerCase()).toMatch(/erro/);
     expect(COPY.importacoesFixHint.toLowerCase()).toMatch(/quadro/);
     expect(COPY.importacoesIssueEmptyTitle.toLowerCase()).toMatch(/dados/);
     expect(COPY.importacoesFixesCnpjBlocked.toLowerCase()).toMatch(/cnpj/);
+    expect(COPY.importacoesFixesCnpjBlocked.toLowerCase()).toMatch(/mesmo assim/);
     expect(COPY.importacoesSendFixes).toBe("Enviar correções");
     expect(COPY.importacoesSendFixesMany).toMatch(/\{n\}/);
+    expect(COPY.importacoesSendAnyway.toLowerCase()).toMatch(/mesmo assim/);
+    expect(COPY.importacoesPanelFixPointerOne.toLowerCase()).toMatch(/abaixo/);
+    expect(COPY.importacoesIssueCnpjAction.toLowerCase()).toMatch(/mesmo assim/);
     expect(COPY.importacoesSkippedHint.toLowerCase()).toMatch(/não é erro/);
     expect(COPY.importacoesBadgeCreatedMany.replace("{n}", "11")).toBe("11 no CRM");
   });

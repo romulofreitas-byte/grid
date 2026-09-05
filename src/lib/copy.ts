@@ -458,6 +458,7 @@ export const COPY = {
     "Formulário, anúncio e Make ficam em Automações, cada campanha com o próprio destino.",
   importacoesHistoryTitle: "Última importação",
   importacoesHistoryOlder: "Anteriores",
+  importacoesHistoryShowMore: "Abrir mais ({n})",
   importacoesStatusOk: "Entrou",
   importacoesStatusPartial: "Com erros",
   importacoesStatusFailed: "Não entrou",
@@ -477,7 +478,8 @@ export const COPY = {
     "Nenhum valor chegou em empresa, nome, telefone, e-mail ou CNPJ. Preencha abaixo, ou volte e case as colunas certas — o arquivo pode ter dado em coluna ignorada.",
   importacoesIssueEmptyFields: "Vazio: {fields}",
   importacoesIssueCnpjTitle: "CNPJ inválido",
-  importacoesIssueCnpjAction: "Corrija os 14 dígitos ou apague o CNPJ.",
+  importacoesIssueCnpjAction:
+    "Corrija os 14 dígitos, ou envie mesmo assim — o cartão entra sem CNPJ e você qualifica no quadro.",
   importacoesIssueCnpjReceived: "CNPJ recebido: {value}",
   importacoesIssueCnpjMissing: "CNPJ em branco",
   importacoesIssueCreateTitle: "Falha ao criar",
@@ -490,17 +492,23 @@ export const COPY = {
   importacoesSendFixesOne: "Enviar 1 correção",
   importacoesSendFixesMany: "Enviar {n} correções",
   importacoesSendingFixes: "Enviando…",
+  importacoesSendAnyway: "Enviar mesmo assim",
+  importacoesSendAnywayHint:
+    "CNPJ inválido entra sem CNPJ. Você qualifica no quadro depois.",
+  importacoesMoreOptions: "Mais opções",
+  importacoesEditFields: "Editar campos",
+  importacoesProblemPreview: "Não entram assim",
   importacoesFixesNoneReady:
     "Preencha pelo menos empresa, nome, telefone, e-mail ou CNPJ para enviar.",
   importacoesFixesCnpjBlocked:
-    "Corrija ou apague o CNPJ inválido para enviar.",
+    "Corrija o CNPJ, ou envie mesmo assim — o cartão entra sem ele.",
   importacoesFixesPartial:
     "{ready} prontas de {total}. As outras ainda estão vazias ou com CNPJ inválido.",
   importacoesFixesShown: "Mostrando {shown} de {total}. O CSV traz todas.",
   importacoesPanelFixPointerOne:
-    "1 linha não entrou. Corrija na última importação acima.",
+    "1 linha não entrou. Corrija na última importação abaixo.",
   importacoesPanelFixPointerMany:
-    "{n} linhas não entraram. Corrija na última importação acima.",
+    "{n} linhas não entraram. Corrija na última importação abaixo.",
 
   automacoesTitle: "Automações",
   automacoesLead:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
@@ -18,6 +18,7 @@ import {
   mapImportLead,
   parseImportCnpj,
   pipelineNomeFromFile,
+  withoutInvalidCnpj,
   type ImportColumnKey,
   type ImportLeadInput,
 } from "@/lib/crm/import";
@@ -141,7 +142,19 @@ export function ImportacoesPanel({
     () => mappedRows.map((row) => mapImportLead(row)),
     [mappedRows],
   );
+  const anywayPreview = useMemo(
+    () => mappedRows.map((row) => mapImportLead(withoutInvalidCnpj(row))),
+    [mappedRows],
+  );
   const readyCount = mappedPreview.filter((row) => row.ok).length;
+  const anywayCount = anywayPreview.filter((row) => row.ok).length;
+  const problemRows = useMemo(
+    () =>
+      mappedPreview
+        .map((result, index) => ({ result, index, input: mappedRows[index]! }))
+        .filter((item) => !item.result.ok),
+    [mappedPreview, mappedRows],
+  );
   const mappedCnpjs = useMemo(() => {
     const found = new Set<string>();
     for (const row of mappedRows) {
@@ -165,7 +178,11 @@ export function ImportacoesPanel({
   const credits = billing.data?.balance.total ?? 0;
 
   const importRows = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode: "ready" | "anyway") => {
+      const rows =
+        mode === "anyway"
+          ? mappedRows.slice(0, IMPORT_MAX_ROWS).map(withoutInvalidCnpj)
+          : mappedRows.slice(0, IMPORT_MAX_ROWS);
       const res = await fetch("/api/crm/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -175,7 +192,7 @@ export function ImportacoesPanel({
             dest === NEW_PIPELINE ? pipelineNome.trim() || undefined : undefined,
           file_name: fileName ?? undefined,
           qualify,
-          rows: mappedRows.slice(0, IMPORT_MAX_ROWS),
+          rows,
         }),
       });
       const json = (await res.json()) as {
@@ -243,14 +260,13 @@ export function ImportacoesPanel({
     );
   }
 
-  const canImport =
-    Boolean(table) &&
-    readyCount > 0 &&
-    (dest !== NEW_PIPELINE ? Boolean(dest) : Boolean(pipelineNome.trim()));
+  const destReady =
+    dest !== NEW_PIPELINE ? Boolean(dest) : Boolean(pipelineNome.trim());
+  const canImport = Boolean(table) && readyCount > 0 && destReady;
+  const canImportAnyway = Boolean(table) && anywayCount > readyCount && destReady;
 
   return (
     <div className="mt-6 space-y-6">
-      <ImportHistory />
       <GlassCard className="space-y-6 p-6 hover:translate-y-0 md:p-8">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
@@ -292,87 +308,126 @@ export function ImportacoesPanel({
           ) : null}
         </Step>
 
-        <Step n={2} title="Casar as colunas">
+        <Step n={2} title="O que entra">
           {table ? (
             <div className="space-y-3">
               <p className="text-xs text-podium-muted">
-                {`${table.rows.length} linha${table.rows.length === 1 ? "" : "s"}${table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""}. O nome da coluna pode ser qualquer um — o Grid usa o que você escolher à direita.`}
+                {`${table.rows.length} linha${table.rows.length === 1 ? "" : "s"}${table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""} · ${readyCount} pronta${readyCount === 1 ? "" : "s"}.`}
               </p>
-              <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
-                {mappedIndexes.map((row) => columnRow(row.index))}
-              </div>
-              {skippedIndexes.length > 0 ? (
-                <div>
-                  <button
-                    type="button"
-                    className="text-[11px] font-medium text-podium-yellow underline-offset-2 hover:underline"
-                    onClick={() => setShowSkipped((open) => !open)}
-                  >
-                    {showSkipped
-                      ? "Ocultar o resto"
-                      : `Mostrar o resto (${skippedIndexes.length})`}
-                  </button>
-                  {showSkipped ? (
-                    <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
-                      {skippedIndexes.map((row) => columnRow(row.index))}
-                    </div>
+              {problemRows.length > 0 ? (
+                <div className="rounded-xl border border-white/10 px-3 py-2.5">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                    {COPY.importacoesProblemPreview}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
+                    {problemRows.slice(0, 6).map((item) => {
+                      const who = [item.input.company, item.input.name]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <li key={item.index}>
+                          Linha {item.index + 1}:{" "}
+                          {item.result.ok ? "" : item.result.message}
+                          {who ? ` · ${who}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {problemRows.length > 6 ? (
+                    <p className="mt-1 text-[11px] text-podium-muted">
+                      {`e mais ${problemRows.length - 6}`}
+                    </p>
                   ) : null}
                 </div>
-              ) : null}
-              {notesMapped ? (
-                <p className="text-[11px] text-podium-muted">
-                  Anotações entram nas notas do cartão. Duas colunas de
-                  observação viram uma nota só.
-                </p>
-              ) : (
-                <p className="text-[11px] text-podium-muted">
-                  Tem observação, histórico ou comentário? Aponte para Notas.
-                </p>
-              )}
-              {readyCount > 0 ? (
-                <div className="overflow-x-auto rounded-xl border border-white/10">
-                  <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                    Como entra no Grid
-                  </p>
-                  <table className="min-w-full text-left text-[11px] text-podium-muted">
-                    <thead>
-                      <tr>
-                        <th className="px-3 py-1.5 font-medium">Empresa</th>
-                        <th className="px-3 py-1.5 font-medium">Contato</th>
-                        <th className="px-3 py-1.5 font-medium">Telefone</th>
-                        <th className="px-3 py-1.5 font-medium">CNPJ</th>
-                        <th className="px-3 py-1.5 font-medium">Notas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mappedPreview.slice(0, 4).map((row, index) => (
-                        <tr key={index} className="border-t border-white/10">
-                          <td className="max-w-[140px] truncate px-3 py-1.5">
-                            {row.ok ? row.lead.company_name : "—"}
-                          </td>
-                          <td className="max-w-[140px] truncate px-3 py-1.5">
-                            {row.ok ? row.lead.contact_name || "—" : "—"}
-                          </td>
-                          <td className="max-w-[120px] truncate px-3 py-1.5">
-                            {row.ok ? row.lead.phones[0] || "—" : "—"}
-                          </td>
-                          <td className="max-w-[120px] truncate px-3 py-1.5">
-                            {row.ok ? row.lead.cnpj || "a achar" : "—"}
-                          </td>
-                          <td className="max-w-[180px] truncate px-3 py-1.5">
-                            {row.ok ? row.lead.notes || "—" : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
+              ) : readyCount === 0 ? (
                 <p className="text-sm text-podium-alert">
                   Precisa de empresa, CNPJ ou um contato (nome, telefone ou
                   e-mail).
                 </p>
-              )}
+              ) : null}
+              <details className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+                  <span>{COPY.importacoesMoreOptions}</span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+                </summary>
+                <div className="space-y-3 px-4 pb-4">
+                  <p className="text-xs text-podium-muted">
+                    O nome da coluna pode ser qualquer um — o Grid usa o que
+                    você escolher à direita.
+                  </p>
+                  <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
+                    {mappedIndexes.map((row) => columnRow(row.index))}
+                  </div>
+                  {skippedIndexes.length > 0 ? (
+                    <div>
+                      <button
+                        type="button"
+                        className="text-[11px] font-medium text-podium-yellow underline-offset-2 hover:underline"
+                        onClick={() => setShowSkipped((open) => !open)}
+                      >
+                        {showSkipped
+                          ? "Ocultar o resto"
+                          : `Mostrar o resto (${skippedIndexes.length})`}
+                      </button>
+                      {showSkipped ? (
+                        <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
+                          {skippedIndexes.map((row) => columnRow(row.index))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {notesMapped ? (
+                    <p className="text-[11px] text-podium-muted">
+                      Anotações entram nas notas do cartão. Duas colunas de
+                      observação viram uma nota só.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-podium-muted">
+                      Tem observação, histórico ou comentário? Aponte para
+                      Notas.
+                    </p>
+                  )}
+                  {readyCount > 0 ? (
+                    <div className="overflow-x-auto rounded-xl border border-white/10">
+                      <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                        Como entra no Grid
+                      </p>
+                      <table className="min-w-full text-left text-[11px] text-podium-muted">
+                        <thead>
+                          <tr>
+                            <th className="px-3 py-1.5 font-medium">Empresa</th>
+                            <th className="px-3 py-1.5 font-medium">Contato</th>
+                            <th className="px-3 py-1.5 font-medium">Telefone</th>
+                            <th className="px-3 py-1.5 font-medium">CNPJ</th>
+                            <th className="px-3 py-1.5 font-medium">Notas</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mappedPreview.slice(0, 4).map((row, index) => (
+                            <tr key={index} className="border-t border-white/10">
+                              <td className="max-w-[140px] truncate px-3 py-1.5">
+                                {row.ok ? row.lead.company_name : "—"}
+                              </td>
+                              <td className="max-w-[140px] truncate px-3 py-1.5">
+                                {row.ok ? row.lead.contact_name || "—" : "—"}
+                              </td>
+                              <td className="max-w-[120px] truncate px-3 py-1.5">
+                                {row.ok ? row.lead.phones[0] || "—" : "—"}
+                              </td>
+                              <td className="max-w-[120px] truncate px-3 py-1.5">
+                                {row.ok ? row.lead.cnpj || "a achar" : "—"}
+                              </td>
+                              <td className="max-w-[180px] truncate px-3 py-1.5">
+                                {row.ok ? row.lead.notes || "—" : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
             </div>
           ) : (
             <div className="space-y-2">
@@ -454,18 +509,31 @@ export function ImportacoesPanel({
               </span>
             </span>
           </label>
-          <Button
-            variant="primary"
-            className="mt-3"
-            disabled={importRows.isPending || !canImport}
-            onClick={() => importRows.mutate()}
-          >
-            {importRows.isPending
-              ? "Importando…"
-              : table
-                ? `Importar ${readyCount} ${readyCount === 1 ? "negócio" : "negócios"}`
-                : "Escolha o arquivo antes"}
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
+              disabled={importRows.isPending || !canImport}
+              onClick={() => importRows.mutate("ready")}
+            >
+              {importRows.isPending
+                ? "Importando…"
+                : table
+                  ? `Importar ${readyCount} ${readyCount === 1 ? "negócio" : "negócios"}`
+                  : "Escolha o arquivo antes"}
+            </Button>
+            {anywayCount > readyCount ? (
+              <Button
+                variant="secondary"
+                disabled={importRows.isPending || !canImportAnyway}
+                onClick={() => importRows.mutate("anyway")}
+              >
+                {COPY.importacoesSendAnyway}
+              </Button>
+            ) : null}
+          </div>
+          {anywayCount > readyCount ? (
+            <Hint className="mt-2">{COPY.importacoesSendAnywayHint}</Hint>
+          ) : null}
           {importRows.isError && !isBillingGateError(importRows.error) ? (
             <p className="mt-2 text-sm text-podium-alert">
               {(importRows.error as Error).message}
@@ -513,6 +581,8 @@ export function ImportacoesPanel({
           ) : null}
         </Step>
       </GlassCard>
+
+      <ImportHistory />
 
       {planHasFeature(billing.data?.balance.plano, "automations") ? (
         <p className="text-sm text-podium-muted">

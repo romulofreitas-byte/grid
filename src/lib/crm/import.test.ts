@@ -5,6 +5,7 @@ import {
   inboundPayloadToInput,
   IMPORT_FALLBACK_COMPANY,
   mapImportLead,
+  withoutInvalidCnpj,
 } from "./import";
 
 describe("import mapping", () => {
@@ -71,6 +72,23 @@ describe("import mapping", () => {
 
   it("rejects an empty row", () => {
     expect(mapImportLead({})).toEqual({ ok: false, message: "Linha vazia" });
+  });
+
+  it("drops an invalid CNPJ so the row can still enter", () => {
+    const input = { company: "Padaria", cnpj: "123456789012345" };
+    expect(mapImportLead(input).ok).toBe(false);
+    const dropped = withoutInvalidCnpj(input);
+    expect(dropped.cnpj).toBeUndefined();
+    const mapped = mapImportLead(dropped);
+    expect(mapped.ok).toBe(true);
+    if (!mapped.ok) return;
+    expect(mapped.lead.cnpj).toBeUndefined();
+    expect(mapped.lead.company_name).toBe("Padaria");
+  });
+
+  it("keeps a valid CNPJ", () => {
+    const input = { company: "Padaria", cnpj: "12345678000195" };
+    expect(withoutInvalidCnpj(input)).toEqual(input);
   });
 
   it("joins notes aliases from a flat payload", () => {

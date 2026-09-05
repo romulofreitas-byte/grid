@@ -1,11 +1,17 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Hint } from "@/components/Hint";
 import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
-import { mapImportLead, parseImportCnpj, type ImportLeadInput } from "@/lib/crm/import";
+import {
+  mapImportLead,
+  parseImportCnpj,
+  withoutInvalidCnpj,
+  type ImportLeadInput,
+} from "@/lib/crm/import";
 import {
   IMPORT_RUNS_QUERY_KEY,
   importErrorCsvFilename,
@@ -14,7 +20,6 @@ import {
 } from "@/lib/crm/import-history";
 import {
   IMPORT_ERROR_FIX_LIMIT,
-  IMPORT_INVALID_CNPJ_MESSAGE,
   IMPORT_ISSUE_FIELD_LABEL,
   IMPORT_ISSUE_FIELDS,
   correctionFileName,
@@ -103,12 +108,18 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
     const draft = drafts[issue.row] ?? issueDraft(issue);
     return mapImportLead(draftToInput(draft)).ok;
   });
+  const anywayRows = editable.filter((issue) => {
+    const draft = drafts[issue.row] ?? issueDraft(issue);
+    return mapImportLead(withoutInvalidCnpj(draftToInput(draft))).ok;
+  });
 
   const send = useMutation({
-    mutationFn: async () => {
-      const rows = readyRows.map((issue) =>
-        draftToInput(drafts[issue.row] ?? issueDraft(issue)),
-      );
+    mutationFn: async (mode: "ready" | "anyway") => {
+      const source = mode === "anyway" ? anywayRows : readyRows;
+      const rows = source.map((issue) => {
+        const input = draftToInput(drafts[issue.row] ?? issueDraft(issue));
+        return mode === "anyway" ? withoutInvalidCnpj(input) : input;
+      });
       if (rows.length === 0) {
         throw new Error(COPY.importacoesFixesNoneReady);
       }
@@ -144,6 +155,8 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
   }
 
   const canSend = Boolean(run.pipeline_id) && readyRows.length > 0 && !send.isPending;
+  const canSendAnyway =
+    Boolean(run.pipeline_id) && anywayRows.length > readyRows.length && !send.isPending;
 
   return (
     <div className="space-y-4">
@@ -156,16 +169,16 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
             </p>
             <Hint className="mt-1">{group.kind.action}</Hint>
             {visible.length > 0 ? (
-              <ul className="mt-3 space-y-2">
-                {visible.map((issue) => (
-                  <ErrorRow
-                    key={issue.row}
-                    issue={issue}
-                    kind={group.kind}
-                    draft={drafts[issue.row] ?? issueDraft(issue)}
-                    onChange={(field, value) => patchDraft(issue.row, field, value)}
-                  />
-                ))}
+              <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
+                {visible.map((issue) => {
+                  const diagnosis = importIssueDiagnosis(issue);
+                  return (
+                    <li key={issue.row}>
+                      Linha {issue.row}
+                      {diagnosis ? ` · ${diagnosis}` : ""}
+                    </li>
+                  );
+                })}
               </ul>
             ) : null}
           </div>
@@ -178,6 +191,42 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
             .replace("{total}", String(errors.length))}
         </p>
       ) : null}
+      {editable.length > 0 ? (
+        <details className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+            <span>{COPY.importacoesEditFields}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+          </summary>
+          <div className="space-y-4 px-4 pb-4">
+            {groups.map((group) => {
+              const visible = group.issues.filter((issue) =>
+                editableRows.has(issue.row),
+              );
+              if (visible.length === 0) return null;
+              return (
+                <ul
+                  key={
+                    group.kind.code === "unknown"
+                      ? `edit-${group.kind.title}`
+                      : `edit-${group.kind.code}`
+                  }
+                  className="space-y-2"
+                >
+                  {visible.map((issue) => (
+                    <ErrorRow
+                      key={issue.row}
+                      issue={issue}
+                      kind={group.kind}
+                      draft={drafts[issue.row] ?? issueDraft(issue)}
+                      onChange={(field, value) => patchDraft(issue.row, field, value)}
+                    />
+                  ))}
+                </ul>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
       {run.pipeline_id ? (
         <div className="space-y-2">
           {readyRows.length > 0 && readyRows.length < editable.length ? (
@@ -189,28 +238,41 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
           ) : null}
           {readyRows.length === 0 ? (
             <p className="text-[11px] text-podium-muted">
-              {editable.some((issue) => {
-                const draft = drafts[issue.row] ?? issueDraft(issue);
-                const mapped = mapImportLead(draftToInput(draft));
-                return !mapped.ok && mapped.message === IMPORT_INVALID_CNPJ_MESSAGE;
-              })
+              {anywayRows.length > 0
                 ? COPY.importacoesFixesCnpjBlocked
                 : COPY.importacoesFixesNoneReady}
             </p>
           ) : null}
-          <Button
-            variant="primary"
-            disabled={!canSend}
-            onClick={() => send.mutate()}
-          >
-            {send.isPending
-              ? COPY.importacoesSendingFixes
-              : readyRows.length === 0
-                ? COPY.importacoesSendFixes
-                : readyRows.length === 1
-                  ? COPY.importacoesSendFixesOne
-                  : COPY.importacoesSendFixesMany.replace("{n}", String(readyRows.length))}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
+              disabled={!canSend}
+              onClick={() => send.mutate("ready")}
+            >
+              {send.isPending
+                ? COPY.importacoesSendingFixes
+                : readyRows.length === 0
+                  ? COPY.importacoesSendFixes
+                  : readyRows.length === 1
+                    ? COPY.importacoesSendFixesOne
+                    : COPY.importacoesSendFixesMany.replace(
+                        "{n}",
+                        String(readyRows.length),
+                      )}
+            </Button>
+            {anywayRows.length > readyRows.length ? (
+              <Button
+                variant="secondary"
+                disabled={!canSendAnyway}
+                onClick={() => send.mutate("anyway")}
+              >
+                {COPY.importacoesSendAnyway}
+              </Button>
+            ) : null}
+          </div>
+          {anywayRows.length > readyRows.length ? (
+            <Hint>{COPY.importacoesSendAnywayHint}</Hint>
+          ) : null}
           {send.isError ? (
             <p className="text-sm text-podium-alert">{(send.error as Error).message}</p>
           ) : null}
