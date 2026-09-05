@@ -7,6 +7,7 @@ import type {
   CrmActivity,
   CrmDeal,
   CrmEvent,
+  CrmInboundEndpoint,
   CrmPipeline,
   CrmStage,
 } from "@/lib/crm/types";
@@ -83,6 +84,7 @@ export type MockStore = {
   crm_deals: CrmDeal[];
   crm_activities: CrmActivity[];
   crm_events: CrmEvent[];
+  crm_inbound_endpoints: CrmInboundEndpoint[];
   billed_cnpjs: Array<{
     profile_id: string;
     cnpj: string;
@@ -673,6 +675,7 @@ function createMockStore(): MockStore {
     crm_deals: [],
     crm_activities: [],
     crm_events: [],
+    crm_inbound_endpoints: [],
     billed_cnpjs: [],
     user_catchup_state: [],
   };

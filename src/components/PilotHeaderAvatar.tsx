@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
-import { Cable, LogOut, Settings, UserRound, Wallet } from "lucide-react";
+import { Cable, LogOut, Settings, Upload, UserRound, Wallet } from "lucide-react";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 const menu = [
   { href: "/conta", label: "Conta", icon: UserRound },
   { href: "/conexoes", label: "Conexões", icon: Cable },
+  { href: "/importacoes", label: "Importações", icon: Upload },
   { href: "/planos", label: "Planos", icon: Wallet },
   { href: "/admin/nichos", label: "Admin", icon: Settings, adminOnly: true },
 ] as const;
@@ -101,7 +102,7 @@ export function PilotHeaderAvatar() {
         anchorRef={rootRef}
         panelRef={panelRef}
         align="end"
-        className="w-44 overflow-hidden py-1"
+        className="w-48 overflow-hidden py-1"
       >
         <div role="menu">
           {menu

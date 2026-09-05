@@ -310,7 +310,7 @@ export const COPY = {
   crmNoActivity: "Sem próxima ação",
   crmLogCall: "Salvar",
   crmLogCallHint:
-    "Registra a ligação no histórico e na meta do dia. Se houver data, deixa a próxima no card.",
+    "Atualiza a próxima ligação no card. Não conta na meta.",
   crmSchedule: "Só agendar próxima",
   crmScheduleHint:
     "Atualiza data e ação no card. Não registra a ligação.",
@@ -356,6 +356,11 @@ export const COPY = {
   crmWinP1: "P1",
   crmShowClosed: "Ganhos / perdidos",
   crmHideClosed: "Só em andamento",
+  crmSearchDeals: "Buscar",
+  crmSearchDealsAria: "Buscar leads no CRM",
+  crmSearchDealsPlaceholder: "Empresa, contato, CNPJ…",
+  crmSearchDealsEmpty: "Nenhum negócio com esse termo.",
+  crmSearchDealsSearching: "Buscando…",
   crmPhonesLabel: "Telefones",
   crmAddPhone: "Adicionar telefone",
   crmNextAction: "Próxima ação",
@@ -416,9 +421,15 @@ export const COPY = {
   painelNoWins: "Nenhum ganho neste recorte.",
   painelAllNiches: "Todos os nichos",
   painelNoTasks: "Nada atrasado e nenhum ganho neste recorte.",
+  callAskEyebrow: "Confirmar",
+  callAskTitle: "Ligar agora?",
+  callAskBody: "Abre o telefone e conta na meta do dia.",
+  callAskConfirm: "Ligar",
+  callAskCancel: "Cancelar",
+  callAskPending: "Ligando…",
   callConfirm: "Registrei",
   callConfirmHint: "Conta na meta e registra no CRM.",
-  callDialHint: "Abre o telefone. Não conta na meta.",
+  callDialHint: "Confirme para abrir o telefone e contar na meta.",
   gridCalledToday: "Ligou",
   conexoesStandbyBanner:
     "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do\u00a0aparelho.",
@@ -426,6 +437,15 @@ export const COPY = {
     "Nenhuma conexão nesta conta. A montagem fica para a próxima versão.",
   conexoesStandbyForm:
     "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do\u00a0aparelho.",
+  conexoesInboundHint:
+    "Aqui o GRID envia lista e ligação para fora. Para um formulário, anúncio ou o Make criarem negócio no CRM, use Importações.",
+  importacoesTitle: "Importações",
+  importacoesLead:
+    "Lista de fora ou formulário. Os negócios entram no quadro — não na busca da Receita.",
+  importacoesFileHint:
+    "Cabeçalho bagunçado serve. Você casa cada coluna com um campo do Grid — anotações da planilha viram notas do cartão.",
+  importacoesInboundHint:
+    "Cole o endereço no Make, Zapier ou n8n. A chave autentica; o JSON cria o negócio no nicho acima.",
   boxLigarStandbyTitle: "Ligar pelo aparelho",
   boxLigarStandbyBody:
     "A ligação pela internet volta na próxima versão. Por agora o botão Ligar abre o telefone do\u00a0aparelho.",

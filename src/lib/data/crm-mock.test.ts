@@ -119,6 +119,24 @@ describe("crm mock board", () => {
     expect(fallback?.stage_id).toBe(entrada.id);
   });
 
+  it("stores people with email on create", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Maria",
+      people: [{ name: "Maria", phone: "11981887766", email: "maria@x.com" }],
+      meta: { source: "import" },
+    });
+    expect(created?.people[0]).toEqual({
+      name: "Maria",
+      phone: "11981887766",
+      email: "maria@x.com",
+    });
+    expect(created?.contact_name).toBe("Maria");
+    expect(created?.phones).toContain("11981887766");
+    expect(created?.meta.source).toBe("import");
+  });
+
   it("dedupes deals by CNPJ inside the same pipeline", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const pipelineId = pipeline.id;
@@ -437,6 +455,65 @@ describe("seeded telemetry mix", () => {
     expect(Array.isArray(lookup?.extraPhones)).toBe(true);
     expect(lookup?.presence === null || typeof lookup?.presence?.site === "boolean").toBe(
       true,
+    );
+  });
+
+  it("searches deals across pipelines and keeps the other user out", async () => {
+    const otherUser = "crm-search-other";
+    const alimentos = await mockRepo.createCrmPipeline(USER, "Alimentos");
+    const contabil = await mockRepo.createCrmPipeline(USER, "Contábil");
+    const mine = await mockRepo.createCrmDeal(USER, {
+      pipelineId: alimentos.id,
+      company_name: "Padaria Aurora",
+      contact_name: "Ana Carvalho",
+      phones: ["(34) 99999-0000"],
+      cnpj: "12345678000190",
+    });
+    const otherNicho = await mockRepo.createCrmDeal(USER, {
+      pipelineId: contabil.id,
+      company_name: "Contábil Aurora",
+    });
+    const won = await mockRepo.createCrmDeal(USER, {
+      pipelineId: contabil.id,
+      company_name: "Padaria Encerrada",
+    });
+    await mockRepo.setCrmDealOutcome(USER, won!.id, "won");
+    const otherPipe = await mockRepo.createCrmPipeline(otherUser, "Nicho alheio");
+    await mockRepo.createCrmDeal(otherUser, {
+      pipelineId: otherPipe.id,
+      company_name: "Padaria Secreta",
+    });
+
+    const byName = await mockRepo.searchCrmDeals(USER, "aurora", {
+      preferredPipelineId: alimentos.id,
+    });
+    expect(byName.map((hit) => hit.dealId)).toEqual([mine!.id, otherNicho!.id]);
+    expect(byName[0]?.pipelineNome).toBe("Alimentos");
+    expect(byName[1]?.pipelineNome).toBe("Contábil");
+
+    const closed = await mockRepo.searchCrmDeals(USER, "encerrada");
+    expect(closed).toHaveLength(1);
+    expect(closed[0]?.dealId).toBe(won!.id);
+    expect(closed[0]?.outcome).toBe("won");
+
+    const byPhone = await mockRepo.searchCrmDeals(USER, "349999");
+    expect(byPhone.map((hit) => hit.dealId)).toEqual([mine!.id]);
+
+    const leaked = await mockRepo.searchCrmDeals(otherUser, "aurora");
+    expect(leaked).toEqual([]);
+    expect(
+      (await mockRepo.searchCrmDeals(USER, "secreta")).map((hit) => hit.company_name),
+    ).toEqual([]);
+
+    const store = getMockStore();
+    store.crm_deals = store.crm_deals.filter(
+      (row) => row.pipeline_id !== otherPipe.id,
+    );
+    store.crm_stages = store.crm_stages.filter(
+      (row) => row.pipeline_id !== otherPipe.id,
+    );
+    store.crm_pipelines = store.crm_pipelines.filter(
+      (row) => row.user_id !== otherUser,
     );
   });
 });

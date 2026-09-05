@@ -54,6 +54,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/setup") ||
     path.startsWith("/pagar") ||
     path.startsWith("/conexoes") ||
+    path.startsWith("/importacoes") ||
     path.startsWith("/admin");
 
   if (protectedPath && !user) {
@@ -110,6 +111,8 @@ export const config = {
     "/pagar/:path*",
     "/conexoes",
     "/conexoes/:path*",
+    "/importacoes",
+    "/importacoes/:path*",
     "/admin/:path*",
   ],
 };

@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { MAX_DEAL_AMOUNT_CENTS } from "@/lib/crm/money";
-import { CRM_ACTIVITY_KINDS, CRM_EVENT_KINDS, CRM_OUTCOMES } from "@/lib/crm/types";
+import {
+  CRM_ACTIVITY_KINDS,
+  CRM_DEAL_SOURCES,
+  CRM_EVENT_KINDS,
+  CRM_OUTCOMES,
+} from "@/lib/crm/types";
+
+export const IMPORT_MAX_ROWS = 500;
 
 export const crmPersonSchema = z.object({
   name: z.string().trim().max(80),
@@ -61,11 +68,33 @@ export const dealCreateSchema = z.object({
     .refine((value) => value === undefined || /^\d{14}$/.test(value), {
       message: "CNPJ inválido",
     }),
+  people: z.array(crmPersonSchema).max(12).optional(),
   meta: z
     .object({
-      source: z.enum(["qualify_bridge", "catchup_bridge", "crm_add"]).optional(),
+      source: z.enum(CRM_DEAL_SOURCES).optional(),
     })
     .optional(),
+});
+
+export const importLeadRowSchema = z.object({
+  company: z.string().trim().max(120).optional(),
+  name: z.string().trim().max(80).optional(),
+  phone: z.string().trim().max(40).optional(),
+  email: z.string().trim().max(120).optional(),
+  cnpj: z.string().trim().max(32).optional(),
+  notes: z.string().trim().max(4000).optional(),
+});
+
+export const crmImportSchema = z.object({
+  pipeline_id: z.string().uuid(),
+  stage_id: z.string().uuid().optional(),
+  rows: z.array(importLeadRowSchema).min(1).max(IMPORT_MAX_ROWS),
+});
+
+export const crmInboundUpsertSchema = z.object({
+  pipeline_id: z.string().uuid(),
+  stage_id: z.string().uuid().nullable().optional(),
+  rotate: z.boolean().optional(),
 });
 
 export const dealPatchSchema = z.object({
@@ -117,4 +146,9 @@ export const eventPatchSchema = z.object({
 
 export const outcomeSchema = z.object({
   outcome: z.enum(CRM_OUTCOMES),
+});
+
+export const dealSearchQuerySchema = z.object({
+  q: z.string().trim().max(80).default(""),
+  pipeline: z.string().uuid().optional(),
 });

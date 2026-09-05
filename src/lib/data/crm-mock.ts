@@ -4,6 +4,13 @@ import {
   briefingPresenceFromFields,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
+import {
+  canSearchDeals,
+  clampDealSearchLimit,
+  dealMatchesSearch,
+  rankDealSearchHits,
+  toDealSearchHit,
+} from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
@@ -18,9 +25,11 @@ import type {
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmDealSearchHit,
   CrmEvent,
   CrmEventCreateInput,
   CrmEventKind,
+  CrmInboundEndpoint,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -418,18 +427,26 @@ export const crmMockMethods = {
       (row) => row.stage_id === stage.id,
     ).length;
     const created = nowIso();
+    const secretaries = cleanList(input.secretaries);
+    const people = peopleFromDeal({
+      contact_name: input.contact_name?.trim() ?? "",
+      secretaries,
+      people: input.people,
+    });
+    const contactName =
+      input.contact_name?.trim() || snapshotContactName(people);
     const deal: CrmDeal = {
       id: id(),
       pipeline_id: pipeline.id,
       stage_id: stage.id,
       company_name: input.company_name.trim(),
-      contact_name: input.contact_name?.trim() ?? "",
-      secretaries: cleanList(input.secretaries),
-      people: peopleFromDeal({
-        contact_name: input.contact_name?.trim() ?? "",
-        secretaries: cleanList(input.secretaries),
-      }),
-      phones: cleanList(input.phones),
+      contact_name: contactName,
+      secretaries,
+      people,
+      phones: uniquePhones([
+        ...cleanList(input.phones),
+        ...people.map((person) => person.phone),
+      ]).slice(0, 8),
       notes: input.notes?.trim() ?? "",
       cnpj,
       meta: input.meta ?? {},
@@ -497,6 +514,40 @@ export const crmMockMethods = {
       found.add(deal.cnpj);
     }
     return [...found];
+  },
+
+  async searchCrmDeals(
+    userId: string,
+    q: string,
+    opts?: { preferredPipelineId?: string | null; limit?: number },
+  ): Promise<CrmDealSearchHit[]> {
+    if (!canSearchDeals(q)) return [];
+    const store = getMockStore();
+    const owned = pipelinesOf(store, userId);
+    const pipelineById = new Map(owned.map((row) => [row.id, row]));
+    const stageById = new Map(store.crm_stages.map((row) => [row.id, row]));
+    const matches = store.crm_deals.filter((deal) => {
+      if (!pipelineById.has(deal.pipeline_id)) return false;
+      return dealMatchesSearch(deal, q);
+    });
+    const ranked = rankDealSearchHits(
+      matches,
+      q,
+      opts?.preferredPipelineId,
+    );
+    const limit = clampDealSearchLimit(opts?.limit);
+    return ranked.slice(0, limit).map((deal) => {
+      const people = peopleFromDeal(deal);
+      return toDealSearchHit({
+        dealId: deal.id,
+        pipelineId: deal.pipeline_id,
+        pipelineNome: pipelineById.get(deal.pipeline_id)?.nome ?? "",
+        stageNome: stageById.get(deal.stage_id)?.nome ?? "",
+        company_name: deal.company_name,
+        contact_name: deal.contact_name || people[0]?.name || "",
+        outcome: deal.outcome,
+      });
+    });
   },
 
   async getCrmDeal(
@@ -713,5 +764,65 @@ export const crmMockMethods = {
     deal.outcome = outcome;
     const event = insertEvent(store, dealId, "outcome", "", { outcome });
     return { deal: toCard(store, deal), event };
+  },
+
+  async getCrmInboundEndpoint(
+    userId: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    return (
+      getMockStore().crm_inbound_endpoints.find((row) => row.user_id === userId) ??
+      null
+    );
+  },
+
+  async getCrmInboundEndpointByTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    return (
+      getMockStore().crm_inbound_endpoints.find(
+        (row) => row.token_hash === tokenHash,
+      ) ?? null
+    );
+  },
+
+  async upsertCrmInboundEndpoint(
+    userId: string,
+    input: {
+      pipelineId: string;
+      stage_id?: string | null;
+      token_hash: string;
+    },
+  ): Promise<CrmInboundEndpoint | null> {
+    const store = getMockStore();
+    if (!ownPipeline(store, userId, input.pipelineId)) return null;
+    if (input.stage_id) {
+      const stage = store.crm_stages.find(
+        (row) =>
+          row.id === input.stage_id && row.pipeline_id === input.pipelineId,
+      );
+      if (!stage) return null;
+    }
+    const now = nowIso();
+    const existing = store.crm_inbound_endpoints.find(
+      (row) => row.user_id === userId,
+    );
+    if (existing) {
+      existing.pipeline_id = input.pipelineId;
+      existing.stage_id = input.stage_id ?? null;
+      existing.token_hash = input.token_hash;
+      existing.updated_at = now;
+      return existing;
+    }
+    const row: CrmInboundEndpoint = {
+      id: id(),
+      user_id: userId,
+      pipeline_id: input.pipelineId,
+      stage_id: input.stage_id ?? null,
+      token_hash: input.token_hash,
+      created_at: now,
+      updated_at: now,
+    };
+    store.crm_inbound_endpoints.push(row);
+    return row;
   },
 };

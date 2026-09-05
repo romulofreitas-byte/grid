@@ -8,8 +8,18 @@ import {
   isCrmStageKey,
   pickCreateStage,
 } from "@/lib/crm/cadence";
+import {
+  DEAL_SEARCH_MIN_CHARS,
+  DEAL_SEARCH_MIN_DIGITS,
+  canSearchDeals,
+  clampDealSearchLimit,
+  dealSearchDigits,
+  dealSearchHasLetters,
+} from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import { escapeIlike, sqlFoldAccent } from "@/lib/data/company-search";
+import { normalizeText } from "@/lib/normalize-text";
 import { formatPhone } from "@/lib/format";
 import { planDeleteStage } from "@/lib/crm/stages";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
@@ -21,16 +31,18 @@ import type {
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmDealSearchHit,
   CrmEvent,
   CrmEventCreateInput,
   CrmEventKind,
+  CrmInboundEndpoint,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
   CrmPipelineSummary,
   CrmStage,
 } from "@/lib/crm/types";
-import { query, withTransaction, type SqlQuery } from "@/lib/data/pg";
+import { isUndefinedTableError, query, withTransaction, type SqlQuery } from "@/lib/data/pg";
 import type { QueryResultRow } from "pg";
 
 function asIso(value: unknown): string {
@@ -132,6 +144,18 @@ function mapEvent(row: QueryResultRow): CrmEvent {
     kind: row.kind as CrmEventKind,
     body: String(row.body ?? ""),
     meta: mapEventMeta(row.meta),
+    created_at: asIso(row.created_at),
+    updated_at: asIso(row.updated_at),
+  };
+}
+
+function mapInboundEndpoint(row: QueryResultRow): CrmInboundEndpoint {
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    pipeline_id: String(row.pipeline_id),
+    stage_id: row.stage_id == null || row.stage_id === "" ? null : String(row.stage_id),
+    token_hash: String(row.token_hash),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
   };
@@ -581,12 +605,18 @@ export const crmPgMethods = {
         `select count(*)::int as n from crm_deals where stage_id = $1`,
         [stageId],
       );
-      const contactName = input.contact_name?.trim() ?? "";
       const secretaries = asStringList(input.secretaries);
       const people = peopleFromDeal({
-        contact_name: contactName,
+        contact_name: input.contact_name?.trim() ?? "",
         secretaries,
+        people: input.people,
       });
+      const contactName =
+        input.contact_name?.trim() || snapshotContactName(people);
+      const phones = uniquePhones([
+        ...asStringList(input.phones),
+        ...people.map((person) => person.phone),
+      ]).slice(0, 8);
       const inserted = await q(
         `insert into crm_deals (
            pipeline_id, stage_id, company_name, contact_name, secretaries, people, phones, notes, cnpj, meta, position
@@ -599,7 +629,7 @@ export const crmPgMethods = {
           contactName,
           JSON.stringify(secretaries),
           JSON.stringify(people),
-          JSON.stringify(asStringList(input.phones)),
+          JSON.stringify(phones),
           input.notes?.trim() ?? "",
           cnpj,
           JSON.stringify(input.meta ?? {}),
@@ -682,6 +712,97 @@ export const crmPgMethods = {
       [userId, digits],
     );
     return rows.map((row) => String(row.cnpj));
+  },
+
+  async searchCrmDeals(
+    userId: string,
+    q: string,
+    opts?: { preferredPipelineId?: string | null; limit?: number },
+  ): Promise<CrmDealSearchHit[]> {
+    if (!canSearchDeals(q)) return [];
+    const limit = clampDealSearchLimit(opts?.limit);
+    const folded = normalizeText(q);
+    const like =
+      dealSearchHasLetters(q) && folded.length >= DEAL_SEARCH_MIN_CHARS
+        ? `%${escapeIlike(folded)}%`
+        : null;
+    const prefix =
+      dealSearchHasLetters(q) && folded.length >= DEAL_SEARCH_MIN_CHARS
+        ? `${escapeIlike(folded)}%`
+        : null;
+    const digits = dealSearchDigits(q);
+    const digitNeedle =
+      digits.length >= DEAL_SEARCH_MIN_DIGITS ? digits : "";
+    const companyFold = sqlFoldAccent("d.company_name");
+    const contactFold = sqlFoldAccent("coalesce(d.contact_name, '')");
+    const personNameFold = sqlFoldAccent("coalesce(person->>'name', '')");
+    const nameClause = like
+      ? `(
+          ${companyFold} like $2 escape '\\'
+          or ${contactFold} like $2 escape '\\'
+          or exists (
+            select 1
+              from jsonb_array_elements(coalesce(d.people, '[]'::jsonb)) person
+             where ${personNameFold} like $2 escape '\\'
+          )
+        )`
+      : "false";
+    const digitClause = digitNeedle
+      ? `(
+          coalesce(d.cnpj, '') like '%' || $3 || '%'
+          or exists (
+            select 1
+              from jsonb_array_elements(coalesce(d.phones, '[]'::jsonb)) ph
+             where regexp_replace(ph #>> '{}', '\\D', '', 'g')
+                   like '%' || $3 || '%'
+          )
+          or exists (
+            select 1
+              from jsonb_array_elements(coalesce(d.people, '[]'::jsonb)) person
+             where regexp_replace(coalesce(person->>'phone', ''), '\\D', '', 'g')
+                   like '%' || $3 || '%'
+          )
+        )`
+      : "false";
+    const { rows } = await query(
+      `select d.id,
+              d.pipeline_id,
+              p.nome as pipeline_nome,
+              s.nome as stage_nome,
+              d.company_name,
+              d.contact_name,
+              d.outcome
+         from crm_deals d
+         join crm_pipelines p on p.id = d.pipeline_id
+         join crm_stages s on s.id = d.stage_id
+        where p.user_id = $1
+          and (${nameClause} or ${digitClause})
+        order by
+          case when d.pipeline_id = $4::uuid then 0 else 1 end,
+          case
+            when $5::text is not null and ${companyFold} like $5 escape '\\'
+            then 0 else 1
+          end,
+          d.updated_at desc
+        limit $6`,
+      [
+        userId,
+        like ?? "",
+        digitNeedle,
+        opts?.preferredPipelineId ?? null,
+        prefix,
+        limit,
+      ],
+    );
+    return rows.map((row) => ({
+      dealId: String(row.id),
+      pipelineId: String(row.pipeline_id),
+      pipelineNome: String(row.pipeline_nome),
+      stageNome: String(row.stage_nome),
+      company_name: String(row.company_name),
+      contact_name: String(row.contact_name ?? ""),
+      outcome: mapOutcome(row.outcome),
+    }));
   },
 
   async getCrmDeal(
@@ -996,5 +1117,75 @@ export const crmPgMethods = {
       if (!deal) return null;
       return { deal, event };
     });
+  },
+
+  async getCrmInboundEndpoint(
+    userId: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_endpoints where user_id = $1 limit 1`,
+        [userId],
+      );
+      return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async getCrmInboundEndpointByTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_endpoints where token_hash = $1 limit 1`,
+        [tokenHash],
+      );
+      return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async upsertCrmInboundEndpoint(
+    userId: string,
+    input: {
+      pipelineId: string;
+      stage_id?: string | null;
+      token_hash: string;
+    },
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      return await withTransaction(async (q) => {
+        if (!(await ownedPipeline(q, userId, input.pipelineId))) return null;
+        if (input.stage_id) {
+          const stages = await listStages(q, input.pipelineId);
+          if (!stages.some((stage) => stage.id === input.stage_id)) return null;
+        }
+        const { rows } = await q(
+          `insert into crm_inbound_endpoints (
+             user_id, pipeline_id, stage_id, token_hash
+           ) values ($1, $2, $3, $4)
+           on conflict (user_id) do update set
+             pipeline_id = excluded.pipeline_id,
+             stage_id = excluded.stage_id,
+             token_hash = excluded.token_hash,
+             updated_at = now()
+           returning *`,
+          [
+            userId,
+            input.pipelineId,
+            input.stage_id ?? null,
+            input.token_hash,
+          ],
+        );
+        return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+      });
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
   },
 };

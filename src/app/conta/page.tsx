@@ -111,6 +111,12 @@ export default function ContaPage() {
                 Conexões
               </Link>
               <Link
+                href="/importacoes"
+                className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+              >
+                Importações
+              </Link>
+              <Link
                 href={planosHref("/conta")}
                 className="rounded-xl border border-white/15 px-3 py-2 text-xs font-bold text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
               >

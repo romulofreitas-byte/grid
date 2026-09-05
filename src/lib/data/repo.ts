@@ -17,8 +17,10 @@ import type {
   CrmDealCard,
   CrmDealCreateInput,
   CrmDealPatch,
+  CrmDealSearchHit,
   CrmEvent,
   CrmEventCreateInput,
+  CrmInboundEndpoint,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -317,6 +319,11 @@ export type GridRepo = {
   ): Promise<CrmDealCard | null>;
   hasCrmPipeline(userId: string): Promise<boolean>;
   listCrmDealCnpjs(userId: string, cnpjs: string[]): Promise<string[]>;
+  searchCrmDeals(
+    userId: string,
+    q: string,
+    opts?: { preferredPipelineId?: string | null; limit?: number },
+  ): Promise<CrmDealSearchHit[]>;
   getCrmDeal(userId: string, dealId: string): Promise<CrmDealCard | null>;
   getCrmBriefingLookup(cnpj: string): Promise<CrmBriefingLookup | null>;
   updateCrmDeal(
@@ -365,6 +372,18 @@ export type GridRepo = {
     dealId: string,
     outcome: CrmOutcome,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
+  getCrmInboundEndpoint(userId: string): Promise<CrmInboundEndpoint | null>;
+  getCrmInboundEndpointByTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null>;
+  upsertCrmInboundEndpoint(
+    userId: string,
+    input: {
+      pipelineId: string;
+      stage_id?: string | null;
+      token_hash: string;
+    },
+  ): Promise<CrmInboundEndpoint | null>;
   listCatchUpQualifiedCnpjs(
     userId: string,
     opts?: { searchId?: string; limit?: number },

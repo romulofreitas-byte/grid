@@ -54,11 +54,31 @@ export type CrmStage = {
   created_at: string;
 };
 
+export const CRM_DEAL_SOURCES = [
+  "qualify_bridge",
+  "catchup_bridge",
+  "crm_add",
+  "import",
+  "inbound",
+] as const;
+
+export type CrmDealSource = (typeof CRM_DEAL_SOURCES)[number];
+
 export type CrmDealMeta = {
   searchId?: string;
   ufs?: string[];
   municipioIds?: number[];
-  source?: "qualify_bridge" | "catchup_bridge" | "crm_add";
+  source?: CrmDealSource;
+};
+
+export type CrmInboundEndpoint = {
+  id: string;
+  user_id: string;
+  pipeline_id: string;
+  stage_id: string | null;
+  token_hash: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CrmDeal = {
@@ -122,6 +142,16 @@ export type CrmDealCard = CrmDeal & {
   next_activity: CrmActivity | null;
 };
 
+export type CrmDealSearchHit = {
+  dealId: string;
+  pipelineId: string;
+  pipelineNome: string;
+  stageNome: string;
+  company_name: string;
+  contact_name: string;
+  outcome: CrmOutcome;
+};
+
 export type CrmBoard = {
   pipeline: CrmPipeline;
   stages: CrmStage[];
@@ -134,6 +164,7 @@ export type CrmDealCreateInput = {
   company_name: string;
   contact_name?: string;
   secretaries?: string[];
+  people?: CrmPerson[];
   phones?: string[];
   notes?: string;
   cnpj?: string | null;

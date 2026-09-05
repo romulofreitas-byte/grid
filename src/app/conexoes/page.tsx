@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
@@ -312,6 +313,12 @@ function ConexoesInner() {
           discador externos ainda não está nesta versão.
         </p>
       )}
+      <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
+        {COPY.conexoesInboundHint}{" "}
+        <Link href="/importacoes" className="font-semibold text-podium-yellow">
+          Abrir Importações
+        </Link>
+      </p>
       {kindFromUrl === "crm" || kindFromUrl === "dialer" ? (
         <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-yellow">
           {kindFromUrl === "crm" ? "CRM" : "Discador"} ainda não conecta nativo.

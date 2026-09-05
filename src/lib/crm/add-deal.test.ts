@@ -236,6 +236,22 @@ describe("dealCreateSchema", () => {
     expect(parsed.meta).toEqual({ source: "crm_add" });
   });
 
+  it("accepts import and inbound sources", () => {
+    expect(
+      dealCreateSchema.parse({
+        company_name: "Lead inbound",
+        meta: { source: "import" },
+      }).meta,
+    ).toEqual({ source: "import" });
+    expect(
+      dealCreateSchema.parse({
+        company_name: "Lead inbound",
+        people: [{ name: "Maria", phone: "11981887766", email: "m@x.com" }],
+        meta: { source: "inbound" },
+      }).meta,
+    ).toEqual({ source: "inbound" });
+  });
+
   it("treats empty CNPJ as missing", () => {
     expect(dealCreateSchema.parse({ company_name: "X", cnpj: "" }).cnpj).toBeUndefined();
     expect(dealCreateSchema.parse({ company_name: "X", cnpj: null }).cnpj).toBeUndefined();
