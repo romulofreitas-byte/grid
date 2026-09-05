@@ -1,6 +1,35 @@
 export const APP_HOME = "/painel";
+export const SETUP_PATH = "/setup";
 
 const FALLBACK = APP_HOME;
+
+function pathnameOf(path: string): string {
+  return path.split("?")[0]?.split("#")[0] ?? path;
+}
+
+/** Home (or Box) without an explicit destination — first login can go to setup. */
+export function isDefaultAppHome(path: string): boolean {
+  const pathname = pathnameOf(path);
+  return pathname === APP_HOME || pathname === "/box";
+}
+
+export function unwrapAuthDest(dest: string): string {
+  if (!dest.startsWith("/entrar?go=1")) return dest;
+  const query = dest.includes("?") ? dest.slice(dest.indexOf("?") + 1) : "";
+  const params = new URLSearchParams(query);
+  return safeInternalPath(params.get("next"));
+}
+
+/** After login: incomplete onboarding lands on /setup instead of Painel/Box. */
+export function authLandingPath(
+  dest: string,
+  onboardingCompleted: boolean,
+): string {
+  const unwrapped = unwrapAuthDest(dest);
+  if (onboardingCompleted) return unwrapped;
+  if (isDefaultAppHome(unwrapped)) return SETUP_PATH;
+  return unwrapped;
+}
 
 /** Only same-origin relative paths. Blocks open redirects. */
 export function safeInternalPath(

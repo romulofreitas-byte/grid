@@ -12,6 +12,7 @@ import { VoltaRing } from "@/components/VoltaRing";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
+import { marketLabel } from "@/lib/pilot-profile";
 import { tankDaysLabel, tankHint, qualifyDaysRemaining } from "@/lib/billing/tank";
 import {
   canSpendQualifyCredits,
@@ -194,7 +195,7 @@ export function BoxCockpit({
                 <div className="min-w-0">
                   <p className="text-[11px] text-podium-muted">
                     {profile.especialidade && profile.cidade_usuario
-                      ? `${profile.especialidade} · ${profile.cidade_usuario}`
+                      ? `${marketLabel(profile.especialidade)} · ${profile.cidade_usuario}`
                       : COPY.setupWelcomeBack}
                   </p>
                   <p className="truncate text-sm font-bold md:text-base">{name}</p>

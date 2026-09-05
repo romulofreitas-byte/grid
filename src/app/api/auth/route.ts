@@ -14,8 +14,10 @@ import {
   googleOAuthQueryParams,
   isGoogleAuthEnabled,
 } from "@/lib/auth/google-provider";
+import { resolveAuthLanding } from "@/lib/auth/landing";
 import { usesMockAuth } from "@/lib/auth/session";
-import { safeInternalPath } from "@/lib/auth/next-path";
+import { APP_HOME, safeInternalPath } from "@/lib/auth/next-path";
+import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { createRouteClient } from "@/lib/supabase/route-client";
 
 function siteUrl(): string {
@@ -49,7 +51,10 @@ export async function POST(req: NextRequest) {
       return json({ error: "Ação inválida" }, 400);
     }
     const dest = safeInternalPath(body.next);
-    const callbackNext = dest === "/painel" || dest === "/box" ? "/entrar?go=1" : dest;
+    const callbackNext =
+      dest === APP_HOME || dest === "/box" || dest === "/setup"
+        ? `/entrar?go=1&next=${encodeURIComponent(dest)}`
+        : dest;
 
     if (action === "logout") {
       if (usesMockAuth()) {
@@ -93,7 +98,11 @@ export async function POST(req: NextRequest) {
       if (action === "resend") {
         return json({ mock: true, ok: true, confirm: true });
       }
-      return json({ mock: true, ok: true, next: dest });
+      return json({
+        mock: true,
+        ok: true,
+        next: await resolveAuthLanding(LOCAL_USER_ID, dest),
+      });
     }
     if (!supabase) {
       return json({ error: "O acesso não está configurado" }, 500);
@@ -122,7 +131,10 @@ export async function POST(req: NextRequest) {
         }
         return json({ ok: true, next: "/entrar" });
       }
-      return json({ ok: true, next: dest });
+      return json({
+        ok: true,
+        next: await resolveAuthLanding(userData.user.id, dest),
+      });
     }
 
     const email = body.email?.trim() ?? "";
@@ -165,7 +177,10 @@ export async function POST(req: NextRequest) {
         return json({ error: signupErrorMessage(error.message) }, 400);
       }
       if (data.session) {
-        return json({ ok: true, next: dest });
+        return json({
+          ok: true,
+          next: await resolveAuthLanding(data.session.user.id, dest),
+        });
       }
       if (isDuplicateSignupUser(data.user)) {
         return json(
@@ -176,14 +191,18 @@ export async function POST(req: NextRequest) {
       return json({ ok: true, confirm: true });
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) {
       return json({ error: loginErrorMessage(error.message) }, 400);
     }
-    return json({ ok: true, next: dest });
+    const userId = data.user?.id;
+    return json({
+      ok: true,
+      next: userId ? await resolveAuthLanding(userId, dest) : dest,
+    });
   } catch {
     return json({ error: authCatchMessage(action) }, 500);
   }

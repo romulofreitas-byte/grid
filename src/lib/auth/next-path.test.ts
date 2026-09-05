@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  authLandingPath,
   isPaymentNext,
   safeInternalPath,
   signedInEntrarDestination,
@@ -64,5 +65,21 @@ describe("signedInEntrarDestination", () => {
     expect(
       signedInEntrarDestination(new URLSearchParams("modo=cadastro")),
     ).toBe("/painel");
+  });
+});
+
+describe("authLandingPath", () => {
+  it("sends incomplete onboarding from Painel or Box to setup", () => {
+    expect(authLandingPath("/painel", false)).toBe("/setup");
+    expect(authLandingPath("/box", false)).toBe("/setup");
+    expect(authLandingPath("/entrar?go=1", false)).toBe("/setup");
+    expect(authLandingPath("/entrar?go=1&next=/painel", false)).toBe("/setup");
+  });
+
+  it("keeps an explicit destination and completed onboarding", () => {
+    expect(authLandingPath("/largada?nova=1", false)).toBe("/largada?nova=1");
+    expect(authLandingPath("/grid/abc", false)).toBe("/grid/abc");
+    expect(authLandingPath("/painel", true)).toBe("/painel");
+    expect(authLandingPath("/setup", false)).toBe("/setup");
   });
 });

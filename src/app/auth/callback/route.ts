@@ -1,8 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { parseCallbackParams } from "@/lib/auth/callback-params";
+import { resolveAuthLanding } from "@/lib/auth/landing";
 import { callbackErrorQuery, postVerifyPath } from "@/lib/auth/messages";
-import { safeInternalPath } from "@/lib/auth/next-path";
+import { APP_HOME, SETUP_PATH, safeInternalPath } from "@/lib/auth/next-path";
 import { createRouteClient, requestOrigin } from "@/lib/supabase/route-client";
+
+function withLights(dest: string): string {
+  const pathname = dest.split("?")[0];
+  if (pathname === APP_HOME || pathname === "/box" || pathname === SETUP_PATH) {
+    return `/entrar?go=1&next=${encodeURIComponent(dest)}`;
+  }
+  return dest;
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -25,7 +34,13 @@ export async function GET(request: NextRequest) {
       console.error("auth callback verifyOtp:", error.message);
       return redirect(`/entrar?error=${callbackErrorQuery(error.message)}`);
     }
-    return redirect(postVerifyPath(params.type, next));
+    const verified = postVerifyPath(params.type, next);
+    if (params.type === "recovery") return redirect(verified);
+    const { data } = await supabase.auth.getUser();
+    const landing = data.user
+      ? await resolveAuthLanding(data.user.id, verified)
+      : verified;
+    return redirect(withLights(landing));
   }
 
   if (params.kind === "oauth") {
@@ -34,7 +49,11 @@ export async function GET(request: NextRequest) {
       console.error("auth callback exchangeCode:", error.message);
       return redirect(`/entrar?error=${callbackErrorQuery(error.message)}`);
     }
-    return redirect(next);
+    const { data } = await supabase.auth.getUser();
+    const landing = data.user
+      ? await resolveAuthLanding(data.user.id, next)
+      : next;
+    return redirect(withLights(landing));
   }
 
   return redirect("/entrar?error=session");

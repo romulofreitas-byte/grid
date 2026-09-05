@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const DENSITY = {
   compact:
     "min-h-9 w-full items-center justify-center px-1 py-1.5 text-center text-xs font-medium",
-  chip: "min-h-8 min-w-0 w-full items-center justify-center overflow-hidden px-2 py-1.5 text-center text-[11px] font-medium",
+  chip: "min-h-8 min-w-0 w-full items-center justify-center px-2 py-1.5 text-center text-[11px] font-medium leading-tight",
   row: "w-full items-start gap-3 px-3 py-2 text-left text-sm",
   card: "w-full items-start px-3 py-2.5 text-left text-sm",
 } as const;
@@ -35,8 +35,8 @@ export function ChoiceTile({
         "inline-flex rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40 disabled:cursor-not-allowed disabled:opacity-40",
         DENSITY[density],
         selected
-          ? "border-white/25 bg-white/[0.07] text-podium-white"
-          : "border-white/10 bg-white/[0.03] text-podium-gray hover:border-white/20 hover:text-podium-white",
+          ? "border-podium-yellow/55 bg-podium-yellow/12 text-podium-white"
+          : "border-white/12 bg-white/[0.04] text-podium-gray hover:border-white/25 hover:text-podium-white",
         className,
       )}
       {...props}
@@ -61,7 +61,9 @@ export function ChoiceTile({
             ) : null}
           </span>
         </>
-      ) : density === "compact" || density === "chip" ? (
+      ) : density === "chip" ? (
+        <span className="px-0.5">{children}</span>
+      ) : density === "compact" ? (
         <span className="inline-flex items-center justify-center gap-1">
           {selected ? (
             <Check
