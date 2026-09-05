@@ -408,8 +408,8 @@ export const COPY = {
   painelHint:
     "Ligações e sequência são de hoje. Faturado e win rate seguem o recorte. Pipeline e follow-ups são o\u00a0agora.",
   painelCtaTitle: "Agora",
-  painelCallsLeft: "Faltam {n} ligações para a meta de hoje.",
-  painelCallsDone: "Meta de ligações do dia batida.",
+  painelCallsLeft: "Faltam {n} ligações hoje.",
+  painelCallsDone: "Ligações do dia batidas.",
   painelOverdueCta: "{n} follow-ups atrasados. Resolver no CRM.",
   painelNoNextCta: "{n} fichas sem próxima ação.",
   painelEmptyCrm: "Nenhum negócio no CRM ainda. Gere uma lista e avance as fichas.",
@@ -475,7 +475,7 @@ export const COPY = {
   calculadoraTitle: "Calculadora",
   calculadoraEyebrow: "Previsibilidade comercial",
   calculadoraLead:
-    "Da meta de faturamento às ligações do dia. O anel do Box usa o número que você aplicar aqui.",
+    "Calcule o funil, salve várias metas e escolha qual define as ligações do dia.",
   calculadoraObjetivo: "Objetivo",
   calculadoraMetaFaturamento: "Meta de faturamento no período",
   calculadoraTicket: "Ticket médio do contrato",
@@ -510,12 +510,12 @@ export const COPY = {
     "Ligações totais = efetivadas × 3. O volume do dia reparte em 3 dias de prospecção por semana.",
   calculadoraCta: "Usar {n} ligações/dia no Box",
   calculadoraCtaNeed: "Preencha meta, ticket e prazo para gerar o plano.",
-  calculadoraApplied: "Meta do Box atualizada.",
+  calculadoraApplied: "Ligações do dia atualizadas.",
   calculadoraOpenBox: "Ver no Box",
   calculadoraContaLink: "Calcular pelo funil",
   boxMetaTitle: "Calcule a meta",
   boxMetaBody:
-    "Quantas ligações fecham a meta no período. O anel do dia sai deste número.",
+    "Quantas ligações fecham a meta no período. As ligações do dia saem da meta que você aplicar.",
   boxMetaCta: "Abrir calculadora",
 } as const;
 

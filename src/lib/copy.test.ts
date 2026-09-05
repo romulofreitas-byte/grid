@@ -150,6 +150,7 @@ describe("COPY authenticated app", () => {
     expect(COPY.crmNextAction.toLowerCase()).not.toMatch(/volta/);
     expect(COPY.crmNoActivity.toLowerCase()).not.toMatch(/volta/);
     expect(COPY.boxSemLista.toLowerCase()).not.toMatch(/volta/);
+    expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/\banel\b/);
     expect(AUTHENTICATED_COPY.toLowerCase()).not.toMatch(/score seco/);
     expect(COPY.boxPistaFechada).toBe("Sem lista salva");
     expect(COPY.qualificarFichaLead.toLowerCase()).toMatch(/site/);
