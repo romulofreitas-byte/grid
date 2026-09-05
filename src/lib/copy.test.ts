@@ -208,3 +208,15 @@ describe("COPY empresas", () => {
     expect(COPY.empresasListaHint.toLowerCase()).toMatch(/atividade/);
   });
 });
+
+describe("COPY crm add deal", () => {
+  it("nudges qualification before the company enters the board", () => {
+    expect(COPY.crmPullFicha).toBe("Puxar ficha");
+    expect(COPY.crmOnGrid).toBe("No CRM");
+    expect(COPY.crmPullFichaHint).toBe(
+      "Qualifique agora para conferir os dados certos antes de mandar ao quadro. Custa 1 crédito.",
+    );
+    expect(COPY.crmNewPipeline).toBe("Novo nicho");
+    expect(COPY.crmAddDealNeedPipeline.toLowerCase()).toMatch(/nicho/);
+  });
+});

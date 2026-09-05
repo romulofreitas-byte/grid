@@ -152,3 +152,20 @@ export const dealSearchQuerySchema = z.object({
   q: z.string().trim().max(80).default(""),
   pipeline: z.string().uuid().optional(),
 });
+
+export const DEAL_CNPJ_LOOKUP_MAX = 50;
+
+export const dealCnpjsQuerySchema = z.string().transform((value) => {
+  const seen: string[] = [];
+  const used = new Set<string>();
+  for (const part of value.split(",")) {
+    const rawDigits = part.replace(/\D/g, "");
+    if (!rawDigits) continue;
+    const digits = rawDigits.padStart(14, "0");
+    if (!/^\d{14}$/.test(digits) || used.has(digits)) continue;
+    used.add(digits);
+    seen.push(digits);
+    if (seen.length >= DEAL_CNPJ_LOOKUP_MAX) break;
+  }
+  return seen;
+});

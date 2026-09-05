@@ -302,7 +302,7 @@ export const COPY = {
   crmPullFichaLoading: "Qualificando ficha…",
   crmPullFichaCredit: "1 crédito",
   crmPullFichaHint:
-    "Qualifica a ficha e conta no saldo. Confira os dados antes de mandar para o CRM.",
+    "Qualifique agora para conferir os dados certos antes de mandar ao quadro. Custa 1 crédito.",
   crmPullFichaDone: "Ficha conferida",
   crmPipelineSelectLabel: "Pipeline",
   crmStageSelectLabel: "Etapa",
@@ -367,6 +367,9 @@ export const COPY = {
   crmAddPhone: "Adicionar telefone",
   crmNextAction: "Próxima ação",
   crmNewPipeline: "Novo nicho",
+  crmNewPipelineName: "Nome do nicho",
+  crmAddDealNeedPipeline: "Dê um nome ao nicho.",
+  crmAddDealNewPipelineHint: "O negócio entra em Entrada de Lista.",
   crmEmptyBoard:
     "Nenhum negócio neste quadro. Adicione um para começar a ligar.",
   crmNotesPlaceholder: "O que foi dito e qual o próximo passo.",

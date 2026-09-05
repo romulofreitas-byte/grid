@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dealPatchSchema } from "./schema";
+import { dealCnpjsQuerySchema, dealPatchSchema } from "./schema";
 
 describe("dealPatchSchema amount_cents", () => {
   it("accepts cents, null, and omits when absent", () => {
@@ -16,5 +16,20 @@ describe("dealPatchSchema amount_cents", () => {
     expect(
       dealPatchSchema.safeParse({ amount_cents: 10_000_000_000 }).success,
     ).toBe(false);
+  });
+});
+
+describe("dealCnpjsQuerySchema", () => {
+  it("normalizes, dedupes, and skips empty parts", () => {
+    expect(
+      dealCnpjsQuerySchema.parse("12.345.678/0001-90,12345678000190,,00000000000191"),
+    ).toEqual(["12345678000190", "00000000000191"]);
+  });
+
+  it("caps the lookup at 50 CNPJs", () => {
+    const raw = Array.from({ length: 60 }, (_, i) =>
+      String(i + 1).padStart(14, "0"),
+    ).join(",");
+    expect(dealCnpjsQuerySchema.parse(raw)).toHaveLength(50);
   });
 });
