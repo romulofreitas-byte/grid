@@ -4,6 +4,7 @@ import {
   type ImportLeadInput,
 } from "@/lib/crm/import";
 import { IMPORT_SKIPPED_MESSAGE } from "@/lib/crm/import-history";
+import { IMPORT_CREATE_FAILED_MESSAGE } from "@/lib/crm/import-issues";
 import type {
   CrmDealCard,
   CrmDealCreateInput,
@@ -108,7 +109,7 @@ export async function applyImportLeads(opts: {
       },
     });
     if (!created) {
-      pushError(index + 1, "Não foi possível criar o negócio.");
+      pushError(index + 1, IMPORT_CREATE_FAILED_MESSAGE);
       continue;
     }
     known.push(created);

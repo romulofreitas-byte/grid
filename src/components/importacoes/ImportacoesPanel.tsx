@@ -500,13 +500,16 @@ export function ImportacoesPanel({
             </p>
           ) : null}
           {(importRows.data?.errors?.length ?? 0) > 0 ? (
-            <ul className="mt-2 space-y-1 text-[11px] text-podium-alert">
-              {importRows.data!.errors!.slice(0, 8).map((err) => (
-                <li key={`${err.row}-${err.message}`}>
-                  Linha {err.row}: {err.message}
-                </li>
-              ))}
-            </ul>
+            <Hint className="mt-2">
+              <a href="#historico-importacao" className="font-semibold text-podium-yellow">
+                {(importRows.data!.errors!.length === 1
+                  ? COPY.importacoesPanelFixPointerOne
+                  : COPY.importacoesPanelFixPointerMany.replace(
+                      "{n}",
+                      String(importRows.data!.errors!.length),
+                    ))}
+              </a>
+            </Hint>
           ) : null}
         </Step>
       </GlassCard>

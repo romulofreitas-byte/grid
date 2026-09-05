@@ -1,5 +1,6 @@
 import type { ImportLeadInput } from "@/lib/crm/import";
 import type { ImportApplyResult } from "@/lib/crm/import-apply";
+import { classifyImportIssue } from "@/lib/crm/import-issues";
 import type {
   CrmImportRun,
   CrmImportRunIssue,
@@ -9,6 +10,7 @@ import type {
 export const IMPORT_RUN_LIST_LIMIT = 20;
 export const IMPORT_RUN_KEEP = 50;
 export const IMPORT_SKIPPED_MESSAGE = "Já estava no quadro";
+export const IMPORT_RUNS_QUERY_KEY = ["crm-import-runs"] as const;
 
 export type PublicImportRun = {
   id: string;
@@ -129,6 +131,7 @@ export function importErrorRowsCsv(issues: CrmImportRunIssue[]): string {
   const header = [
     "linha",
     "erro",
+    "o_que_fazer",
     "empresa",
     "nome",
     "telefone",
@@ -141,6 +144,7 @@ export function importErrorRowsCsv(issues: CrmImportRunIssue[]): string {
       [
         String(issue.row),
         issue.message,
+        classifyImportIssue(issue.message).action,
         issue.company,
         issue.name,
         issue.phone,

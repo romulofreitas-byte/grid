@@ -104,7 +104,11 @@ describe("COPY importações", () => {
     expect(COPY.importacoesHistoryTitle).toBe("Última importação");
     expect(COPY.importacoesStatusPartial).toBe("Com erros");
     expect(COPY.importacoesDownloadErrors.toLowerCase()).toMatch(/erro/);
-    expect(COPY.importacoesFixHint.toLowerCase()).toMatch(/suba/);
+    expect(COPY.importacoesFixHint.toLowerCase()).toMatch(/quadro/);
+    expect(COPY.importacoesIssueEmptyTitle.toLowerCase()).toMatch(/dados/);
+    expect(COPY.importacoesFixesCnpjBlocked.toLowerCase()).toMatch(/cnpj/);
+    expect(COPY.importacoesSendFixes).toBe("Enviar correções");
+    expect(COPY.importacoesSendFixesMany).toMatch(/\{n\}/);
     expect(COPY.importacoesSkippedHint.toLowerCase()).toMatch(/não é erro/);
     expect(COPY.importacoesBadgeCreatedMany.replace("{n}", "11")).toBe("11 no CRM");
   });

@@ -1,4 +1,8 @@
 import { uniquePhones } from "@/lib/crm/dial";
+import {
+  IMPORT_EMPTY_ROW_MESSAGE,
+  IMPORT_INVALID_CNPJ_MESSAGE,
+} from "@/lib/crm/import-issues";
 import type { CrmLeadKind, CrmPerson } from "@/lib/crm/types";
 import { phonesMatch } from "@/lib/phone";
 
@@ -241,9 +245,9 @@ export function parseImportCnpj(raw: string | undefined): {
 } {
   const digits = (raw ?? "").replace(/\D/g, "");
   if (!digits) return {};
-  if (digits.length > 14) return { error: "CNPJ inválido" };
+  if (digits.length > 14) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
   const padded = digits.padStart(14, "0");
-  if (!/^\d{14}$/.test(padded)) return { error: "CNPJ inválido" };
+  if (!/^\d{14}$/.test(padded)) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
   return { cnpj: padded };
 }
 
@@ -277,7 +281,7 @@ export function mapImportLead(
   if (parsedCnpj.error) return { ok: false, message: parsedCnpj.error };
   const cnpj = parsedCnpj.cnpj;
   if (!company && !name && !email && !phoneRaw && !cnpj && !notes) {
-    return { ok: false, message: "Linha vazia" };
+    return { ok: false, message: IMPORT_EMPTY_ROW_MESSAGE };
   }
   const nameIsCompany = !company && Boolean(name) && looksLikeCompanyName(name);
   const company_name =

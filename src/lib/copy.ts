@@ -468,10 +468,40 @@ export const COPY = {
   importacoesBadgeSkippedMany: "{n} já existiam",
   importacoesBadgeErrorOne: "1 com erro",
   importacoesBadgeErrorMany: "{n} com erro",
-  importacoesDownloadErrors: "Baixar linhas com erro",
+  importacoesDownloadErrors: "Baixar CSV das linhas com erro",
   importacoesFixHint:
-    "Abra o CSV, arrume a linha e suba de novo neste mesmo fluxo.",
+    "O CSV traz o motivo, o que fazer e os campos. Ou preencha abaixo e envie de novo para o mesmo quadro.",
   importacoesSkippedHint: "Já estavam no quadro — não é erro.",
+  importacoesIssueEmptyTitle: "Sem dados nos campos do Grid",
+  importacoesIssueEmptyAction:
+    "Nenhum valor chegou em empresa, nome, telefone, e-mail ou CNPJ. Preencha abaixo, ou volte e case as colunas certas — o arquivo pode ter dado em coluna ignorada.",
+  importacoesIssueEmptyFields: "Vazio: {fields}",
+  importacoesIssueCnpjTitle: "CNPJ inválido",
+  importacoesIssueCnpjAction: "Corrija os 14 dígitos ou apague o CNPJ.",
+  importacoesIssueCnpjReceived: "CNPJ recebido: {value}",
+  importacoesIssueCnpjMissing: "CNPJ em branco",
+  importacoesIssueCreateTitle: "Falha ao criar",
+  importacoesIssueCreateAction: "Envie de novo. Se repetir, tente outra hora.",
+  importacoesIssueUnknownTitle: "Não entrou",
+  importacoesIssueUnknownAction: "Corrija os campos abaixo e envie de novo.",
+  importacoesIssueCountOne: "1 linha",
+  importacoesIssueCountMany: "{n} linhas",
+  importacoesSendFixes: "Enviar correções",
+  importacoesSendFixesOne: "Enviar 1 correção",
+  importacoesSendFixesMany: "Enviar {n} correções",
+  importacoesSendingFixes: "Enviando…",
+  importacoesFixesNoneReady:
+    "Preencha pelo menos empresa, nome, telefone, e-mail ou CNPJ para enviar.",
+  importacoesFixesCnpjBlocked:
+    "Corrija ou apague o CNPJ inválido para enviar.",
+  importacoesFixesPartial:
+    "{ready} prontas de {total}. As outras ainda estão vazias ou com CNPJ inválido.",
+  importacoesFixesShown: "Mostrando {shown} de {total}. O CSV traz todas.",
+  importacoesPanelFixPointerOne:
+    "1 linha não entrou. Corrija na última importação acima.",
+  importacoesPanelFixPointerMany:
+    "{n} linhas não entraram. Corrija na última importação acima.",
+
   automacoesTitle: "Automações",
   automacoesLead:
     "Formulário, anúncio ou Make. Cada campanha tem URL, chave e destino próprios.",

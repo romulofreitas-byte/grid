@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { COPY } from "@/lib/copy";
 import {
   importErrorCsvFilename,
   importErrorRowsCsv,
@@ -52,8 +53,10 @@ describe("import history", () => {
       },
     ]);
     expect(csv.startsWith("\uFEFF")).toBe(true);
-    expect(csv).toContain("linha;erro;empresa");
-    expect(csv).toContain("3;CNPJ inválido;\"Oficina; Centro\";Ana;;;123");
+    expect(csv).toContain("linha;erro;o_que_fazer;empresa");
+    expect(csv).toContain(
+      `3;CNPJ inválido;${COPY.importacoesIssueCnpjAction};"Oficina; Centro";Ana;;;123`,
+    );
     expect(csv).not.toContain("Já tem");
     expect(importErrorCsvFilename("Mapas BH.xlsx")).toBe("erros-Mapas-BH.csv");
   });

@@ -3,15 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
+import { ImportErrorFix } from "@/components/importacoes/ImportErrorFix";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { crmHref, gridHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
-  importErrorCsvFilename,
-  importErrorRowsCsv,
+  IMPORT_RUNS_QUERY_KEY,
   importRunTone,
   type PublicImportRun,
   type PublicImportRunDetail,
@@ -19,7 +18,7 @@ import {
 import type { CrmImportRunIssue } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 
-export const IMPORT_RUNS_QUERY_KEY = ["crm-import-runs"] as const;
+export { IMPORT_RUNS_QUERY_KEY };
 
 function statusLabel(run: Pick<PublicImportRun, "created" | "skipped" | "error_count">) {
   if (run.error_count > 0 && run.created === 0 && run.skipped === 0) {
@@ -48,17 +47,6 @@ function errorBadge(n: number) {
     : COPY.importacoesBadgeErrorMany.replace("{n}", String(n));
 }
 
-function downloadErrors(run: PublicImportRunDetail) {
-  const csv = importErrorRowsCsv(run.issues);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = importErrorCsvFilename(run.file_name);
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 function IssueList({
   issues,
   status,
@@ -72,7 +60,7 @@ function IssueList({
     <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
       {rows.map((issue) => (
         <li key={`${issue.status}-${issue.row}-${issue.message}`}>
-          <span className={status === "error" ? "text-podium-alert" : undefined}>
+          <span>
             Linha {issue.row}: {issue.message}
           </span>
           {issue.company || issue.name || issue.cnpj ? (
@@ -186,7 +174,7 @@ export function ImportHistory() {
 
   return (
     <div className="space-y-4">
-      <GlassCard className="space-y-3 p-6 hover:translate-y-0 md:p-8">
+      <GlassCard id="historico-importacao" className="space-y-3 p-6 hover:translate-y-0 md:p-8">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
             Histórico
@@ -205,24 +193,8 @@ export function ImportHistory() {
         {lastDetail.isPending ? (
           <p className="text-sm text-podium-muted">Abrindo o detalhe…</p>
         ) : null}
-        {errors.length > 0 ? (
-          <div>
-            <IssueList issues={errors} status="error" />
-            {errors.length < shown.error_count ? (
-              <p className="mt-1 text-[11px] text-podium-muted">
-                {`Mostrando ${errors.length} de ${shown.error_count}. O CSV traz todas.`}
-              </p>
-            ) : null}
-            <Button
-              variant="secondary"
-              className="mt-3"
-              onClick={() => lastDetail.data && downloadErrors(lastDetail.data)}
-              disabled={!lastDetail.data}
-            >
-              {COPY.importacoesDownloadErrors}
-            </Button>
-            <Hint className="mt-2">{COPY.importacoesFixHint}</Hint>
-          </div>
+        {lastDetail.data && errors.length > 0 ? (
+          <ImportErrorFix key={lastDetail.data.id} run={lastDetail.data} />
         ) : null}
         {skipped.length > 0 ? (
           <div>
@@ -241,6 +213,8 @@ export function ImportHistory() {
             {older.map((run) => {
               const open = openId === run.id;
               const extra = open && olderDetail.data?.id === run.id ? olderDetail.data : null;
+              const extraErrors =
+                extra?.issues.filter((issue) => issue.status === "error") ?? [];
               return (
                 <li key={run.id}>
                   <button
@@ -262,15 +236,10 @@ export function ImportHistory() {
                   {extra ? (
                     <div className="border-t border-white/10 px-3 pb-3">
                       <RunLinks run={extra} />
-                      <IssueList issues={extra.issues} status="error" />
-                      {extra.error_count > 0 ? (
-                        <Button
-                          variant="secondary"
-                          className="mt-3"
-                          onClick={() => downloadErrors(extra)}
-                        >
-                          {COPY.importacoesDownloadErrors}
-                        </Button>
+                      {extraErrors.length > 0 ? (
+                        <div className="mt-3">
+                          <ImportErrorFix key={extra.id} run={extra} />
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
