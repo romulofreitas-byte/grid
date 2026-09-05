@@ -19,7 +19,6 @@ import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { CatchUpRunner } from "@/components/CatchUpRunner";
-import { SupportDock } from "@/components/SupportDock";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
@@ -197,7 +196,6 @@ export function AppShell({
         )}
       </main>
 
-      <SupportDock />
       <CatchUpRunner />
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-podium-navy/95 backdrop-blur-xl md:hidden">

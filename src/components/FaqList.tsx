@@ -6,13 +6,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { FAQ_ITEMS, faqGrouped, filterFaq } from "@/lib/faq";
 import { cn } from "@/lib/utils";
 
-export function FaqList({
-  compact = false,
-  className,
-}: {
-  compact?: boolean;
-  className?: string;
-}) {
+export function FaqList({ className }: { className?: string }) {
   const [query, setQuery] = useState("");
   const groups = useMemo(
     () => faqGrouped(filterFaq(FAQ_ITEMS, query)),
@@ -42,7 +36,7 @@ export function FaqList({
             <h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
               {group.category}
             </h3>
-            <div className={cn("space-y-2", compact && "space-y-1.5")}>
+            <div className="space-y-2">
               {group.items.map((item) => (
                 <details
                   key={item.id}

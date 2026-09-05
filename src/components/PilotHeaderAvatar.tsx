@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
-import { Cable, ChevronDown, LogOut, Upload, UserRound, Wallet, Workflow } from "lucide-react";
+import { Cable, ChevronDown, CircleHelp, LogOut, Upload, UserRound, Wallet, Workflow } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
 import { displayName } from "@/lib/pilot-profile";
@@ -18,6 +18,7 @@ const menu = [
   { href: "/importacoes", label: "Importações", icon: Upload },
   { href: "/automacoes", label: "Automações", icon: Workflow },
   { href: "/planos", label: "Planos", icon: Wallet },
+  { href: "/duvidas", label: "Dúvidas", icon: CircleHelp },
 ] as const;
 
 const itemClass =
