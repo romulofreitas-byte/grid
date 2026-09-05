@@ -168,16 +168,16 @@ export const COPY = {
   exportCostCalculating: "Calculando o custo…",
   exportCostTitlePush: "Enviar lista",
   exportCostTitleExport: "Exportar {format}",
-  exportCostCompaniesOne: "Esta ação inclui 1 empresa já qualificada.",
-  exportCostCompaniesMany:
-    "Esta ação inclui {n} empresas já qualificadas.",
   exportCostDebit: "Vai debitar {credits}.",
-  exportCostDetailOne: "1 empresa × {unit}.",
-  exportCostDetailMany: "{n} empresas × {unit}.",
-  exportCostAlreadyBilledOne: "1 já cobrada — não cobramos de novo.",
-  exportCostAlreadyBilledMany: "{n} já cobradas — não cobramos de novo.",
-  exportCostBalance: "Você tem {credits}.",
   exportCostNothing: "Nada a debitar — esta lista já foi cobrada.",
+  exportCostBadgeQualifiedOne: "1 qualificada",
+  exportCostBadgeQualifiedMany: "{n} qualificadas",
+  exportCostBadgeBalance: "{credits} no saldo",
+  exportCostBadgeBilledOne: "1 já cobrada",
+  exportCostBadgeBilledMany: "{n} já cobradas",
+  exportCostCrmBadge: "No CRM · sem débito",
+  exportCostCrmHint:
+    "Qualificar já colocou essas empresas no quadro. Exportar é extra.",
   exportCostConfirmExport: "Confirmar exportação",
   exportCostConfirmPush: "Confirmar envio",
   exportCostExporting: "Exportando…",
@@ -438,14 +438,28 @@ export const COPY = {
   conexoesStandbyForm:
     "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do\u00a0aparelho.",
   conexoesInboundHint:
-    "Aqui o GRID envia lista e ligação para fora. Para um formulário, anúncio ou o Make criarem negócio no CRM, use Importações.",
+    "Aqui o GRID envia lista e ligação para fora. Para um formulário, anúncio ou o Make criarem negócio no CRM, use Automações.",
   importacoesTitle: "Importações",
   importacoesLead:
-    "Lista de fora ou formulário. Os negócios entram no quadro — não na busca da Receita.",
+    "Planilha de fora. Os negócios entram no quadro; quem tiver CNPJ também vai para Minhas listas.",
   importacoesFileHint:
-    "Cabeçalho bagunçado serve. Você casa cada coluna com um campo do Grid — anotações da planilha viram notas do cartão.",
+    "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:
-    "Cole o endereço no Make, Zapier ou n8n. A chave autentica; o JSON cria o negócio no nicho acima.",
+    "Formulário, anúncio e Make ficam em Automações, cada campanha com o próprio destino.",
+  automacoesTitle: "Automações",
+  automacoesLead:
+    "Formulário, anúncio ou Make. Cada campanha tem URL, chave e destino próprios.",
+  automacoesHint:
+    "Até 10 campanhas. Cada uma tem endereço, token e o JSON que o Make envia.",
+  automacoesUnlockBar:
+    "Crie a campanha para liberar o endereço e a chave.",
+  automacoesListHint:
+    "Abra a campanha para copiar o endereço e a chave. Cada uma tem o seu par — não misture.",
+  automacoesPayloadLead:
+    "No Make: módulo HTTP, método POST. Cole o endereço da campanha, o token no header Authorization e o JSON no body.",
+  crmSearchGrid: "Procurar no Grid",
+  crmQualifyNow: "Qualificar agora",
+  crmQualifying: "Qualificando…",
   boxLigarStandbyTitle: "Ligar pelo aparelho",
   boxLigarStandbyBody:
     "A ligação pela internet volta na próxima versão. Por agora o botão Ligar abre o telefone do\u00a0aparelho.",

@@ -6,6 +6,15 @@ const eventsByDeal = new Map<string, CrmEvent[]>();
 const briefingByDeal = new Map<string, CrmBriefing>();
 const eventsInflight = new Map<string, Promise<CrmEvent[]>>();
 const briefingInflight = new Map<string, Promise<CrmBriefing>>();
+const briefingEpoch = new Map<string, number>();
+
+function currentBriefingEpoch(dealId: string): number {
+  return briefingEpoch.get(dealId) ?? 0;
+}
+
+function bumpBriefingEpoch(dealId: string) {
+  briefingEpoch.set(dealId, currentBriefingEpoch(dealId) + 1);
+}
 
 export function getCachedDealEvents(dealId: string): CrmEvent[] | undefined {
   return eventsByDeal.get(dealId);
@@ -24,6 +33,12 @@ export function setCachedDealBriefing(
   briefing: CrmBriefing,
 ): void {
   briefingByDeal.set(dealId, briefing);
+}
+
+export function clearCachedDealBriefing(dealId: string): void {
+  bumpBriefingEpoch(dealId);
+  briefingByDeal.delete(dealId);
+  briefingInflight.delete(dealId);
 }
 
 export function loadDealEvents(
@@ -45,9 +60,12 @@ export function loadDealBriefing(
 ): Promise<CrmBriefing> {
   const cached = briefingByDeal.get(dealId);
   if (cached) return Promise.resolve(cached);
+  const epoch = currentBriefingEpoch(dealId);
   return dedupeInflight(briefingInflight, dealId, async () => {
     const briefing = await fetcher();
-    briefingByDeal.set(dealId, briefing);
+    if (currentBriefingEpoch(dealId) === epoch) {
+      briefingByDeal.set(dealId, briefing);
+    }
     return briefing;
   });
 }

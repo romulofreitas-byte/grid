@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CrmBriefing } from "@/lib/crm/briefing";
 import {
+  clearCachedDealBriefing,
   getCachedDealBriefing,
   getCachedDealEvents,
+  loadDealBriefing,
   loadDealEvents,
   setCachedDealBriefing,
   setCachedDealEvents,
@@ -26,6 +28,7 @@ const briefing: CrmBriefing = {
   contact: null,
   municipio: "Uberlândia",
   badges: [],
+  audited: false,
 };
 
 describe("deal extras cache", () => {
@@ -52,5 +55,22 @@ describe("deal extras cache", () => {
     expect(a).toEqual([event]);
     expect(b).toEqual([event]);
     expect(getCachedDealEvents("d2")).toEqual([event]);
+  });
+
+  it("does not let a cleared briefing fetch overwrite a later result", async () => {
+    let release: () => void = () => undefined;
+    const stalled = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const pending = loadDealBriefing("d-stale", async () => {
+      await stalled;
+      return { ...briefing, municipio: "Stale" };
+    });
+    clearCachedDealBriefing("d-stale");
+    setCachedDealBriefing("d-stale", { ...briefing, municipio: "Fresh", audited: true });
+    release();
+    await pending;
+    expect(getCachedDealBriefing("d-stale")?.municipio).toBe("Fresh");
+    expect(getCachedDealBriefing("d-stale")?.audited).toBe(true);
   });
 });

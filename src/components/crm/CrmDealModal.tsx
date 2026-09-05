@@ -16,6 +16,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
+import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { CallConfirmDialog } from "@/components/CallConfirmDialog";
@@ -35,11 +36,13 @@ import {
   type CrmBriefing,
 } from "@/lib/crm/briefing";
 import { CRM_FIELD_LIGHT, CRM_LABEL_LIGHT, crmFetch } from "@/lib/crm/client";
+import { formAnswersTitle } from "@/lib/crm/inbound-examples";
 import {
   getCachedDealBriefing,
   getCachedDealEvents,
   loadDealBriefing,
   loadDealEvents,
+  setCachedDealBriefing,
   setCachedDealEvents,
 } from "@/lib/crm/deal-extras-cache";
 import {
@@ -146,7 +149,13 @@ export function CrmDealModal({
   const [briefing, setBriefing] = useState<CrmBriefing>(
     () => getCachedDealBriefing(deal.id) ?? buildCrmBriefing(deal, null),
   );
-  const [composerKind, setComposerKind] = useState<CrmComposerKind>("ligar");
+  const [briefingReady, setBriefingReady] = useState(
+    () => Boolean(getCachedDealBriefing(deal.id)),
+  );
+  const [composerKind, setComposerKind] = useState<CrmComposerKind>(
+    () => deal.next_activity?.kind ?? "ligar",
+  );
+  const [composerOpen, setComposerOpen] = useState(true);
   const [body, setBody] = useState("");
   const [events, setEvents] = useState<CrmEvent[]>(
     () => getCachedDealEvents(deal.id) ?? [],
@@ -182,6 +191,7 @@ export function CrmDealModal({
   const companyPhoneRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const briefingGen = useRef(0);
 
   useEffect(() => {
     setPeople(peopleFromDeal(deal));
@@ -192,6 +202,7 @@ export function CrmDealModal({
     setSecretaries(deal.secretaries.length > 0 ? deal.secretaries : [""]);
     setBody("");
     setComposerKind(deal.next_activity?.kind ?? "ligar");
+    setComposerOpen(true);
     setDueLocal(
       deal.next_activity
         ? toDatetimeLocal(deal.next_activity.due_at)
@@ -235,11 +246,14 @@ export function CrmDealModal({
 
   useEffect(() => {
     let cancelled = false;
+    const gen = ++briefingGen.current;
     const cached = getCachedDealBriefing(deal.id);
     if (cached) {
       setBriefing(cached);
+      setBriefingReady(true);
       return;
     }
+    setBriefingReady(false);
     setBriefing(buildCrmBriefing(deal, null));
     void loadDealBriefing(deal.id, async () => {
       const res = await crmFetch<{ briefing: CrmBriefing }>(
@@ -248,15 +262,21 @@ export function CrmDealModal({
       return res.briefing;
     })
       .then((next) => {
-        if (!cancelled) setBriefing(next);
+        if (!cancelled && gen === briefingGen.current) {
+          setBriefing(next);
+          setBriefingReady(true);
+        }
       })
       .catch(() => {
-        if (!cancelled) setBriefing(buildCrmBriefing(deal, null));
+        if (!cancelled && gen === briefingGen.current) {
+          setBriefing(buildCrmBriefing(deal, null));
+          setBriefingReady(true);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [deal.id]);
+  }, [deal.id, deal.cnpj]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -476,6 +496,17 @@ export function CrmDealModal({
     return { kind: composerKind, dueAt };
   }
 
+  async function refreshBriefing() {
+    const gen = ++briefingGen.current;
+    const res = await crmFetch<{ briefing: CrmBriefing }>(
+      `/api/crm/deals/${deal.id}/briefing`,
+    );
+    if (gen !== briefingGen.current) return;
+    setCachedDealBriefing(deal.id, res.briefing);
+    setBriefing(res.briefing);
+    setBriefingReady(true);
+  }
+
   async function saveComposer() {
     const next = nextPayload();
     if (!next) {
@@ -485,11 +516,28 @@ export function CrmDealModal({
     setSaving(true);
     setError(null);
     try {
-      const scheduled = await crmFetch<{ deal: CrmDealCard }>(
-        `/api/crm/deals/${deal.id}/schedule`,
-        { method: "POST", body: JSON.stringify(next) },
-      );
-      onChange(scheduled.deal);
+      const note = body.trim();
+      if (note) {
+        const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+          `/api/crm/deals/${deal.id}/events`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              kind: composerKind,
+              body: note,
+              next,
+            }),
+          },
+        );
+        onChange(res.deal);
+        prependEvent(res.event);
+      } else {
+        const scheduled = await crmFetch<{ deal: CrmDealCard }>(
+          `/api/crm/deals/${deal.id}/schedule`,
+          { method: "POST", body: JSON.stringify(next) },
+        );
+        onChange(scheduled.deal);
+      }
       setBody("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não agendou.");
@@ -572,7 +620,13 @@ export function CrmDealModal({
   }
 
   function selectTab(id: CrmComposerKind) {
+    if (id === composerKind && composerOpen) {
+      setComposerOpen(false);
+      return;
+    }
     setComposerKind(id);
+    setComposerOpen(true);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   function updatePerson(index: number, field: keyof CrmPerson, value: string) {
@@ -687,7 +741,7 @@ export function CrmDealModal({
                 </span>
               ) : null}
             </div>
-            {deal.cnpj && briefing.badges.length > 0 ? (
+            {deal.cnpj && briefing.audited && briefing.badges.length > 0 ? (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {briefing.badges.map((badge) => (
                   <span
@@ -750,70 +804,85 @@ export function CrmDealModal({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:flex-row md:p-4">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden">
-            <div className="flex flex-wrap gap-1">
-              {CRM_COMPOSER_KINDS.map((id) => {
-                const Icon = COMPOSER_ICONS[id];
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => selectTab(id)}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition",
-                      composerKind === id
-                        ? "border-amber-400 text-amber-800"
-                        : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-800",
-                    )}
-                  >
-                    <Icon className="h-3 w-3" />
-                    {COMPOSER_TAB_LABELS[id]}
-                  </button>
-                );
-              })}
-            </div>
-            <textarea
-              ref={textareaRef}
-              className={cn(CRM_FIELD_LIGHT, "min-h-16 resize-y")}
-              value={body}
-              autoComplete="off"
-              onChange={(event) => setBody(event.target.value)}
-              placeholder={COPY.crmComposerPlaceholder}
-            />
-            <div className="rounded-md border border-zinc-200 bg-white p-2.5">
-              <p className={CRM_LABEL_LIGHT}>
-                {CRM_NEXT_ACTION_LABELS[composerKind]}
-              </p>
-              <div className="mt-1.5 flex flex-wrap items-end justify-between gap-3">
-                <CrmDateTimePicker
-                  variant="light"
-                  value={dueLocal || defaultNextDueLocal()}
-                  onChange={setDueLocal}
-                />
-                <div className="ml-auto flex shrink-0 items-center gap-2">
-                  {composerKind === "whatsapp" ? (
+            <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+              <div className="flex flex-wrap gap-1 border-b border-zinc-100 p-2">
+                {CRM_COMPOSER_KINDS.map((id) => {
+                  const Icon = COMPOSER_ICONS[id];
+                  const selected = composerKind === id && composerOpen;
+                  return (
                     <button
+                      key={id}
                       type="button"
-                      disabled={saving}
-                      onClick={() => startWhatsapp()}
-                      className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                      aria-expanded={selected}
+                      onClick={() => selectTab(id)}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition",
+                        selected
+                          ? "border-amber-400 bg-amber-50 text-amber-800"
+                          : "border-transparent text-zinc-500 hover:border-zinc-200 hover:text-zinc-800",
+                      )}
                     >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      {COPY.crmWhatsappNow}
+                      <Icon className="h-3 w-3" />
+                      {COMPOSER_TAB_LABELS[id]}
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={saving}
-                    title={
-                      composerKind === "ligar"
-                        ? COPY.crmLogCallHint
-                        : COPY.crmScheduleHint
-                    }
-                    onClick={() => void saveComposer()}
-                    className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-                  >
-                    {COPY.crmLogCall}
-                  </button>
+                  );
+                })}
+              </div>
+              <div
+                className={cn(
+                  "grid transition-[grid-template-rows] duration-200 ease-out",
+                  composerOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="space-y-2.5 p-2.5">
+                    <textarea
+                      ref={textareaRef}
+                      className={cn(CRM_FIELD_LIGHT, "min-h-16 resize-y")}
+                      value={body}
+                      autoComplete="off"
+                      onChange={(event) => setBody(event.target.value)}
+                      placeholder={COPY.crmComposerPlaceholder}
+                    />
+                    <div className="rounded-md bg-zinc-50 px-2.5 py-2">
+                      <p className={CRM_LABEL_LIGHT}>
+                        {CRM_NEXT_ACTION_LABELS[composerKind]}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-end justify-between gap-3">
+                        <CrmDateTimePicker
+                          variant="light"
+                          value={dueLocal || defaultNextDueLocal()}
+                          onChange={setDueLocal}
+                        />
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                          {composerKind === "whatsapp" ? (
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => startWhatsapp()}
+                              className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              {COPY.crmWhatsappNow}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            disabled={saving}
+                            title={
+                              composerKind === "ligar"
+                                ? COPY.crmLogCallHint
+                                : COPY.crmScheduleHint
+                            }
+                            onClick={() => void saveComposer()}
+                            className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                          >
+                            {COPY.crmLogCall}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -986,11 +1055,34 @@ export function CrmDealModal({
                   ? COPY.crmDealAmountNeeded
                   : deal.outcome === "won"
                     ? COPY.crmDealAmountHintWon
-                    : deal.outcome === "lost"
-                      ? COPY.crmDealAmountHintLost
-                      : COPY.crmDealAmountHintOpen}
+                  : deal.outcome === "lost"
+                    ? COPY.crmDealAmountHintLost
+                    : COPY.crmDealAmountHintOpen}
               </p>
             </div>
+            <CrmDealGridAttach
+              deal={deal}
+              onChange={onChange}
+              audited={briefing.audited}
+              briefingReady={briefingReady}
+              onQualified={() => refreshBriefing()}
+            />
+            {deal.meta.form_answers &&
+            Object.keys(deal.meta.form_answers).length > 0 ? (
+              <div className="rounded-md border border-zinc-200 bg-white p-2.5">
+                <p className={CRM_LABEL_LIGHT}>
+                  {formAnswersTitle(deal.meta.form_channel)}
+                </p>
+                <dl className="mt-1.5 space-y-1">
+                  {Object.entries(deal.meta.form_answers).map(([key, value]) => (
+                    <div key={key} className="flex gap-2 text-[11px]">
+                      <dt className="shrink-0 text-zinc-400">{key}</dt>
+                      <dd className="min-w-0 break-words text-zinc-700">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
             <div className="rounded-md border border-zinc-200 bg-white p-2.5">
               <p className={CRM_LABEL_LIGHT}>{COPY.crmContactLabel}</p>
               <div className="mt-1.5 flex flex-col gap-1.5">

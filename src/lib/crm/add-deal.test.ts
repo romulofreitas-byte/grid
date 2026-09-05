@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachCompanyHitToDeal,
   dealFieldsFromCompanyHit,
   dealFieldsFromDossier,
   enrichJobIsSettled,
@@ -123,6 +124,24 @@ describe("findDealByCnpj", () => {
     ];
     expect(findDealByCnpj(deals, "12.345.678/0001-90")?.id).toBe("b");
     expect(findDealByCnpj(deals, "00000000000191")).toBeNull();
+  });
+});
+
+describe("attachCompanyHitToDeal", () => {
+  it("keeps spreadsheet phones and fills an empty contact from the decisor", () => {
+    const attached = attachCompanyHitToDeal(
+      {
+        contact_name: "",
+        secretaries: [],
+        phones: ["(54) 3289-2400"],
+        people: [{ name: "", phone: "", email: "" }],
+      },
+      hit,
+    );
+    expect(attached.cnpj).toBe("12345678000190");
+    expect(attached.contact_name).toBe("Ana Carvalho");
+    expect(attached.phones[0]).toBe("(54) 3289-2400");
+    expect(attached.phones).toContain("(34) 99999-0000");
   });
 });
 

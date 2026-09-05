@@ -127,6 +127,16 @@ describe("crm briefing", () => {
     );
     expect(row.badges.find((badge) => badge.id === "gmb")?.found).toBe(false);
     expect(row.municipio).toBe("Uberlândia");
+    expect(row.audited).toBe(true);
+  });
+
+  it("marks unaudited when lookup has no live enrichment", async () => {
+    const row = await loadCrmBriefing(deal({ cnpj: "12345678000190" }), async () => ({
+      municipioNome: "Uberlândia",
+      extraPhones: [],
+      presence: null,
+    }));
+    expect(row.audited).toBe(false);
   });
 
   it("skips the lookup when the deal has no CNPJ", async () => {
@@ -139,6 +149,7 @@ describe("crm briefing", () => {
     expect(row.phones).toEqual(["(34) 3333-1010", "(34) 99999-0000"]);
     expect(row.contact).toBe("Ana");
     expect(row.badges.every((badge) => !badge.found)).toBe(true);
+    expect(row.audited).toBe(false);
   });
 
   it("applies a slim lookup without a full dossier", async () => {
@@ -164,6 +175,7 @@ describe("crm briefing", () => {
     expect(row.badges.find((badge) => badge.id === "whatsapp")?.found).toBe(
       true,
     );
+    expect(row.audited).toBe(true);
   });
 
   it("lists extra receita and contact phones without duplicates", () => {

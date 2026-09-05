@@ -26,6 +26,7 @@ export type CrmBriefing = {
   contact: string | null;
   municipio: string | null;
   badges: CrmBriefingBadge[];
+  audited: boolean;
 };
 
 export type CrmBriefingPresence = Record<CrmPresenceBadgeId, boolean>;
@@ -155,7 +156,16 @@ export function buildCrmBriefing(
     badges: lookup
       ? briefingBadgesFromPresence(lookup.presence)
       : briefingBadgesFromDossier(dossier),
+    audited: extrasAreAudited(lookup, dossier),
   };
+}
+
+function extrasAreAudited(
+  lookup: CrmBriefingLookup | null,
+  dossier: LeadDossier | null,
+): boolean {
+  if (lookup) return lookup.presence != null;
+  return Boolean(dossier?.enrichment);
 }
 
 function isBriefingLookup(

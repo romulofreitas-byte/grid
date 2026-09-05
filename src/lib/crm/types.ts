@@ -64,11 +64,22 @@ export const CRM_DEAL_SOURCES = [
 
 export type CrmDealSource = (typeof CRM_DEAL_SOURCES)[number];
 
+export const CRM_LEAD_KINDS = ["company", "person"] as const;
+export type CrmLeadKind = (typeof CRM_LEAD_KINDS)[number];
+
+export const CRM_FORM_CHANNELS = ["ads", "site"] as const;
+export type CrmFormChannel = (typeof CRM_FORM_CHANNELS)[number];
+
+export const AUTOMATION_LIMIT = 10;
+
 export type CrmDealMeta = {
   searchId?: string;
   ufs?: string[];
   municipioIds?: number[];
   source?: CrmDealSource;
+  lead_kind?: CrmLeadKind;
+  form_answers?: Record<string, string>;
+  form_channel?: CrmFormChannel;
 };
 
 export type CrmInboundEndpoint = {
@@ -76,6 +87,9 @@ export type CrmInboundEndpoint = {
   user_id: string;
   pipeline_id: string;
   stage_id: string | null;
+  nome: string;
+  lead_kind: CrmLeadKind;
+  channel: CrmFormChannel;
   token_hash: string;
   created_at: string;
   updated_at: string;
@@ -180,6 +194,8 @@ export type CrmDealPatch = {
   notes?: string;
   outcome?: CrmOutcome;
   amount_cents?: number | null;
+  cnpj?: string | null;
+  meta?: CrmDealMeta;
 };
 
 export type LeadCrmFirstMileStage = {

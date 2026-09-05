@@ -1,5 +1,10 @@
 import { digitsCnpj } from "@/lib/crm/bridge";
 import {
+  emptyPerson,
+  peopleFromDeal,
+  sanitizePeople,
+} from "@/lib/crm/people";
+import {
   briefingBadgesFromPresence,
   briefingPresenceFromEnrichment,
   type CrmBriefingBadge,
@@ -175,4 +180,40 @@ export function findDealByCnpj<T extends { cnpj: string | null }>(
 ): T | null {
   const digits = digitsCnpj(cnpj);
   return deals.find((deal) => deal.cnpj && digitsCnpj(deal.cnpj) === digits) ?? null;
+}
+
+export function attachCompanyHitToDeal(
+  deal: {
+    contact_name: string;
+    secretaries?: string[];
+    phones: string[];
+    people?: { name: string; phone: string; email: string }[];
+  },
+  hit: CompanySearchHit,
+): {
+  cnpj: string;
+  phones: string[];
+  people: { name: string; phone: string; email: string }[];
+  contact_name: string;
+} {
+  const fields = dealFieldsFromCompanyHit(hit);
+  const phones = mergeDealPhones(deal.phones, fields.phones);
+  const people = sanitizePeople(
+    peopleFromDeal({
+      contact_name: deal.contact_name,
+      secretaries: deal.secretaries ?? [],
+      people: deal.people,
+    }),
+  );
+  const primary = people[0] ?? emptyPerson();
+  if (!primary.name.trim() && fields.contact_name) {
+    primary.name = fields.contact_name;
+  }
+  const nextPeople = sanitizePeople([primary, ...people.slice(1)]);
+  return {
+    cnpj: fields.cnpj,
+    phones,
+    people: nextPeople,
+    contact_name: nextPeople[0]?.name || deal.contact_name,
+  };
 }

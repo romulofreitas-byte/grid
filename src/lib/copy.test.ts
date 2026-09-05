@@ -83,9 +83,14 @@ describe("COPY export cost", () => {
     expect(COPY.exportCostDebit.replace("{credits}", "500 créditos")).toBe(
       "Vai debitar 500 créditos.",
     );
+    expect(COPY.exportCostBadgeQualifiedMany.replace("{n}", "11")).toBe(
+      "11 qualificadas",
+    );
     expect(
-      COPY.exportCostDetailMany.replace("{n}", "10").replace("{unit}", "50"),
-    ).toBe("10 empresas × 50.");
+      COPY.exportCostBadgeBalance.replace("{credits}", "843 créditos"),
+    ).toBe("843 créditos no saldo");
+    expect(COPY.exportCostCrmBadge.toLowerCase()).toMatch(/crm/);
+    expect(COPY.exportCostCrmHint.toLowerCase()).toMatch(/quadro/);
     expect(COPY.exportCostNothing.toLowerCase()).toMatch(/nada a debitar/);
     expect(COPY.exportCostTitleExport.replace("{format}", "Excel")).toBe(
       "Exportar Excel",
