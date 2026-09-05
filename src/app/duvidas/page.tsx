@@ -11,8 +11,8 @@ export default function DuvidasPage() {
     <PublicPage>
       <SectionTitle className="mt-8">Dúvidas</SectionTitle>
       <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-        Respostas rápidas sobre o GRID. Se não estiver aqui, o atendimento
-        entra no WhatsApp.
+        Respostas rápidas sobre o GRID. Se não estiver aqui, o agente
+        automático no WhatsApp atende 24 horas.
       </p>
       <div className="mt-6">
         <FaqList />
@@ -20,7 +20,7 @@ export default function DuvidasPage() {
       {hasWhatsApp ? (
         <div className="mt-8 space-y-3">
           <p className="text-sm text-podium-muted">
-            Não achou? Chama o atendimento.
+            Não achou? O WhatsApp é um agente automático, 24 horas.
           </p>
           <SupportWhatsAppButton pathname="/duvidas" />
         </div>

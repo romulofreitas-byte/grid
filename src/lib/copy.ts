@@ -163,10 +163,13 @@ export const COPY = {
   setupNeedMarket: "Escolha o mercado ou escreva o seu.",
   setupNeedCargo: "Escolha o cargo ou escreva o seu.",
   setupWelcomeBack: "Bem-vindo de volta",
-  contaIdentityHint: "Como o GRID te conhece. Não entra no briefing da ficha.",
-  contaCallSection: "Para a ligação",
-  contaCallHint:
-    "Empresa, cidade e a promessa montam o roteiro. Você completa quando for ligar.",
+  contaIdentityHint: "Nome, empresa, mercado e documento desta conta.",
+  contaDocumentoHint: "Usado na cobrança. CPF ou CNPJ válido.",
+  contaEmailHint:
+    "O e-mail de entrada não muda por aqui. Se precisar trocar, fale com o atendimento.",
+  contaPasswordHint: "A nova senha vale na próxima entrada.",
+  contaWhatsApp24h:
+    "Atendimento pelo WhatsApp: agente automático, 24 horas.",
   contaExtrato: "Extrato",
   contaExtratoEmpty: "Nenhum movimento ainda.",
   contaCreditHint:

@@ -11,7 +11,6 @@ import type { Profile } from "@/lib/types";
 
 export const BOX_SLOT_IDS = [
   "capacete",
-  "oferta",
   "meta",
   "lista",
   "crm",
@@ -46,7 +45,6 @@ export type BoxEstruturaInput = {
     | "nome"
     | "empresa_usuario"
     | "cidade_usuario"
-    | "promessa"
     | "onboarding_completed_at"
     | "active_meta_id"
   >;
@@ -58,16 +56,11 @@ export type BoxEstruturaInput = {
   hasCrmPipeline?: boolean;
 };
 
-function filled(value: string | null | undefined): boolean {
-  return Boolean(value?.trim());
-}
-
 export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
   const pistaAberta = input.savedCount > 0;
   const onboardingDone = Boolean(input.profile.onboarding_completed_at);
   const helmetReady =
     hasPresentationIdentity(input.profile) || onboardingDone;
-  const ofertaReady = filled(input.profile.promessa);
   const metaReady = Boolean(input.profile.active_meta_id);
   const ligarReady = pickCallConnection(input.connections) != null;
   const crmReady = Boolean(input.hasCrmPipeline);
@@ -78,19 +71,10 @@ export function buildBoxEstrutura(input: BoxEstruturaInput): BoxEstrutura {
       id: "capacete",
       label: "Perfil",
       done: helmetReady,
-      title: "Complete como você se apresenta",
-      body: "Nome, empresa e cidade entram no roteiro da ligação.",
-      href: onboardingDone ? "/conta" : "/setup",
+      title: "Complete os dados da conta",
+      body: "Nome, empresa e cidade ficam no perfil da conta.",
+      href: onboardingDone ? "/conta/perfil" : "/setup",
       cta: "Completar perfil",
-    },
-    {
-      id: "oferta",
-      label: "Oferta",
-      done: ofertaReady,
-      title: "Escreva a oferta",
-      body: "Uma linha do que você entrega — entra no convite da reunião.",
-      href: "/conta#promessa",
-      cta: "Escrever oferta",
     },
     {
       id: "meta",

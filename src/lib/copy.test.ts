@@ -190,7 +190,9 @@ describe("COPY setup and conta", () => {
     expect(COPY.setupIdentityHint.toLowerCase()).not.toMatch(/primeira lista/);
     expect(COPY.contaExtrato).toBe("Extrato");
     expect(COPY.contaCreditHint).toMatch(/1 crédito = 1 qualificação/);
-    expect(COPY.contaIdentityHint.toLowerCase()).toMatch(/não entra no briefing/);
+    expect(COPY.contaIdentityHint.toLowerCase()).toMatch(/documento/);
+    expect(COPY.contaWhatsApp24h.toLowerCase()).toMatch(/agente automático/);
+    expect(COPY.contaWhatsApp24h.toLowerCase()).toMatch(/24 horas/);
   });
 });
 

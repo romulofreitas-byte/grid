@@ -59,6 +59,8 @@ describe("capacete FAQ", () => {
     expect(item?.answer).toMatch(/cargo/);
     expect(item?.answer).toMatch(/nova lista/);
     expect(item?.answer).toMatch(/foto é opcional/);
+    expect(item?.answer).toMatch(/documento/);
+    expect(item?.answer).not.toMatch(/promessa/);
     expect(item?.answer).not.toMatch(/primeira lista/);
     expect(item?.answer.toLowerCase()).not.toMatch(/já te conhece/);
     expect(item?.links).toEqual([{ href: "/setup", label: "Começar" }]);

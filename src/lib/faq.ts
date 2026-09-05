@@ -50,7 +50,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que o GRID pede no começo?",
     answer:
-      "No primeiro acesso o GRID pergunta como te chama na ligação, o mercado e o cargo. No último passo você fecha a identidade do piloto — a foto é opcional. Depois você cai na nova lista e gera na hora. Empresa, cidade e a promessa da ligação ficam na Conta, para quando for ligar.",
+      "No primeiro acesso o GRID pergunta como te chama na ligação, o mercado e o cargo. No último passo você fecha a identidade do piloto — a foto é opcional. Depois você cai na nova lista e gera na hora. Empresa, cidade e o documento ficam na Conta.",
     links: [{ href: "/setup", label: "Começar" }],
   },
   {
