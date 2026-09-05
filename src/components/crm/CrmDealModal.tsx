@@ -1036,7 +1036,7 @@ export function CrmDealModal({
             </div>
           </div>
 
-          <aside className="flex w-full shrink-0 flex-col gap-3 overflow-y-auto md:w-[17rem]">
+          <aside className="crm-ficha-aside-scroll flex w-full shrink-0 flex-col gap-3 overflow-y-auto md:w-[17rem]">
             <div className="rounded-md border border-zinc-200 bg-white p-2.5">
               <p className={CRM_LABEL_LIGHT}>{COPY.crmDealAmount}</p>
               <input
