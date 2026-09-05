@@ -241,6 +241,7 @@ export const INTEGRATION_CATALOG: IntegrationCatalogItem[] = [
 ];
 
 export const LIVE_VOIP_IDS = ["api4com", "zenvia", "twilio", "telnyx"] as const;
+export const LIVE_DIALER_IDS = ["3cplus"] as const;
 
 export type CatalogAvailability = "live" | "soon";
 
@@ -250,10 +251,18 @@ export function isLiveVoipId(
   return Boolean(id && (LIVE_VOIP_IDS as readonly string[]).includes(id));
 }
 
+export function isLiveDialerId(
+  id: string | null | undefined,
+): id is (typeof LIVE_DIALER_IDS)[number] {
+  return Boolean(id && (LIVE_DIALER_IDS as readonly string[]).includes(id));
+}
+
 export function catalogAvailability(
   item: Pick<IntegrationCatalogItem, "id" | "kind">,
 ): CatalogAvailability {
-  return item.kind === "voip" && isLiveVoipId(item.id) ? "live" : "soon";
+  if (item.kind === "voip" && isLiveVoipId(item.id)) return "live";
+  if (item.kind === "dialer" && isLiveDialerId(item.id)) return "live";
+  return "soon";
 }
 
 const byId = new Map(INTEGRATION_CATALOG.map((item) => [item.id, item]));

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAdminEmail } from "@/lib/auth/admin";
 import { usesMockAuth } from "@/lib/auth/mock";
 import { signedInEntrarDestination } from "@/lib/auth/next-path";
+import { conexoesLegacyRedirect } from "@/lib/back";
 
 function redirectWithCookies(url: URL, from: NextResponse): NextResponse {
   const redirect = NextResponse.redirect(url);
@@ -13,6 +14,13 @@ function redirectWithCookies(url: URL, from: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
   const mock = usesMockAuth();
   const path = request.nextUrl.pathname;
+
+  if (path === "/conexoes" || path.startsWith("/conexoes/")) {
+    const dest = request.nextUrl.clone();
+    dest.pathname = conexoesLegacyRedirect(request.nextUrl.searchParams.get("kind"));
+    dest.search = "";
+    return NextResponse.redirect(dest);
+  }
   // Mock skips route protection, but still bounce a signed-in visitor off /entrar.
   if (mock && path !== "/entrar") return NextResponse.next();
 
@@ -55,6 +63,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/setup") ||
     path.startsWith("/pagar") ||
     path.startsWith("/conexoes") ||
+    path.startsWith("/integracoes") ||
     path.startsWith("/importacoes") ||
     path.startsWith("/automacoes") ||
     path.startsWith("/admin");
@@ -115,6 +124,8 @@ export const config = {
     "/pagar/:path*",
     "/conexoes",
     "/conexoes/:path*",
+    "/integracoes",
+    "/integracoes/:path*",
     "/importacoes",
     "/importacoes/:path*",
     "/automacoes",

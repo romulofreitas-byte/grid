@@ -20,8 +20,20 @@ export function largadaIntentHref(intent: string, opts?: { uf?: string }) {
 
 export type ConexoesKind = "crm" | "dialer" | "voip" | "webhook";
 
+export const INTEGRACOES_VOIP = "/integracoes/voip";
+export const INTEGRACOES_DISCADOR = "/integracoes/discador";
+
+export function integracoesHref(kind: "voip" | "dialer" = "voip") {
+  return kind === "dialer" ? INTEGRACOES_DISCADOR : INTEGRACOES_VOIP;
+}
+
+/** Old `/conexoes?kind=` links resolve to the split Integrações pages. */
 export function conexoesHref(kind?: ConexoesKind) {
-  return kind ? `/conexoes?kind=${kind}` : "/conexoes";
+  return integracoesHref(kind === "dialer" ? "dialer" : "voip");
+}
+
+export function conexoesLegacyRedirect(kind: string | null | undefined): string {
+  return kind === "dialer" ? INTEGRACOES_DISCADOR : INTEGRACOES_VOIP;
 }
 
 export type GridFrom = "box" | "largada" | "listas" | "empresas";

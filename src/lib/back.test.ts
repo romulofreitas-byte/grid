@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BACK,
   conexoesHref,
+  conexoesLegacyRedirect,
   crmHref,
   gridBack,
   largadaEditHref,
@@ -52,10 +53,14 @@ describe("largada hrefs", () => {
 });
 
 describe("conexoesHref", () => {
-  it("deep-links CRM and VoIP", () => {
-    expect(conexoesHref()).toBe("/conexoes");
-    expect(conexoesHref("crm")).toBe("/conexoes?kind=crm");
-    expect(conexoesHref("voip")).toBe("/conexoes?kind=voip");
+  it("maps the old hub kinds onto the split Integrações pages", () => {
+    expect(conexoesHref()).toBe("/integracoes/voip");
+    expect(conexoesHref("crm")).toBe("/integracoes/voip");
+    expect(conexoesHref("voip")).toBe("/integracoes/voip");
+    expect(conexoesHref("dialer")).toBe("/integracoes/discador");
+    expect(conexoesLegacyRedirect("dialer")).toBe("/integracoes/discador");
+    expect(conexoesLegacyRedirect("voip")).toBe("/integracoes/voip");
+    expect(conexoesLegacyRedirect(null)).toBe("/integracoes/voip");
   });
 });
 

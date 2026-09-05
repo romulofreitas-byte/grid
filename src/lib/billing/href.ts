@@ -13,6 +13,7 @@ const APP_PREFIXES = [
   "/conta",
   "/setup",
   "/conexoes",
+  "/integracoes",
   "/admin",
 ] as const;
 
@@ -106,8 +107,13 @@ function billingReturnLabel(path: string): string {
   if (pathname === "/crm" || pathname.startsWith("/crm/")) return "Voltar ao CRM";
   if (pathname.startsWith("/lead/")) return "Voltar à ficha";
   if (pathname.startsWith("/grid/")) return "Voltar à lista";
-  if (pathname === "/conexoes" || pathname.startsWith("/conexoes/")) {
-    return "Voltar às conexões";
+  if (
+    pathname === "/conexoes" ||
+    pathname.startsWith("/conexoes/") ||
+    pathname === "/integracoes" ||
+    pathname.startsWith("/integracoes/")
+  ) {
+    return "Voltar às integrações";
   }
   return "Voltar";
 }

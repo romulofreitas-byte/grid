@@ -1,2 +1,2 @@
-/** First-wave freeze of the Conexões hub. Flip to false to reopen VoIP setup. */
-export const CONNECTIONS_STANDBY = true;
+/** First-wave freeze of the Conexões hub. False = VoIP + 3C Plus setup is live. */
+export const CONNECTIONS_STANDBY = false;

@@ -6,6 +6,7 @@ import {
   firstCatalogIdForKind,
   getCatalogItem,
   isLiveVoipId,
+  isLiveDialerId,
   parseConexoesKind,
   resolveCatalogItem,
 } from "./catalog";
@@ -37,7 +38,10 @@ describe("integration catalog", () => {
     expect(isLiveVoipId("api4com")).toBe(true);
     expect(isLiveVoipId("asterisk")).toBe(false);
     expect(catalogAvailability(getCatalogItem("api4com")!)).toBe("live");
+    expect(catalogAvailability(getCatalogItem("3cplus")!)).toBe("live");
     expect(catalogAvailability(getCatalogItem("asterisk")!)).toBe("soon");
     expect(catalogAvailability(getCatalogItem("pipedrive")!)).toBe("soon");
+    expect(isLiveDialerId("3cplus")).toBe(true);
+    expect(isLiveDialerId("megadialer")).toBe(false);
   });
 });
