@@ -4,7 +4,9 @@ SaaS de criação de lista e qualificação de leads para cold call.
 
 **Estado:** app liga em Postgres via `DATABASE_URL` (`DATA_SOURCE=postgres`). Docker é opcional para desenvolvimento local.
 
-Briefing: [`briefing_claude_proximo_passo.md`](./briefing_claude_proximo_passo.md). Plano original: `plano_app_prospeccao_mundo_podium.md`.
+Handoff atual (Cursor Cloud / outra sessão): [`docs/status-cloud.md`](./docs/status-cloud.md).  
+Para upload no Claude (arquivo autocontido): [`GRID_handoff_claude.md`](./GRID_handoff_claude.md).  
+Plano original: `plano_app_prospeccao_mundo_podium.md`. Briefing de agosto/2026 (histórico): `briefing_claude_proximo_passo.md`.
 
 ## Repo
 
@@ -98,4 +100,4 @@ Docker (`docker compose up -d`) fica só para dev/offline.
 - Sem LLM no Minuto de Ouro
 - Produção: sem mock auth, sem `DATA_SOURCE=mock`, sem billing memory, sem `MOCK_PREVIEW_SEALS`
 
-Para passar o estado a outra sessão, use `briefing_claude_proximo_passo.md`.
+Para passar o estado a outra sessão ou ao Cursor Cloud, use [`docs/status-cloud.md`](./docs/status-cloud.md). O briefing de 13/08/2026 ficou como histórico.

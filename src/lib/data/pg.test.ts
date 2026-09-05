@@ -138,8 +138,8 @@ describe("resolvePoolMax", () => {
   });
 
   it("shares one pool on Vercel or session pooler", () => {
-    expect(sharesPgPools({ vercel: true })).toBe(true);
-    expect(sharesPgPools({ vercel: false })).toBe(false);
+    expect(sharesPgPools({ vercel: true, databaseUrl: "" })).toBe(true);
+    expect(sharesPgPools({ vercel: false, databaseUrl: "" })).toBe(false);
     expect(
       sharesPgPools({
         vercel: false,

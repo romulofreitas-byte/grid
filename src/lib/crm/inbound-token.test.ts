@@ -35,5 +35,8 @@ describe("inbound token", () => {
     expect(inboundLeadsUrl("https://grid.example")).toBe(
       "https://grid.example/api/webhooks/leads",
     );
+    expect(inboundLeadsUrl("https://grid.example", "e1")).toBe(
+      "https://grid.example/api/webhooks/leads/e1",
+    );
   });
 });

@@ -32,6 +32,7 @@ export function publicRequestOrigin(req: Request): string {
   return url.origin;
 }
 
-export function inboundLeadsUrl(origin: string): string {
-  return `${origin.replace(/\/$/, "")}/api/webhooks/leads`;
+export function inboundLeadsUrl(origin: string, endpointId?: string): string {
+  const base = `${origin.replace(/\/$/, "")}/api/webhooks/leads`;
+  return endpointId ? `${base}/${endpointId}` : base;
 }

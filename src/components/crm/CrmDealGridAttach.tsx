@@ -48,7 +48,7 @@ async function pollEnrichSettled(cnpj: string) {
 
 function CnpjCard({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div className="shrink-0 rounded-md border border-zinc-200 bg-white">
       {children}
     </div>
   );
@@ -58,7 +58,9 @@ function CnpjValue({ cnpj, divided }: { cnpj: string; divided?: boolean }) {
   return (
     <div className={cn("px-2.5 py-2", divided && "border-b border-zinc-100")}>
       <p className={CRM_LABEL_LIGHT}>CNPJ</p>
-      <p className="mt-1 font-mono text-[11px] text-zinc-700">{formatCnpj(cnpj)}</p>
+      <p className="mt-1 font-mono text-[11px] leading-normal text-zinc-700">
+        {formatCnpj(cnpj)}
+      </p>
     </div>
   );
 }
@@ -160,9 +162,10 @@ export function CrmDealGridAttach({
 
   if (mode === "cnpj" && deal.cnpj) {
     return (
-      <CnpjCard>
-        <CnpjValue cnpj={deal.cnpj} />
-      </CnpjCard>
+      <div className="shrink-0 rounded-md border border-zinc-200 bg-white p-2.5">
+        <p className={CRM_LABEL_LIGHT}>CNPJ</p>
+        <p className={cn(CRM_FIELD_LIGHT, "mt-1 font-mono")}>{formatCnpj(deal.cnpj)}</p>
+      </div>
     );
   }
 

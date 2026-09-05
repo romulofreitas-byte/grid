@@ -178,7 +178,7 @@ describe("reviewBriefingFromDossier", () => {
         socials: { instagram: "https://instagram.com/x" },
         whatsapp: "5534999990000",
         gmb: { matched: true },
-      } as LeadDossier["enrichment"],
+      } as unknown as LeadDossier["enrichment"],
     });
     expect(briefing.company).toBe("Carvalho Pedras");
     expect(briefing.cnpj).toBe("12345678000190");

@@ -23,6 +23,9 @@ describe("apply import leads", () => {
     store.crm_inbound_endpoints = store.crm_inbound_endpoints.filter(
       (row) => row.user_id !== USER,
     );
+    store.crm_import_runs = store.crm_import_runs.filter(
+      (row) => row.user_id !== USER,
+    );
   });
 
   it("creates a company with CNPJ and a person without one", async () => {
@@ -44,6 +47,9 @@ describe("apply import leads", () => {
     expect(result.created).toBe(2);
     expect(result.skipped).toBe(0);
     expect(result.errors).toEqual([{ row: 3, message: "Linha vazia" }]);
+    expect(result.issues).toEqual([
+      { row: 3, status: "error", message: "Linha vazia" },
+    ]);
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     const maria = board?.deals.find((deal) => deal.contact_name === "Maria");
     expect(maria?.company_name).toBe("Maria");
@@ -83,8 +89,45 @@ describe("apply import leads", () => {
     if ("error" in second) return;
     expect(second.created).toBe(0);
     expect(second.skipped).toBe(3);
+    expect(second.issues).toEqual([
+      { row: 1, status: "skipped", message: "Já estava no quadro" },
+      { row: 2, status: "skipped", message: "Já estava no quadro" },
+      { row: 3, status: "skipped", message: "Já estava no quadro" },
+    ]);
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     expect(board?.deals).toHaveLength(2);
+  });
+
+  it("stores a run the piloto can reopen later", async () => {
+    const { pipeline } = await setupPipeline();
+    const created = await mockRepo.createCrmImportRun(USER, {
+      pipelineId: pipeline.id,
+      pipelineNome: pipeline.nome,
+      fileName: "mapa.csv",
+      created: 1,
+      skipped: 1,
+      errorCount: 1,
+      matchedCnpjs: 0,
+      qualified: 0,
+      issues: [
+        {
+          row: 2,
+          status: "error",
+          message: "CNPJ inválido",
+          company: "Oficina",
+          name: "",
+          phone: "",
+          email: "",
+          cnpj: "123",
+        },
+      ],
+    });
+    expect(created?.file_name).toBe("mapa.csv");
+    const listed = await mockRepo.listCrmImportRuns(USER);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.issues).toEqual([]);
+    const detail = await mockRepo.getCrmImportRun(USER, created!.id);
+    expect(detail?.issues[0]?.message).toBe("CNPJ inválido");
   });
 
   it("creates from a webhook-shaped payload", async () => {

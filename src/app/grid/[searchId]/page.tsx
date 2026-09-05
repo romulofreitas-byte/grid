@@ -1031,7 +1031,10 @@ export default function GridPage() {
         }
       />
 
-      <ExportConfirmDialog {...exportCost.dialogProps} />
+      <ExportConfirmDialog
+        {...exportCost.dialogProps}
+        crmHref={crmHref(crmPipelineId ? { pipeline: crmPipelineId } : undefined)}
+      />
 
       <ConfirmDialog
         open={Boolean(askRemoveCnpj)}

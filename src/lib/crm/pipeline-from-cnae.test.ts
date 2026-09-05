@@ -26,7 +26,7 @@ describe("pipeline from CNAE", () => {
     expect(
       matchPresetForCnae("1128000", [segment], [
         { preset_id: "seg-1", cnae: "1128000", incluido: true },
-      ], []).id,
+      ], [])?.id,
     ).toBe("seg-1");
     expect(
       pipelineNomeForCompany({

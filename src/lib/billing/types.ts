@@ -140,7 +140,7 @@ export class CrmNotAllowedError extends Error {
 }
 
 export const AUTOMATIONS_NOT_ALLOWED_MESSAGE =
-  "Automações entra no Piloto Pro — em breve.";
+  "Automações entra no Piloto Pro."
 
 export class AutomationsNotAllowedError extends Error {
   constructor(message = AUTOMATIONS_NOT_ALLOWED_MESSAGE) {

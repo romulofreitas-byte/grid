@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { Coins, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import {
   GRID_EXPORT_FORMATS,
   useGridExport,
@@ -30,25 +31,17 @@ function intentTitle(intent: ExportCostIntent): string {
   return COPY.exportCostTitleExport.replace("{format}", formatLabel(intent.format));
 }
 
-function companiesLine(n: number): string {
+function qualifiedBadge(n: number): string {
   return n === 1
-    ? COPY.exportCostCompaniesOne
-    : COPY.exportCostCompaniesMany.replace("{n}", String(n));
+    ? COPY.exportCostBadgeQualifiedOne
+    : COPY.exportCostBadgeQualifiedMany.replace("{n}", String(n));
 }
 
-function detailLine(chargeable: number, unitCost: number): string {
-  return chargeable === 1
-    ? COPY.exportCostDetailOne.replace("{unit}", String(unitCost))
-    : COPY.exportCostDetailMany
-        .replace("{n}", String(chargeable))
-        .replace("{unit}", String(unitCost));
-}
-
-function alreadyBilledLine(skipped: number): string | null {
+function billedBadge(skipped: number): string | null {
   if (skipped <= 0) return null;
   return skipped === 1
-    ? COPY.exportCostAlreadyBilledOne
-    : COPY.exportCostAlreadyBilledMany.replace("{n}", String(skipped));
+    ? COPY.exportCostBadgeBilledOne
+    : COPY.exportCostBadgeBilledMany.replace("{n}", String(skipped));
 }
 
 export function useExportCostConfirm({
@@ -193,6 +186,7 @@ export function ExportConfirmDialog({
   quoteError,
   actionError,
   confirming,
+  crmHref = "/crm",
   onClose,
   onConfirm,
 }: {
@@ -203,6 +197,7 @@ export function ExportConfirmDialog({
   quoteError: string | null;
   actionError: string | null;
   confirming: boolean;
+  crmHref?: string;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -233,7 +228,7 @@ export function ExportConfirmDialog({
 
   if (!open || !intent) return null;
 
-  const billedHint = quote ? alreadyBilledLine(quote.skipped) : null;
+  const billed = quote ? billedBadge(quote.skipped) : null;
   const confirmLabel =
     intent.kind === "push"
       ? COPY.exportCostConfirmPush
@@ -288,9 +283,6 @@ export function ExportConfirmDialog({
             <p className="text-sm text-podium-yellow">{quoteError}</p>
           ) : quote ? (
             <>
-              <p className="text-sm text-podium-gray">
-                {companiesLine(quote.companies)}
-              </p>
               {quote.needed === 0 ? (
                 <p className="text-lg font-semibold text-podium-white">
                   {COPY.exportCostNothing}
@@ -308,20 +300,21 @@ export function ExportConfirmDialog({
                   )}
                 </p>
               )}
-              {quote.chargeable > 0 ? (
-                <p className="text-sm tabular-nums text-podium-muted">
-                  {detailLine(quote.chargeable, quote.unitCost)}
-                </p>
-              ) : null}
-              {billedHint ? (
-                <p className="text-sm text-podium-muted">{billedHint}</p>
-              ) : null}
-              <p className="text-sm tabular-nums text-podium-gray">
-                {COPY.exportCostBalance.replace(
-                  "{credits}",
-                  creditsPhrase(quote.available),
-                )}
-              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="success">{qualifiedBadge(quote.companies)}</Badge>
+                {quote.needed > 0 ? (
+                  <Badge variant="warning">{creditsPhrase(quote.needed)}</Badge>
+                ) : null}
+                {billed ? <Badge variant="neutral">{billed}</Badge> : null}
+                <Badge variant="neutral">
+                  {COPY.exportCostBadgeBalance.replace(
+                    "{credits}",
+                    creditsPhrase(quote.available),
+                  )}
+                </Badge>
+                <Badge variant="accent">{COPY.exportCostCrmBadge}</Badge>
+              </div>
+              <p className="text-sm text-podium-muted">{COPY.exportCostCrmHint}</p>
             </>
           ) : null}
           {actionError ? (
@@ -329,7 +322,7 @@ export function ExportConfirmDialog({
           ) : null}
         </div>
 
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             type="button"
             variant="secondary"
@@ -339,6 +332,12 @@ export function ExportConfirmDialog({
           >
             {COPY.exportCostCancel}
           </Button>
+          <Link
+            href={crmHref}
+            className={buttonClassName({ variant: "accent", size: "md" })}
+          >
+            {COPY.crmOpenPista}
+          </Link>
           {shortfall ? (
             <Link
               ref={recargaRef}

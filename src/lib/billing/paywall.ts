@@ -178,7 +178,7 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
     if (state.feature === "automations") {
       return {
         eyebrow: "Piloto Pro",
-        title: "Automações entra no Piloto Pro — em\u00a0breve",
+        title: "Automações entra no Piloto Pro",
         body: "Formulário, anúncio e Make alimentam o quadro no Pro. No Piloto você importa a planilha e liga pelo\u00a0CRM.",
         primary: { href: PLANOS_URL, label: "Ver planos" },
         secondary: { action: "close", label: "Fechar" },

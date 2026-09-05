@@ -4,6 +4,8 @@ import {
   CRM_ACTIVITY_KINDS,
   CRM_DEAL_SOURCES,
   CRM_EVENT_KINDS,
+  CRM_FORM_CHANNELS,
+  CRM_LEAD_KINDS,
   CRM_OUTCOMES,
 } from "@/lib/crm/types";
 
@@ -72,6 +74,10 @@ export const dealCreateSchema = z.object({
   meta: z
     .object({
       source: z.enum(CRM_DEAL_SOURCES).optional(),
+      lead_kind: z.enum(CRM_LEAD_KINDS).optional(),
+      form_channel: z.enum(CRM_FORM_CHANNELS).optional(),
+      form_answers: z.record(z.string().max(80), z.string().max(200)).optional(),
+      searchId: z.string().optional(),
     })
     .optional(),
 });
@@ -83,17 +89,35 @@ export const importLeadRowSchema = z.object({
   email: z.string().trim().max(120).optional(),
   cnpj: z.string().trim().max(32).optional(),
   notes: z.string().trim().max(4000).optional(),
+  kind: z.enum(CRM_LEAD_KINDS).optional(),
 });
 
-export const crmImportSchema = z.object({
-  pipeline_id: z.string().uuid(),
-  stage_id: z.string().uuid().optional(),
-  rows: z.array(importLeadRowSchema).min(1).max(IMPORT_MAX_ROWS),
-});
+export const crmImportSchema = z
+  .object({
+    pipeline_id: z.string().uuid().optional(),
+    pipeline_nome: pipelineNameSchema.optional(),
+    file_name: z.string().trim().max(200).optional(),
+    qualify: z.boolean().optional(),
+    rows: z.array(importLeadRowSchema).min(1).max(IMPORT_MAX_ROWS),
+  })
+  .refine((value) => Boolean(value.pipeline_id || value.pipeline_nome), {
+    message: "Escolha ou crie o nicho.",
+  });
 
-export const crmInboundUpsertSchema = z.object({
+export const crmInboundCreateSchema = z.object({
+  nome: pipelineNameSchema,
   pipeline_id: z.string().uuid(),
   stage_id: z.string().uuid().nullable().optional(),
+  lead_kind: z.enum(CRM_LEAD_KINDS),
+  channel: z.enum(CRM_FORM_CHANNELS),
+});
+
+export const crmInboundPatchSchema = z.object({
+  nome: pipelineNameSchema.optional(),
+  pipeline_id: z.string().uuid().optional(),
+  stage_id: z.string().uuid().nullable().optional(),
+  lead_kind: z.enum(CRM_LEAD_KINDS).optional(),
+  channel: z.enum(CRM_FORM_CHANNELS).optional(),
   rotate: z.boolean().optional(),
 });
 
@@ -104,6 +128,20 @@ export const dealPatchSchema = z.object({
   people: z.array(crmPersonSchema).max(12).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   notes: z.string().max(4000).optional(),
+  cnpj: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((value) => {
+      if (value == null || value === "") return undefined;
+      const digits = value.replace(/\D/g, "");
+      if (!digits) return undefined;
+      return digits.padStart(14, "0");
+    })
+    .refine((value) => value === undefined || /^\d{14}$/.test(value), {
+      message: "CNPJ inválido",
+    }),
   amount_cents: z
     .number()
     .int()

@@ -17,18 +17,24 @@ function cellText(value: ExcelJS.CellValue): string {
   return String(value).trim();
 }
 
+function toNodeBuffer(input: ArrayBuffer | Buffer | Uint8Array): Buffer {
+  const view =
+    input instanceof ArrayBuffer ? new Uint8Array(input) : new Uint8Array(input);
+  return Buffer.from(view);
+}
+
 export async function parseSpreadsheetBuffer(
   buffer: ArrayBuffer | Buffer | Uint8Array,
   filename: string,
   maxRows = IMPORT_MAX_ROWS,
 ): Promise<SpreadsheetTable> {
   const lower = filename.toLowerCase();
+  const bytes = toNodeBuffer(buffer);
   if (lower.endsWith(".csv") || lower.endsWith(".txt")) {
-    const text = Buffer.from(buffer as ArrayBuffer).toString("utf8");
-    return parseCsvText(text, maxRows);
+    return parseCsvText(bytes.toString("utf8"), maxRows);
   }
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(Buffer.from(buffer));
+  await wb.xlsx.load(bytes as unknown as Parameters<typeof wb.xlsx.load>[0]);
   const sheet = wb.worksheets[0];
   if (!sheet) return { headers: [], rows: [], truncated: false };
   const matrix: string[][] = [];
