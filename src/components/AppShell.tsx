@@ -150,9 +150,11 @@ export function AppShell({
 
           <main
             className={cn(
-              "mx-auto flex w-full min-h-0 min-w-0 flex-1 flex-col pb-24 md:pb-8",
+              "mx-auto flex w-full min-w-0 flex-col",
+              lockHeight
+                ? "min-h-0 flex-1 overflow-hidden pb-24 md:pb-8"
+                : "grow pb-24 md:pb-16",
               wide ? "max-w-none px-3 pt-4" : "max-w-7xl px-4 pt-5",
-              lockHeight && "overflow-hidden",
             )}
           >
             {back ? (
