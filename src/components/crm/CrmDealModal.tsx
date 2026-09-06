@@ -39,6 +39,9 @@ import {
   type CrmBriefing,
 } from "@/lib/crm/briefing";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
+import {
+  crmDealAttachSurface,
+} from "@/lib/crm/company-attach";
 import { formAnswersTitle } from "@/lib/crm/inbound-examples";
 import {
   getCachedDealBriefing,
@@ -668,6 +671,23 @@ export function CrmDealModal({
       href: asset.href!,
       unverified: Boolean(asset.unverified),
     }));
+  const attachInput = {
+    cnpj: deal.cnpj,
+    source: deal.meta.source,
+    audited: briefing.audited,
+    briefingReady,
+  };
+  const attachSurface = crmDealAttachSurface(attachInput);
+  const attach = attachSurface ? (
+    <CrmDealGridAttach
+      deal={deal}
+      onChange={onChange}
+      audited={briefing.audited}
+      briefingReady={briefingReady}
+      onQualified={() => refreshBriefing()}
+      surface={attachSurface}
+    />
+  ) : null;
 
   return (
     <>
@@ -698,6 +718,7 @@ export function CrmDealModal({
         exit={reduce ? undefined : { scale: 0.98 }}
         transition={presence}
       >
+        {attachSurface === "banner" ? attach : null}
         <header className="flex shrink-0 flex-col gap-2 border-b border-white/10 px-3 py-3 md:px-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
@@ -1072,13 +1093,7 @@ export function CrmDealModal({
                 ) : null}
               </div>
             ) : null}
-            <CrmDealGridAttach
-              deal={deal}
-              onChange={onChange}
-              audited={briefing.audited}
-              briefingReady={briefingReady}
-              onQualified={() => refreshBriefing()}
-            />
+            {attachSurface === "aside" ? attach : null}
             {deal.meta.form_answers &&
             Object.keys(deal.meta.form_answers).length > 0 ? (
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">

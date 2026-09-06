@@ -331,6 +331,17 @@ describe("COPY crm add deal", () => {
   });
 });
 
+describe("COPY crm grid attach", () => {
+  it("names the two-step search then qualify strip", () => {
+    expect(COPY.crmSearchGrid).toBe("Procurar no Grid");
+    expect(COPY.crmQualifyGrid).toBe("Qualificar no Grid");
+    expect(COPY.crmAttachStepSearch).toBe("Procurar");
+    expect(COPY.crmAttachStepQualify).toBe("Qualificar");
+    expect(COPY.crmSearchGridSkip).toBe("Deixar sem CNPJ");
+    expect(COPY.crmSearchGridEmpty).toMatch(/homônimo/);
+  });
+});
+
 describe("COPY focus mode", () => {
   it("names the chip toggle and the desktop badge", () => {
     expect(COPY.focusEnter).toBe("Entrar no modo Focus");

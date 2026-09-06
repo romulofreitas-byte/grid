@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crmCompanyAttachMode } from "./company-attach";
+import { crmCompanyAttachMode, crmDealAttachSurface, GRID_ATTACH_HIT_LIMIT } from "./company-attach";
 
 describe("crmCompanyAttachMode", () => {
   it("shows only the CNPJ on Grid deals that already came qualified", () => {
@@ -76,6 +76,58 @@ describe("crmCompanyAttachMode", () => {
         briefingReady: true,
       }),
     ).toBe("search");
+  });
+
+  it("puts search and qualify on the top banner, CNPJ in the aside", () => {
+    expect(
+      crmDealAttachSurface({
+        cnpj: null,
+        source: "import",
+        audited: false,
+        briefingReady: true,
+      }),
+    ).toBe("banner");
+    expect(
+      crmDealAttachSurface({
+        cnpj: "00012847000510",
+        source: "import",
+        audited: false,
+        briefingReady: true,
+      }),
+    ).toBe("banner");
+    expect(
+      crmDealAttachSurface({
+        cnpj: "00012847000510",
+        source: "import",
+        audited: false,
+        briefingReady: false,
+      }),
+    ).toBe("banner");
+    expect(
+      crmDealAttachSurface({
+        cnpj: "00012847000510",
+        source: "import",
+        audited: true,
+        briefingReady: true,
+      }),
+    ).toBe("aside");
+    expect(
+      crmDealAttachSurface({
+        cnpj: "00012847000510",
+        source: "qualify_bridge",
+        audited: true,
+        briefingReady: true,
+      }),
+    ).toBe("aside");
+    expect(
+      crmDealAttachSurface({
+        cnpj: null,
+        source: "qualify_bridge",
+        audited: false,
+        briefingReady: true,
+      }),
+    ).toBeNull();
+    expect(GRID_ATTACH_HIT_LIMIT).toBe(5);
   });
 
   it("does not offer qualify on a manual add that already has a CNPJ", () => {

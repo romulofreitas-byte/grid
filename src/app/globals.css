@@ -10,6 +10,7 @@
   --podium-muted: #7a8494;
   --podium-success: #22c55e;
   --podium-info: #38bdf8;
+  --podium-search: #7dd3fc;
   --podium-alert: #f43f5e;
   --background: var(--podium-navy);
   --foreground: var(--podium-white);
@@ -27,6 +28,7 @@
   --color-podium-muted: var(--podium-muted);
   --color-podium-success: var(--podium-success);
   --color-podium-info: var(--podium-info);
+  --color-podium-search: var(--podium-search);
   --color-podium-alert: var(--podium-alert);
   --font-sans: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
   --font-brand: var(--font-sora), "Sora", ui-sans-serif, system-ui, sans-serif;
@@ -289,6 +291,71 @@ button {
   opacity: 0;
 }
 
+.telemetry-bar[data-tone="search"] {
+  background: color-mix(in srgb, var(--podium-search) 28%, transparent);
+}
+
+.telemetry-bar[data-tone="search"]::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--podium-search),
+    transparent
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--podium-search) 75%, transparent);
+}
+
+.telemetry-bar[data-tone="qualify"] {
+  background: color-mix(in srgb, var(--podium-success) 28%, transparent);
+}
+
+.telemetry-bar[data-tone="qualify"]::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--podium-success),
+    transparent
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--podium-success) 70%, transparent);
+}
+
+@keyframes attach-search-pulse {
+  0%,
+  100% {
+    background-color: color-mix(in srgb, var(--podium-search) 14%, var(--podium-navy));
+  }
+  50% {
+    background-color: color-mix(in srgb, var(--podium-search) 26%, var(--podium-navy));
+  }
+}
+
+@keyframes attach-qualify-pulse {
+  0%,
+  100% {
+    background-color: color-mix(in srgb, var(--podium-success) 12%, var(--podium-navy));
+  }
+  50% {
+    background-color: color-mix(in srgb, var(--podium-success) 24%, var(--podium-navy));
+  }
+}
+
+.attach-strip-search {
+  animation: attach-search-pulse 1.7s ease-in-out infinite;
+  box-shadow: inset 3px 0 0 var(--podium-search),
+    inset 0 -1px 0 color-mix(in srgb, var(--podium-search) 38%, transparent);
+}
+
+.attach-strip-qualify {
+  animation: attach-qualify-pulse 1.7s ease-in-out infinite;
+  box-shadow: inset 3px 0 0 var(--podium-success),
+    inset 0 -1px 0 color-mix(in srgb, var(--podium-success) 42%, transparent);
+}
+
+.attach-strip-search .telemetry-bar,
+.attach-strip-qualify .telemetry-bar {
+  height: 3px;
+}
+
 @keyframes audit-gap-pulse {
   0%,
   100% {
@@ -332,8 +399,18 @@ button {
   .audit-gap-pulse,
   .audit-scan-pulse,
   .crm-alert-pulse,
-  .crm-idle-pulse {
+  .crm-idle-pulse,
+  .attach-strip-search,
+  .attach-strip-qualify {
     animation: none;
+  }
+
+  .attach-strip-search {
+    background-color: color-mix(in srgb, var(--podium-search) 14%, var(--podium-navy));
+  }
+
+  .attach-strip-qualify {
+    background-color: color-mix(in srgb, var(--podium-success) 14%, var(--podium-navy));
   }
 
   .audit-gap-pulse {
@@ -357,6 +434,14 @@ button {
   .telemetry-bar::after {
     width: 100%;
     background: var(--podium-yellow);
+  }
+
+  .telemetry-bar[data-tone="search"]::after {
+    background: var(--podium-search);
+  }
+
+  .telemetry-bar[data-tone="qualify"]::after {
+    background: var(--podium-success);
   }
 
   html:has(body) .motion-safe-lift {
