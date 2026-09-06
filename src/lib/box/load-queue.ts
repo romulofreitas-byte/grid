@@ -266,12 +266,14 @@ export async function loadBoxQueue(
   now = new Date(),
   flags?: { crmAllowed: boolean; trialExpired: boolean },
 ): Promise<BoxQueuePayload> {
-  const resolved =
-    flags ??
-    (await getBalance(userId).then((balance) => ({
+  let resolved = flags;
+  if (!resolved) {
+    const balance = await getBalance(userId);
+    resolved = {
       crmAllowed: balance.enrichAllowed,
       trialExpired: balance.trialExpired,
-    })));
+    };
+  }
 
   const live = getDataSource() === "supabase";
   if (live && !hasLiveDatabase()) {
