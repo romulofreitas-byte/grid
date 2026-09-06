@@ -47,26 +47,17 @@ function PilotGlassChip({
     <span
       title={fullName}
       className={cn(
-        "relative inline-flex max-w-full items-center gap-2.5 overflow-hidden rounded-xl border py-1.5 pl-1.5 backdrop-blur-xl",
+        "inline-flex max-w-full items-center gap-2.5 rounded-xl border py-1.5 pl-1.5",
         chevron ? "pr-2" : "pr-3",
-        "border-white/[0.08] bg-white/[0.05]",
+        "border-white/[0.10] bg-podium-panel",
       )}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/[0.12] to-transparent"
-      />
       <PilotAvatar
         profile={profile}
         size="header"
         shape="squircle"
-        className="relative"
       />
-      <span className="relative flex min-w-0 flex-col items-start justify-center leading-tight">
+      <span className="flex min-w-0 flex-col items-start justify-center leading-tight">
         <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
           Piloto
         </span>
@@ -74,7 +65,7 @@ function PilotGlassChip({
           {shortName}
         </span>
       </span>
-      {chevron ? <span className="relative shrink-0">{chevron}</span> : null}
+      {chevron ? <span className="shrink-0">{chevron}</span> : null}
     </span>
   );
 }
