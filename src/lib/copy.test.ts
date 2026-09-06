@@ -158,6 +158,8 @@ describe("COPY crm", () => {
     expect(COPY.crmTimeLabel).toBe("Horário");
     expect(COPY.crmWeekLater).toMatch(/semana/i);
     expect(COPY.crmCadenceHint).toMatch(/etapa/i);
+    expect(COPY.crmCadenceHint).toMatch(/nicho/i);
+    expect(COPY.crmCadenceHint).toMatch(/outras pipelines/i);
     expect(COPY.crmScheduleHint).toMatch(/não registra/i);
     expect(COPY.crmLogCallHint).toMatch(/não conta/i);
     expect(COPY.confirmEyebrow).toBe("Confirmar");

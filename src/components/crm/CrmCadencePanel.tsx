@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Select } from "@/components/ui/Select";
 
 export function CrmCadencePanel({
+  pipelineNome,
   stages,
   deals,
   onClose,
@@ -18,6 +19,7 @@ export function CrmCadencePanel({
   onDelete,
   onReorder,
 }: {
+  pipelineNome: string;
   stages: CrmStage[];
   deals: CrmDealCard[];
   onClose: () => void;
@@ -53,6 +55,9 @@ export function CrmCadencePanel({
           <div>
             <p className={CRM_LABEL}>{COPY.crmCadenceTitle}</p>
             <h2 className="mt-1 text-base font-semibold">{COPY.crmAdjustCadence}</h2>
+            <p className="mt-1 text-sm font-medium text-podium-white">
+              {pipelineNome}
+            </p>
             <p className="mt-2 text-pretty text-xs leading-relaxed text-podium-gray">
               {COPY.crmCadenceHint}
             </p>

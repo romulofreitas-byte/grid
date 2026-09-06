@@ -402,6 +402,60 @@ describe("crm mock board", () => {
     ]);
   });
 
+  it("keeps cadence edits inside one pipeline", async () => {
+    const a = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const b = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    const boardA = await mockRepo.getCrmBoard(USER, a.id);
+    const snapshotB = (await mockRepo.getCrmBoard(USER, b.id))!.stages.map(
+      (stage) => ({
+        id: stage.id,
+        nome: stage.nome,
+        position: stage.position,
+        canonical_key: stage.canonical_key,
+      }),
+    );
+
+    const tentando = boardA!.stages.find(
+      (stage) => stage.canonical_key === "tentando_contato",
+    )!;
+    expect(
+      await mockRepo.updateCrmStage(USER, tentando.id, {
+        nome: "Primeira ligação",
+      }),
+    ).toBeTruthy();
+
+    const extra = await mockRepo.createCrmStage(USER, a.id, "Pós-contrato");
+    expect(extra).toBeTruthy();
+    const afterAdd = await mockRepo.getCrmBoard(USER, a.id);
+    const ids = afterAdd!.stages.map((stage) => stage.id);
+    expect(
+      await mockRepo.reorderCrmStages(USER, a.id, [
+        ids[ids.length - 1]!,
+        ...ids.slice(0, -1),
+      ]),
+    ).toBe(true);
+    expect(await mockRepo.deleteCrmStage(USER, extra!.id)).toBe(true);
+
+    const boardB = await mockRepo.getCrmBoard(USER, b.id);
+    expect(
+      boardB!.stages.map((stage) => ({
+        id: stage.id,
+        nome: stage.nome,
+        position: stage.position,
+        canonical_key: stage.canonical_key,
+      })),
+    ).toEqual(snapshotB);
+
+    const boardAAfter = await mockRepo.getCrmBoard(USER, a.id);
+    expect(
+      boardAAfter!.stages.find((stage) => stage.id === tentando.id)?.nome,
+    ).toBe("Primeira ligação");
+    expect(
+      boardAAfter!.stages.some((stage) => stage.nome === "Pós-contrato"),
+    ).toBe(false);
+    expect(boardAAfter!.stages).toHaveLength(snapshotB.length);
+  });
+
   it("rejects incomplete or foreign pipeline reorder lists", async () => {
     const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
     const second = await mockRepo.createCrmPipeline(USER, "Nicho B");

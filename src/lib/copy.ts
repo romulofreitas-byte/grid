@@ -450,7 +450,7 @@ export const COPY = {
   crmAddSecretary: "Adicionar secretária",
   crmCadenceTitle: "Cadência",
   crmCadenceHint:
-    "Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não\u00a0apagar.",
+    "Só este nicho muda — as outras pipelines ficam como estão. Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não\u00a0apagar.",
   crmAddStage: "Nova etapa",
   crmDeleteStage: "Excluir etapa",
   crmMoveDealsTo: "Mover negócios para",

@@ -267,6 +267,7 @@ export function CrmBoard({
     opts?: { force?: boolean; openDealId?: string | null },
   ): Promise<Board | null> {
     if (pipelineId === selectedPipelineId && board && !opts?.force) return board;
+    if (pipelineId !== requestedPipelineRef.current) setCadenceOpen(false);
     setError(null);
     setSelectedPipelineId(pipelineId);
     requestedPipelineRef.current = pipelineId;
@@ -527,6 +528,7 @@ export function CrmBoard({
             size="sm"
             variant="secondary"
             onClick={() => setCadenceOpen(true)}
+            disabled={!board}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {COPY.crmAdjustCadence}
@@ -553,6 +555,7 @@ export function CrmBoard({
           onSelect={(pipelineId) => void loadPipeline(pipelineId)}
           onPrefetch={(pipelineId) => void prefetchPipeline(pipelineId)}
           onCreate={async (nome) => {
+            setCadenceOpen(false);
             const res = await crmFetch<{
               pipeline: CrmPipelineSummary;
               board: Board;
@@ -672,50 +675,68 @@ export function CrmBoard({
       </AnimatePresence>
       {cadenceOpen && board ? (
         <CrmCadencePanel
+          key={board.pipeline.id}
+          pipelineNome={board.pipeline.nome}
           stages={board.stages}
           deals={board.deals}
           onClose={() => setCadenceOpen(false)}
           onRename={async (stageId, nome) => {
+            const pipelineId = board.pipeline.id;
             await crmFetch(`/api/crm/stages/${stageId}`, {
               method: "PATCH",
               body: JSON.stringify({ nome }),
             });
+            const patch = (current: Board): Board => ({
+              ...current,
+              stages: current.stages.map((row) =>
+                row.id === stageId ? { ...row, nome } : row,
+              ),
+            });
+            const cached = cacheRef.current.get(pipelineId);
+            if (cached) cacheRef.current.set(pipelineId, patch(cached));
+            fetchedAtRef.current.set(pipelineId, Date.now());
             setBoard((current) =>
-              current
-                ? {
-                    ...current,
-                    stages: current.stages.map((row) =>
-                      row.id === stageId ? { ...row, nome } : row,
-                    ),
-                  }
-                : current,
+              current?.pipeline.id === pipelineId ? patch(current) : current,
             );
           }}
           onAdd={async (nome) => {
+            const pipelineId = board.pipeline.id;
             const res = await crmFetch<{ stage: Board["stages"][number] }>(
-              `/api/crm/pipelines/${board.pipeline.id}/stages`,
+              `/api/crm/pipelines/${pipelineId}/stages`,
               { method: "POST", body: JSON.stringify({ nome }) },
             );
+            const patch = (current: Board): Board => ({
+              ...current,
+              stages: [...current.stages, res.stage],
+            });
+            const cached = cacheRef.current.get(pipelineId);
+            if (cached) cacheRef.current.set(pipelineId, patch(cached));
+            fetchedAtRef.current.set(pipelineId, Date.now());
             setBoard((current) =>
-              current
-                ? { ...current, stages: [...current.stages, res.stage] }
-                : current,
+              current?.pipeline.id === pipelineId ? patch(current) : current,
             );
           }}
           onDelete={async (stageId, moveToStageId) => {
+            const pipelineId = board.pipeline.id;
             await crmFetch(`/api/crm/stages/${stageId}`, {
               method: "DELETE",
               body: JSON.stringify({ moveToStageId }),
             });
-            await loadPipeline(board.pipeline.id, { force: true });
-            setCadenceOpen(true);
+            const next = await fetchBoard(pipelineId);
+            if (requestedPipelineRef.current !== pipelineId) return;
+            setBoard(next);
           }}
           onReorder={async (stageIds) => {
+            const pipelineId = board.pipeline.id;
             const res = await crmFetch<{ board: Board }>(
-              `/api/crm/pipelines/${board.pipeline.id}/stages/reorder`,
+              `/api/crm/pipelines/${pipelineId}/stages/reorder`,
               { method: "POST", body: JSON.stringify({ stageIds }) },
             );
-            setBoard(res.board);
+            cacheRef.current.set(pipelineId, res.board);
+            fetchedAtRef.current.set(pipelineId, Date.now());
+            setBoard((current) =>
+              current?.pipeline.id === pipelineId ? res.board : current,
+            );
           }}
         />
       ) : null}
