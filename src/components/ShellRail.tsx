@@ -237,7 +237,7 @@ export function ShellRail({
   return (
     <aside
       className={cn(
-        "hidden h-full min-h-0 shrink-0 flex-col border-r border-white/10 bg-podium-navy/90 backdrop-blur-xl md:flex",
+        "hidden h-full min-h-0 shrink-0 cursor-pointer flex-col border-r border-white/10 bg-podium-navy/90 backdrop-blur-xl md:flex",
         motion &&
           "transition-[width] duration-300 ease-out motion-reduce:transition-none",
         shellRailWidthClass(open),

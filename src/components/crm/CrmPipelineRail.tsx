@@ -181,10 +181,17 @@ export function CrmPipelineRail({
   return (
     <aside
       className={cn(
-        "relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-white/10",
+        "relative flex h-full min-h-0 shrink-0 cursor-pointer flex-col overflow-hidden border-r border-white/10",
         !dragging && "transition-[width] duration-200 ease-out",
       )}
       style={{ width: open ? width : COLLAPSED }}
+      onClick={(event) => {
+        if (!open) return;
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest("button, input, [role='separator'], [data-nicho-row]")) return;
+        setOpen(false);
+      }}
     >
       <button
         type="button"
@@ -192,7 +199,7 @@ export function CrmPipelineRail({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          "flex shrink-0 items-center gap-1 px-1.5 py-2 text-podium-muted hover:text-podium-yellow",
+          "flex shrink-0 cursor-pointer items-center gap-1 px-1.5 py-2 text-podium-muted hover:text-podium-yellow",
           open ? "justify-between" : "h-full flex-col justify-start gap-3 pt-3",
         )}
       >
@@ -320,7 +327,12 @@ function SortablePipelineRow({
   const canDrag = !sortableDisabled && !renaming && !confirming;
 
   return (
-    <div ref={sortable.setNodeRef} style={style} className="group relative">
+    <div
+      ref={sortable.setNodeRef}
+      style={style}
+      data-nicho-row=""
+      className="group relative cursor-auto"
+    >
       {renaming ? (
         <input
           value={renameDraft}
