@@ -11,14 +11,15 @@ import {
 } from "./shell-nav";
 
 describe("shell work nav", () => {
-  it("keeps the six work destinations and the Nova lista tour target", () => {
+  it("keeps the work destinations and the Nova lista tour target", () => {
     expect(SHELL_WORK_NAV.map((item) => item.href)).toEqual([
       "/painel",
-      "/metas",
-      "/largada",
-      "/empresas",
-      "/listas",
+      "/box",
       "/crm",
+      "/largada",
+      "/listas",
+      "/empresas",
+      "/metas",
     ]);
     expect(SHELL_WORK_NAV.find((item) => item.href === "/largada")?.tour).toBe(
       "nova-lista",
