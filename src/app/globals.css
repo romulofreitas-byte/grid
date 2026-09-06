@@ -274,6 +274,15 @@ button {
   animation: telemetry-run 1.1s ease-in-out infinite;
 }
 
+.telemetry-bar[data-active="0"] {
+  background: transparent;
+}
+
+.telemetry-bar[data-active="0"]::after {
+  animation: none;
+  opacity: 0;
+}
+
 @keyframes audit-gap-pulse {
   0%,
   100% {
@@ -304,6 +313,30 @@ button {
   animation: audit-scan-pulse 1.1s ease-in-out infinite;
 }
 
+@keyframes shell-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes shell-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+::view-transition-old(root) {
+  animation: 220ms ease-out both shell-fade-out;
+  mix-blend-mode: normal;
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  animation: 220ms ease-out both shell-fade-in;
+  mix-blend-mode: normal;
+  z-index: 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .race-grid-move,
   .recommend-pulse,
@@ -316,6 +349,11 @@ button {
   .audit-scan-pulse,
   .crm-alert-pulse,
   .crm-idle-pulse {
+    animation: none;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none;
   }
 

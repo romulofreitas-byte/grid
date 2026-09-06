@@ -1,4 +1,5 @@
 import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
+import { ledgerReasonLabel } from "@/lib/billing/labels";
 import { formatCnae } from "@/lib/format";
 import type { OpsCohort } from "@/lib/ops/classify";
 
@@ -30,8 +31,9 @@ export function formatPct(part: number, whole: number): string {
 }
 
 export function debitReasonLabel(reason: string): string {
-  if (reason === "enrich") return "Qualificação";
-  if (reason === "export") return "Export";
+  if (reason === "enrich" || reason === "export") {
+    return ledgerReasonLabel(reason);
+  }
   return "Outros";
 }
 

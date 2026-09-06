@@ -110,7 +110,7 @@ Legenda: **live** = caminho de produto utilizável (mock ou Postgres). **paywall
 | CRM nativo | paywall | Pipelines, stages, deals, events, briefing, dial. `enrichAllowed` |
 | Importações (CSV/XLSX) | paywall / **WIP** | Parse → map → match CNPJ → apply → histórico. Ver §8 |
 | Automações inbound | paywall / **WIP** | Campanha webhook → deal. **Não** é motor “se stage muda, então…” |
-| Conexões (VoIP / CRM externo) | **standby** | `CONNECTIONS_STANDBY = true` em `src/lib/integrations/standby.ts`. Adapters live: webhook, api4com, zenvia, twilio, telnyx. Push nativo de CRM externo = catálogo |
+| Conexões (VoIP / discador) | **live** | `CONNECTIONS_STANDBY = false`. Adapters live: webhook, api4com, zenvia, twilio, telnyx, **3cplus**. CRM externo = catálogo. Homologar API4COM hangup em URL pública e mailing 3C Plus no sandbox Integra Aí |
 | Painel | live | Métricas de buscas, ligações, CRM |
 | Calculadora + Metas | live | `/calculadora`, `/metas` |
 | Ops console | live | Login próprio (`GRID_OPS_PASSWORD`), fora do middleware de sessão |
@@ -332,8 +332,8 @@ PSPs: Asaas (Pix/cartão BR/boleto), Stripe (cartão intl), mock em dev. Circle 
 Não reabrir a lista do briefing §10 (auth mock, PDF stub, créditos cosméticos) — a maior parte já foi feita.
 
 1. **DNS** — `grid.mundopodium.com.br` ainda não está no projeto Vercel. Site URL / OAuth / webhooks no deploy doc assumem esse host.
-2. **Conexões VoIP** — `CONNECTIONS_STANDBY = true`. Copy: “ligação pela internet volta na próxima versão”; botão Ligar abre o telefone do aparelho.
-3. **CRM externo nativo** — catálogo (Agendor, Pipedrive, HubSpot…) em grande parte “soon”. Push de lista **live** nesta versão: webhook genérico.
+2. **Conexões** — hub reaberto (`CONNECTIONS_STANDBY = false`). Homologar API4COM (gateway `grid-podium`, webhook `1.8`) em URL HTTPS pública e 3C Plus no tenant sandbox. CRM externo ainda é catálogo.
+3. **CRM externo nativo** — catálogo (Agendor, Pipedrive, HubSpot…) em grande parte “soon”. Push de lista **live** nesta versão: webhook genérico **e** 3C Plus.
 4. **Validação RF em volume** — limiar de telefone compartilhado (3 CNPJs) precisa revalidação em MG/SP reais (`reports/phone-sharing.md`). Aceite original (Lighthouse 90, busca &lt; 2s na base RF) **não medido** em produção.
 5. **Exclusões de nicho** — `exclusoes[]` nos seeds, pouco preenchido (posto vs clínica, etc.).
 6. **schema-app.sql vs migrations** — risco se alguém bootstrapar só o snapshot.
@@ -351,7 +351,7 @@ Não reabrir a lista do briefing §10 (auth mock, PDF stub, créditos cosmético
 - Voltar o fundo para `#0D0D0F` / “prompt original como spec de UI”.
 - Expor PostgREST / anon key para dados RF.
 - Tratar `/automacoes` como motor de regras (e-mail no stage change, etc.). Hoje é só **webhook → deal**.
-- Reabrir o hub VoIP sem decisão explícita de desligar `CONNECTIONS_STANDBY`.
+- Recongelar o hub (`CONNECTIONS_STANDBY = true`) sem decisão explícita de produto.
 - Inventar CNAEs, CPFs, números OSM no export, ou LLM no Minuto de Ouro.
 - Usar o modelo de créditos 1/2 do briefing de agosto.
 

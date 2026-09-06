@@ -1,6 +1,9 @@
 "use client";
 
+import { useId } from "react";
+
 export function AngularBackground() {
+  const gradId = useId().replace(/:/g, "");
   return (
     <div
       aria-hidden
@@ -12,13 +15,13 @@ export function AngularBackground() {
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="navyGrad" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#0B1A2E" />
             <stop offset="55%" stopColor="#12263F" />
             <stop offset="100%" stopColor="#0B1A2E" />
           </linearGradient>
         </defs>
-        <rect width="100%" height="100%" fill="url(#navyGrad)" />
+        <rect width="100%" height="100%" fill={`url(#${gradId})`} />
       </svg>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(245,179,1,0.06),_transparent_55%)]" />
     </div>

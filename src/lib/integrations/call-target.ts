@@ -1,5 +1,6 @@
 import type { IntegrationConnectionPublic } from "./records";
 import type { IntegrationKind, IntegrationProvider } from "./schema";
+import { isNativeDialerProvider } from "./dialer-setup";
 import { isNativeVoipProvider } from "./voip-setup";
 
 const CALL_KIND_PRIORITY: IntegrationKind[] = ["voip", "dialer", "webhook"];
@@ -10,7 +11,11 @@ export type CallConnectionPick = Pick<
 >;
 
 function canPlaceCall(provider: IntegrationProvider): boolean {
-  return provider === "webhook" || isNativeVoipProvider(provider);
+  return (
+    provider === "webhook" ||
+    isNativeVoipProvider(provider) ||
+    isNativeDialerProvider(provider)
+  );
 }
 
 /** Active discador/VoIP/webhook for click-to-call. Never CRM. */

@@ -30,7 +30,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Começar",
     question: "O que é o Painel, a Nova lista e os resultados?",
     answer:
-      "O Painel é a home do dia: meta, pipeline e o que fazer agora. Ligar agora abre a próxima ficha. Nova lista é onde você escolhe nicho e região. Os resultados saem na ordem de quem ligar primeiro. Na lista, marque as empresas e clique em Qualificar.",
+      "O Painel é a home do dia: meta, pipeline e o que fazer agora. Ligar agora abre o Box, a lista de ligar e WhatsApp na ordem de urgência. Nova lista é onde você escolhe nicho e região. Os resultados saem na ordem de quem ligar primeiro. Na lista, marque as empresas e clique em Qualificar.",
     links: [
       { href: "/painel", label: "Abrir o Painel" },
       { href: largadaNovaHref, label: "Nova lista" },
@@ -72,7 +72,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Qual a diferença entre Minhas listas e Não salvas?",
     answer:
-      "Minhas listas são as que você guardou para ligar de novo — e são elas que o dia usa, pelo Ligar agora. Não salvas são rascunhos: no máximo 3, você só abre de novo. Para guardar de verdade ou excluir, salve a lista. Fazer outra tira a mais antiga. Tirar da tela não exclui a lista salva.",
+      "Minhas listas são as que você guardou para ligar de novo. Qualifique e agende ligar ou WhatsApp no CRM — o Box puxa essa fila. Não salvas são rascunhos: no máximo 3, você só abre de novo. Para guardar de verdade ou excluir, salve a lista. Fazer outra tira a mais antiga. Tirar da tela não exclui a lista salva.",
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {

@@ -32,6 +32,7 @@ import {
   type PainelFilters,
 } from "@/lib/painel/filters";
 import type { PainelMetrics, PainelRange, PainelTaskRow } from "@/lib/painel/types";
+import { ProductTour } from "@/components/tour/ProductTour";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 
@@ -98,7 +99,7 @@ function TaskList({
 }) {
   return (
     <GlassCard className="flex h-full min-h-[240px] flex-col p-4" hover={false}>
-      <p className="text-sm font-bold">{title}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">{title}</p>
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-podium-muted">{empty}</p>
       ) : (
@@ -132,10 +133,10 @@ function TaskList({
                 </p>
               </div>
               <Link
-                href={`/crm?deal=${row.dealId}&pipeline=${row.pipelineId}`}
+                href={kind === "overdue" ? "/box" : `/crm?deal=${row.dealId}&pipeline=${row.pipelineId}`}
                 className="shrink-0 text-[11px] font-medium text-podium-yellow hover:underline"
               >
-                {COPY.painelOpenCrm}
+                {kind === "overdue" ? COPY.painelOpenBox : COPY.painelOpenCrm}
               </Link>
             </li>
           ))}
@@ -263,11 +264,19 @@ export function PainelDashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-5">
+      <div data-tour="painel" className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <SectionTitle>{COPY.painelTitle}</SectionTitle>
-          <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
+          <Hint className="mt-1 max-w-xl">
+            {COPY.painelHint}{" "}
+            <Link
+              href="/painel?tour=1"
+              className="font-semibold text-podium-yellow hover:underline"
+            >
+              {COPY.tourReplay}
+            </Link>
+          </Hint>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">
@@ -316,7 +325,7 @@ export function PainelDashboard() {
       ) : null}
 
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        <GlassCard className="p-5" hover={false} highlight={missingCalls > 0}>
+        <GlassCard className="p-4" hover={false} highlight={missingCalls > 0} data-tour="painel-meta">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="relative mx-auto shrink-0 sm:mx-0">
               <div
@@ -334,7 +343,7 @@ export function PainelDashboard() {
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
                 Trabalho do dia
               </p>
-              <p className="mt-1 text-xl font-extrabold leading-tight">
+              <p className="mt-1 text-lg font-semibold leading-tight">
                 {!k
                   ? "Carregando a meta…"
                   : missingCalls > 0
@@ -348,7 +357,7 @@ export function PainelDashboard() {
                 </span>
                 {crm && k && k.overdueFollowups > 0 ? (
                   <Link
-                    href={crmHref}
+                    href="/box"
                     className="inline-flex items-center rounded-full border border-podium-alert/40 bg-podium-alert/10 px-2.5 py-1 text-[11px] font-semibold text-podium-alert"
                   >
                     {k.overdueFollowups === 1 ? "1 atrasado" : `${k.overdueFollowups} atrasados`}
@@ -357,7 +366,8 @@ export function PainelDashboard() {
               </div>
               <Link
                 href="/box"
-                className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy hover:brightness-110"
+                data-tour="ligar-agora"
+                className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-md bg-podium-yellow px-3 py-1.5 text-xs font-semibold text-podium-navy hover:brightness-110"
               >
                 <Phone className="h-4 w-4" />
                 Ligar agora
@@ -366,7 +376,7 @@ export function PainelDashboard() {
           </div>
         </GlassCard>
 
-        <GlassCard className="flex h-full flex-col p-5" hover={false}>
+        <GlassCard className="flex h-full flex-col p-4" hover={false}>
           <div className="flex items-start justify-between gap-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
               Resultado
@@ -380,7 +390,7 @@ export function PainelDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
                 Faturado
               </p>
-              <p className="mt-1 truncate text-2xl font-extrabold tracking-tight md:text-3xl">
+              <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
                 {!m ? "—" : crm && k ? formatBrl(k.billedPeriodCents) : "—"}
               </p>
               <Hint className="mt-1">
@@ -399,7 +409,7 @@ export function PainelDashboard() {
               <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
                 Pipeline
               </p>
-              <p className="mt-1 truncate text-2xl font-extrabold tracking-tight md:text-3xl">
+              <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
                 {!m ? "—" : crm && k ? formatBrl(k.pipelineOpenCents) : "—"}
               </p>
               <Hint className="mt-1">
@@ -557,6 +567,7 @@ export function PainelDashboard() {
           </GlassCard>
         </div>
       </div>
+      <ProductTour surface="painel" />
     </div>
   );
 }

@@ -25,8 +25,10 @@ import { CrmLane } from "@/components/crm/CrmLane";
 import { CrmLanesSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { CrmPipelineRail } from "@/components/crm/CrmPipelineRail";
 import { Button } from "@/components/ui/Button";
+import { useConnections } from "@/hooks/useConnections";
 import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
+import { pickCallConnection } from "@/lib/integrations/call-target";
 import { closedDealCount, visibleKanbanDeals } from "@/lib/crm/events";
 import {
   createLatestPrefetch,
@@ -130,6 +132,8 @@ export function CrmBoard({
   );
   const dndId = useId();
   const [dndReady, setDndReady] = useState(false);
+  const connectionsQuery = useConnections();
+  const callConnection = pickCallConnection(connectionsQuery.data ?? []);
   const cacheRef = useRef(
     new Map<string, Board>(
       initialBoard ? [[initialBoard.pipeline.id, initialBoard]] : [],
@@ -474,7 +478,9 @@ export function CrmBoard({
             dnd={dndReady}
             deals={dealsByStage.get(stage.id) ?? EMPTY_DEALS}
             onOpenDeal={openDealCard}
+            onDealChange={replaceDeal}
             onRename={renameStage}
+            connection={callConnection}
           />
         ))
       )}

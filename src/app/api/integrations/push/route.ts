@@ -34,9 +34,9 @@ export async function POST(req: Request) {
   if (!connection || connection.user_id !== gated.userId || connection.status !== "active") {
     return NextResponse.json({ error: "Conexão não encontrada" }, { status: 404 });
   }
-  if (connection.provider !== "webhook") {
+  if (connection.provider !== "webhook" && connection.provider !== "3cplus") {
     return NextResponse.json(
-      { error: "Nesta versão só o webhook genérico envia lista." },
+      { error: "Nesta versão só webhook e 3C Plus enviam lista." },
       { status: 400 },
     );
   }

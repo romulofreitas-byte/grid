@@ -74,7 +74,7 @@ import type {
 } from "@/lib/crm/types";
 import { formatCentsInput, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
-import { digitsCnpj } from "@/lib/crm/bridge";
+import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
@@ -451,29 +451,13 @@ export function CrmDealModal({
 
   async function recordCallAfterDial() {
     try {
-      if (deal.next_activity?.kind === "ligar") {
-        const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
-          `/api/crm/deals/${deal.id}/complete`,
-          { method: "POST" },
-        );
-        onChange(res.deal);
-        prependEvent(res.event);
-        return;
+      const result = await recordCrmDialAfterCall(deal);
+      onChange(result.deal);
+      if (result.event) prependEvent(result.event);
+      if (result.events) {
+        setCachedDealEvents(deal.id, result.events);
+        setEvents(result.events);
       }
-      const cnpj = deal.cnpj ? digitsCnpj(deal.cnpj) : "";
-      if (cnpj.length !== 14) return;
-      const res = await fetch("/api/profile/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cnpj }),
-      });
-      const body = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(body.error ?? "Não registrou a ligação.");
-      const extra = await crmFetch<{ events: CrmEvent[] }>(
-        `/api/crm/deals/${deal.id}/events`,
-      );
-      setCachedDealEvents(deal.id, extra.events);
-      setEvents(extra.events);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não registrou a ligação.");
     }

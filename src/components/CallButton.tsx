@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Phone } from "lucide-react";
 import { CallConfirmDialog } from "@/components/CallConfirmDialog";
@@ -31,6 +32,12 @@ async function recordManualCall(input: {
   if (!res.ok) throw new Error(body.error ?? "Não foi possível registrar");
 }
 
+function usableCnpj(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const digits = value.replace(/\D/g, "");
+  return digits.length === 14 ? digits : null;
+}
+
 export function CallButton({
   telHref,
   connection,
@@ -44,25 +51,34 @@ export function CallButton({
   titleHint,
   companyName,
   phoneLabel,
+  skipRecord = false,
+  iconOnly = false,
 }: {
   telHref: string | null;
   connection: CallConnectionPick | null;
-  cnpj: string;
+  cnpj?: string | null;
   searchId?: string | null;
   to?: string;
-  variant?: "grid" | "ficha" | "cockpit";
+  variant?: "grid" | "ficha" | "cockpit" | "box" | "card";
   label?: string;
   onCalled?: () => void;
   className?: string;
   titleHint?: string;
   companyName?: string | null;
   phoneLabel?: string | null;
+  /** CRM cards record via complete/log themselves. */
+  skipRecord?: boolean;
+  iconOnly?: boolean;
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const dialCnpj = usableCnpj(cnpj);
+  const originate = Boolean(connection && dialCnpj);
 
   function invalidateAfterCall() {
-    qc.invalidateQueries({ queryKey: ["lead", normalizeLeadCnpj(cnpj)] });
+    if (dialCnpj) {
+      qc.invalidateQueries({ queryKey: ["lead", dialCnpj] });
+    }
     qc.invalidateQueries({ queryKey: ["pilot-stats"] });
     qc.invalidateQueries(
       searchId
@@ -74,13 +90,13 @@ export function CallButton({
 
   const callMutation = useMutation({
     mutationFn: async () => {
-      if (connection) {
+      if (originate && connection && dialCnpj) {
         const res = await fetch("/api/integrations/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             connectionId: connection.id,
-            cnpj,
+            cnpj: dialCnpj,
             searchId: searchId ?? null,
             to,
           }),
@@ -91,38 +107,66 @@ export function CallButton({
       }
       if (!telHref) throw new Error("Sem telefone");
       window.location.href = telHref;
-      void recordManualCall({ cnpj, searchId })
+      if (skipRecord || !dialCnpj) return;
+      void recordManualCall({ cnpj: dialCnpj, searchId })
         .then(() => invalidateAfterCall())
         .catch(() => undefined);
     },
     onSuccess: () => {
       setOpen(false);
       onCalled?.();
-      if (connection) invalidateAfterCall();
+      if (originate) invalidateAfterCall();
     },
   });
 
-  const canOriginate = Boolean(connection);
   const canTel = Boolean(telHref);
-  if (!canOriginate && !canTel) return null;
+  if (!originate && !canTel) return null;
 
   const idleLabel = label ?? "Ligar";
-  const catalogItem = connection
-    ? resolveCatalogItem(connection.catalog_id, connection.display_name)
-    : undefined;
+  const hideLabel = iconOnly || variant === "card";
+  const catalogItem =
+    originate && connection && !hideLabel
+      ? resolveCatalogItem(connection.catalog_id, connection.display_name)
+      : undefined;
 
   const base =
-    variant === "cockpit"
-      ? buttonClassName({
-          variant: "primary",
-          size: "md",
-          className: cn("w-full gap-2", className),
-        })
-      : buttonClassName({ variant: "secondary", size: "sm", className });
+    variant === "card"
+      ? cn(
+          "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-podium-muted transition",
+          "hover:bg-white/10 hover:text-podium-yellow",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
+          "disabled:opacity-40",
+          className,
+        )
+      : variant === "box" && iconOnly
+        ? cn(
+            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition",
+            "hover:bg-zinc-100 hover:text-amber-700",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
+            "disabled:opacity-40",
+            className,
+          )
+      : variant === "cockpit"
+        ? buttonClassName({
+            variant: "primary",
+            size: "md",
+            className: cn("w-full gap-2", className),
+          })
+        : variant === "box"
+          ? buttonClassName({
+              variant: "secondary",
+              size: "sm",
+              className: cn(
+                "border-zinc-200 bg-white text-zinc-800 shadow-none",
+                "hover:border-amber-400 hover:bg-amber-50 hover:text-zinc-900 hover:shadow-none",
+                className,
+              ),
+            })
+          : buttonClassName({ variant: "secondary", size: "sm", className });
 
   const title = callMutation.error
     ? callMutation.error.message
-    : titleHint ?? (connection ? callViaLabel(connection) : COPY.callAskTitle);
+    : titleHint ?? (originate && connection ? callViaLabel(connection) : COPY.callAskTitle);
 
   return (
     <>
@@ -144,19 +188,24 @@ export function CallButton({
         ) : (
           <Phone className={variant === "cockpit" ? "h-4 w-4" : "h-3.5 w-3.5"} />
         )}
-        {callMutation.isPending ? "Ligando…" : idleLabel}
+        {hideLabel ? null : callMutation.isPending ? "Ligando…" : idleLabel}
       </button>
-      <CallConfirmDialog
-        open={open}
-        companyName={companyName}
-        phoneLabel={phoneLabel}
-        pending={callMutation.isPending}
-        onClose={() => {
-          if (callMutation.isPending) return;
-          setOpen(false);
-        }}
-        onConfirm={() => callMutation.mutate()}
-      />
+      {open
+        ? createPortal(
+            <CallConfirmDialog
+              open={open}
+              companyName={companyName}
+              phoneLabel={phoneLabel}
+              pending={callMutation.isPending}
+              onClose={() => {
+                if (callMutation.isPending) return;
+                setOpen(false);
+              }}
+              onConfirm={() => callMutation.mutate()}
+            />,
+            document.body,
+          )
+        : null}
     </>
   );
 }

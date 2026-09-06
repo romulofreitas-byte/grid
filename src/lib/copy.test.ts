@@ -166,6 +166,13 @@ describe("COPY crm", () => {
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
+    expect(COPY.boxSprintTitle).toMatch(/trabalho do dia/i);
+    expect(COPY.boxNow).toMatch(/agora/i);
+    expect(COPY.boxQueue).toMatch(/fila/i);
+    expect(COPY.boxOverdue).toMatch(/atrasado/i);
+    expect(COPY.boxOverdueChip).toBe("Atrasado");
+    expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
+    expect(COPY.painelOpenBox).toMatch(/box/i);
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);

@@ -31,7 +31,11 @@ function footerHref(item: ShellFooterItem, from: string): string | undefined {
   return item.billingFrom ? planosHref(from) : item.href;
 }
 
-export function PilotHeaderAvatar() {
+export function PilotHeaderAvatar({
+  tone = "dark",
+}: {
+  tone?: "dark" | "light";
+}) {
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [expandedKey, setExpandedKey] = useState(readShellRailExpanded);
@@ -77,13 +81,27 @@ export function PilotHeaderAvatar() {
   if (!p) return null;
   const name = displayName(p);
 
+  const light = tone === "light";
+
   return (
     <>
       <div className="hidden min-w-0 flex-col items-end justify-center leading-tight md:flex">
-        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+        <span
+          className={cn(
+            "text-[10px] font-medium uppercase tracking-[0.14em]",
+            light ? "text-zinc-400" : "text-podium-muted",
+          )}
+        >
           Piloto
         </span>
-        <span className="max-w-[10rem] truncate text-xs text-podium-white">{name}</span>
+        <span
+          className={cn(
+            "max-w-[10rem] truncate text-xs",
+            light ? "text-zinc-800" : "text-podium-white",
+          )}
+        >
+          {name}
+        </span>
       </div>
       <div ref={rootRef} className="relative min-w-0 shrink-0 md:hidden">
         <button
@@ -93,16 +111,20 @@ export function PilotHeaderAvatar() {
           aria-label="Abrir menu"
           onClick={() => setOpen((v) => !v)}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-podium-gray outline-none transition hover:text-podium-white",
-            "ring-offset-2 ring-offset-podium-navy focus-visible:ring-2 focus-visible:ring-podium-yellow",
-            open && "text-podium-white",
+            "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs outline-none transition",
+            "focus-visible:ring-2 focus-visible:ring-podium-yellow",
+            light
+              ? "text-zinc-500 ring-offset-2 ring-offset-white hover:text-zinc-900"
+              : "text-podium-gray ring-offset-2 ring-offset-podium-navy hover:text-podium-white",
+            open && (light ? "text-zinc-900" : "text-podium-white"),
           )}
         >
           Menu
           <ChevronDown
             className={cn(
-              "h-3.5 w-3.5 shrink-0 text-podium-muted transition-transform",
-              open && "rotate-180 text-podium-white",
+              "h-3.5 w-3.5 shrink-0 transition-transform",
+              light ? "text-zinc-400" : "text-podium-muted",
+              open && cn("rotate-180", light ? "text-zinc-800" : "text-podium-white"),
             )}
           />
         </button>

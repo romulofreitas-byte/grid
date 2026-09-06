@@ -8,6 +8,7 @@ import { useState } from "react";
 
 const ANCHORS = [
   { href: "#como-funciona", label: COPY.landingNavHow },
+  { href: "/tour", label: COPY.landingNavTour },
   { href: "#qualificacao", label: COPY.landingNavQualify },
   { href: "#crm", label: COPY.landingNavCrm },
   { href: "#planos", label: COPY.landingNavPlans },
@@ -24,15 +25,25 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex" aria-label="Seções">
-          {ANCHORS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="text-sm font-semibold text-podium-muted transition hover:text-podium-white"
-            >
-              {item.label}
-            </a>
-          ))}
+          {ANCHORS.map((item) =>
+            item.href.startsWith("/") ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm font-semibold text-podium-muted transition hover:text-podium-white"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-sm font-semibold text-podium-muted transition hover:text-podium-white"
+              >
+                {item.label}
+              </a>
+            ),
+          )}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -81,16 +92,27 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
           aria-label="Seções"
         >
           <div className="mx-auto flex max-w-6xl flex-col gap-1">
-            {ANCHORS.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-2 py-2 text-sm font-semibold text-podium-gray hover:bg-white/[0.04] hover:text-podium-white"
-              >
-                {item.label}
-              </a>
-            ))}
+            {ANCHORS.map((item) =>
+              item.href.startsWith("/") ? (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-2 py-2 text-sm font-semibold text-podium-gray hover:bg-white/[0.04] hover:text-podium-white"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-2 py-2 text-sm font-semibold text-podium-gray hover:bg-white/[0.04] hover:text-podium-white"
+                >
+                  {item.label}
+                </a>
+              ),
+            )}
             {!signedIn ? (
               <Link
                 href="/entrar"

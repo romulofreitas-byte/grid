@@ -34,7 +34,12 @@ describe("pickCallConnection", () => {
     expect(
       pickCallConnection([
         conn({ id: "hook", kind: "webhook" }),
-        conn({ id: "dial", kind: "dialer" }),
+        conn({
+          id: "dial",
+          kind: "dialer",
+          provider: "3cplus",
+          display_name: "3C Plus",
+        }),
       ])?.id,
     ).toBe("dial");
     expect(

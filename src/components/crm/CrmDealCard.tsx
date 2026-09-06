@@ -2,27 +2,56 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { memo } from "react";
+import {
+  memo,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
+import { CallButton } from "@/components/CallButton";
+import { CrmTelemetryPip } from "@/components/crm/CrmTelemetryPip";
 import { COPY } from "@/lib/copy";
 import { activitySignal, formatNextAction } from "@/lib/crm/activity";
+import {
+  dealDialPhones,
+  firstDialablePhone,
+  formatPhoneDisplay,
+  telHrefFromPhone,
+} from "@/lib/crm/dial";
+import { displayCrmName } from "@/lib/crm/display-name";
+import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import type { CrmDealCard as Deal } from "@/lib/crm/types";
+import type { CallConnectionPick } from "@/lib/integrations/call-target";
 import { cn } from "@/lib/utils";
-import { CrmTelemetryPip } from "@/components/crm/CrmTelemetryPip";
 
 const CARD_SHELL =
-  "w-full [contain-intrinsic-size:auto_5.5rem] [content-visibility:auto]";
+  "group/card w-full [contain-intrinsic-size:auto_4.75rem] [content-visibility:auto]";
+
+function stopCardAction(event: MouseEvent | PointerEvent | KeyboardEvent) {
+  event.stopPropagation();
+}
 
 export const CrmDealCardView = memo(function CrmDealCardView({
   deal,
   overlay = false,
   className,
+  callAction,
 }: {
   deal: Deal;
   overlay?: boolean;
   className?: string;
+  callAction?: ReactNode;
 }) {
   const signal = activitySignal(deal.next_activity);
-  const nextLine = formatNextAction(deal.next_activity, COPY.crmNoActivity);
+  const nextLine =
+    signal === "none" ? null : formatNextAction(deal.next_activity, "");
+  const contact = deal.contact_name.trim()
+    ? displayCrmName(deal.contact_name)
+    : "";
+  const company = displayCrmName(deal.company_name);
+  const phone = firstDialablePhone(dealDialPhones(deal));
+
   return (
     <div
       className={cn(
@@ -31,31 +60,57 @@ export const CrmDealCardView = memo(function CrmDealCardView({
         className,
       )}
     >
-      <p className="text-xs font-semibold leading-snug text-podium-white">
-        {deal.company_name}
-      </p>
-      {deal.contact_name ? (
-        <p className="mt-0.5 truncate text-xs text-podium-gray">
-          {deal.contact_name}
-        </p>
-      ) : null}
-      {deal.phones?.[0] ? (
-        <p className="mt-0.5 truncate font-mono text-[11px] text-podium-muted">
-          {deal.phones[0]}
-        </p>
-      ) : null}
-      <div className="mt-2 flex items-center gap-2">
-        <CrmTelemetryPip signal={signal} />
-        <p
-          className={cn(
-            "min-w-0 truncate text-[11px]",
-            signal === "none" ? "text-podium-gray" : "text-podium-muted",
-            signal === "overdue" && "text-podium-alert",
-          )}
-        >
-          {nextLine}
-        </p>
+      <div className="flex items-start gap-1.5">
+        <div className="min-w-0 flex-1">
+          <p
+            className={cn(
+              "truncate leading-snug",
+              contact
+                ? "text-[11px] text-podium-muted"
+                : "text-xs font-semibold text-podium-white",
+            )}
+            title={deal.company_name}
+          >
+            {company}
+          </p>
+          {contact ? (
+            <p
+              className="mt-0.5 truncate text-xs font-semibold text-podium-white"
+              title={deal.contact_name}
+            >
+              {contact}
+            </p>
+          ) : null}
+          {phone ? (
+            <p className="mt-0.5 truncate font-mono text-[11px] text-podium-gray">
+              {formatPhoneDisplay(phone)}
+            </p>
+          ) : null}
+        </div>
+        {callAction ? (
+          <div
+            className="shrink-0 opacity-100 transition-opacity md:opacity-0 md:group-hover/card:opacity-100 md:group-focus-within/card:opacity-100"
+            onClick={stopCardAction}
+            onPointerDown={stopCardAction}
+            onKeyDown={stopCardAction}
+          >
+            {callAction}
+          </div>
+        ) : null}
       </div>
+      {nextLine ? (
+        <div className="mt-2 flex items-center gap-2">
+          <CrmTelemetryPip signal={signal} />
+          <p
+            className={cn(
+              "min-w-0 truncate text-[11px] text-podium-muted",
+              signal === "overdue" && "text-podium-alert",
+            )}
+          >
+            {nextLine}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -63,32 +118,58 @@ export const CrmDealCardView = memo(function CrmDealCardView({
 export const CrmDealCard = memo(function CrmDealCard({
   deal,
   onOpen,
+  onChange,
+  connection = null,
   dnd = true,
 }: {
   deal: Deal;
   onOpen?: (dealId: string) => void;
+  onChange?: (deal: Deal) => void;
+  connection?: CallConnectionPick | null;
   dnd?: boolean;
 }) {
   if (!dnd) {
     return (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onOpen?.(deal.id)}
-        className={CARD_SHELL}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpen?.(deal.id);
+          }
+        }}
+        className={cn(CARD_SHELL, "cursor-pointer")}
       >
-        <DealCardFace deal={deal} />
-      </button>
+        <DealCardFace
+          deal={deal}
+          connection={connection}
+          onChange={onChange}
+        />
+      </div>
     );
   }
-  return <CrmSortableDealCard deal={deal} onOpen={onOpen} />;
+  return (
+    <CrmSortableDealCard
+      deal={deal}
+      onOpen={onOpen}
+      onChange={onChange}
+      connection={connection}
+    />
+  );
 });
 
 function CrmSortableDealCard({
   deal,
   onOpen,
+  onChange,
+  connection,
 }: {
   deal: Deal;
   onOpen?: (dealId: string) => void;
+  onChange?: (deal: Deal) => void;
+  connection: CallConnectionPick | null;
 }) {
   const sortable = useSortable({
     id: deal.id,
@@ -103,25 +184,56 @@ function CrmSortableDealCard({
   };
 
   return (
-    <button
-      type="button"
+    <div
       ref={sortable.setNodeRef}
       style={style}
       {...sortable.attributes}
       {...sortable.listeners}
       onClick={() => onOpen?.(deal.id)}
-      className={CARD_SHELL}
+      className={cn(CARD_SHELL, "cursor-grab active:cursor-grabbing")}
     >
-      <DealCardFace deal={deal} />
-    </button>
+      <DealCardFace deal={deal} connection={connection} onChange={onChange} />
+    </div>
   );
 }
 
-function DealCardFace({ deal }: { deal: Deal }) {
+function DealCardFace({
+  deal,
+  connection,
+  onChange,
+}: {
+  deal: Deal;
+  connection: CallConnectionPick | null;
+  onChange?: (deal: Deal) => void;
+}) {
+  const phone = firstDialablePhone(dealDialPhones(deal));
+  const telHref = phone ? telHrefFromPhone(phone) : null;
+
   return (
     <CrmDealCardView
       deal={deal}
       className="hover:border-white/15 hover:bg-white/[0.06]"
+      callAction={
+        phone && telHref ? (
+          <CallButton
+            variant="card"
+            skipRecord
+            telHref={telHref}
+            connection={connection}
+            cnpj={deal.cnpj}
+            searchId={deal.meta.searchId}
+            to={phone}
+            titleHint={COPY.crmCallNow}
+            companyName={displayCrmName(deal.company_name)}
+            phoneLabel={formatPhoneDisplay(phone)}
+            onCalled={() => {
+              void recordCrmDialAfterCall(deal)
+                .then((result) => onChange?.(result.deal))
+                .catch(() => undefined);
+            }}
+          />
+        ) : null
+      }
     />
   );
 }

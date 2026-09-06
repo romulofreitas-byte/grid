@@ -1,4 +1,4 @@
-import { isLiveVoipId } from "./catalog";
+import { isLiveDialerId, isLiveVoipId } from "./catalog";
 import type {
   IntegrationKind,
   IntegrationProvider,
@@ -103,6 +103,13 @@ export function inboundWebhookPath(
         ? provider
         : null;
   if (voipId) return `/api/webhooks/voip/${voipId}/${connectionId}`;
+  const dialerId =
+    catalogId && isLiveDialerId(catalogId)
+      ? catalogId
+      : provider && isLiveDialerId(provider)
+        ? provider
+        : null;
+  if (dialerId) return `/api/webhooks/dialer/${dialerId}/${connectionId}`;
   return `/api/webhooks/inbound/${connectionId}`;
 }
 

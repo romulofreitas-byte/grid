@@ -5,6 +5,7 @@ import { getRepo } from "@/lib/data";
 import { decryptJson, encryptJson, newHmacSecret } from "@/lib/integrations/crypto";
 import { toPublicConnection } from "@/lib/integrations/records";
 import { isAllowedWebhookUrl } from "@/lib/integrations/webhook-url";
+import { isNativeDialerProvider } from "@/lib/integrations/dialer-setup";
 import { isNativeVoipProvider } from "@/lib/integrations/voip-setup";
 
 const patchSchema = z.object({
@@ -42,7 +43,8 @@ export async function PATCH(
   }
 
   const creds = decryptJson(current.credentials_ciphertext, current.credentials_nonce);
-  const native = isNativeVoipProvider(current.provider);
+  const native =
+    isNativeVoipProvider(current.provider) || isNativeDialerProvider(current.provider);
   const nextCreds = native
     ? { ...creds, ...(parsed.data.credentials ?? {}) }
     : {

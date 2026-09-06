@@ -2,7 +2,14 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown, PanelLeft, PanelLeftClose } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { COPY } from "@/lib/copy";
@@ -28,6 +35,14 @@ import {
   writeShellRailOpen,
 } from "@/lib/shell-rail";
 import { cn } from "@/lib/utils";
+
+type ShellTone = "dark" | "light";
+
+const ShellToneContext = createContext<ShellTone>("dark");
+
+function useShellTone() {
+  return useContext(ShellToneContext);
+}
 
 function stopToggle(event: MouseEvent) {
   event.stopPropagation();
@@ -55,13 +70,15 @@ function ActiveTick() {
   );
 }
 
-function itemRowClass(open: boolean, active: boolean) {
+function itemRowClass(open: boolean, active: boolean, tone: ShellTone) {
   return cn(
     "relative flex items-center gap-2.5 rounded-md py-2",
     open ? "px-2.5" : "justify-center px-2",
     active
       ? "text-podium-yellow"
-      : "text-podium-gray group-hover:text-podium-white",
+      : tone === "light"
+        ? "text-zinc-500 group-hover:text-zinc-900"
+        : "text-podium-gray group-hover:text-podium-white",
   );
 }
 
@@ -108,10 +125,11 @@ function WorkLink({
 }) {
   const pathname = usePathname();
   const { pending } = useLinkStatus();
+  const tone = useShellTone();
   const active = isShellNavActive(item.href, pathname) || pending;
 
   return (
-    <span className={itemRowClass(open, active)}>
+    <span className={itemRowClass(open, active, tone)}>
       <WorkFace item={item} open={open} active={active} pending={pending} />
     </span>
   );
@@ -129,6 +147,7 @@ function FooterLinkFace({
   expanded?: boolean;
 }) {
   const Icon = item.icon;
+  const tone = useShellTone();
   return (
     <>
       {active ? <ActiveTick /> : null}
@@ -137,7 +156,8 @@ function FooterLinkFace({
       {open && item.children?.length ? (
         <ChevronDown
           className={cn(
-            "ml-auto h-3 w-3 shrink-0 text-podium-muted transition-transform",
+            "ml-auto h-3 w-3 shrink-0 transition-transform",
+            tone === "light" ? "text-zinc-400" : "text-podium-muted",
             expanded && "rotate-180",
           )}
         />
@@ -157,12 +177,15 @@ function FooterChild({
   searchKind: string | null;
   itemKind: "link" | "static";
 }) {
+  const tone = useShellTone();
   const childActive = isShellChildActive(child, pathname, searchKind);
   const childClass = cn(
     "relative block rounded-md px-2 py-1.5 text-[11px]",
     childActive
       ? "text-podium-yellow"
-      : "text-podium-muted hover:text-podium-white",
+      : tone === "light"
+        ? "text-zinc-500 hover:text-zinc-900"
+        : "text-podium-muted hover:text-podium-white",
   );
   const face = (
     <>
@@ -190,12 +213,14 @@ export function ShellRail({
   itemKind = "link",
   activeId = null,
   homeHref = "/painel",
+  tone = "dark",
 }: {
   open: boolean;
   onToggle?: () => void;
   itemKind?: "link" | "static";
   activeId?: string | null;
   homeHref?: string;
+  tone?: ShellTone;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -229,11 +254,23 @@ export function ShellRail({
     await logoutPilot();
   }
 
+  const light = tone === "light";
+  const railBorder = light ? "border-zinc-200" : "border-white/10";
+  const sectionLabel = cn(
+    "text-[10px] font-semibold uppercase tracking-[0.16em]",
+    light ? "text-zinc-400" : "text-podium-muted",
+  );
+
   return (
+    <ShellToneContext.Provider value={tone}>
     <aside
       className={cn(
-        "hidden h-full min-h-0 shrink-0 flex-col border-r border-white/10 bg-podium-navy/90 backdrop-blur-xl md:flex",
-        motion && "transition-[width] duration-200 ease-out",
+        "hidden h-full min-h-0 shrink-0 flex-col border-r md:flex",
+        light
+          ? "border-zinc-200 bg-white"
+          : "border-white/10 bg-podium-navy/90 backdrop-blur-xl",
+        motion &&
+          "transition-[width] duration-300 ease-out motion-reduce:transition-none",
         shellRailWidthClass(open),
       )}
       onClick={onToggle}
@@ -247,7 +284,10 @@ export function ShellRail({
         >
           <BrandLogo
             variant={open ? "solo" : "mark"}
-            className={open ? "h-7 w-auto text-[1.75rem]" : "h-8 w-auto text-[2rem]"}
+            className={cn(
+              open ? "h-7 w-auto text-[1.75rem]" : "h-8 w-auto text-[2rem]",
+              light && "text-zinc-900",
+            )}
             priority={itemKind === "link"}
           />
         </Link>
@@ -258,7 +298,7 @@ export function ShellRail({
         aria-label="Principal"
       >
         {open ? (
-          <p className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+          <p className={cn("px-2.5 pb-1 pt-2", sectionLabel)}>
             Trabalho
           </p>
         ) : (
@@ -275,7 +315,7 @@ export function ShellRail({
                 key={item.href}
                 data-tour={item.tour}
                 title={open ? undefined : item.label}
-                className={cn(className, itemRowClass(open, active), "text-[11px]")}
+                className={cn(className, itemRowClass(open, active, tone), "text-[11px]")}
                 onClick={stopToggle}
               >
                 <WorkFace item={item} open={open} active={active} pending={false} />
@@ -300,7 +340,7 @@ export function ShellRail({
         <div className="mt-auto flex flex-col gap-0.5 pt-3">
           <div className="flex h-5 items-end">
             {open ? (
-              <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+              <p className={cn("px-2.5", sectionLabel)}>
                 Sistema
               </p>
             ) : null}
@@ -319,7 +359,7 @@ export function ShellRail({
             const expanded = expandedKey === key;
             const rowClass = "group relative rounded-md";
             const face = (
-              <span className={itemRowClass(open, active)}>
+              <span className={itemRowClass(open, active, tone)}>
                 <FooterLinkFace
                   item={item}
                   open={open}
@@ -362,7 +402,7 @@ export function ShellRail({
                     {face}
                   </button>
                   {open && expanded && item.children ? (
-                    <div className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l border-white/10 pl-2">
+                    <div className={cn("mt-0.5 ml-4 flex flex-col gap-0.5 border-l pl-2", railBorder)}>
                       {item.children.map((child) => (
                         <FooterChild
                           key={child.href}
@@ -431,7 +471,7 @@ export function ShellRail({
                   </Link>
                 )}
                 {open && expanded && item.children ? (
-                  <div className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l border-white/10 pl-2">
+                  <div className={cn("mt-0.5 ml-4 flex flex-col gap-0.5 border-l pl-2", railBorder)}>
                     {item.children.map((child) => (
                       <FooterChild
                         key={child.href}
@@ -450,7 +490,7 @@ export function ShellRail({
       </nav>
 
       {onToggle ? (
-        <div className="shrink-0 border-t border-white/10 p-2">
+        <div className={cn("shrink-0 border-t p-2", railBorder)}>
           <button
             type="button"
             onClick={(event) => {
@@ -460,7 +500,10 @@ export function ShellRail({
             aria-expanded={open}
             aria-label={open ? "Recolher menu" : "Expandir menu"}
             className={cn(
-              "flex w-full items-center rounded-md py-2 text-podium-muted transition hover:bg-white/5 hover:text-podium-white",
+              "flex w-full items-center rounded-md py-2",
+              light
+                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                : "text-podium-muted hover:bg-white/5 hover:text-podium-white",
               open ? "gap-2.5 px-2.5" : "justify-center",
             )}
           >
@@ -474,5 +517,6 @@ export function ShellRail({
         </div>
       ) : null}
     </aside>
+    </ShellToneContext.Provider>
   );
 }

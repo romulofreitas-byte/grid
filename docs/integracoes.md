@@ -136,11 +136,12 @@ Interface em [`IntegrationAdapter`](../src/lib/integrations/adapter.ts): `pushLi
 
 **Discadores** (`push_list` → mailing):
 
-- 3C Plus — importação de mailing (E.164, nome, extras)
-- Mega Dialer — API ou CSV via API, conforme a conta
+- 3C Plus — adapter nativo em [`3cplus-adapter.ts`](../src/lib/integrations/3cplus-adapter.ts): `POST /campaigns/{id}/lists` + `mailing.json` + `updateWeight`; click-to-call `POST /agent/manual_call/dial` (token de **agente**); tabulação HTTP em `/api/webhooks/dialer/3cplus/{connectionId}` (sem Socket.io). Kit e pedido de aval: [`docs/parceiros/`](parceiros/kit.md).
+- Mega Dialer — API ou CSV via API, conforme a conta — catálogo only
 
 **VOIPs** (`originate_call`):
 
+- API4COM — live: `POST /dialer`, gateway `grid-podium`, webhook `1.8` (`channel-answer` / `channel-hangup`)
 - Twilio Voice — REST `Calls.create`
 - Zenvia Voice — REST equivalente
 - Asterisk/FreePBX — connector on-prem (ARI Originate)
@@ -171,17 +172,20 @@ O connector sai da rede do cliente; o GRID nunca entra.
 ## Ordem de entrega
 
 1. Contrato + tabelas + webhook genérico outbound/inbound + tela Conexões mínima — **feito**
-2. Um CRM (Pipedrive ou HubSpot) — OAuth, field map, idempotência
-3. Um discador (3C Plus) — `push_list`
-4. Twilio — click-to-call
+2. VoIP live (API4COM, Zenvia, Twilio, Telnyx) — **feito** (hub reaberto: `CONNECTIONS_STANDBY = false`)
+3. Um discador (3C Plus) — `push_list` + `originate_call` + inbound HTTP — **feito no código**; homologar no tenant sandbox depois do Integra Aí
+4. Um CRM (Pipedrive ou HubSpot) — OAuth, field map, idempotência
 5. Demais adapters no mesmo molde
 
 Não abrir 10 SDKs em paralelo. O webhook genérico já atende Zapier/Make/n8n e o connector on-prem.
+
+Pedido de aval: [`docs/parceiros/kit.md`](parceiros/kit.md), [`api4com-pedido.md`](parceiros/api4com-pedido.md), [`3cplus-contato.md`](parceiros/3cplus-contato.md).
 
 ## Fora de escopo
 
 - Tarifa extra de integração (push usa o crédito de exportação; ligar/tabulação não cobram)
 - Sync contínuo GRID ↔ CRM
 - Softphone WebRTC no browser
+- Socket.io persistente da 3C Plus (tabulação só via HTTP inbound)
 - CPF, telefone OSM, Places API
-- SDKs nativos (Pipedrive, HubSpot, Twilio, 3C Plus, …)
+- SDKs nativos restantes (Pipedrive, HubSpot, Mega Dialer, …)

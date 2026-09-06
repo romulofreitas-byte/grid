@@ -6,6 +6,7 @@ import { memo, useState } from "react";
 import { CrmDealCard } from "@/components/crm/CrmDealCard";
 import { sectorLabel } from "@/lib/crm/client";
 import type { CrmDealCard as Deal, CrmStage } from "@/lib/crm/types";
+import type { CallConnectionPick } from "@/lib/integrations/call-target";
 import { cn } from "@/lib/utils";
 
 export const CrmLane = memo(function CrmLane({
@@ -13,14 +14,18 @@ export const CrmLane = memo(function CrmLane({
   index,
   deals,
   onOpenDeal,
+  onDealChange,
   onRename,
+  connection = null,
   dnd = true,
 }: {
   stage: CrmStage;
   index: number;
   deals: Deal[];
   onOpenDeal: (dealId: string) => void;
+  onDealChange?: (deal: Deal) => void;
   onRename: (stageId: string, nome: string) => void;
+  connection?: CallConnectionPick | null;
   dnd?: boolean;
 }) {
   if (dnd) {
@@ -30,7 +35,9 @@ export const CrmLane = memo(function CrmLane({
         index={index}
         deals={deals}
         onOpenDeal={onOpenDeal}
+        onDealChange={onDealChange}
         onRename={onRename}
+        connection={connection}
       />
     );
   }
@@ -40,7 +47,9 @@ export const CrmLane = memo(function CrmLane({
       index={index}
       deals={deals}
       onOpenDeal={onOpenDeal}
+      onDealChange={onDealChange}
       onRename={onRename}
+      connection={connection}
       dnd={false}
     />
   );
@@ -51,13 +60,17 @@ function DroppableCrmLane({
   index,
   deals,
   onOpenDeal,
+  onDealChange,
   onRename,
+  connection,
 }: {
   stage: CrmStage;
   index: number;
   deals: Deal[];
   onOpenDeal: (dealId: string) => void;
+  onDealChange?: (deal: Deal) => void;
   onRename: (stageId: string, nome: string) => void;
+  connection: CallConnectionPick | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane:${stage.id}`,
@@ -69,7 +82,9 @@ function DroppableCrmLane({
       index={index}
       deals={deals}
       onOpenDeal={onOpenDeal}
+      onDealChange={onDealChange}
       onRename={onRename}
+      connection={connection}
       dnd
       setNodeRef={setNodeRef}
       isOver={isOver}
@@ -82,7 +97,9 @@ function CrmLaneShell({
   index,
   deals,
   onOpenDeal,
+  onDealChange,
   onRename,
+  connection,
   dnd,
   setNodeRef,
   isOver = false,
@@ -91,7 +108,9 @@ function CrmLaneShell({
   index: number;
   deals: Deal[];
   onOpenDeal: (dealId: string) => void;
+  onDealChange?: (deal: Deal) => void;
   onRename: (stageId: string, nome: string) => void;
+  connection: CallConnectionPick | null;
   dnd: boolean;
   setNodeRef?: (node: HTMLElement | null) => void;
   isOver?: boolean;
@@ -107,7 +126,14 @@ function CrmLaneShell({
   }
 
   const cards = deals.map((deal) => (
-    <CrmDealCard key={deal.id} deal={deal} onOpen={onOpenDeal} dnd={dnd} />
+    <CrmDealCard
+      key={deal.id}
+      deal={deal}
+      onOpen={onOpenDeal}
+      onChange={onDealChange}
+      connection={connection}
+      dnd={dnd}
+    />
   ));
 
   return (

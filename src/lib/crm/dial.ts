@@ -48,3 +48,21 @@ export function firstDialablePhone(phones: string[]): string | null {
   }
   return null;
 }
+
+export function dealDialPhones(deal: {
+  phones?: string[] | null;
+  people?: { phone: string }[] | null;
+}): string[] {
+  return uniquePhones([
+    ...(deal.phones ?? []),
+    ...(deal.people ?? []).flatMap((person) =>
+      person.phone.trim() ? [person.phone] : [],
+    ),
+  ]);
+}
+
+export function formatPhoneDisplay(raw: string): string {
+  const parsed = normalizePhoneBR(raw);
+  if (!parsed || parsed.display.length > 24) return raw;
+  return parsed.display;
+}

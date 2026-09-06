@@ -34,7 +34,7 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
       },
     ],
     inboundHint:
-      "O GRID registra o webhook sozinho quando a URL for pública. Se estiver em localhost, copie a URL e cole em Integrações → Webhook.",
+      "O GRID registra o webhook sozinho (versão 1.8) quando a URL for HTTPS pública. Homologue Ligar + hangup nesta URL — localhost não recebe o evento da API4COM.",
   },
   zenvia: {
     provider: "zenvia",

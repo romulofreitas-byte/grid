@@ -31,7 +31,9 @@ export function ChartCard({
       highlight={active}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-bold">{title}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">
+          {title}
+        </p>
         {badge ? (
           <span className="shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-podium-muted">
             {badge}

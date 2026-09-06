@@ -1,4 +1,5 @@
 import type { IntegrationAdapter } from "./adapter";
+import { create3cplusAdapter } from "./3cplus-adapter";
 import { createApi4comAdapter } from "./api4com-adapter";
 import type { IntegrationProvider } from "./schema";
 import { createTelnyxAdapter } from "./telnyx-adapter";
@@ -18,6 +19,8 @@ export function adapterFor(provider: IntegrationProvider): IntegrationAdapter {
       return createTwilioAdapter();
     case "telnyx":
       return createTelnyxAdapter();
+    case "3cplus":
+      return create3cplusAdapter();
     default:
       throw new Error(`adapter not implemented: ${provider}`);
   }

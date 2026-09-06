@@ -12,6 +12,7 @@ import { probeApi4com, registerApi4comWebhook } from "@/lib/integrations/api4com
 import { probeZenvia } from "@/lib/integrations/zenvia-adapter";
 import { probeTwilio } from "@/lib/integrations/twilio-adapter";
 import { probeTelnyx } from "@/lib/integrations/telnyx-adapter";
+import { normalize3cplusHost, probe3cplus } from "@/lib/integrations/3cplus-adapter";
 import { toDialE164 } from "@/lib/integrations/voip-dial";
 
 const createSchema = z.object({
@@ -23,6 +24,8 @@ const createSchema = z.object({
   caller_id: z.string().max(32).optional(),
   from_number: z.string().max(20).optional(),
   app_id: z.string().max(80).optional(),
+  domain: z.string().max(120).optional(),
+  campaign_id: z.string().max(40).optional(),
   credentials: z.record(z.string(), z.string()).optional(),
 });
 
@@ -168,6 +171,76 @@ export async function POST(req: Request) {
           })) ?? row;
       }
     }
+    return NextResponse.json({
+      connection: toPublicConnection(row),
+    });
+  }
+
+  if (catalogId === "3cplus") {
+    const host = normalize3cplusHost(parsed.data.domain ?? "");
+    if (!host) {
+      return NextResponse.json(
+        { error: "Informe o domínio da conta (ex.: empresa.3c.plus)" },
+        { status: 400 },
+      );
+    }
+    const creds = parsed.data.credentials ?? {};
+    const token = (creds.api_token ?? creds.token ?? "").trim();
+    let probed: Awaited<ReturnType<typeof probe3cplus>>;
+    try {
+      probed = await probe3cplus(host, token);
+    } catch {
+      return NextResponse.json(
+        { error: "Não foi possível falar com o 3C Plus. Tente de novo." },
+        { status: 400 },
+      );
+    }
+    if (!probed.ok) {
+      return NextResponse.json({ error: probed.error }, { status: 400 });
+    }
+    const campaignId = parsed.data.campaign_id?.trim() ?? "";
+    if (!campaignId) {
+      return NextResponse.json(
+        {
+          error: "Escolha a campanha",
+          campaigns: probed.campaigns,
+        },
+        { status: 400 },
+      );
+    }
+    const known = probed.campaigns.find((c) => c.id === campaignId);
+    if (probed.campaigns.length > 0 && !known) {
+      return NextResponse.json(
+        { error: "Campanha não encontrada nesta conta", campaigns: probed.campaigns },
+        { status: 400 },
+      );
+    }
+    const sealed = encryptJson({
+      api_token: token,
+      ...(creds.agent_token?.trim() ? { agent_token: creds.agent_token.trim() } : {}),
+    });
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const row = await getRepo().createIntegrationConnection({
+      id,
+      user_id: gated.userId,
+      provider: "3cplus",
+      kind: "dialer",
+      display_name: parsed.data.display_name?.trim() || catalogItem?.name || "3C Plus",
+      status: "active",
+      credentials_ciphertext: sealed.ciphertext,
+      credentials_nonce: sealed.nonce,
+      oauth_expires_at: null,
+      caller_id: parsed.data.caller_id?.trim() || null,
+      config: {
+        catalog_id: catalogId,
+        domain: host,
+        campaign_id: campaignId,
+        campaign_name: known?.name,
+      },
+      created_at: now,
+      updated_at: now,
+    });
     return NextResponse.json({
       connection: toPublicConnection(row),
     });

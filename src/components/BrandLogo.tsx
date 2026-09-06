@@ -16,23 +16,23 @@ function GridMark({ className }: { className?: string }) {
       />
       <polygon
         points="54.00,129.54 80.00,129.54 85.40,99.54 59.40,99.54"
-        fill="#FFFFFF"
+        fill="currentColor"
       />
       <polygon
         points="40.84,91.54 66.84,91.54 72.24,61.54 46.24,61.54"
-        fill="#FFFFFF"
+        fill="currentColor"
       />
       <polygon
         points="80.84,91.54 106.84,91.54 112.24,61.54 86.24,61.54"
-        fill="#FFFFFF"
+        fill="currentColor"
       />
       <polygon
         points="67.68,53.54 93.68,53.54 99.08,23.54 73.08,23.54"
-        fill="#FFFFFF"
+        fill="currentColor"
       />
       <polygon
         points="107.68,53.54 133.68,53.54 139.08,23.54 113.08,23.54"
-        fill="#FFFFFF"
+        fill="currentColor"
       />
     </svg>
   );
@@ -55,7 +55,7 @@ export function BrandLogo({
     <span
       role="img"
       aria-label={label}
-      className={cn("inline-flex items-center", className)}
+      className={cn("inline-flex items-center text-podium-white", className)}
     >
       <GridMark className="h-full w-auto shrink-0" />
       {variant !== "mark" ? (
@@ -67,7 +67,7 @@ export function BrandLogo({
         >
           <span
             className={cn(
-              "font-[family-name:var(--font-sora)] font-extrabold leading-none tracking-tight text-podium-white whitespace-nowrap",
+              "font-[family-name:var(--font-sora)] font-extrabold leading-none tracking-tight text-current whitespace-nowrap",
               endorsed ? "text-[0.52em]" : "text-[0.68em]",
             )}
           >

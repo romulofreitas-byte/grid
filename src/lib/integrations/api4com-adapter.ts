@@ -13,6 +13,8 @@ import {
 
 const BASE = "https://api.api4com.com/api/v1";
 export const API4COM_GATEWAY = "grid-podium";
+/** Public docs currently accept only `1.8` (`channel-answer` / `channel-hangup`). */
+export const API4COM_WEBHOOK_VERSION = "1.8";
 
 function authHeaders(token: string): HeadersInit {
   return {
@@ -46,7 +48,7 @@ export async function registerApi4comWebhook(
       webhookConstraint: { gateway: API4COM_GATEWAY },
       metadata: {
         webhookUrl,
-        webhookVersion: "v1.4",
+        webhookVersion: API4COM_WEBHOOK_VERSION,
         webhookTypes: ["channel-answer", "channel-hangup"],
       },
     }),

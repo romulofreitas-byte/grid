@@ -86,6 +86,8 @@ describe("createApi4comAdapter", () => {
     ).resolves.toBe(true);
     expect(body).toContain("webhookUrl");
     expect(body).toContain("channel-hangup");
+    expect(body).toContain("\"webhookVersion\":\"1.8\"");
+    expect(body).toContain("\"gateway\":\"grid-podium\"");
   });
 });
 

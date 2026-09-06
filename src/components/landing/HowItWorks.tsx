@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { COPY } from "@/lib/copy";
 import { motion, useReducedMotion } from "framer-motion";
 
@@ -41,6 +42,12 @@ export function HowItWorks() {
         <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
           {COPY.landingHowTitle}
         </h2>
+        <Link
+          href="/tour"
+          className="mt-5 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
+        >
+          {COPY.landingHowTourCta}
+        </Link>
       </motion.div>
 
       <ol className="relative mt-12 space-y-0 md:mt-16">

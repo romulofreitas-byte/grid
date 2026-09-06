@@ -79,6 +79,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: ["Lúcia", "Patrícia"],
       notes: "Secretária pediu retorno depois das 15h.",
       stageIndex: 1,
+      phones: ["(34) 99999-1010"],
       activity: { kind: "ligar", dueOffsetMs: -days(1) },
     },
     {
@@ -87,6 +88,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: ["Joana"],
       notes: "Pediu para ligar hoje ainda.",
       stageIndex: 1,
+      phones: ["(34) 99999-2020"],
       activity: { kind: "ligar", dueOffsetMs: hours(2) },
     },
     {
@@ -95,6 +97,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: [],
       notes: "Não atendeu. Tentar de novo amanhã.",
       stageIndex: 1,
+      phones: ["(34) 99999-3030"],
       activity: { kind: "ligar", dueOffsetMs: days(2) },
     },
     {
@@ -111,6 +114,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: ["Sônia"],
       notes: "Quer ver a proposta depois da reunião interna.",
       stageIndex: 3,
+      phones: ["(34) 99999-4040"],
       activity: { kind: "ligar", dueOffsetMs: -hours(30) },
     },
     {
@@ -155,6 +159,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: [],
       notes: "Retornar hoje no comercial.",
       stageIndex: 1,
+      phones: ["(34) 99999-5050"],
       activity: { kind: "ligar", dueOffsetMs: hours(1) },
     },
     {
@@ -163,6 +168,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
       secretaries: ["Denise"],
       notes: "Ligação caiu. Reagendar.",
       stageIndex: 1,
+      phones: ["(34) 99999-6060"],
       activity: { kind: "whatsapp", dueOffsetMs: -days(2) },
     },
   ];

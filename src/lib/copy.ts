@@ -248,6 +248,34 @@ export const COPY = {
   boxSemLista:
     "Salve uma lista para começar o dia. Depois você qualifica e liga — salvar a lista não substitui a\u00a0ligação.",
   boxPistaFechada: "Sem lista salva",
+  boxSprintTitle: "Trabalho do dia",
+  boxNow: "Agora",
+  boxQueue: "Fila",
+  boxOverdue: "Atrasados",
+  boxOverdueChip: "Atrasado",
+  boxFollowup: "Follow-ups",
+  boxCold: "Prospecção fria",
+  boxComplete: "Concluir",
+  boxSnooze: "Adiar",
+  boxOpenCrm: "Abrir no CRM",
+  boxNoPhone: "Sem telefone",
+  boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
+  boxSprintEmptyNovo: "Agendar ligações a partir da lista",
+  boxSprintEmptyCrm: "Agendar ligar ou WhatsApp no CRM",
+  boxSprintLocked:
+    "O Box executa o que está agendado no CRM. Libere o plano para ver a fila.",
+  boxNextKind: "Próxima ação",
+  boxSaveNext: "Salvar próxima",
+  boxRhythmCalls: "Ligações",
+  boxRhythmCallsHint: "Do dia contra a meta. A linha é o hábito de 14 dias.",
+  boxRhythmDone: "Feitas hoje",
+  boxRhythmDoneHint: "Ligar e WhatsApp registrados no CRM hoje.",
+  boxRhythmAdvance: "Avanço",
+  boxRhythmAdvanceHint: "Reuniões registradas no CRM hoje.",
+  boxTabEmptyOverdue: "Nada atrasado nesta fila.",
+  boxTabEmptyFollowup: "Nenhum follow-up de ligar ou WhatsApp.",
+  boxTabEmptyCold: "Nenhuma prospecção fria agendada.",
+  painelOpenBox: "Ir ao Box",
   boxSequenciaHintZero:
     "Nenhuma sequência ainda. Ligue hoje para começar.",
   boxSequenciaHintOne:
@@ -455,7 +483,7 @@ export const COPY = {
     "As ligações do dia contra a meta. Faltando ou batida, você vê o que ainda tem pela frente.",
   tourStepPainelCallTitle: "Ligar agora",
   tourStepPainelCallBody:
-    "Abre a próxima ficha da lista. É o atalho do dia para o telefone.",
+    "Abre o Box: a lista de ligar e WhatsApp, na ordem de urgência.",
   tourStepPainelNewListTitle: "Nova lista",
   tourStepPainelNewListBody:
     "É aqui que você escolhe o nicho e a cidade. Dali sai a lista na ordem de quem ligar.",

@@ -639,7 +639,9 @@ export default function GridPage() {
   const exportCostHint = `${EXPORT_CREDIT_COST} créditos por empresa`;
   const extraBatchSizes = QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal);
   const destinations = (connectionsQuery.data?.connections ?? []).filter(
-    (c) => c.status === "active" && c.provider === "webhook",
+    (c) =>
+      c.status === "active" &&
+      (c.provider === "webhook" || c.provider === "3cplus"),
   );
   const lastPush = (pushJobsQuery.data?.jobs ?? [])[0];
   function renderSendControls() {
@@ -647,7 +649,7 @@ export default function GridPage() {
       if (CONNECTIONS_STANDBY) return null;
       return (
         <Link
-          href="/conexoes"
+          href="/integracoes/discador"
           className={buttonClassName({
             variant: "secondary",
             size: "sm",

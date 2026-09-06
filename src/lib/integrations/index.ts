@@ -49,7 +49,9 @@ export {
   catalogKindLabel,
   catalogAvailability,
   isLiveVoipId,
+  isLiveDialerId,
   LIVE_VOIP_IDS,
+  LIVE_DIALER_IDS,
   type IntegrationCatalogItem,
 } from "./catalog";
 export { pickCallConnection, callViaLabel, testCallDestination } from "./call-target";
