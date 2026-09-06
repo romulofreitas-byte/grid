@@ -23,12 +23,7 @@ export function PilotGlassChip({
   return (
     <span
       title={omitTitle ? undefined : fullName}
-      className={cn(
-        "inline-flex max-w-full items-center gap-3 rounded-xl border py-2 pl-2",
-        chevron ? "pr-2" : "pr-3",
-        "border-white/[0.10] bg-podium-panel",
-        className,
-      )}
+      className={cn("inline-flex max-w-full items-center gap-3", className)}
     >
       <PilotAvatar
         profile={profile}
