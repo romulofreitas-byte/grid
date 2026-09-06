@@ -410,30 +410,29 @@ describe("buildAuditSignals", () => {
   });
 
   it("shows a city Maps candidate as to-confirm, not missing", () => {
-    const gmb = byId(
-      enrichment({
-        gmb: {
-          name: "Pizza Hut",
-          url: "https://www.google.com/maps?cid=222",
-          matched: false,
-          status: "candidate",
-          cid: "222",
-          match_by: ["title", "city"],
-          candidates_in_city: 2,
-          card: {
-            filled: ["phone", "website", "reviews"],
-            score: 3,
-            rating: 4.4,
-            ratingCount: 210,
-            category: "Pizza restaurant",
-          },
+    const row = enrichment({
+      gmb: {
+        name: "Pizza Hut",
+        url: "https://www.google.com/maps?cid=222",
+        matched: false,
+        status: "candidate",
+        cid: "222",
+        match_by: ["title", "city"],
+        candidates_in_city: 2,
+        card: {
+          filled: ["phone", "website", "reviews"],
+          score: 3,
+          rating: 4.4,
+          ratingCount: 210,
+          category: "Pizza restaurant",
         },
-        fonte: {
-          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
-        },
-      }),
-      "gmb",
-    );
+      },
+      fonte: {
+        gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+      },
+    });
+    const gmb = byId(row, "gmb");
+    const maps = byId(row, "maps");
     expect(gmb.found).toBe(true);
     expect(gmb.unverified).toBe(true);
     expect(isAuditLive(gmb)).toBe(false);
@@ -442,22 +441,51 @@ describe("buildAuditSignals", () => {
     expect(gmb.href).toBe("https://www.google.com/maps?cid=222");
     expect(gmb.hint).toMatch(/não cruzamos/i);
     expect(gmb.value).toBe("Pizza Hut");
+    expect(maps.found).toBe(true);
+    expect(maps.unverified).toBe(true);
+    expect(isAuditGap(maps)).toBe(false);
+    expect(maps.hint).toMatch(/confirme se é este/i);
+    expect(maps.hint).toMatch(/2 pins/i);
   });
 
-  it("treats a Maps miss as a gap on both Google tiles", () => {
+  it("asks to confirm a Maps miss instead of marking the pin as missing", () => {
+    const search =
+      "https://www.google.com/maps/search/?api=1&query=%22Armazem%22";
     const row = enrichment({
-      gmb: { name: "", url: "", matched: false, status: "none" },
+      gmb: { name: "", url: search, matched: false, status: "none" },
       fonte: {
         gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
       },
     });
     const maps = byId(row, "maps");
     const gmb = byId(row, "gmb");
-    expect(isAuditGap(maps)).toBe(true);
-    expect(maps.value).toBe("NÃO ENCONTRADO");
+    expect(isAuditGap(maps)).toBe(false);
+    expect(maps.found).toBe(false);
+    expect(maps.unverified).toBe(true);
+    expect(maps.value).toBe("CONFIRMAR PIN");
+    expect(maps.href).toBe(search);
+    expect(maps.openLabel).toBe("Abrir busca no Maps");
+    expect(maps.hint).toMatch(/confirme/i);
     expect(isAuditGap(gmb)).toBe(true);
     expect(gmb.value).toBe("NÃO ENCONTRADO");
     expect(gmb.openLabel).toBeNull();
+  });
+
+  it("uses a Receita Maps search when the stored miss has no URL yet", () => {
+    const search =
+      "https://www.google.com/maps/search/?api=1&query=%22Armazem%20da%20Terra%22";
+    const maps = buildAuditSignals(
+      enrichment({
+        gmb: { name: "", url: "", matched: false, status: "none" },
+        fonte: {
+          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+        },
+      }),
+      { mapsSearchUrl: search },
+    ).find((s) => s.id === "maps");
+    expect(maps?.href).toBe(search);
+    expect(maps?.openLabel).toBe("Abrir busca no Maps");
+    expect(maps?.value).toBe("CONFIRMAR PIN");
   });
 
   it("keeps the Maps pin live when the public Google card is thin", () => {

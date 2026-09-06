@@ -39,6 +39,13 @@ import {
 import { pathAllowedByRobots } from "@/lib/enrichment/robots";
 import { detectCopyrightYear, detectTech, midiaPagaLabel } from "@/lib/enrichment/tech";
 import {
+  noteDomainWave,
+  serperDensityFromRow,
+  withSerperStage,
+  withSerperStats,
+  type SerperDensitySummary,
+} from "@/lib/enrichment/serper-stats";
+import {
   deriveSeal,
   hasAccountantDomainHint,
   isFreeEmail,
@@ -106,6 +113,7 @@ export type EnrichTimings = {
   pages: number;
   osm_ms: number;
   progress_ms: number;
+  serper: SerperDensitySummary;
 };
 
 function elapsed(started: number): number {
@@ -558,6 +566,17 @@ export async function enrichCompany(
   onProgress?: EnrichProgress,
   options: EnrichOptions = {},
 ): Promise<{ row: LeadEnrichment; timings: EnrichTimings }> {
+  return withSerperStats(() =>
+    enrichCompanyTracked(input, cachedDomain, onProgress, options),
+  );
+}
+
+async function enrichCompanyTracked(
+  input: CascadeCompany,
+  cachedDomain?: { domain: string | null; status: string } | null,
+  onProgress?: EnrichProgress,
+  options: EnrichOptions = {},
+): Promise<{ row: LeadEnrichment; timings: EnrichTimings }> {
   const now = new Date();
   const collected_at = now.toISOString();
   const expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -634,7 +653,7 @@ export async function enrichCompany(
   let finalUrl = "";
   let gmb: GmbListing | null = null;
   let socialsFromSearch: LeadEnrichment["socials"] = {};
-  const timings: EnrichTimings = {
+  const timings: Omit<EnrichTimings, "serper"> = {
     serper_ms: 0,
     crawl_ms: 0,
     pages: 0,
@@ -642,6 +661,9 @@ export async function enrichCompany(
     progress_ms: 0,
   };
   let persistTail = Promise.resolve();
+
+  if (forceHost) noteDomainWave("human");
+  else if (cacheUsable) noteDomainWave("cache");
 
   if (!domain) {
     const fromEmail = domainFromEmail(est.email, {
@@ -653,6 +675,7 @@ export async function enrichCompany(
     if (fromEmail && !discarded.has(normalizeHost(fromEmail))) {
       domain = fromEmail;
       fonte.domain = { fonte: "email_receita", coletado_em: collected_at };
+      noteDomainWave("email");
     }
   } else if (forceHost) {
     fonte.domain = {
@@ -804,8 +827,10 @@ export async function enrichCompany(
       );
     };
     const [hitSets, gmbSeed] = await Promise.all([
-      Promise.all(queries.map((q) => serperOrganic(q))),
-      searchGmb(gmbInput),
+      withSerperStage("domain", () =>
+        Promise.all(queries.map((q) => serperOrganic(q))),
+      ),
+      withSerperStage("gmb", () => searchGmb(gmbInput)),
     ]);
     for (const hits of hitSets) absorbHits(hits);
     let pooledHits = hitSets.flat();
@@ -816,9 +841,14 @@ export async function enrichCompany(
       brand.municipio,
       exclude,
     );
+    let domainWave: "primary" | "fallback" | "national" | null = best
+      ? "primary"
+      : null;
     if (!best) {
-      const extraSets = await Promise.all(
-        domainSearchFallbackQueries(queryInput).map((q) => serperOrganic(q)),
+      const extraSets = await withSerperStage("domain_fallback", () =>
+        Promise.all(
+          domainSearchFallbackQueries(queryInput).map((q) => serperOrganic(q)),
+        ),
       );
       for (const hits of extraSets) absorbHits(hits);
       pooledHits = [...pooledHits, ...extraSets.flat()];
@@ -829,11 +859,14 @@ export async function enrichCompany(
         brand.municipio,
         exclude,
       );
+      if (best) domainWave = "fallback";
     }
     if (!best) {
-      const nationalSets = await Promise.all(
-        domainSearchNationalFallbackQueries(queryInput).map((q) =>
-          serperOrganic(q),
+      const nationalSets = await withSerperStage("domain_national", () =>
+        Promise.all(
+          domainSearchNationalFallbackQueries(queryInput).map((q) =>
+            serperOrganic(q),
+          ),
         ),
       );
       for (const hits of nationalSets) absorbHits(hits);
@@ -845,6 +878,7 @@ export async function enrichCompany(
         brand.municipio,
         exclude,
       );
+      if (best) domainWave = "national";
     }
     if (best) {
       try {
@@ -858,6 +892,7 @@ export async function enrichCompany(
             ...(homepage_path ? { path: homepage_path } : {}),
           };
           domain_status = "nao_confirmado";
+          if (domainWave) noteDomainWave(domainWave);
           await emit(assemble("domain", { people: null }));
         }
       } catch {
@@ -875,6 +910,7 @@ export async function enrichCompany(
         domain = fromMaps;
         fonte.domain = { fonte: "gmb", coletado_em: collected_at };
         domain_status = "nao_confirmado";
+        noteDomainWave("gmb");
         await emit(assemble("domain", { people: null }));
       }
     }
@@ -1101,15 +1137,17 @@ export async function enrichCompany(
   );
 
   if (!gmb) {
-    gmb = await searchGmb(gmbInput);
+    gmb = await withSerperStage("gmb", () => searchGmb(gmbInput));
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
 
-  const retriedGmb = await retryGmbWithSiteBrand(
-    gmb,
-    gmbInput,
-    siteBrand,
-    domain_status === "confirmado",
+  const retriedGmb = await withSerperStage("gmb_retry_brand", () =>
+    retryGmbWithSiteBrand(
+      gmb,
+      gmbInput,
+      siteBrand,
+      domain_status === "confirmado",
+    ),
   );
   if (retriedGmb !== gmb) {
     gmb = retriedGmb;
@@ -1128,12 +1166,14 @@ export async function enrichCompany(
         ddd: p.ddd,
         telefone: p.local,
       }));
-      const withSite = await searchGmb({
-        ...gmbInput,
-        websiteHost: host,
-        sitePhones,
-        nomeFantasia: brandOverride || gmbInput.nomeFantasia,
-      });
+      const withSite = await withSerperStage("gmb_site", () =>
+        searchGmb({
+          ...gmbInput,
+          websiteHost: host,
+          sitePhones,
+          nomeFantasia: brandOverride || gmbInput.nomeFantasia,
+        }),
+      );
       const preferred = preferGmbListing(gmb, withSite);
       if (preferred !== gmb) {
         gmb = preferred;

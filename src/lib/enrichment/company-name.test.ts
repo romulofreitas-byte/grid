@@ -8,6 +8,7 @@ import {
   cidFromMapsUrl,
   companyMapsQuery,
   leadMapsHref,
+  mapsListingHref,
 } from "./company-name";
 
 describe("displayCompanyName", () => {
@@ -143,6 +144,23 @@ describe("leadMapsHref", () => {
         cid: "999",
       }),
     ).toBe("https://www.google.com/maps?cid=999");
+  });
+});
+
+describe("mapsListingHref", () => {
+  it("opens a stored Maps search when the listing is still a miss", () => {
+    const href = mapsListingHref({
+      matched: false,
+      status: "none",
+      url: "https://www.google.com/maps/search/?api=1&query=%22Armazem%22",
+    });
+    expect(href).toContain("google.com/maps/search");
+  });
+
+  it("stays empty when a miss has no URL yet", () => {
+    expect(
+      mapsListingHref({ matched: false, status: "none", url: "" }),
+    ).toBeNull();
   });
 });
 

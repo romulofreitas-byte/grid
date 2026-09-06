@@ -3,8 +3,10 @@ import {
   distinctiveTokens,
   presenceBrandTokens,
 } from "@/lib/enrichment/confirm-domain";
+import { recordSerperCall } from "@/lib/enrichment/serper-stats";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import {
+  companyMapsSearchUrl,
   isMapsUrl,
   mapsCidUrl,
   searchableCompanyName,
@@ -412,7 +414,22 @@ export function countTitleCityPlaces(
   return count;
 }
 
-/** Brand+city card that is not identity-locked to this CNPJ (chain / weak brand). */
+function pickCandidateFromBucket(
+  hits: Array<{ place: MapsPlace; match_by: GmbMatchBy[]; score: number }>,
+): {
+  place: MapsPlace;
+  match_by: GmbMatchBy[];
+  score: number;
+  count: number;
+} | null {
+  if (hits.length === 0) return null;
+  return { ...pickRankedMapsPlace(hits), count: hits.length };
+}
+
+/**
+ * Best pin to confirm: title+city first, then any pin in the municipality,
+ * then whatever Serper returned. Never auto-match a chain.
+ */
 export function pickBestCandidateMapsPlace(
   places: MapsPlace[],
   input: GmbSearchInput,
@@ -422,7 +439,7 @@ export function pickBestCandidateMapsPlace(
   score: number;
   count: number;
 } | null {
-  const hits: Array<{
+  const titled: Array<{
     place: MapsPlace;
     match_by: GmbMatchBy[];
     score: number;
@@ -430,12 +447,18 @@ export function pickBestCandidateMapsPlace(
   for (const place of places) {
     if (!place.title) continue;
     const scored = scoreMapsPlace(place, input);
-    if (!mapsTitleCityHit(scored.match_by)) continue;
-    if (mapsIdentityLocked(scored.match_by)) continue;
-    hits.push({ place, match_by: scored.match_by, score: scored.score });
+    titled.push({ place, match_by: scored.match_by, score: scored.score });
   }
-  if (hits.length === 0) return null;
-  return { ...pickRankedMapsPlace(hits), count: hits.length };
+  const titleCity = titled.filter(
+    (item) =>
+      mapsTitleCityHit(item.match_by) && !mapsIdentityLocked(item.match_by),
+  );
+  const fromTitleCity = pickCandidateFromBucket(titleCity);
+  if (fromTitleCity) return fromTitleCity;
+  const cityOnly = titled.filter((item) => item.match_by.includes("city"));
+  const fromCity = pickCandidateFromBucket(cityOnly);
+  if (fromCity) return fromCity;
+  return pickCandidateFromBucket(titled);
 }
 
 export function gmbListingFromPlace(
@@ -492,7 +515,7 @@ export function resolveGmbListing(
       candidates_in_city: candidate.count,
     });
   }
-  return gmbNoneListing();
+  return gmbNoneListing(mapsSearchUrlFromInput(input));
 }
 
 function listingCardBetter(candidate: GmbListing, current: GmbListing): boolean {
@@ -583,6 +606,22 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
         { quoted: true, includeStreet: false },
       ),
     );
+    push(
+      gmbSearchQuery(
+        { ...input, nomeFantasia: compact, razaoSocial: compact },
+        { quoted: false, includeStreet: false },
+      ),
+    );
+  }
+  const tokens = presenceBrandTokens(
+    input.razaoSocial,
+    input.nomeFantasia,
+    input.municipio,
+  );
+  if (tokens.length >= 2) {
+    const place = [input.municipio, input.uf].filter(Boolean).join(" ");
+    const phrase = tokens.slice(0, 2).join(" ");
+    if (place) push(`"${phrase}" ${place}`);
   }
   const cep = formatCepDigits(input.cep);
   if (cep) {
@@ -907,13 +946,31 @@ export async function serperOrganic(
 ): Promise<OrganicHit[]> {
   const key = serperKey();
   if (!key) return [];
-  const res = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num }),
-    signal: AbortSignal.timeout(8000),
-  });
+  const started = Date.now();
+  let res: Response;
+  try {
+    res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, gl: "br", hl: "pt-br", num }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    recordSerperCall({
+      kind: "search",
+      ok: false,
+      hits: 0,
+      ms: Date.now() - started,
+    });
+    throw err;
+  }
   if (!res.ok) {
+    recordSerperCall({
+      kind: "search",
+      ok: false,
+      hits: 0,
+      ms: Date.now() - started,
+    });
     console.warn(
       JSON.stringify({
         event: "serper_error",
@@ -924,19 +981,44 @@ export async function serperOrganic(
     return [];
   }
   const json = (await res.json()) as Parameters<typeof hitsFromSerperJson>[0];
-  return hitsFromSerperJson(json);
+  const hits = hitsFromSerperJson(json);
+  recordSerperCall({
+    kind: "search",
+    ok: true,
+    hits: hits.length,
+    ms: Date.now() - started,
+  });
+  return hits;
 }
 
 export async function serperMaps(query: string): Promise<MapsPlace[]> {
   const key = serperKey();
   if (!key) return [];
-  const res = await fetch("https://google.serper.dev/maps", {
-    method: "POST",
-    headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ q: query, gl: "br", hl: "pt-br" }),
-    signal: AbortSignal.timeout(8000),
-  });
+  const started = Date.now();
+  let res: Response;
+  try {
+    res = await fetch("https://google.serper.dev/maps", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, gl: "br", hl: "pt-br" }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    recordSerperCall({
+      kind: "maps",
+      ok: false,
+      hits: 0,
+      ms: Date.now() - started,
+    });
+    throw err;
+  }
   if (!res.ok) {
+    recordSerperCall({
+      kind: "maps",
+      ok: false,
+      hits: 0,
+      ms: Date.now() - started,
+    });
     console.warn(
       JSON.stringify({
         event: "serper_error",
@@ -954,6 +1036,12 @@ export async function serperMaps(query: string): Promise<MapsPlace[]> {
     const parsed = mapsPlaceFromSerper(place);
     if (parsed) places.push(parsed);
   }
+  recordSerperCall({
+    kind: "maps",
+    ok: true,
+    hits: places.length,
+    ms: Date.now() - started,
+  });
   return places;
 }
 
@@ -1245,9 +1333,21 @@ export function upgradeGmbWithWebsite(
   return { ...listing, matched: true, status: "matched", match_by };
 }
 
+function mapsSearchUrlFromInput(input: GmbSearchInput): string {
+  return companyMapsSearchUrl({
+    nomeFantasia: input.nomeFantasia,
+    razaoSocial: input.razaoSocial,
+    municipio: input.municipio,
+    uf: input.uf,
+    logradouro: input.logradouro,
+    numero: input.numero,
+  });
+}
+
 export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
+  const searchUrl = mapsSearchUrlFromInput(input);
   const queries = gmbSearchQueryList(input);
-  if (queries.length === 0) return gmbNoneListing();
+  if (queries.length === 0) return gmbNoneListing(searchUrl);
 
   const take = async (query: string): Promise<GmbListing> =>
     resolveGmbListing(await serperMaps(query), input);
@@ -1260,7 +1360,7 @@ export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
       if (!best || listingCardBetter(listing, best)) best = listing;
     }
   }
-  return best ?? gmbNoneListing();
+  return best ?? gmbNoneListing(searchUrl);
 }
 
 export async function searchSocialProfile(input: {

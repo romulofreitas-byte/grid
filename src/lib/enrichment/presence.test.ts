@@ -15,6 +15,7 @@ import {
   mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
   mapsPlaceListingUrl,
+  pickBestCandidateMapsPlace,
   pickBestDomainHit,
   pickBestMapsPlace,
   pickSocialHit,
@@ -545,6 +546,77 @@ describe("Maps × Receita matching", () => {
     expect(domainFromGmb(listing)).toBeNull();
   });
 
+  it("keeps a city pin as a candidate when the Maps title is not the Receita name", () => {
+    const input = {
+      nomeFantasia: null,
+      razaoSocial: "AGROVETERINARIA ARMAZEM DA TERRA LTDA",
+      municipio: "Ibirite",
+      uf: "MG",
+    };
+    const places = [
+      {
+        title: "Agropecuária Central",
+        address: "Av. São Paulo, 67 - Ibirité - MG, 32400-000",
+        cid: "77",
+        rating: 4.7,
+        ratingCount: 727,
+      },
+      {
+        title: "Pet Shop Bairro",
+        address: "Rua A, 10 - Ibirité - MG",
+        cid: "88",
+        ratingCount: 12,
+      },
+    ];
+    expect(pickBestMapsPlace(places, input)).toBeNull();
+    const picked = pickBestCandidateMapsPlace(places, input);
+    expect(picked?.place.cid).toBe("77");
+    expect(picked?.count).toBe(2);
+    const listing = resolveGmbListing(places, input);
+    expect(listing.status).toBe("candidate");
+    expect(listing.cid).toBe("77");
+    expect(listing.candidates_in_city).toBe(2);
+  });
+
+  it("falls back to any titled Serper pin when none are in the Receita city", () => {
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Padaria do Centro",
+          address: "Belo Horizonte - MG",
+          cid: "55",
+          ratingCount: 40,
+        },
+      ],
+      {
+        nomeFantasia: null,
+        razaoSocial: "AGROVETERINARIA ARMAZEM DA TERRA LTDA",
+        municipio: "Ibirite",
+        uf: "MG",
+      },
+    );
+    expect(listing.status).toBe("candidate");
+    expect(listing.cid).toBe("55");
+    expect(listing.candidates_in_city).toBe(1);
+  });
+
+  it("stores a Maps search URL when Serper returns no pin", () => {
+    const listing = resolveGmbListing([], {
+      nomeFantasia: null,
+      razaoSocial: "AGROVETERINARIA ARMAZEM DA TERRA LTDA",
+      municipio: "Ibirite",
+      uf: "MG",
+      logradouro: "Avenida Sao Paulo",
+      numero: "67",
+    });
+    expect(listing.status).toBe("none");
+    expect(listing.matched).toBe(false);
+    expect(listing.url).toContain("google.com/maps/search");
+    expect(decodeURIComponent(listing.url)).toContain(
+      "AGROVETERINARIA ARMAZEM DA TERRA",
+    );
+  });
+
   it("keeps a unique strong brand on title + city as matched", () => {
     const listing = resolveGmbListing(
       [
@@ -905,6 +977,20 @@ describe("searchGmb", () => {
     expect(listing.card?.ratingCount).toBe(95);
     expect(listing.card?.score).toBe(5);
     expect(queries.some((q) => /"futura"/i.test(q))).toBe(true);
+  });
+
+  it("returns a Maps search URL when every query misses", async () => {
+    mapsFetch([[], [], [], [], [], [], []]);
+    const listing = await searchGmb({
+      nomeFantasia: null,
+      razaoSocial: "AGROVETERINARIA ARMAZEM DA TERRA LTDA",
+      municipio: "Ibirite",
+      uf: "MG",
+      logradouro: "Avenida Sao Paulo",
+      numero: "67",
+    });
+    expect(listing.status).toBe("none");
+    expect(listing.url).toContain("google.com/maps/search");
   });
 });
 

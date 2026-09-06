@@ -140,6 +140,12 @@ function assetSeal(
   if (signal.found && signal.unverified) {
     return { text: COPY.fichaSealUnverified, kind: "unverified" };
   }
+  if (signal.unverified && signal.sealKind === "unverified") {
+    return {
+      text: signal.sealLabel ?? COPY.fichaSealUnverified,
+      kind: "unverified",
+    };
+  }
   if (isAuditGap(signal)) {
     if (tools) return { text: COPY.fichaSealToolMissing, kind: "gap" };
     return { text: COPY.landingQualifyMissingSeal, kind: "gap" };
@@ -587,6 +593,7 @@ export function DigitalAuditPanel({
   correctPending = false,
   correctError = null,
   onCorrectPresence,
+  mapsSearchUrl,
   className,
 }: {
   enrichment: LeadEnrichment | null;
@@ -604,6 +611,7 @@ export function DigitalAuditPanel({
   correctPending?: boolean;
   correctError?: string | null;
   onCorrectPresence?: (corrections: PresenceCorrection) => void;
+  mapsSearchUrl?: string | null;
   className?: string;
 }) {
   const reduce = useReducedMotion();
@@ -612,8 +620,11 @@ export function DigitalAuditPanel({
   const complete =
     enrichment != null && enrichmentStage(enrichment) === "complete";
   const signals = useMemo(
-    () => (enrichment ? buildAuditSignals(enrichment) : emptyAuditSignals()),
-    [enrichment],
+    () =>
+      enrichment
+        ? buildAuditSignals(enrichment, { mapsSearchUrl })
+        : emptyAuditSignals(),
+    [enrichment, mapsSearchUrl],
   );
   const scanningIds = useMemo(() => {
     const ids = scanningSignalIds(

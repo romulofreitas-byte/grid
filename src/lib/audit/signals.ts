@@ -439,15 +439,15 @@ function mapsHint(
   if (status === "candidate") {
     const n = listing?.candidates_in_city;
     if (n && n > 1) {
-      return `Há ${n} pins no Maps nesta cidade — não cruzamos com este CNPJ.`;
+      return `Há ${n} pins no Maps nesta cidade. Confirme se é este.`;
     }
-    return "Pin no Maps nesta cidade — não cruzamos com este CNPJ.";
+    return "Pin no Maps nesta cidade — confirme se é este.";
   }
   if (listing) {
     if (fonte === "human") {
       return "Você removeu a ficha desta qualificação.";
     }
-    return "Busca no Maps não achou pin para esta empresa.";
+    return "Não cravamos um pin neste CNPJ. Abra a busca e confirme a ficha certa.";
   }
   return "Qualifique para buscar o Google Maps.";
 }
@@ -694,7 +694,10 @@ export function emptyAuditSignals(): AuditSignal[] {
   ];
 }
 
-export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
+export function buildAuditSignals(
+  e: LeadEnrichment,
+  opts?: { mapsSearchUrl?: string | null },
+): AuditSignal[] {
   const confirmed = e.domain_status === "confirmado";
   const corroborated = gmbListingCorroborated(e.gmb);
   const year = new Date().getFullYear();
@@ -705,6 +708,13 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
   const platform =
     (e.tech.plataforma && PLATFORM_MARK[e.tech.plataforma]) || GENERIC_PLATFORM;
   const chat = (e.tech.chat && CHAT_MARK[e.tech.chat]) || GENERIC_CHAT;
+  const mapsStatus = gmbListingStatus(e.gmb);
+  const mapsListingHrefValue = mapsListingHref(e.gmb);
+  const mapsHref =
+    mapsListingHrefValue ??
+    (e.gmb && mapsStatus === "none" ? opts?.mapsSearchUrl?.trim() || null : null);
+  const mapsPinFound = mapsStatus === "matched" || mapsStatus === "candidate";
+  const mapsSearched = Boolean(e.gmb);
 
   const siteDown = isSiteOffline(e);
   const siteSoftFail = isSiteFetchFailed(e);
@@ -858,31 +868,37 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       id: "maps",
       group: "presenca",
       ...MARK.maps,
-      found:
-        gmbListingStatus(e.gmb) === "matched" ||
-        gmbListingStatus(e.gmb) === "candidate",
-      unverified:
-        e.gmb == null || gmbListingStatus(e.gmb) === "candidate",
-      href: mapsListingHref(e.gmb),
-      openLabel:
-        gmbListingStatus(e.gmb) === "matched" ||
-        gmbListingStatus(e.gmb) === "candidate"
-          ? COPY.fichaMapsOpenListing
+      found: mapsPinFound,
+      unverified: mapsStatus !== "matched",
+      href: mapsHref,
+      openLabel: mapsPinFound
+        ? COPY.fichaMapsOpenListing
+        : mapsHref
+          ? COPY.fichaMapsOpenSearch
           : null,
-      value:
-        gmbListingStatus(e.gmb) === "matched" ||
-        gmbListingStatus(e.gmb) === "candidate"
-          ? e.gmb?.name || "Maps"
-          : e.gmb
-            ? "NÃO ENCONTRADO"
-            : "—",
+      value: mapsPinFound
+        ? e.gmb?.name || "Maps"
+        : mapsSearched
+          ? COPY.fichaMapsConfirmValue
+          : "—",
       hint: mapsHint(e.gmb, e.fonte.gmb?.fonte ?? e.fonte.maps?.fonte, corroborated),
-      sealLabel:
-        gmbListingStatus(e.gmb) === "matched"
-          ? COPY.fichaSealMapsLive
+      note:
+        mapsPinFound && e.gmb?.card
+          ? formatGmbRating(e.gmb.card.rating, e.gmb.card.ratingCount) ||
+            undefined
           : undefined,
+      sealLabel:
+        mapsStatus === "matched"
+          ? COPY.fichaSealMapsLive
+          : mapsSearched && !mapsPinFound
+            ? COPY.fichaSealUnverified
+            : undefined,
       sealKind:
-        gmbListingStatus(e.gmb) === "matched" ? "live" : undefined,
+        mapsStatus === "matched"
+          ? "live"
+          : mapsSearched && !mapsPinFound
+            ? "unverified"
+            : undefined,
     }),
     signal({
       id: "gmb",
@@ -897,7 +913,7 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
         gmbListingStatus(e.gmb) === "candidate" ||
         ((e.gmb?.card?.score ?? 0) >= 3 &&
           gmbListingStatus(e.gmb) !== "matched"),
-      href: mapsListingHref(e.gmb),
+      href: mapsPinFound ? mapsListingHref(e.gmb) : null,
       openLabel: gmbOpenLabel(e.gmb),
       value:
         gmbListingStatus(e.gmb) === "none"

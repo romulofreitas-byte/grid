@@ -103,7 +103,10 @@ export function mapsListingHref(
   const status =
     listing.status ??
     (listing.matched ? "matched" : listing.cid || listing.url ? "candidate" : "none");
-  if (status === "none") return null;
+  if (status === "none") {
+    const url = listing.url?.trim();
+    return url && isMapsUrl(url) ? url : null;
+  }
   if (listing.cid) return mapsCidUrl(listing.cid);
   const url = listing.url?.trim();
   if (url && isMapsUrl(url)) return url;

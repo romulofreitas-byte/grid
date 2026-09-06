@@ -911,6 +911,7 @@ export default function LeadPage() {
           <DigitalAuditPanel
             className="h-full border-white/10 bg-white/[0.03]"
             enrichment={displayEnrichment}
+            mapsSearchUrl={mapsUrl}
             qualifying={
               !hasCompleteAudit &&
               (qualifyQueued ||

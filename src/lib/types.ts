@@ -102,8 +102,13 @@ export type GmbListing = {
   phone_e164?: string | null;
 };
 
-export function gmbNoneListing(): GmbListing {
-  return { name: "", url: "", matched: false, status: "none" };
+export function gmbNoneListing(searchUrl?: string): GmbListing {
+  return {
+    name: "",
+    url: searchUrl?.trim() ?? "",
+    matched: false,
+    status: "none",
+  };
 }
 
 export function gmbCardKindFromScore(score: number): GmbCardKind {

@@ -248,6 +248,8 @@ export const COPY = {
   fichaGmbOpenMaps: "Abrir no Maps",
   fichaGmbOpenListing: "Abrir ficha",
   fichaMapsOpenListing: "Abrir no Maps",
+  fichaMapsOpenSearch: "Abrir busca no Maps",
+  fichaMapsConfirmValue: "CONFIRMAR PIN",
   fichaSealMapsLive: "No Maps",
   fichaSealUnverified: "A confirmar",
   fichaSealPending: "Ainda não vimos",

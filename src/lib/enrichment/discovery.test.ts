@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DOMAIN_DISCOVERY_VERSION,
   humanClearedDomain,
+  humanClearedMaps,
   needsDiscoveryRetry,
 } from "./discovery";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -98,16 +99,74 @@ describe("needsDiscoveryRetry", () => {
     expect(needsDiscoveryRetry(cleared)).toBe(false);
   });
 
-  it("does not re-qualify the grid when Maps missed but the site was already found", () => {
+  it("retries a Maps miss even when the site was already found", () => {
     expect(
       needsDiscoveryRetry(
         row({
           domain: "pizzahutgo.com",
           domain_status: "nao_confirmado",
-          gmb: { name: "", url: "", matched: false },
+          gmb: { name: "", url: "", matched: false, status: "none" },
           fonte: {
             discovery: {
-              fonte: "4",
+              fonte: "5",
+              coletado_em: "2026-09-01T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not loop a Maps miss after the current discovery version already ran", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "pizzahutgo.com",
+          domain_status: "nao_confirmado",
+          gmb: { name: "", url: "", matched: false, status: "none" },
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-06T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not override a Maps pin the human removed", () => {
+    const cleared = row({
+      domain: "exemplo.com.br",
+      domain_status: "nao_confirmado",
+      gmb: { name: "", url: "", matched: false, status: "none" },
+      fonte: {
+        discovery: {
+          fonte: "5",
+          coletado_em: "2026-09-01T00:00:00.000Z",
+        },
+        gmb: { fonte: "human", coletado_em: "2026-09-05T00:00:00.000Z" },
+      },
+    });
+    expect(humanClearedMaps(cleared)).toBe(true);
+    expect(needsDiscoveryRetry(cleared)).toBe(false);
+  });
+
+  it("does not re-qualify a matched Maps pin just because discovery rules bumped", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "exemplo.com.br",
+          domain_status: "nao_confirmado",
+          gmb: {
+            name: "Exemplo",
+            url: "https://www.google.com/maps?cid=1",
+            matched: true,
+            status: "matched",
+          },
+          fonte: {
+            discovery: {
+              fonte: "5",
               coletado_em: "2026-09-01T00:00:00.000Z",
             },
           },
