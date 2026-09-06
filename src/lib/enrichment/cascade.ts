@@ -1215,14 +1215,16 @@ async function enrichCompanyTracked(
         return { step, kind: null, url: undefined };
       }
       if (step === "instagram") {
-        const found = await searchInstagramProfile({
-          ...presencePlace,
-          brandOverride,
-          blockedLabels: blockedSocialLabels,
-          cep: est.cep,
-          logradouro: est.logradouro,
-          numero: est.numero,
-        });
+        const found = await withSerperStage("instagram", () =>
+          searchInstagramProfile({
+            ...presencePlace,
+            brandOverride,
+            blockedLabels: blockedSocialLabels,
+            cep: est.cep,
+            logradouro: est.logradouro,
+            numero: est.numero,
+          }),
+        );
         return {
           step,
           kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
@@ -1232,13 +1234,15 @@ async function enrichCompanyTracked(
       if (!siteConfirmed && !canSearchSocialWithoutSite) {
         return { step, kind: "skipped_weak_brand" as const, url: undefined };
       }
-      const found = await searchSocialProfile({
-        platform: step,
-        ...presencePlace,
-        brandOverride,
-        blockedLabels: blockedSocialLabels,
-        allowWeakBrand: gmbCorroborated,
-      });
+      const found = await withSerperStage(step, () =>
+        searchSocialProfile({
+          platform: step,
+          ...presencePlace,
+          brandOverride,
+          blockedLabels: blockedSocialLabels,
+          allowWeakBrand: gmbCorroborated,
+        }),
+      );
       return {
         step,
         kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
@@ -1261,5 +1265,5 @@ async function enrichCompanyTracked(
   await emit(assemble("site", snapExtras()));
 
   const row = await flushProgress(assemble("complete", snapExtras()));
-  return { row, timings };
+  return { row, timings: { ...timings, serper: serperDensityFromRow(row) } };
 }

@@ -174,9 +174,7 @@ export function instagramDensityVerdict(input: {
     if (input.fonte === "serper" && input.searchCalls > 1) return "dense";
     return "early";
   }
-  if (input.fonte === "serper_miss" || input.searchCalls > 0) {
-    return "exhausted";
-  }
+  if (input.searchCalls > 0) return "exhausted";
   return "skipped";
 }
 

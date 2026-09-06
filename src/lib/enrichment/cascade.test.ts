@@ -333,12 +333,15 @@ describe("enrichCompany crawl", () => {
     );
     const input = companyInput("unused.test");
     input.establishment.email = null;
-    const { row } = await enrichCompany(input);
+    const { row, timings } = await enrichCompany(input);
     expect(row.domain).toBe("solaris-web.com.br");
     expect(row.homepage_path).toBe("/home");
     expect(row.fonte.domain?.fonte).toBe("serper");
     expect(row.fonte.domain?.path).toBe("/home");
     expect(row.domain_status).toBe("confirmado");
+    expect(timings.serper.domain).toBe("early");
+    expect(timings.serper.search).toBeGreaterThan(0);
+    expect(timings.serper.by_stage.domain).toBeGreaterThan(0);
     const sitePaths = requested
       .filter((u) => u.includes("solaris-web.com.br") && !u.endsWith("/robots.txt"))
       .map((u) => new URL(u).pathname);
@@ -934,9 +937,10 @@ describe("enrichCompany crawl", () => {
     input.establishment.nome_fantasia = "COLEGIO SANTA DOROTEIA";
     input.company.razao_social =
       "CONGREGACAO DE SANTA DOROTEIA DO BRASIL - SUL";
-    const { row } = await enrichCompany(input);
+    const { row, timings } = await enrichCompany(input);
     expect(serperBodies.some((body) => body.includes(" MG site"))).toBe(true);
     expect(row.domain).toBe("santadoroteiabh.com.br");
+    expect(timings.serper.domain).toBe("dense");
     delete process.env.SERPER_API_KEY;
   });
 
@@ -979,13 +983,14 @@ describe("enrichCompany crawl", () => {
     );
     const input = companyInput("unused.test");
     input.establishment.email = null;
-    const { row } = await enrichCompany(input);
+    const { row, timings } = await enrichCompany(input);
     expect(order[0]).toBe("search");
     expect(order).toContain("maps");
     expect(order.indexOf("maps")).toBeGreaterThan(order.indexOf("search"));
     expect(row.domain).toBe("solaris-gmb.com.br");
     expect(row.fonte.domain?.fonte).toBe("gmb");
     expect(row.domain_status).toBe("confirmado");
+    expect(timings.serper.domain).toBe("dense");
     delete process.env.SERPER_API_KEY;
   });
 
@@ -1323,11 +1328,12 @@ describe("enrichCompany crawl", () => {
     input.establishment.email = "atendimento@gmail.com";
     input.establishment.nome_fantasia = "Lavanderia 60 Minutos";
     input.company.razao_social = "LAVANDERIA 60 MINUTOS BH LTDA";
-    const { row } = await enrichCompany(input);
+    const { row, timings } = await enrichCompany(input);
     expect(queries.some((q) => /Belo Horizonte/.test(q))).toBe(true);
     expect(queries).toContain('"Lavanderia 60 Minutos"');
     expect(row.domain).toBe("lavanderia60minutos.com.br");
     expect(row.fonte.domain?.fonte).toBe("serper");
+    expect(timings.serper.domain).toBe("dense");
     delete process.env.SERPER_API_KEY;
   });
 
@@ -1547,7 +1553,7 @@ describe("enrichCompany crawl", () => {
     input.municipioNome = "Vicosa";
     input.establishment.ddd1 = "31";
     input.establishment.telefone1 = "38924111";
-    const { row } = await enrichCompany(input);
+    const { row, timings } = await enrichCompany(input);
     expect(row.domain_status).toBe("confirmado");
     expect(row.gmb?.matched).toBe(true);
     expect(row.gmb?.name).toBe("Futura Imobiliária");
@@ -1555,6 +1561,7 @@ describe("enrichCompany crawl", () => {
     expect(row.gmb?.card?.ratingCount).toBe(95);
     expect(row.gmb?.card?.score).toBe(5);
     expect(mapsQueries.some((q) => /Futura Imobili[aá]ria/i.test(q))).toBe(true);
+    expect(timings.serper.gmb).toBe("dense");
     delete process.env.SERPER_API_KEY;
   });
 
