@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { TelemetryBar } from "@/components/DataPullIndicator";
+import { FocusBadge } from "@/components/FocusBadge";
+import { FocusModeProvider } from "@/components/FocusModeProvider";
 import { PaywallProvider } from "@/components/PaywallDialog";
 import { ShellToneRoot } from "@/components/ShellToneRoot";
 
@@ -18,9 +20,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <PaywallProvider>
-        <ShellToneRoot />
-        <TelemetryBar />
-        {children}
+        <FocusModeProvider>
+          <ShellToneRoot />
+          <TelemetryBar />
+          {children}
+          <FocusBadge />
+        </FocusModeProvider>
       </PaywallProvider>
     </QueryClientProvider>
   );

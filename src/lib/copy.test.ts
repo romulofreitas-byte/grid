@@ -321,3 +321,14 @@ describe("COPY crm add deal", () => {
     expect(COPY.crmAddDealNeedPipeline.toLowerCase()).toMatch(/nicho/);
   });
 });
+
+describe("COPY focus mode", () => {
+  it("names the chip toggle and the desktop badge", () => {
+    expect(COPY.focusEnter).toBe("Entrar no modo Focus");
+    expect(COPY.focusExit).toBe("Sair do modo Focus");
+    expect(COPY.focusBadgeEyebrow).toBe("Focus");
+    expect(COPY.focusBadgeOn).toBe("Ligado");
+    expect(COPY.focusSprintDone).toBe("Sprint ok");
+    expect(COPY.focusEnter.toLowerCase()).toMatch(/focus/);
+  });
+});

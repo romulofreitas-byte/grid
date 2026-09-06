@@ -3,8 +3,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useFocusMode } from "@/components/FocusModeProvider";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
 import { COPY } from "@/lib/copy";
+import { cn } from "@/lib/utils";
 
 function toastCopy(created: number): string {
   if (created === 1) return COPY.crmCatchUpToastOne;
@@ -14,6 +16,7 @@ function toastCopy(created: number): string {
 export function CatchUpRunner() {
   const qc = useQueryClient();
   const router = useRouter();
+  const { on: focusOn } = useFocusMode();
   const [message, setMessage] = useState<string | null>(null);
   const started = useRef(false);
 
@@ -72,7 +75,10 @@ export function CatchUpRunner() {
   return (
     <div
       role="status"
-      className="fixed bottom-20 right-4 z-50 max-w-sm rounded-xl border border-podium-yellow/30 bg-podium-navy/95 px-4 py-3 text-sm text-podium-white shadow-lg md:bottom-6"
+      className={cn(
+        "fixed right-4 bottom-20 z-50 max-w-sm rounded-xl border border-podium-yellow/30 bg-podium-navy/95 px-4 py-3 text-sm text-podium-white shadow-lg md:bottom-6",
+        focusOn && "md:bottom-24",
+      )}
     >
       {message}
     </div>

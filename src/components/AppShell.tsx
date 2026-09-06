@@ -4,12 +4,14 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import type { LucideIcon } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { BackLink } from "@/components/BackLink";
 import { BrandLogo } from "@/components/BrandLogo";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { CatchUpRunner } from "@/components/CatchUpRunner";
+import { useFocusMode } from "@/components/FocusModeProvider";
 import { ShellRail, useShellRailOpen } from "@/components/ShellRail";
 import { COPY } from "@/lib/copy";
 import { isShellNavActive, showsOpeningNav, SHELL_WORK_NAV } from "@/lib/shell-nav";
@@ -109,11 +111,24 @@ export function AppShell({
   lockHeight?: boolean;
 }) {
   const { open, toggle } = useShellRailOpen();
+  const { on: focusOn } = useFocusMode();
+  const reduce = useReducedMotion();
+  const chromeSlide = reduce ? "duration-0" : "duration-300 ease-out";
 
   return (
     <div className="relative flex h-dvh min-w-0 flex-col overflow-hidden text-podium-white">
-      <div className="shrink-0">
-        <DemoModeBanner />
+      <div
+        className={cn(
+          "grid shrink-0 transition-[grid-template-rows]",
+          chromeSlide,
+          focusOn ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
+        )}
+        aria-hidden={focusOn || undefined}
+        inert={focusOn || undefined}
+      >
+        <div className="overflow-hidden">
+          <DemoModeBanner />
+        </div>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1">
         <RailSlot open={open} onToggle={toggle} />
@@ -123,7 +138,18 @@ export function AppShell({
             lockHeight ? "overflow-hidden" : "overflow-y-auto",
           )}
         >
-          <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
+          <header
+            className={cn(
+              "sticky top-0 z-40 shrink-0 overflow-hidden border-b bg-podium-navy/80 backdrop-blur-xl",
+              "transition-[max-height,opacity,border-color]",
+              chromeSlide,
+              focusOn
+                ? "max-h-0 border-transparent opacity-0"
+                : "max-h-12 border-white/10 opacity-100",
+            )}
+            aria-hidden={focusOn || undefined}
+            inert={focusOn || undefined}
+          >
             <div className="flex h-12 items-center gap-3 px-3 md:px-4">
               <Link href="/painel" className="flex shrink-0 items-center md:hidden" aria-label="GRID">
                 <BrandLogo
@@ -150,10 +176,14 @@ export function AppShell({
 
           <main
             className={cn(
-              "mx-auto flex w-full min-w-0 flex-col",
+              "mx-auto flex w-full min-w-0 flex-col transition-[padding]",
+              chromeSlide,
               lockHeight
-                ? "min-h-0 flex-1 overflow-hidden pb-24 md:pb-8"
-                : "grow pb-24 md:pb-16",
+                ? cn(
+                    "min-h-0 flex-1 overflow-hidden",
+                    focusOn ? "pb-6" : "pb-24 md:pb-8",
+                  )
+                : cn("grow", focusOn ? "pb-6" : "pb-24 md:pb-16"),
               wide ? "max-w-none px-3 pt-4" : "max-w-7xl px-4 pt-5",
             )}
           >

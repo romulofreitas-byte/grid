@@ -163,6 +163,11 @@ export const COPY = {
   setupNeedMarket: "Escolha o mercado ou escreva o seu.",
   setupNeedCargo: "Escolha o cargo ou escreva o seu.",
   setupWelcomeBack: "Bem-vindo de volta",
+  focusEnter: "Entrar no modo Focus",
+  focusExit: "Sair do modo Focus",
+  focusBadgeEyebrow: "Focus",
+  focusBadgeOn: "Ligado",
+  focusSprintDone: "Sprint ok",
   contaIdentityHint: "Nome, empresa, mercado e documento desta conta.",
   contaDocumentoHint: "Usado na cobrança. CPF ou CNPJ válido.",
   contaEmailHint:
