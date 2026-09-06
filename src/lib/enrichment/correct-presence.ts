@@ -99,11 +99,14 @@ export function applyMapsConfirm(
     );
   }
   const collectedAt = (options.now ?? new Date()).toISOString();
-  const next = {
+  const next: LeadEnrichment = {
     ...row,
     gmb: { ...row.gmb, matched: true, status: "matched" },
   };
-  const withGmb = { ...next, fonte: stamp(next, "gmb", collectedAt) };
+  const withGmb: LeadEnrichment = {
+    ...next,
+    fonte: stamp(next, "gmb", collectedAt),
+  };
   return finishPatch(
     { ...withGmb, fonte: stamp(withGmb, "maps", collectedAt) },
     options.scoreProfile ?? "b2c_local",
