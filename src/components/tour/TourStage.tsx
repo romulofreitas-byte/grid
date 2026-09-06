@@ -16,8 +16,8 @@ const DEMO_SCORES = [91, 76, 58, 44, 31] as const;
 
 function TourPainelMock() {
   return (
-    <div className="space-y-8">
-      <div data-tour="painel">
+    <div className="space-y-8" data-tour="painel">
+      <div>
         <SectionTitle>{COPY.painelTitle}</SectionTitle>
         <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
       </div>

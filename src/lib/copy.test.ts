@@ -288,7 +288,8 @@ describe("COPY tour", () => {
     expect(COPY.tourSkip).toBe("Pular");
     expect(COPY.tourFinishApp).toMatch(/Painel/);
     expect(COPY.tourFinishLanding).toBe("Começar grátis");
-    expect(COPY.tourReplay).toMatch(/tour/i);
+    expect(COPY.tourReplay.toLowerCase()).toMatch(/de novo/);
+    expect(COPY.tourReplayHint.toLowerCase()).toMatch(/painel/);
     expect(COPY.tourStepPainelWelcomeTitle.toLowerCase()).toMatch(/painel/);
     expect(COPY.tourStepGridOrderBody.toLowerCase()).toMatch(/p1/);
     expect(COPY.tourStepGridSaveTitle.toLowerCase()).toMatch(/crm/);

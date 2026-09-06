@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { COPY } from "@/lib/copy";
 import {
+  clampRectToViewport,
   inflateRect,
   isLastTourStep,
   placeTooltip,
@@ -54,6 +55,11 @@ export function TourOverlay({
   useLayoutEffect(() => {
     let frame = 0;
     let tries = 0;
+    let observed: HTMLElement | null = null;
+    const observer = new ResizeObserver(() => {
+      tries = 0;
+      measure();
+    });
 
     function measure() {
       const target = visibleTourTarget(step.target);
@@ -65,26 +71,32 @@ export function TourOverlay({
         }
         return;
       }
-      target.scrollIntoView({
-        block: "center",
-        inline: "nearest",
-        behavior: "auto",
-      });
+      if (observed !== target) {
+        if (observed) observer.disconnect();
+        observer.observe(target);
+        observed = target;
+      }
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const before = target.getBoundingClientRect();
+      const coversViewport =
+        before.top <= 8 &&
+        before.left <= 8 &&
+        before.bottom >= viewport.height - 8 &&
+        before.right >= viewport.width - 8;
+      if (!coversViewport) {
+        target.scrollIntoView({
+          block: "nearest",
+          inline: "nearest",
+          behavior: "auto",
+        });
+      }
       const rect = target.getBoundingClientRect();
-      const padded = inflateRect(rect, 6);
-      setHighlight(padded);
+      setHighlight(clampRectToViewport(inflateRect(rect, 6), viewport));
       const size = {
         width: bubbleEl.offsetWidth,
         height: bubbleEl.offsetHeight,
       };
-      setBubble(
-        placeTooltip(
-          rect,
-          size,
-          step.placement,
-          { width: window.innerWidth, height: window.innerHeight },
-        ),
-      );
+      setBubble(placeTooltip(rect, size, step.placement, viewport));
     }
 
     measure();
@@ -96,6 +108,7 @@ export function TourOverlay({
     window.addEventListener("scroll", onWin, true);
     return () => {
       cancelAnimationFrame(frame);
+      observer.disconnect();
       window.removeEventListener("resize", onWin);
       window.removeEventListener("scroll", onWin, true);
     };
@@ -135,7 +148,7 @@ export function TourOverlay({
 
       <div
         ref={bubbleRef}
-        className="absolute z-[80] w-[min(20.5rem,calc(100vw-1.5rem))] rounded-2xl bg-[#163056] p-4 text-podium-white shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+        className="absolute z-[80] w-[min(20.5rem,calc(100vw-1.5rem))] rounded-lg border border-white/[0.08] bg-[rgba(12,22,42,0.72)] p-4 text-podium-white backdrop-blur-xl"
         style={
           bubble
             ? { top: bubble.top, left: bubble.left }
@@ -148,10 +161,10 @@ export function TourOverlay({
             aria-hidden
             className={cn(
               "absolute h-0 w-0 border-8 border-transparent",
-              bubble.placement === "bottom" && "border-b-[#163056]",
-              bubble.placement === "top" && "border-t-[#163056]",
-              bubble.placement === "right" && "border-r-[#163056]",
-              bubble.placement === "left" && "border-l-[#163056]",
+              bubble.placement === "bottom" && "border-b-white/15",
+              bubble.placement === "top" && "border-t-white/15",
+              bubble.placement === "right" && "border-r-white/15",
+              bubble.placement === "left" && "border-l-white/15",
             )}
             style={
               bubble.placement === "bottom"

@@ -480,7 +480,9 @@ export const COPY = {
   tourCounter: "{n} de {total}",
   tourFinishApp: "Ir para o Painel",
   tourFinishLanding: "Começar grátis",
-  tourReplay: "Rever o tour",
+  tourReplay: "Ver de novo",
+  tourReplayHint:
+    "O passeio pelo Painel e pela lista. Só se quiser ver de novo.",
   tourPageTitle: "Tour do GRID",
   tourDemoListName: "Clínicas · Curitiba",
   tourStepPainelWelcomeTitle: "O dia começa no Painel",

@@ -69,6 +69,16 @@ describe("capacete FAQ", () => {
   });
 });
 
+describe("rever-tour FAQ", () => {
+  it("points replay to Conta Ajuda instead of the Painel", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "rever-tour");
+    expect(item?.answer.toLowerCase()).toMatch(/uma vez/);
+    expect(item?.answer).toMatch(/Conta/);
+    expect(item?.answer).toMatch(/Ajuda/);
+    expect(item?.links).toEqual([{ href: "/conta/ajuda", label: "Abrir ajuda" }]);
+  });
+});
+
 describe("acesso FAQ", () => {
   it("describes password signup and recovery for old magic-link users", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "acesso");

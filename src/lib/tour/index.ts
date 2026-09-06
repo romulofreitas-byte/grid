@@ -30,4 +30,4 @@ export {
   tourDoneKey,
   writeTourSession,
 } from "./storage";
-export { inflateRect, placeTooltip } from "./placement";
+export { clampRectToViewport, inflateRect, placeTooltip } from "./placement";

@@ -209,19 +209,11 @@ export function PainelDashboard() {
   }
 
   return (
-    <div className="space-y-5">
-      <div data-tour="painel" className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-5" data-tour="painel">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <SectionTitle>{COPY.painelTitle}</SectionTitle>
-          <Hint className="mt-1 max-w-xl">
-            {COPY.painelHint}{" "}
-            <Link
-              href="/painel?tour=1"
-              className="font-semibold text-podium-yellow hover:underline"
-            >
-              {COPY.tourReplay}
-            </Link>
-          </Hint>
+          <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">

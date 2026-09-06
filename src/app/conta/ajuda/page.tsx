@@ -45,6 +45,19 @@ export default function ContaAjudaPage() {
           Abrir dúvidas
         </Link>
       </GlassCard>
+
+      <GlassCard className="space-y-3 p-4 md:p-5" hover={false}>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+          Tour
+        </p>
+        <p className="text-sm text-podium-gray">{COPY.tourReplayHint}</p>
+        <Link
+          href="/painel?tour=1"
+          className="inline-flex rounded-md border border-white/15 px-3 py-1.5 text-xs font-semibold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+        >
+          {COPY.tourReplay}
+        </Link>
+      </GlassCard>
     </div>
   );
 }

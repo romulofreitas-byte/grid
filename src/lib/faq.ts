@@ -38,6 +38,14 @@ export const FAQ_ITEMS: FaqItem[] = [
     ],
   },
   {
+    id: "rever-tour",
+    category: "Começar",
+    question: "Como vejo o tour de novo?",
+    answer:
+      "Ele aparece uma vez no primeiro acesso. Se quiser repetir, está em Conta → Ajuda.",
+    links: [{ href: "/conta/ajuda", label: "Abrir ajuda" }],
+  },
+  {
     id: "acesso",
     category: "Começar",
     question: "Como entro no GRID?",

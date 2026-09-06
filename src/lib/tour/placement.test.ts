@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inflateRect, placeTooltip } from "./placement";
+import { clampRectToViewport, inflateRect, placeTooltip } from "./placement";
 
 const size = { width: 320, height: 160 };
 const viewport = { width: 1280, height: 800 };
@@ -48,5 +48,51 @@ describe("inflateRect", () => {
       width: 112,
       height: 62,
     });
+  });
+});
+
+describe("clampRectToViewport", () => {
+  it("clips a highlight that overflows the viewport", () => {
+    expect(
+      clampRectToViewport(
+        { top: -12, left: 40, width: 1400, height: 900 },
+        viewport,
+      ),
+    ).toEqual({
+      top: 0,
+      left: 40,
+      width: 1240,
+      height: 800,
+    });
+  });
+
+  it("keeps an inset so the ring does not sit under chrome", () => {
+    expect(
+      clampRectToViewport(
+        { top: -4, left: -4, width: 200, height: 80 },
+        { width: 360, height: 640 },
+        8,
+      ),
+    ).toEqual({
+      top: 8,
+      left: 8,
+      width: 188,
+      height: 68,
+    });
+  });
+});
+
+describe("placeTooltip on a large target", () => {
+  it("keeps the bubble inside the viewport when the target fills the page", () => {
+    const layout = placeTooltip(
+      { top: 56, left: 88, width: 1100, height: 720 },
+      size,
+      "bottom",
+      viewport,
+    );
+    expect(layout.top).toBeGreaterThanOrEqual(12);
+    expect(layout.left).toBeGreaterThanOrEqual(12);
+    expect(layout.top + size.height).toBeLessThanOrEqual(viewport.height - 12);
+    expect(layout.left + size.width).toBeLessThanOrEqual(viewport.width - 12);
   });
 });

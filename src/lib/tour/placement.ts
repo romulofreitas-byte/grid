@@ -128,3 +128,20 @@ export function inflateRect(rect: Rect, pad: number): Rect {
     height: rect.height + pad * 2,
   };
 }
+
+export function clampRectToViewport(
+  rect: Rect,
+  viewport: Viewport,
+  inset = 0,
+): Rect {
+  const left = Math.max(rect.left, inset);
+  const top = Math.max(rect.top, inset);
+  const right = Math.min(rect.left + rect.width, viewport.width - inset);
+  const bottom = Math.min(rect.top + rect.height, viewport.height - inset);
+  return {
+    top,
+    left,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
