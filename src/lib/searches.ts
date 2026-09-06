@@ -94,3 +94,7 @@ export function nextSavedVisibleCount(
 ): number {
   return Math.min(total, shown + pageSize);
 }
+
+export function savedLeadsTotal(saved: Search[]): number {
+  return saved.reduce((sum, search) => sum + (search.total_found ?? 0), 0);
+}

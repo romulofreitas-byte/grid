@@ -350,6 +350,8 @@ export const COPY = {
   listasMostrarMais: "Mostrar mais · {n}",
   listasLeadOne: "lead",
   listasLeadMany: "leads",
+  listasVolumeLabel: "pra ligar",
+  listasVolumeAria: "{n} leads salvos para ligar. Escolha uma lista.",
   crmNav: "CRM",
   crmTitle: "CRM",
   crmHint:

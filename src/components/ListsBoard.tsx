@@ -18,9 +18,11 @@ import {
   partitionSearches,
   removeSearch,
   SAVED_LISTS_PAGE_SIZE,
+  savedLeadsTotal,
   UNSAVED_LIST_CAP,
 } from "@/lib/searches";
 import type { Search } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function ListsBoard({
   initial,
@@ -37,6 +39,18 @@ export function ListsBoard({
   const { saved, unsaved } = partitionSearches(searches);
   const shownSaved = saved.slice(0, savedVisible);
   const remainingSaved = Math.max(0, saved.length - shownSaved.length);
+  const leadsTotal = savedLeadsTotal(saved);
+  const volumeLabel = COPY.listasVolumeAria.replace(
+    "{n}",
+    leadsTotal.toLocaleString("pt-BR"),
+  );
+
+  function scrollToSavedLists() {
+    document.getElementById("listas-salvas")?.scrollIntoView({
+      behavior: reduce ? "auto" : "smooth",
+      block: "start",
+    });
+  }
 
   function clearError(searchId: string) {
     setErrors((current) => {
@@ -87,46 +101,69 @@ export function ListsBoard({
               {COPY.listasSalvasHint}
             </Hint>
           </div>
-          <Link
-            href={largadaNovaHref}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-podium-yellow/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] !text-podium-yellow"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {COPY.novaLista}
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {leadsTotal > 0 ? (
+              <button
+                type="button"
+                onClick={scrollToSavedLists}
+                title={volumeLabel}
+                aria-label={volumeLabel}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-podium-yellow/40 px-2.5 py-1",
+                  !reduce && "listas-volume-pulse",
+                )}
+              >
+                <span className="text-[11px] font-bold tracking-tight text-podium-yellow">
+                  {leadsTotal.toLocaleString("pt-BR")}
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-podium-muted">
+                  {COPY.listasVolumeLabel}
+                </span>
+              </button>
+            ) : null}
+            <Link
+              href={largadaNovaHref}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-podium-yellow/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] !text-podium-yellow"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {COPY.novaLista}
+            </Link>
+          </div>
         </div>
-        <SearchGrid
-          items={shownSaved}
-          empty={
-            <GlassCard className="p-5 text-sm text-podium-muted">
-              Nenhuma lista salva ainda.{" "}
-              {unsaved.length > 0 ? (
-                <>
-                  Salve uma das buscas em {COPY.listasNaoSalvas.toLowerCase()},
-                  ou faça uma{" "}
-                </>
-              ) : (
-                "Faça uma "
-              )}
-              <Link href={largadaNovaHref} className="text-podium-yellow">
-                {COPY.novaLista.toLowerCase()}
-              </Link>
-              .
-            </GlassCard>
-          }
-          reduce={Boolean(reduce)}
-          renderCard={(item) => (
-            <ListTile
-              search={item}
-              from="listas"
-              pistaNome={pistaNomeForSearch(item, pipelineNomes)}
-              error={errors[item.id]}
-              pending={pendingId === item.id}
-              onToggleSaved={(next) => void toggleSaved(item, next)}
-              onDeleted={onDeleted}
-            />
-          )}
-        />
+        <div id="listas-salvas" className="scroll-mt-20">
+          <SearchGrid
+            items={shownSaved}
+            empty={
+              <GlassCard className="p-5 text-sm text-podium-muted">
+                Nenhuma lista salva ainda.{" "}
+                {unsaved.length > 0 ? (
+                  <>
+                    Salve uma das buscas em {COPY.listasNaoSalvas.toLowerCase()},
+                    ou faça uma{" "}
+                  </>
+                ) : (
+                  "Faça uma "
+                )}
+                <Link href={largadaNovaHref} className="text-podium-yellow">
+                  {COPY.novaLista.toLowerCase()}
+                </Link>
+                .
+              </GlassCard>
+            }
+            reduce={Boolean(reduce)}
+            renderCard={(item) => (
+              <ListTile
+                search={item}
+                from="listas"
+                pistaNome={pistaNomeForSearch(item, pipelineNomes)}
+                error={errors[item.id]}
+                pending={pendingId === item.id}
+                onToggleSaved={(next) => void toggleSaved(item, next)}
+                onDeleted={onDeleted}
+              />
+            )}
+          />
+        </div>
         {remainingSaved > 0 ? (
           <div className="mt-4 flex justify-center">
             <Button

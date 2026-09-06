@@ -166,6 +166,34 @@ button {
   animation: recommend-pulse 1.8s ease-in-out 1;
 }
 
+@keyframes listas-volume-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 179, 1, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 179, 1, 0);
+  }
+}
+
+@keyframes listas-volume-number {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.listas-volume-pulse {
+  animation: listas-volume-pulse 2.2s ease-in-out infinite;
+}
+
+.listas-volume-pulse > :first-child {
+  animation: listas-volume-number 2.2s ease-in-out infinite;
+}
+
 @keyframes crm-alert-pulse {
   0%,
   100% {
@@ -317,6 +345,8 @@ button {
   .race-grid-move,
   .recommend-pulse,
   .recommend-pulse-once,
+  .listas-volume-pulse,
+  .listas-volume-pulse > :first-child,
   .pix-qr-ring,
   .podium-checkered,
   .podium-check-path,

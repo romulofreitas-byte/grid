@@ -6,6 +6,7 @@ import {
   partitionSearches,
   removeSearch,
   SAVED_LISTS_PAGE_SIZE,
+  savedLeadsTotal,
   setSearchSaved,
   UNSAVED_LIST_CAP,
   unsavedIdsToPrune,
@@ -166,5 +167,33 @@ describe("nextSavedVisibleCount", () => {
     expect(nextSavedVisibleCount(6, 14)).toBe(12);
     expect(nextSavedVisibleCount(12, 14)).toBe(14);
     expect(nextSavedVisibleCount(14, 14)).toBe(14);
+  });
+});
+
+describe("savedLeadsTotal", () => {
+  it("sums total_found of the given lists", () => {
+    expect(
+      savedLeadsTotal([
+        search({ id: "a", saved: true, total_found: 1000 }),
+        search({ id: "b", saved: true, total_found: 657 }),
+      ]),
+    ).toBe(1657);
+  });
+
+  it("treats null and zero as zero", () => {
+    expect(
+      savedLeadsTotal([
+        search({ id: "a", saved: true, total_found: 0 }),
+        search({
+          id: "b",
+          saved: true,
+          total_found: null as unknown as number,
+        }),
+      ]),
+    ).toBe(0);
+  });
+
+  it("returns 0 for an empty list", () => {
+    expect(savedLeadsTotal([])).toBe(0);
   });
 });
