@@ -21,13 +21,12 @@ import type { BoxQueueItem, BoxQueueKind } from "@/lib/box/queue";
 import { COPY } from "@/lib/copy";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
-import { cn } from "@/lib/utils";
 
-const outlineLink =
-  "text-[11px] text-zinc-500 hover:text-amber-700 hover:underline";
+const textLink =
+  "text-[11px] text-podium-muted hover:text-podium-yellow hover:underline disabled:opacity-40";
 
-const outlineCall =
-  "border-zinc-200 bg-white text-zinc-800 shadow-none hover:border-amber-400 hover:bg-amber-50 hover:text-zinc-900 hover:shadow-none";
+const waCall =
+  "inline-flex h-7 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.04] px-2.5 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:bg-white/[0.08] hover:text-podium-white";
 
 export function BoxFocusCard({
   item,
@@ -90,19 +89,19 @@ export function BoxFocusCard({
   }
 
   return (
-    <article className="shrink-0 border-b border-zinc-200 px-4 py-3">
+    <article className="shrink-0 border-b border-white/10 px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <CrmTelemetryPip signal={item.signal} />
-            <p className="truncate text-sm font-medium tracking-tight text-zinc-800">
+            <p className="truncate text-sm font-medium tracking-tight text-podium-white">
               {item.companyName}
             </p>
           </div>
-          <p className="mt-1 truncate font-mono text-[12px] text-zinc-600">
+          <p className="mt-1 truncate font-mono text-[12px] text-podium-gray">
             {phoneLabel}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-zinc-400">
+          <p className="mt-0.5 truncate text-[11px] text-podium-muted">
             {[
               item.contactName,
               item.stageNome,
@@ -120,10 +119,7 @@ export function BoxFocusCard({
                 href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium",
-                  outlineCall,
-                )}
+                className={waCall}
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 WhatsApp
@@ -131,7 +127,6 @@ export function BoxFocusCard({
             ) : null
           ) : tel || callConnection ? (
             <CallButton
-              variant="box"
               telHref={tel?.href ?? null}
               connection={callConnection}
               cnpj={item.cnpj}
@@ -147,7 +142,7 @@ export function BoxFocusCard({
             <button
               type="button"
               disabled={locked}
-              className={outlineLink}
+              className={textLink}
               onClick={() => {
                 setError(null);
                 setMode((current) => (current === "complete" ? "idle" : "complete"));
@@ -158,7 +153,7 @@ export function BoxFocusCard({
             <button
               type="button"
               disabled={locked}
-              className={outlineLink}
+              className={textLink}
               onClick={() => {
                 setError(null);
                 setMode((current) => (current === "snooze" ? "idle" : "snooze"));
@@ -168,7 +163,7 @@ export function BoxFocusCard({
             </button>
             <Link
               href={`/crm?deal=${item.dealId}&pipeline=${item.pipelineId}`}
-              className={outlineLink}
+              className={textLink}
             >
               {COPY.boxOpenCrm}
             </Link>

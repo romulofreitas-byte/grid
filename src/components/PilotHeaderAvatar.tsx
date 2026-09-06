@@ -3,12 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
+import { PilotAvatar } from "@/components/PilotAvatar";
 import { logoutPilot } from "@/lib/auth/logout-client";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
-import { displayName } from "@/lib/pilot-profile";
+import { displayName, headerGivenName } from "@/lib/pilot-profile";
 import {
   footerItemKey,
   isFooterAccordion,
@@ -31,11 +32,54 @@ function footerHref(item: ShellFooterItem, from: string): string | undefined {
   return item.billingFrom ? planosHref(from) : item.href;
 }
 
-export function PilotHeaderAvatar({
-  tone = "dark",
+function PilotGlassChip({
+  profile,
+  shortName,
+  fullName,
+  chevron,
 }: {
-  tone?: "dark" | "light";
+  profile: Pick<Profile, "foto_url" | "como_chama" | "nome">;
+  shortName: string;
+  fullName: string;
+  chevron?: ReactNode;
 }) {
+  return (
+    <span
+      title={fullName}
+      className={cn(
+        "relative inline-flex max-w-full items-center gap-2.5 overflow-hidden rounded-xl border py-1.5 pl-1.5 backdrop-blur-xl",
+        chevron ? "pr-2" : "pr-3",
+        "border-white/[0.08] bg-white/[0.05]",
+      )}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/[0.12] to-transparent"
+      />
+      <PilotAvatar
+        profile={profile}
+        size="header"
+        shape="squircle"
+        className="relative"
+      />
+      <span className="relative flex min-w-0 flex-col items-start justify-center leading-tight">
+        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+          Piloto
+        </span>
+        <span className="max-w-[8rem] truncate text-xs text-podium-white">
+          {shortName}
+        </span>
+      </span>
+      {chevron ? <span className="relative shrink-0">{chevron}</span> : null}
+    </span>
+  );
+}
+
+export function PilotHeaderAvatar() {
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [expandedKey, setExpandedKey] = useState(readShellRailExpanded);
@@ -79,53 +123,35 @@ export function PilotHeaderAvatar({
   const from = pathWithSearch(pathname, searchParams.toString());
   const p = query.data;
   if (!p) return null;
-  const name = displayName(p);
-
-  const light = tone === "light";
+  const fullName = displayName(p);
+  const shortName = headerGivenName(p);
 
   return (
     <>
-      <div className="hidden min-w-0 flex-col items-end justify-center leading-tight md:flex">
-        <span
-          className={cn(
-            "text-[10px] font-medium uppercase tracking-[0.14em]",
-            light ? "text-zinc-400" : "text-podium-muted",
-          )}
-        >
-          Piloto
-        </span>
-        <span
-          className={cn(
-            "max-w-[10rem] truncate text-xs",
-            light ? "text-zinc-800" : "text-podium-white",
-          )}
-        >
-          {name}
-        </span>
+      <div className="hidden min-w-0 md:block">
+        <PilotGlassChip profile={p} shortName={shortName} fullName={fullName} />
       </div>
       <div ref={rootRef} className="relative min-w-0 shrink-0 md:hidden">
         <button
           type="button"
           aria-expanded={open}
           aria-haspopup="menu"
-          aria-label="Abrir menu"
+          aria-label={`Abrir menu · ${fullName}`}
           onClick={() => setOpen((v) => !v)}
-          className={cn(
-            "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs outline-none transition",
-            "focus-visible:ring-2 focus-visible:ring-podium-yellow",
-            light
-              ? "text-zinc-500 ring-offset-2 ring-offset-white hover:text-zinc-900"
-              : "text-podium-gray ring-offset-2 ring-offset-podium-navy hover:text-podium-white",
-            open && (light ? "text-zinc-900" : "text-podium-white"),
-          )}
+          className="inline-flex max-w-full rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-podium-yellow ring-offset-2 ring-offset-podium-navy"
         >
-          Menu
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 transition-transform",
-              light ? "text-zinc-400" : "text-podium-muted",
-              open && cn("rotate-180", light ? "text-zinc-800" : "text-podium-white"),
-            )}
+          <PilotGlassChip
+            profile={p}
+            shortName={shortName}
+            fullName={fullName}
+            chevron={
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-podium-muted transition-transform",
+                  open && "rotate-180 text-podium-white",
+                )}
+              />
+            }
           />
         </button>
         <AnchorPopover
@@ -137,7 +163,7 @@ export function PilotHeaderAvatar({
         >
           <div role="menu">
             <div className="border-b border-white/10 px-3 py-2">
-              <p className="truncate text-sm font-medium text-podium-white">{name}</p>
+              <p className="truncate text-sm font-medium text-podium-white">{fullName}</p>
             </div>
             {SHELL_FOOTER_NAV.map((item) => {
               const key = footerItemKey(item);

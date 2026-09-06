@@ -342,6 +342,7 @@ export const COPY = {
     "Arraste o card, registre a ligação e marque a próxima ação.",
   crmOpening: "Abrindo CRM…",
   crmOpeningNav: "Abrindo…",
+  boxOpening: "Abrindo Ligar…",
   crmLoadingNicho: "Abrindo nicho…",
   crmAddDeal: "Adicionar negócio",
   crmAddDealSearchPlaceholder: "Nome, fantasia ou CNPJ",

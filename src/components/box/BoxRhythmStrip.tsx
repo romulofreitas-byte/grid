@@ -47,11 +47,11 @@ function Spark({ values }: { values: number[] }) {
 
 function Split({ ligar, whatsapp }: { ligar: number; whatsapp: number }) {
   const total = ligar + whatsapp;
-  if (total <= 0) {
-    return <div className="h-1 w-16 rounded-full bg-zinc-200" />;
+    if (total <= 0) {
+    return <div className="h-1 w-16 rounded-full bg-white/10" />;
   }
   return (
-    <div className="flex h-1 w-16 overflow-hidden rounded-full bg-zinc-200">
+    <div className="flex h-1 w-16 overflow-hidden rounded-full bg-white/10">
       {ligar > 0 ? (
         <span
           className="h-full"
@@ -78,7 +78,7 @@ export function BoxRhythmStrip({
   const done = rhythm.crmCallsToday + rhythm.crmWhatsappToday;
   const pulse = rhythmNeedsPulse(rhythm, overdueCount);
   return (
-    <div className="relative shrink-0 overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div className="relative shrink-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]">
       <div
         className="telemetry-bar"
         aria-hidden="true"
@@ -86,31 +86,31 @@ export function BoxRhythmStrip({
       />
       <div className="flex min-w-0 items-center gap-4 px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxRhythmCalls}
           </p>
-          <p className="tabular-nums text-sm font-medium tracking-tight text-zinc-800">
+          <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
             {`${rhythm.callsToday} / ${rhythm.callGoal}`}
           </p>
           <Spark values={rhythm.habit.map((point) => point.calls)} />
         </div>
         <div className="flex min-w-0 items-center gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxRhythmDone}
           </p>
-          <p className="tabular-nums text-sm font-medium tracking-tight text-zinc-800">
+          <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
             {done}
           </p>
           <Split ligar={rhythm.crmCallsToday} whatsapp={rhythm.crmWhatsappToday} />
         </div>
         <div className="ml-auto flex min-w-0 items-center gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxRhythmAdvance}
           </p>
-          <p className="tabular-nums text-sm font-medium tracking-tight text-zinc-800">
+          <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
             {rhythm.crmMeetingsToday}
           </p>
-          <p className="hidden truncate text-[11px] text-zinc-400 sm:block">
+          <p className="hidden truncate text-[11px] text-podium-muted sm:block">
             reuniões hoje
           </p>
         </div>

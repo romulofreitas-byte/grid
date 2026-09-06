@@ -68,6 +68,10 @@ export function isShellNavActive(href: string, pathname: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+export function showsOpeningNav(href: string): boolean {
+  return href === "/crm" || href === "/box";
+}
+
 export function isShellChildActive(
   child: ShellNavChild,
   pathname: string,

@@ -79,14 +79,14 @@ export function BoxSprint({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
       {gap ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-3 py-1.5">
-          <p className="min-w-0 truncate text-xs text-zinc-600">
-            <span className="font-medium text-zinc-800">{gap.title}</span>
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5">
+          <p className="min-w-0 truncate text-xs text-podium-muted">
+            <span className="font-medium text-podium-white">{gap.title}</span>
             <span className="hidden sm:inline"> — {gap.body}</span>
           </p>
           <Link
             href={gap.href}
-            className="shrink-0 text-xs text-amber-700 hover:underline"
+            className="shrink-0 text-xs text-podium-yellow hover:underline"
           >
             {gap.cta}
           </Link>
@@ -95,9 +95,9 @@ export function BoxSprint({
 
       <BoxRhythmStrip rhythm={queue.rhythm} overdueCount={queue.counts.overdue} />
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxNow}
           </p>
           <div className="flex flex-wrap gap-1">
@@ -112,10 +112,10 @@ export function BoxSprint({
                   className={cn(
                     "rounded-md px-2 py-0.5 text-[11px] font-medium",
                     active && item.alert && count > 0
-                      ? "text-red-600"
+                      ? "text-podium-alert"
                       : active
-                        ? "text-amber-800"
-                        : "text-zinc-400 hover:text-zinc-700",
+                        ? "text-podium-yellow"
+                        : "text-podium-muted hover:text-podium-white",
                   )}
                 >
                   {item.label} {count}
@@ -139,7 +139,7 @@ export function BoxSprint({
               />
               {rest.length > 0 ? (
                 <div className="flex min-h-0 flex-col">
-                  <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+                  <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
                     {COPY.boxQueue}
                   </p>
                   <BoxTaskList
@@ -173,12 +173,12 @@ function BoxEmpty({
   novoSearchId: string | null;
 }) {
   const quietCta =
-    "inline-flex rounded-md border border-zinc-200 px-3 py-1.5 text-[11px] font-medium text-zinc-700 hover:border-amber-400 hover:text-amber-800";
+    "inline-flex rounded-md border border-white/15 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white";
 
   if (!crmAllowed) {
     return (
       <div className="px-4 py-8">
-        <p className="max-w-lg text-pretty text-sm text-zinc-600">
+        <p className="max-w-lg text-pretty text-sm text-podium-muted">
           {COPY.boxSprintLocked}
         </p>
         <Link href={planosHref("/box")} className={cn(quietCta, "mt-4")}>
@@ -190,7 +190,7 @@ function BoxEmpty({
 
   return (
     <div className="px-4 py-8">
-      <p className="max-w-lg text-pretty text-sm text-zinc-600">
+      <p className="max-w-lg text-pretty text-sm text-podium-muted">
         {COPY.boxSprintEmpty}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">

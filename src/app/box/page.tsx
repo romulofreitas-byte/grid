@@ -1,5 +1,4 @@
 import { BoxPlatformCouponBanner } from "@/components/BoxPlatformCouponBanner";
-import { AppShell } from "@/components/AppShell";
 import { BoxSprint } from "@/components/box/BoxSprint";
 import { buildBoxEstrutura } from "@/lib/box-estrutura";
 import { loadBoxQueue } from "@/lib/box/load-queue";
@@ -23,14 +22,12 @@ export default async function BoxPage() {
     unstable_rethrow(err);
     console.error("box_page_error", err);
     return (
-      <AppShell title="Ligar" fill wide lockHeight tone="light">
-        <div className="rounded-lg border border-zinc-200 bg-white p-8">
-          <p className="text-lg font-bold text-zinc-900">Não deu para carregar as ligações.</p>
-          <p className="mt-3 text-sm text-zinc-600">
-            {userFacingDbBusyMessage(err)}
-          </p>
-        </div>
-      </AppShell>
+      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8">
+        <p className="text-lg font-bold text-podium-white">Não deu para carregar as ligações.</p>
+        <p className="mt-3 text-sm text-podium-muted">
+          {userFacingDbBusyMessage(err)}
+        </p>
+      </div>
     );
   }
 }
@@ -39,36 +36,48 @@ async function BoxPageInner() {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   const repo = getRepo();
-  const profile = await repo.getProfile(session.id);
-  const billing = await getBalance(session.id);
-  const platformSubscriber = await isPlatformSubscriber(session.email);
+  const cookieStore = await cookies();
+  const workingSearchId =
+    cookieStore.get(WORKING_SEARCH_COOKIE)?.value ?? null;
+
+  const billingPromise = getBalance(session.id);
+  const [
+    profile,
+    billing,
+    platformSubscriber,
+    recent,
+    savedPreview,
+    connectionRows,
+    hasCrmPipeline,
+    queue,
+  ] = await Promise.all([
+    repo.getProfile(session.id),
+    billingPromise,
+    isPlatformSubscriber(session.email),
+    repo.listRecentSearches(session.id, { limit: 5 }),
+    repo.listSearches(session.id, { limit: 6 }),
+    repo.listIntegrationConnections(session.id),
+    repo.hasCrmPipeline(session.id).catch((err) => {
+      console.error("box_has_crm_pipeline_error", err);
+      return false;
+    }),
+    billingPromise.then((balance) =>
+      loadBoxQueue(session.id, new Date(), {
+        crmAllowed: balance.enrichAllowed,
+        trialExpired: balance.trialExpired,
+      }),
+    ).catch((err) => {
+      console.error("box_queue_error", err);
+      throw err;
+    }),
+  ]);
+
   const showPlatformCoupon = shouldShowPlatformCouponBanner(
     platformSubscriber,
     billing.plano,
     { trialExpired: billing.trialExpired },
   );
-  const cookieStore = await cookies();
-  const workingSearchId =
-    cookieStore.get(WORKING_SEARCH_COOKIE)?.value ?? null;
-  const [recent, savedPreview, connectionRows, hasCrmPipeline, queue] =
-    await Promise.all([
-      repo.listRecentSearches(profile.id, { limit: 5 }),
-      repo.listSearches(profile.id, { limit: 6 }),
-      repo.listIntegrationConnections(session.id),
-      repo.hasCrmPipeline(session.id).catch((err) => {
-        console.error("box_has_crm_pipeline_error", err);
-        return false;
-      }),
-      loadBoxQueue(session.id).catch((err) => {
-        console.error("box_queue_error", err);
-        throw err;
-      }),
-    ]);
-  const hasMoreSaved = savedPreview.length > 5;
-  const allSaved = hasMoreSaved
-    ? await repo.listSearches(profile.id)
-    : savedPreview.filter((s) => s.saved);
-  const savedCount = allSaved.length;
+  const savedCount = savedPreview.length;
   const connections = connectionRows.map((row) => toPublicConnection(row));
   const unsavedSearch = recent.find((s) => !s.saved) ?? null;
   const estrutura = buildBoxEstrutura({
@@ -80,11 +89,13 @@ async function BoxPageInner() {
     hasCrmPipeline,
   });
   let novoSearchId: string | null = null;
-  try {
-    const next = await repo.findNextCallLead(session.id, workingSearchId);
-    novoSearchId = next?.searchId ?? null;
-  } catch (err) {
-    console.error("box_next_call_error", err);
+  if (queue.counts.total === 0) {
+    try {
+      const next = await repo.findNextCallLead(session.id, workingSearchId);
+      novoSearchId = next?.searchId ?? null;
+    } catch (err) {
+      console.error("box_next_call_error", err);
+    }
   }
   const rawGap =
     estrutura.nextGap != null
@@ -93,25 +104,23 @@ async function BoxPageInner() {
   const gap = rawGap?.id === "ligar" ? null : rawGap;
 
   return (
-    <AppShell title="Ligar" fill wide lockHeight tone="light">
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        {showPlatformCoupon ? (
-          <div className="shrink-0 overflow-hidden rounded-lg bg-podium-navy">
-            <BoxPlatformCouponBanner />
-          </div>
-        ) : null}
-        {billing.trialExpired ? (
-          <div className="shrink-0 overflow-hidden rounded-lg bg-podium-navy">
-            <BoxPlatformCouponBanner ended />
-          </div>
-        ) : null}
-        <BoxSprint
-          queue={queue}
-          connections={connections}
-          novoSearchId={novoSearchId}
-          gap={gap}
-        />
-      </div>
-    </AppShell>
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      {showPlatformCoupon ? (
+        <div className="shrink-0 overflow-hidden rounded-lg bg-podium-navy">
+          <BoxPlatformCouponBanner />
+        </div>
+      ) : null}
+      {billing.trialExpired ? (
+        <div className="shrink-0 overflow-hidden rounded-lg bg-podium-navy">
+          <BoxPlatformCouponBanner ended />
+        </div>
+      ) : null}
+      <BoxSprint
+        queue={queue}
+        connections={connections}
+        novoSearchId={novoSearchId}
+        gap={gap}
+      />
+    </div>
   );
 }

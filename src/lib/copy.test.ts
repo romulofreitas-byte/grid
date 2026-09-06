@@ -168,6 +168,7 @@ describe("COPY crm", () => {
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.boxSprintTitle).toMatch(/trabalho do dia/i);
     expect(COPY.boxNow).toMatch(/agora/i);
+    expect(COPY.boxOpening).toMatch(/ligar/i);
     expect(COPY.boxQueue).toMatch(/fila/i);
     expect(COPY.boxOverdue).toMatch(/atrasado/i);
     expect(COPY.boxOverdueChip).toBe("Atrasado");

@@ -59,7 +59,7 @@ export function CallButton({
   cnpj?: string | null;
   searchId?: string | null;
   to?: string;
-  variant?: "grid" | "ficha" | "cockpit" | "box" | "card";
+  variant?: "grid" | "ficha" | "cockpit" | "card";
   label?: string;
   onCalled?: () => void;
   className?: string;
@@ -138,31 +138,13 @@ export function CallButton({
           "disabled:opacity-40",
           className,
         )
-      : variant === "box" && iconOnly
-        ? cn(
-            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition",
-            "hover:bg-zinc-100 hover:text-amber-700",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
-            "disabled:opacity-40",
-            className,
-          )
       : variant === "cockpit"
         ? buttonClassName({
             variant: "primary",
             size: "md",
             className: cn("w-full gap-2", className),
           })
-        : variant === "box"
-          ? buttonClassName({
-              variant: "secondary",
-              size: "sm",
-              className: cn(
-                "border-zinc-200 bg-white text-zinc-800 shadow-none",
-                "hover:border-amber-400 hover:bg-amber-50 hover:text-zinc-900 hover:shadow-none",
-                className,
-              ),
-            })
-          : buttonClassName({ variant: "secondary", size: "sm", className });
+        : buttonClassName({ variant: "secondary", size: "sm", className });
 
   const title = callMutation.error
     ? callMutation.error.message

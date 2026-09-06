@@ -313,6 +313,18 @@ export function displayName(profile: {
   return profile.como_chama?.trim() || profile.nome?.trim() || "Piloto";
 }
 
+/** Short label for the header chip: how they want to be called, else first name. */
+export function headerGivenName(profile: {
+  como_chama?: string | null;
+  nome?: string | null;
+}): string {
+  const call = profile.como_chama?.trim();
+  if (call) return call.split(/\s+/).filter(Boolean)[0] ?? call;
+  const nome = profile.nome?.trim();
+  if (!nome) return "Piloto";
+  return nome.split(/\s+/).filter(Boolean)[0] ?? "Piloto";
+}
+
 export function initials(profile: {
   como_chama?: string | null;
   nome?: string | null;

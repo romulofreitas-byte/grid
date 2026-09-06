@@ -50,14 +50,14 @@ function BoxQueueRow({
             onFocus();
           }
         }}
-        className="group/row flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left hover:bg-zinc-50"
+        className="group/row flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left hover:bg-white/5"
       >
         <CrmTelemetryPip signal={item.signal} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12px] font-medium text-zinc-800">
+          <span className="block truncate text-[12px] font-medium text-podium-white">
             {item.companyName}
           </span>
-          <span className="block truncate text-[11px] text-zinc-400">
+          <span className="block truncate text-[11px] text-podium-muted">
             {planned ?? item.stageNome}
           </span>
         </span>
@@ -75,14 +75,14 @@ function BoxQueueRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-amber-700"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-podium-muted hover:bg-white/10 hover:text-podium-yellow"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
               </a>
             ) : null
           ) : tel || callConnection ? (
             <CallButton
-              variant="box"
+              variant="card"
               iconOnly
               telHref={tel?.href ?? null}
               connection={callConnection}
@@ -112,7 +112,7 @@ export function BoxTaskList({
   onFocus: (id: string) => void;
 }) {
   if (rows.length === 0) {
-    return <p className="px-4 py-6 text-sm text-zinc-500">{empty}</p>;
+    return <p className="px-4 py-6 text-sm text-podium-muted">{empty}</p>;
   }
 
   return (

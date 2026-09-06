@@ -264,47 +264,42 @@ function loadRhythmMock(userId: string, now: Date): BoxRhythm {
 export async function loadBoxQueue(
   userId: string,
   now = new Date(),
+  flags?: { crmAllowed: boolean; trialExpired: boolean },
 ): Promise<BoxQueuePayload> {
-  const balance = await getBalance(userId);
-  const flags = {
-    crmAllowed: balance.enrichAllowed,
-    trialExpired: balance.trialExpired,
-  };
+  const resolved =
+    flags ??
+    (await getBalance(userId).then((balance) => ({
+      crmAllowed: balance.enrichAllowed,
+      trialExpired: balance.trialExpired,
+    })));
+
+  const live = getDataSource() === "supabase";
+  if (live && !hasLiveDatabase()) {
+    throw new BoxQueueError("Banco indisponível para o Box.");
+  }
 
   let rhythm: BoxRhythm;
-  if (getDataSource() === "supabase") {
-    if (!hasLiveDatabase()) {
-      throw new BoxQueueError("Banco indisponível para o Box.");
-    }
-    try {
-      rhythm = await loadRhythmPg(userId, now);
-    } catch (err) {
-      throw new BoxQueueError(
-        err instanceof Error ? err.message : "Não foi possível carregar a fila",
-        500,
-      );
-    }
-  } else {
-    rhythm = loadRhythmMock(userId, now);
+  let sources: BoxQueueSource[] = [];
+  try {
+    const rhythmPromise = live
+      ? loadRhythmPg(userId, now)
+      : Promise.resolve(loadRhythmMock(userId, now));
+    const sourcesPromise = resolved.crmAllowed
+      ? live
+        ? loadSourcesPg(userId)
+        : Promise.resolve(loadSourcesMock(userId))
+      : Promise.resolve([]);
+    [rhythm, sources] = await Promise.all([rhythmPromise, sourcesPromise]);
+  } catch (err) {
+    throw new BoxQueueError(
+      err instanceof Error ? err.message : "Não foi possível carregar a fila",
+      500,
+    );
   }
 
-  if (!flags.crmAllowed) {
-    return toPayload(emptyQueue(), flags, rhythm);
+  if (!resolved.crmAllowed) {
+    return toPayload(emptyQueue(), resolved, rhythm);
   }
 
-  let sources: BoxQueueSource[];
-  if (getDataSource() === "supabase") {
-    try {
-      sources = await loadSourcesPg(userId);
-    } catch (err) {
-      throw new BoxQueueError(
-        err instanceof Error ? err.message : "Não foi possível carregar a fila",
-        500,
-      );
-    }
-  } else {
-    sources = loadSourcesMock(userId);
-  }
-
-  return toPayload(buildBoxQueue(sources, now), flags, rhythm);
+  return toPayload(buildBoxQueue(sources, now), resolved, rhythm);
 }
