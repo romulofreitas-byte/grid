@@ -81,7 +81,7 @@ export function mapsPinConfirmable(
   row: LeadEnrichment | null | undefined,
 ): boolean {
   const listing = row?.gmb;
-  if (!gmbListingIsCandidate(listing)) return false;
+  if (!listing || !gmbListingIsCandidate(listing)) return false;
   if (listing.cid?.trim()) return true;
   const url = listing.url?.trim();
   if (!url || mapsSearchUrl(url) || !isMapsUrl(url)) return false;
