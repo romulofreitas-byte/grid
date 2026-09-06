@@ -28,7 +28,7 @@ export function BenefitGrid() {
   const [active, setActive] = useState(1);
 
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-white/10 md:grid-cols-3">
+    <div className="grid overflow-hidden rounded-md border border-white/10 md:grid-cols-3">
       {SLOTS.map((slot, i) => {
         const on = active === slot.pos;
         return (
@@ -39,7 +39,7 @@ export function BenefitGrid() {
             onFocus={() => setActive(slot.pos)}
             onClick={() => setActive(slot.pos)}
             className={cn(
-              "relative min-h-0 px-5 py-4 text-left transition duration-300 md:px-6 md:py-5",
+              "relative min-h-0 px-3 py-3 text-left transition duration-300 md:px-4 md:py-4",
               on
                 ? "bg-podium-yellow/12"
                 : "bg-white/[0.03] hover:bg-white/[0.06]",
@@ -52,7 +52,7 @@ export function BenefitGrid() {
             <div className="flex items-baseline gap-3">
               <span
                 className={cn(
-                  "font-extrabold text-2xl tracking-tight md:text-3xl",
+                  "font-semibold text-xl tracking-tight md:text-2xl",
                   on ? "text-podium-yellow" : "text-podium-muted",
                 )}
               >
@@ -60,14 +60,14 @@ export function BenefitGrid() {
               </span>
               <span
                 className={cn(
-                  "text-[10px] font-bold uppercase tracking-[0.18em]",
+                  "text-[10px] font-medium uppercase tracking-[0.12em]",
                   on ? "text-podium-yellow" : "text-podium-muted",
                 )}
               >
                 {slot.label}
               </span>
             </div>
-            <h3 className="mt-2 font-bold text-podium-white md:mt-3">
+            <h3 className="mt-2 font-semibold text-podium-white md:mt-3">
               {slot.t}
             </h3>
             <p

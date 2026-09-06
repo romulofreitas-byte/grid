@@ -3,7 +3,7 @@ import type { BillingMe } from "@/lib/billing/types";
 import type { Profile } from "@/lib/types";
 
 export const CONTA_FIELD_CLASS =
-  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
+  "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40";
 
 export type AccountProfile = Profile & {
   email?: string | null;

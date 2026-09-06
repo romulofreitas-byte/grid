@@ -15,9 +15,9 @@ export default function ContaAjudaPage() {
   const hasWhatsApp = Boolean(supportWhatsAppHref({ pathname: "/conta/ajuda" }));
 
   return (
-    <div className="space-y-4">
-      <GlassCard className="space-y-3 p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+    <div className="space-y-3">
+      <GlassCard className="space-y-3 p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Atendimento
         </p>
         <p className="text-sm text-podium-gray">{COPY.contaWhatsApp24h}</p>
@@ -31,8 +31,8 @@ export default function ContaAjudaPage() {
         )}
       </GlassCard>
 
-      <GlassCard className="space-y-3 p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+      <GlassCard className="space-y-3 p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Dúvidas
         </p>
         <p className="text-sm text-podium-gray">
@@ -46,8 +46,8 @@ export default function ContaAjudaPage() {
         </Link>
       </GlassCard>
 
-      <GlassCard className="space-y-3 p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+      <GlassCard className="space-y-3 p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
           Tour
         </p>
         <p className="text-sm text-podium-gray">{COPY.tourReplayHint}</p>

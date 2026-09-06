@@ -46,7 +46,7 @@ export function LandingListPreview({
   return (
     <div
       className={cn(
-        "relative w-full max-w-lg rounded-2xl border border-white/10 bg-podium-panel/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md md:p-5",
+        "relative w-full max-w-lg rounded-md border border-white/10 bg-podium-panel/80 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
         className,
       )}
       role="region"
@@ -110,7 +110,7 @@ export function LandingListPreview({
               >
                 <span
                   className={cn(
-                    "w-6 shrink-0 font-extrabold tabular-nums md:w-7",
+                    "w-6 shrink-0 font-semibold tabular-nums md:w-7",
                     on ? "text-podium-navy" : "text-podium-muted",
                   )}
                 >

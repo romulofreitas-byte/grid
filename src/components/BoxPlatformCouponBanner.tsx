@@ -4,13 +4,14 @@ import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { pagarHref, planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
+import { buttonClassName } from "@/components/ui/Button";
 
 export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) {
   const reduce = useReducedMotion();
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-2xl border border-podium-yellow/40 bg-podium-yellow/10 p-5 md:p-6"
+      className="relative overflow-hidden rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-3"
       animate={
         reduce
           ? undefined
@@ -28,23 +29,23 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
           : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
       }
     >
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
         Mundo Pódium
       </p>
-      <p className="mt-2 text-pretty text-lg font-extrabold leading-snug text-podium-white">
+      <p className="mt-2 text-pretty text-sm font-semibold leading-snug text-podium-white">
         {ended ? COPY.boxPlatformTrialEnded : COPY.boxPlatformCoupon}
       </p>
       {ended ? (
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href={planosHref("/box")}
-            className="inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
+            className={buttonClassName({ variant: "primary", size: "md" })}
           >
             Assinar o Piloto
           </Link>
           <Link
             href={planosHref("/box", true)}
-            className="inline-flex rounded-xl border border-white/15 px-5 py-2.5 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+            className={buttonClassName({ variant: "secondary", size: "md" })}
           >
             Recarregar créditos
           </Link>
@@ -52,7 +53,7 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
       ) : (
         <Link
           href={pagarHref("membro_plataforma", "/box")}
-          className="mt-4 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110"
+          className={buttonClassName({ variant: "primary", size: "md", className: "mt-3" })}
         >
           Ativar com cupom
         </Link>

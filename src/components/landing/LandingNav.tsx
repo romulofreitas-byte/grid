@@ -2,6 +2,7 @@
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { COPY } from "@/lib/copy";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useState } from "react";
@@ -49,7 +50,7 @@ export function LandingNav({ signedIn }: { signedIn: boolean }) {
         <div className="flex items-center gap-3">
           <Link
             href={signedIn ? "/painel" : "/entrar?modo=cadastro"}
-            className="rounded-xl bg-podium-yellow px-4 py-2 text-sm font-bold text-podium-navy transition hover:brightness-110"
+            className={buttonClassName({ variant: "primary", size: "md" })}
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>

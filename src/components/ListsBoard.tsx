@@ -8,7 +8,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { ListTile } from "@/components/ListTile";
 import { SectionTitle } from "@/components/SectionTitle";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
 import { largadaNovaHref } from "@/lib/back";
@@ -92,12 +92,12 @@ export function ListsBoard({
   }
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       <section>
         <div className="flex items-start justify-between gap-3">
           <div>
             <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
-            <Hint className="mt-2 max-w-xl">
+            <Hint className="mt-1.5 max-w-xl">
               {COPY.listasSalvasHint}
             </Hint>
           </div>
@@ -109,21 +109,21 @@ export function ListsBoard({
                 title={volumeLabel}
                 aria-label={volumeLabel}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-podium-yellow/40 px-2.5 py-1",
+                  buttonClassName({ variant: "accent", size: "sm" }),
                   !reduce && "listas-volume-pulse",
                 )}
               >
-                <span className="text-[11px] font-bold tracking-tight text-podium-yellow">
+                <span className="tracking-tight">
                   {leadsTotal.toLocaleString("pt-BR")}
                 </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-podium-muted">
+                <span className="uppercase tracking-[0.12em]">
                   {COPY.listasVolumeLabel}
                 </span>
               </button>
             ) : null}
             <Link
               href={largadaNovaHref}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-podium-yellow/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] !text-podium-yellow"
+              className={buttonClassName({ variant: "accent", size: "sm" })}
             >
               <Plus className="h-3.5 w-3.5" />
               {COPY.novaLista}
@@ -134,7 +134,7 @@ export function ListsBoard({
           <SearchGrid
             items={shownSaved}
             empty={
-              <GlassCard className="p-5 text-sm text-podium-muted">
+              <GlassCard className="p-3 text-sm text-podium-muted">
                 Nenhuma lista salva ainda.{" "}
                 {unsaved.length > 0 ? (
                   <>
@@ -185,13 +185,13 @@ export function ListsBoard({
         <SectionTitle>
           {COPY.listasNaoSalvas} · {unsaved.length} de {UNSAVED_LIST_CAP}
         </SectionTitle>
-        <Hint className="mt-2 max-w-xl">
+        <Hint className="mt-1.5 max-w-xl">
           {COPY.listasNaoSalvasHint}
         </Hint>
         <SearchGrid
           items={unsaved}
           empty={
-            <GlassCard className="p-5 text-sm text-podium-muted">
+            <GlassCard className="p-3 text-sm text-podium-muted">
               {saved.length > 0
                 ? "Todas as buscas estão em Minhas listas."
                 : "Nenhuma busca ainda. Comece uma "}
@@ -238,15 +238,15 @@ function SearchGrid({
   renderCard: (search: Search) => ReactNode;
 }) {
   if (items.length === 0) {
-    return <div className="mt-6">{empty}</div>;
+    return <div className="mt-4">{empty}</div>;
   }
 
   return (
     <div
       className={
         compact
-          ? "mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          : "mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+          ? "mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          : "mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
       }
     >
       {items.map((search) => (

@@ -80,7 +80,7 @@ export function ListSearchMenu({
           setConfirming(false);
           setError(null);
         }}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow"
       >
         <MoreHorizontal className="h-4 w-4" />
         <span className="sr-only">Mais ações</span>

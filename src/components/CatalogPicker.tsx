@@ -6,10 +6,10 @@ import type { CatalogGroup } from "@/lib/pilot-profile";
 import { cn } from "@/lib/utils";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40";
+  "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40";
 
 const setupFieldClass =
-  "mt-3 w-full max-w-md border-b border-white/20 bg-transparent pb-2 text-lg font-semibold outline-none focus:border-podium-yellow/60";
+  "mt-2 w-full max-w-md border-b border-white/20 bg-transparent pb-1.5 text-sm font-semibold outline-none focus:border-podium-yellow/60";
 
 export function CatalogPicker({
   groups,
@@ -40,7 +40,7 @@ export function CatalogPicker({
   }, [storedOutro]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {groups.map((group) => (
         <div key={group.id}>
           {group.label ? (
@@ -54,7 +54,7 @@ export function CatalogPicker({
                 key={option.id}
                 density={setup ? "chip" : "compact"}
                 selected={selectedId === option.id}
-                className={setup ? "min-h-10 px-2" : "min-h-11 px-2"}
+                className={setup ? "min-h-10 px-2" : "min-h-8 px-2"}
                 onClick={() =>
                   onChange(
                     option.id === "outro"

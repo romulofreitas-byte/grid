@@ -188,7 +188,7 @@ function CrmLaneShell({
           cards
         )}
         {deals.length === 0 ? (
-          <p className="px-2 py-8 text-center text-[11px] text-podium-muted">
+          <p className="px-2 py-4 text-center text-[11px] text-podium-muted">
             Setor livre
           </p>
         ) : null}

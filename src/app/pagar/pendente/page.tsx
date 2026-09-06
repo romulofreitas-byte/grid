@@ -11,6 +11,7 @@ import { StartingLights } from "@/components/StartingLights";
 import { usePodiumWait } from "@/hooks/usePodiumWait";
 import { planosHref } from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
@@ -34,7 +35,7 @@ function BoletoTimeline({ complete }: { complete: boolean }) {
           <li key={label} className="flex items-center gap-3">
             <span
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-extrabold",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold",
                 state === "done" &&
                   "border-podium-success/40 bg-podium-success/20 text-podium-success",
                 state === "active" &&
@@ -116,20 +117,20 @@ function PendenteInner() {
       >
         <GlassCard className="flex min-h-0 flex-1 flex-col overflow-hidden p-0 hover:translate-y-0">
           <div className="grid min-h-0 flex-1 auto-rows-fr lg:grid-cols-2">
-            <div className="flex flex-col justify-center gap-8 p-6 md:p-10">
+            <div className="flex flex-col justify-center gap-5 p-3 md:p-6">
               <div>
                 <StartingLights litCount={litCount} phase={phase} />
-                <h1 className="mt-5 text-balance text-3xl font-extrabold md:text-4xl">
+                <h1 className="mt-4 text-balance text-xl font-semibold md:text-2xl">
                   Boleto gerado
                 </h1>
-                <p className="mt-3 max-w-md text-pretty text-sm text-podium-gray md:text-base">
+                <p className="mt-2 max-w-md text-pretty text-sm text-podium-gray">
                   O crédito entra depois da compensação (1 a 3 dias úteis). Guarde o
                   comprovante.
                 </p>
               </div>
               <BoletoTimeline complete={complete} />
             </div>
-            <div className="flex flex-col justify-center gap-5 border-t border-white/10 p-6 md:p-10 lg:border-l lg:border-t-0">
+            <div className="flex flex-col justify-center gap-4 border-t border-white/10 p-3 md:p-6 lg:border-l lg:border-t-0">
               {order?.boletoLine ? (
                 <CopyFeedback
                   value={order.boletoLine}
@@ -155,7 +156,11 @@ function PendenteInner() {
                   type="button"
                   onClick={() => void simulate()}
                   disabled={complete}
-                  className="w-full rounded-xl border border-podium-yellow/40 px-4 py-3 text-sm font-bold text-podium-yellow disabled:opacity-60"
+                  className={buttonClassName({
+                    variant: "accent",
+                    size: "md",
+                    className: "w-full disabled:opacity-60",
+                  })}
                 >
                   Confirmar pagamento (demo)
                 </button>

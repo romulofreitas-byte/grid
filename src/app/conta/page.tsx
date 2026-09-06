@@ -26,14 +26,14 @@ export default function ContaResumoPage() {
   const activeConnections = connections.filter((c) => c.status === "active");
 
   if (!p || billingQuery.isLoading) {
-    return <div className="min-h-40 animate-pulse rounded-2xl bg-white/5" />;
+    return <div className="min-h-40 animate-pulse rounded-md bg-white/5" />;
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       <Link href="/conta/perfil" className="block">
-        <GlassCard className="h-full p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <GlassCard className="h-full p-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Perfil
           </p>
           <p className="mt-2 text-lg font-semibold text-podium-white">
@@ -46,8 +46,8 @@ export default function ContaResumoPage() {
       </Link>
 
       <Link href="/conta/acesso" className="block">
-        <GlassCard className="h-full p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <GlassCard className="h-full p-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Acesso
           </p>
           <p className="mt-2 truncate text-lg font-semibold text-podium-white">
@@ -58,8 +58,8 @@ export default function ContaResumoPage() {
       </Link>
 
       <Link href="/conta/plano" className="block">
-        <GlassCard className="h-full p-4" highlight>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <GlassCard className="h-full p-3" highlight>
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Plano e cobrança
           </p>
           <p className="mt-2 text-lg font-semibold text-podium-white">
@@ -73,8 +73,8 @@ export default function ContaResumoPage() {
       </Link>
 
       <Link href="/conta/conexoes" className="block">
-        <GlassCard className="h-full p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <GlassCard className="h-full p-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Conexões
           </p>
           <p className="mt-2 text-lg font-semibold text-podium-white">
@@ -91,8 +91,8 @@ export default function ContaResumoPage() {
       </Link>
 
       <Link href="/conta/ajuda" className="block sm:col-span-2">
-        <GlassCard className="p-4">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <GlassCard className="p-3">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Ajuda
           </p>
           <p className="mt-2 text-sm text-podium-gray">{COPY.contaWhatsApp24h}</p>

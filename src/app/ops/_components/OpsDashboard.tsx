@@ -63,11 +63,11 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <GlassCard className="p-4" hover={false}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+    <GlassCard className="p-3" hover={false}>
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight">{value}</p>
+      <p className="mt-1 text-xl font-semibold tracking-tight">{value}</p>
       {hint ? <Hint className="mt-1">{hint}</Hint> : null}
     </GlassCard>
   );

@@ -22,7 +22,7 @@ export function FaqList({ className }: { className?: string }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar dúvida"
-          className="w-full rounded-xl border border-white/10 bg-podium-panel py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-podium-muted focus:border-podium-yellow/40"
+          className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-10 pr-3 text-xs outline-none placeholder:text-podium-muted focus:border-podium-yellow/40"
         />
       </label>
 
@@ -33,16 +33,16 @@ export function FaqList({ className }: { className?: string }) {
       ) : (
         groups.map((group) => (
           <section key={group.category} className="space-y-2">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
               {group.category}
             </h3>
             <div className="space-y-2">
               {group.items.map((item) => (
                 <details
                   key={item.id}
-                  className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
+                  className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
                 >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-podium-white [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
                     <span className="min-w-0 text-balance">{item.question}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
                   </summary>

@@ -16,26 +16,26 @@ const DEMO_SCORES = [91, 76, 58, 44, 31] as const;
 
 function TourPainelMock() {
   return (
-    <div className="space-y-8" data-tour="painel">
+    <div className="space-y-4" data-tour="painel">
       <div>
         <SectionTitle>{COPY.painelTitle}</SectionTitle>
         <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
       </div>
 
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        <GlassCard className="p-5" hover={false} data-tour="painel-meta">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+        <GlassCard className="p-3" hover={false} data-tour="painel-meta">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <VoltaRing hoje={0} meta={20} size="lg" className="mx-auto sm:mx-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Trabalho do dia
               </p>
-              <p className="mt-1 text-xl font-extrabold leading-tight">
+              <p className="mt-1 text-base font-semibold leading-tight">
                 {COPY.painelCallsLeft.replace("{n}", "20")}
               </p>
               <span
                 data-tour="ligar-agora"
-                className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-extrabold text-podium-navy"
+                className="mt-3 inline-flex h-8 items-center justify-center gap-2 rounded-md bg-gradient-to-b from-[#ffc933] to-podium-yellow px-3 text-xs font-medium text-podium-navy"
               >
                 <Phone className="h-4 w-4" />
                 Ligar agora
@@ -44,22 +44,22 @@ function TourPainelMock() {
           </div>
         </GlassCard>
 
-        <GlassCard className="flex h-full flex-col p-5" hover={false}>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+        <GlassCard className="flex h-full flex-col p-3" hover={false}>
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
             Resultado
           </p>
           <div className="mt-3 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Faturado
               </p>
-              <p className="mt-1 text-2xl font-extrabold tracking-tight">—</p>
+              <p className="mt-1 text-xl font-semibold tracking-tight">—</p>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Pipeline
               </p>
-              <p className="mt-1 text-2xl font-extrabold tracking-tight">—</p>
+              <p className="mt-1 text-xl font-semibold tracking-tight">—</p>
             </div>
           </div>
           <Hint className="mt-4">Libere o CRM para ver o faturado.</Hint>
@@ -157,7 +157,7 @@ function TourGridMock() {
             key={lead.pos}
             hover={false}
             data-tour={i === 0 ? "grid-row" : undefined}
-            className={cn("p-4", i === 0 && "bg-podium-yellow/[0.04]")}
+            className={cn("p-3", i === 0 && "bg-podium-yellow/[0.04]")}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">

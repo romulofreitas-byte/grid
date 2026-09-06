@@ -11,6 +11,9 @@ import type { Search } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
+const iconActionClass =
+  "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border disabled:opacity-40";
+
 export function ListTile({
   search,
   from,
@@ -38,9 +41,9 @@ export function ListTile({
     <GlassCard
       highlight={!unsaved}
       className={cn(
-        "group relative flex h-full min-h-[12.5rem] flex-col p-4",
+        "group relative flex h-full flex-col p-3",
         unsaved &&
-          "min-h-[11rem] border-dashed border-white/15 bg-white/[0.02] hover:border-white/25",
+          "border-dashed border-white/15 bg-white/[0.02] hover:border-white/25",
       )}
     >
       <Link
@@ -49,65 +52,65 @@ export function ListTile({
         aria-label={`Abrir lista ${search.nome}`}
       />
       <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col">
-        <div className="min-w-0">
-          {unsaved ? (
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-              {COPY.listasRascunho}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {unsaved ? (
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                {COPY.listasRascunho}
+              </p>
+            ) : null}
+            <p
+              className={cn(
+                "truncate text-sm font-semibold leading-snug",
+                unsaved ? "mt-0.5 text-podium-gray" : "text-podium-white",
+              )}
+            >
+              {search.nome}
             </p>
-          ) : null}
+          </div>
           <p
             className={cn(
-              "truncate font-semibold leading-snug",
-              unsaved ? "mt-1 text-sm text-podium-gray" : "text-podium-white",
+              "shrink-0 text-right font-semibold tracking-tight",
+              unsaved ? "text-lg text-podium-muted" : "text-xl text-podium-yellow",
             )}
           >
-            {search.nome}
+            {leads.toLocaleString("pt-BR")}
+            <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+              {leadLabel}
+            </span>
           </p>
         </div>
-        <p
-          className={cn(
-            "mt-3 font-bold tracking-tight",
-            unsaved
-              ? "text-2xl text-podium-muted"
-              : "text-3xl text-podium-yellow",
-          )}
-        >
-          {leads.toLocaleString("pt-BR")}
-        </p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-          {leadLabel}
-        </p>
-        <ListSummaryBadges filters={search.filtros} className="mt-3" />
+        <ListSummaryBadges filters={search.filtros} className="mt-2" />
         {pistaNome ? (
-          <p className="mt-2 truncate text-[11px] text-podium-muted">
+          <p className="mt-1.5 truncate text-[11px] text-podium-muted">
             {COPY.crmPistaPrefix} · {pistaNome}
           </p>
         ) : null}
         {error ? (
-          <p className="mt-2 text-xs text-red-400">{error}</p>
+          <p className="mt-1.5 text-xs text-red-400">{error}</p>
         ) : null}
       </div>
-      <div className="relative z-[1] mt-4 flex items-center justify-between gap-2">
+      <div className="relative z-[1] mt-3 flex items-center justify-between gap-2">
         <p className="text-[11px] text-podium-muted">
           {formatRelativeShort(search.created_at)}
         </p>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             disabled={pending}
             title={unsaved ? COPY.salvarLista : COPY.tirarDasListas}
             onClick={() => onToggleSaved(Boolean(unsaved))}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-xl border disabled:opacity-40",
+              iconActionClass,
               unsaved
                 ? "border-podium-yellow/40 bg-podium-yellow text-podium-navy hover:brightness-110"
                 : "border-white/15 text-podium-gray hover:border-podium-yellow/30 hover:text-podium-yellow",
             )}
           >
             {unsaved ? (
-              <BookmarkPlus className="h-4 w-4" />
+              <BookmarkPlus className="h-3.5 w-3.5" />
             ) : (
-              <BookmarkMinus className="h-4 w-4" />
+              <BookmarkMinus className="h-3.5 w-3.5" />
             )}
             <span className="sr-only">
               {unsaved ? COPY.salvarLista : COPY.tirarDasListas}

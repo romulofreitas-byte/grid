@@ -19,7 +19,7 @@ export function ContaNav() {
           return (
             <span
               key={item.href}
-              className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-podium-muted/70"
+              className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-podium-muted/70"
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span>{item.label}</span>
@@ -35,7 +35,7 @@ export function ContaNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
+              "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition",
               active
                 ? "bg-podium-yellow/15 text-podium-yellow"
                 : "text-podium-gray hover:bg-white/5 hover:text-podium-white",

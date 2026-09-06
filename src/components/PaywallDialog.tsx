@@ -15,6 +15,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
+import { buttonClassName } from "@/components/ui/Button";
 import { StartingLights } from "@/components/StartingLights";
 import { pathWithSearch, withFrom } from "@/lib/billing/href";
 import {
@@ -120,35 +121,39 @@ function PaywallDialog({
           className="overflow-hidden p-0 hover:translate-y-0"
         >
           <div className="podium-checkered shrink-0" />
-          <div className="relative px-6 py-8 text-center md:px-8">
+          <div className="relative px-4 py-5 text-center md:px-5">
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-xl text-podium-muted hover:bg-white/5 hover:text-podium-white"
+              className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-white"
               title="Fechar"
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Fechar</span>
             </button>
             <StartingLights litCount={5} phase="hold" className="justify-center" />
-            <p className="mt-5 text-balance text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <p className="mt-4 text-balance text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
               {copy.eyebrow}
             </p>
             <h2
               id={titleId}
-              className="mt-3 text-balance text-2xl font-extrabold md:text-3xl"
+              className="mt-2 text-balance text-lg font-semibold md:text-xl"
             >
               {copy.title}
             </h2>
-            <p className="mt-3 text-pretty text-sm leading-relaxed text-podium-gray md:text-base">
+            <p className="mt-2 text-pretty text-sm leading-relaxed text-podium-gray">
               {copy.body}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Link
                 ref={primaryRef}
                 href={copy.primary.href}
                 onClick={onClose}
-                className="recommend-pulse-once rounded-xl bg-podium-yellow px-6 py-3.5 text-sm font-extrabold text-podium-navy"
+                className={buttonClassName({
+                  variant: "primary",
+                  size: "md",
+                  className: "recommend-pulse-once",
+                })}
               >
                 {copy.primary.label}
               </Link>
@@ -156,7 +161,7 @@ function PaywallDialog({
                 <Link
                   href={copy.secondary.href}
                   onClick={onClose}
-                  className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-bold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+                  className={buttonClassName({ variant: "secondary", size: "md" })}
                 >
                   {copy.secondary.label}
                 </Link>
@@ -164,7 +169,7 @@ function PaywallDialog({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-bold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+                  className={buttonClassName({ variant: "secondary", size: "md" })}
                 >
                   {copy.secondary.label}
                 </button>

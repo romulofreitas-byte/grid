@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CrmBoard } from "@/components/crm/CrmBoard";
 import { CrmBoardSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { GlassCard } from "@/components/GlassCard";
+import { buttonClassName } from "@/components/ui/Button";
 import { requireSession } from "@/lib/auth/session";
 import { withFrom } from "@/lib/billing/href";
 import { paywallCopy } from "@/lib/billing/paywall";
@@ -31,22 +32,30 @@ function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
     feature: "crm",
   });
   return (
-    <GlassCard className="p-8">
+    <GlassCard className="p-3">
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
         {copy.eyebrow}
       </p>
-      <p className="mt-3 text-base font-semibold">{copy.title}</p>
-      <p className="mt-3 text-sm text-podium-gray">{copy.body}</p>
+      <p className="mt-2 text-sm font-semibold">{copy.title}</p>
+      <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
       <Link
         href={withFrom(copy.primary.href, "/crm")}
-        className="mt-6 inline-flex rounded-md bg-podium-yellow px-4 py-2 text-xs font-medium text-podium-navy"
+        className={buttonClassName({
+          variant: "primary",
+          size: "md",
+          className: "mt-3",
+        })}
       >
         {copy.primary.label}
       </Link>
       {"href" in copy.secondary ? (
         <Link
           href={withFrom(copy.secondary.href, "/crm")}
-          className="mt-3 ml-3 inline-flex rounded-md border border-white/15 px-4 py-2 text-xs font-medium text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+          className={buttonClassName({
+            variant: "secondary",
+            size: "md",
+            className: "mt-3 ml-3",
+          })}
         >
           {copy.secondary.label}
         </Link>
@@ -96,9 +105,9 @@ async function CrmPageInner({
     unstable_rethrow(err);
     console.error("crm_page_error", err);
     return (
-      <GlassCard className="p-8">
-        <p className="text-base font-semibold">Não deu para abrir o CRM.</p>
-        <p className="mt-3 text-sm text-podium-gray">
+      <GlassCard className="p-3">
+        <p className="text-sm font-semibold">Não deu para abrir o CRM.</p>
+        <p className="mt-2 text-sm text-podium-gray">
           {userFacingDbBusyMessage(err)}
         </p>
       </GlassCard>

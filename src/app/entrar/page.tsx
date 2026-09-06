@@ -20,12 +20,13 @@ import {
 import { safeInternalPath } from "@/lib/auth/next-path";
 import { modeFromParams, type EntrarMode } from "@/lib/auth/entrar-mode";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const AUTH_TIMEOUT_MS = 20_000;
 const fieldClass =
-  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 type Mode = EntrarMode;
 
@@ -99,7 +100,7 @@ function AccessModeToggle({
     <div
       role="radiogroup"
       aria-label="Modo de acesso"
-      className="grid grid-cols-2 rounded-full border border-white/10 bg-white/[0.04] p-0.5"
+      className="grid grid-cols-2 rounded-md border border-white/10 bg-white/[0.04] p-0.5"
     >
       {options.map((option) => {
         const active = mode === option.value;
@@ -113,7 +114,7 @@ function AccessModeToggle({
               if (!active) onChange(option.value);
             }}
             className={cn(
-              "relative rounded-full py-1.5 text-center text-xs font-extrabold transition",
+              "relative rounded-md py-1.5 text-center text-xs font-medium transition",
               active
                 ? "text-podium-white"
                 : "text-podium-muted hover:text-podium-gray",
@@ -121,11 +122,11 @@ function AccessModeToggle({
           >
             {active ? (
               reduce ? (
-                <span className="absolute inset-0 rounded-full bg-white/10" />
+                <span className="absolute inset-0 rounded-md bg-white/10" />
               ) : (
                 <motion.span
                   layoutId="entrar-mode-thumb"
-                  className="absolute inset-0 rounded-full bg-white/10"
+                  className="absolute inset-0 rounded-md bg-white/10"
                   transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
               )
@@ -441,8 +442,8 @@ function EntrarInner() {
           <BrandLogo variant="endorsed" className="h-9 w-auto text-[2.25rem]" priority />
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl">
-          <div className="p-6 md:p-8">
+        <div className="overflow-hidden rounded-md border border-white/10 bg-black/40 backdrop-blur-xl">
+          <div className="p-3">
             {mode === "login" || mode === "signup" ? (
               <>
                 <AccessModeToggle
@@ -453,7 +454,7 @@ function EntrarInner() {
                 <h1 className="sr-only">{title}</h1>
               </>
             ) : (
-              <h1 className="text-center text-2xl font-extrabold">{title}</h1>
+              <h1 className="text-center text-lg font-semibold">{title}</h1>
             )}
 
             <form
@@ -472,7 +473,7 @@ function EntrarInner() {
                     )}
                     aria-hidden={mode !== "signup"}
                   >
-                    <p className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-podium-yellow px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-podium-navy">
+                    <p className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-podium-yellow px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-navy">
                       {COPY.entrarTrialBadge}
                       <span
                         className="h-1 w-1 rounded-full bg-podium-navy/35"
@@ -508,7 +509,12 @@ function EntrarInner() {
                   type="button"
                   disabled={loading}
                   onClick={() => void enterWithGoogle()}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/15 bg-white px-3 py-3 text-sm font-extrabold text-podium-navy transition hover:brightness-95 disabled:opacity-60"
+                  className={buttonClassName({
+                    variant: "secondary",
+                    size: "lg",
+                    className:
+                      "w-full border-white/15 bg-white text-podium-navy hover:bg-white hover:text-podium-navy hover:brightness-95",
+                  })}
                 >
                   <GoogleMark className="h-5 w-5 shrink-0" />
                   {COPY.entrarGoogleCta}
@@ -553,7 +559,7 @@ function EntrarInner() {
 
                     <div className="mx-auto w-full max-w-[17.5rem] space-y-4">
                       {mode !== "definir" ? (
-                        <label className="block text-sm text-podium-gray">
+                        <label className="block text-xs text-podium-gray">
                           E-mail
                           <input
                             type="email"
@@ -567,7 +573,7 @@ function EntrarInner() {
                         </label>
                       ) : null}
                       {showPassword ? (
-                        <label className="block text-sm text-podium-gray">
+                        <label className="block text-xs text-podium-gray">
                           Senha
                           <input
                             type="password"
@@ -596,7 +602,7 @@ function EntrarInner() {
                           )}
                           aria-hidden={!showConfirm}
                         >
-                          <label className="block text-sm text-podium-gray">
+                          <label className="block text-xs text-podium-gray">
                             Repetir senha
                             <input
                               type="password"
@@ -614,7 +620,7 @@ function EntrarInner() {
                           </label>
                         </div>
                       ) : showConfirm ? (
-                        <label className="block text-sm text-podium-gray">
+                        <label className="block text-xs text-podium-gray">
                           Repetir senha
                           <input
                             type="password"
@@ -650,7 +656,11 @@ function EntrarInner() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110 disabled:opacity-60"
+                      className={buttonClassName({
+                        variant: "primary",
+                        size: "lg",
+                        className: "w-full",
+                      })}
                     >
                       {submitLabel}
                     </button>

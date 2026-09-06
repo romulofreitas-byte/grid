@@ -1,6 +1,7 @@
 "use client";
 
 import { BrandLogo } from "@/components/BrandLogo";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -17,17 +18,13 @@ export function OpsHeader() {
     <header className="flex items-center justify-between gap-4">
       <Link href="/ops" className="flex items-center gap-3">
         <BrandLogo variant="solo" className="h-8" />
-        <span className="text-sm font-extrabold uppercase tracking-[0.18em] text-podium-muted">
+        <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
           Ops
         </span>
       </Link>
-      <button
-        type="button"
-        onClick={() => void logout()}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-bold text-podium-muted hover:border-white/20 hover:text-podium-white"
-      >
+      <Button type="button" variant="secondary" size="sm" onClick={() => void logout()}>
         Sair
-      </button>
+      </Button>
     </header>
   );
 }

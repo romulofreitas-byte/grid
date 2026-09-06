@@ -149,7 +149,7 @@ function ToggleRow({
       type="button"
       onClick={() => onChange(!checked)}
       className={cn(
-        "flex min-h-14 w-full items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition",
+        "flex min-h-10 w-full items-center justify-between gap-3 rounded-md border px-3 py-1.5 text-left transition",
         checked
           ? "border-white/25 bg-white/[0.06]"
           : "border-white/10 bg-white/[0.02] hover:border-white/20",
@@ -159,7 +159,7 @@ function ToggleRow({
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-podium-white">{title}</span>
           {recommended ? (
-            <span className="rounded-lg border border-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-podium-muted">
+            <span className="rounded-md border border-white/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Recomendado
             </span>
           ) : null}
@@ -170,14 +170,14 @@ function ToggleRow({
       </span>
       <span
         className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full transition",
+          "relative h-5 w-9 shrink-0 rounded-full transition",
           checked ? "bg-podium-yellow/80" : "bg-white/15",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-6 w-6 rounded-full bg-podium-navy transition",
-            checked ? "left-5" : "left-0.5",
+            "absolute top-0.5 h-4 w-4 rounded-full bg-podium-navy transition",
+            checked ? "left-4" : "left-0.5",
           )}
         />
       </span>
@@ -212,7 +212,7 @@ function VolumeCompactTotal({
   }
   return (
     <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-      <span className="text-lg font-extrabold text-podium-yellow">
+      <span className="text-lg font-semibold text-podium-yellow">
         {formatCountTotal(count)}
       </span>
       <span className="text-xs text-podium-muted">empresas</span>
@@ -274,7 +274,7 @@ export default function LargadaPage() {
     <Suspense
       fallback={
         <AppShell title="Nova lista" back={BACK.painel}>
-          <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+          <div className="h-24 animate-pulse rounded-md bg-white/5" />
         </AppShell>
       }
     >
@@ -833,24 +833,24 @@ function LargadaWizard() {
   }) {
     if (items.length === 0) return null;
     return (
-      <GlassCard className="p-5">
-        <h3 className="font-bold text-podium-yellow">{title}</h3>
+      <GlassCard className="p-3">
+        <h3 className="text-sm font-semibold text-podium-yellow">{title}</h3>
         <Hint className="mt-1">{hint}</Hint>
-        <div className="mt-3 space-y-2">
+        <div className="mt-2 divide-y divide-white/10">
           {items.map((n) => {
             const open = openNiche === n.id || (!!segmentSearch && items.length <= 3);
             const selectedCount = n.segments.filter((s) =>
               filters.segmentIds.includes(s.id),
             ).length;
             return (
-              <div key={n.id} className="rounded-xl border border-white/10">
+              <div key={n.id}>
                 <button
                   type="button"
                   onClick={() => setOpenNiche(open ? null : n.id)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 py-2 text-left"
                 >
                   <span>
-                    <span className="block text-sm font-bold">{n.nome}</span>
+                    <span className="block text-sm font-semibold">{n.nome}</span>
                     <span className="text-xs text-podium-muted">
                       {n.segments.length} segmentos
                       {selectedCount > 0 ? ` · ${selectedCount} selecionado` : ""}
@@ -895,7 +895,7 @@ function LargadaWizard() {
   if (!hydrated) {
     return (
       <AppShell title="Nova lista" back={BACK.painel}>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+        <div className="h-24 animate-pulse rounded-md bg-white/5" />
       </AppShell>
     );
   }
@@ -904,7 +904,7 @@ function LargadaWizard() {
     <AppShell title="Nova lista" back={shellBack}>
       <div
         className={cn(
-          "grid gap-6",
+          "grid gap-3",
           showVolumeAside && "lg:grid-cols-[1fr_280px]",
           showVolumeAside &&
             (volumeExpanded
@@ -912,14 +912,16 @@ function LargadaWizard() {
               : "pb-20 md:pb-0"),
         )}
       >
-        <div className="space-y-6">
+        <div className="space-y-3">
           <div>
-            <SectionTitle>{pageTitle}</SectionTitle>
             {mode !== "nova" ? (
-              <Hint className="mt-2 text-sm">{pageHint}</Hint>
+              <>
+                <SectionTitle>{pageTitle}</SectionTitle>
+                <Hint className="mt-1.5 text-sm">{pageHint}</Hint>
+              </>
             ) : null}
             {mode === "ajustar" && sourceNome ? (
-              <p className="mt-2 text-xs font-bold text-podium-yellow">
+              <p className="mt-1.5 text-xs font-medium text-podium-yellow">
                 Ajustando: {sourceNome}. {COPY.listaOriginalNaoSome}.
               </p>
             ) : null}
@@ -930,7 +932,7 @@ function LargadaWizard() {
                 </BackLink>
               </div>
             ) : null}
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               {(
                 [
                   [1, "Nicho"],
@@ -968,7 +970,7 @@ function LargadaWizard() {
           </div>
 
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {(filters.intentQuery || filters.cnpjs.length > 0) && (
                 <div className="flex flex-wrap gap-2">
                   {filters.intentQuery ? (
@@ -1004,8 +1006,8 @@ function LargadaWizard() {
 
               {treeQuery.isLoading ? (
                 <div className="space-y-3">
-                  <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
-                  <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+                  <div className="h-24 animate-pulse rounded-md bg-white/5" />
+                  <div className="h-24 animate-pulse rounded-md bg-white/5" />
                 </div>
               ) : filters.segmentIds.length > 0 || filters.intentQuery ? null : (
                 <>
@@ -1017,7 +1019,7 @@ function LargadaWizard() {
                         onChange={(e) => setSegmentQuery(e.target.value)}
                         onKeyDown={onSegmentSearchKeyDown}
                         placeholder="Buscar nicho (ex.: barbearia, clínica médica, farmácia)"
-                        className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+                        className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
                       />
                     </div>
                     {segmentSearch.length >= 2 ? (
@@ -1094,10 +1096,10 @@ function LargadaWizard() {
                 </div>
               ) : null}
 
-              <GlassCard className="p-5" highlight>
+              <GlassCard className="p-3" highlight>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold">
+                    <h3 className="text-sm font-semibold">
                       Buscar e refinar atividade (CNAE)
                     </h3>
                     <Hint className="mt-1">
@@ -1114,13 +1116,13 @@ function LargadaWizard() {
                     {showCnaePanel ? "Ocultar atividades" : "Mostrar atividades"}
                   </Button>
                 </div>
-                <div className="relative mt-4">
+                <div className="relative mt-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
                   <input
                     value={cnaeDraft}
                     onChange={(e) => setCnaeDraft(e.target.value)}
                     placeholder="Buscar CNAE (código ou descrição)"
-                    className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+                    className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
                   />
                 </div>
                 {cnaeQ.trim().length >= 2 && (
@@ -1242,7 +1244,7 @@ function LargadaWizard() {
           )}
 
           {step === 2 && (
-            <GlassCard className="space-y-4 p-5">
+            <GlassCard className="space-y-3 p-3">
               <h3 className="font-semibold">Região — um estado</h3>
               <p className="text-xs text-podium-muted">
                 Escolha um estado. Depois você pode refinar por município.
@@ -1278,11 +1280,11 @@ function LargadaWizard() {
                   </Button>
                 </div>
               ) : null}
-              <div className="rounded-xl border border-white/10">
+              <div className="rounded-md border border-white/10">
                 <button
                   type="button"
                   onClick={() => setCitiesOpen((open) => !open)}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
                 >
                   <span>
                     <span className="block text-sm font-semibold">
@@ -1339,7 +1341,7 @@ function LargadaWizard() {
                       onChange={(e) => setMunQuery(e.target.value)}
                       placeholder="Buscar município…"
                       disabled={!filters.ufs.length}
-                      className="mb-3 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm outline-none focus:border-podium-yellow/40 disabled:opacity-40"
+                      className="mb-3 w-full rounded-md border border-white/10 bg-podium-panel px-3 py-1.5 text-sm outline-none focus:border-podium-yellow/40 disabled:opacity-40"
                     />
                     {munLetterOptions.length > 0 ? (
                       <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(2.25rem,1fr))] gap-1">
@@ -1404,9 +1406,9 @@ function LargadaWizard() {
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              <GlassCard className="space-y-3 p-5" highlight>
-                <h3 className="text-lg font-extrabold text-podium-yellow">
+            <div className="space-y-3">
+              <GlassCard className="space-y-3 p-3" highlight>
+                <h3 className="text-sm font-semibold text-podium-yellow">
                   Qualidade do contato
                 </h3>
                 <ToggleRow
@@ -1446,7 +1448,7 @@ function LargadaWizard() {
               <button
                 type="button"
                 onClick={() => setMoreFilters((v) => !v)}
-                className="flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-podium-gray hover:border-white/20"
+                className="flex w-full items-center justify-between rounded-md border border-white/10 px-3 py-2 text-sm font-semibold text-podium-gray hover:border-white/20"
               >
                 Mais filtros
                 <ChevronDown
@@ -1458,7 +1460,7 @@ function LargadaWizard() {
               </button>
 
               {moreFilters ? (
-              <GlassCard className="space-y-5 p-5">
+              <GlassCard className="space-y-3 p-3">
                 <div>
                   <h3 className="font-semibold">Porte</h3>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -1575,7 +1577,7 @@ function LargadaWizard() {
             />
           ) : null}
           <GlassCard
-            className="fixed inset-x-0 bottom-16 z-30 mx-4 overflow-hidden p-0 md:static md:mx-0 md:p-5"
+            className="fixed inset-x-0 bottom-16 z-30 mx-4 overflow-hidden p-0 md:static md:mx-0 md:p-3"
             highlight
           >
             <div className="md:hidden">
@@ -1585,7 +1587,7 @@ function LargadaWizard() {
                   aria-expanded={volumeExpanded}
                   aria-controls="volume-details-mobile"
                   onClick={() => setVolumeExpanded((open) => !open)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
                 >
                   <VolumeCompactTotal
                     liveReady={liveReady}
@@ -1600,7 +1602,7 @@ function LargadaWizard() {
                   />
                 </button>
               ) : (
-                <div className="px-4 py-3">
+                <div className="px-3 py-2">
                   <VolumeCompactTotal
                     liveReady={liveReady}
                     count={count}
@@ -1611,7 +1613,7 @@ function LargadaWizard() {
               {step === 3 && volumeExpanded ? (
                 <div
                   id="volume-details-mobile"
-                  className="max-h-[40vh] overflow-y-auto border-t border-white/10 px-4 pb-3"
+                  className="max-h-[40vh] overflow-y-auto border-t border-white/10 px-3 pb-2"
                 >
                   {showCountMunicipios &&
                   (count?.porMunicipio?.length ?? 0) > 0 ? (
@@ -1628,21 +1630,21 @@ function LargadaWizard() {
             </div>
 
             <div className="hidden md:block">
-            <p className="text-xs uppercase tracking-wide text-podium-gray">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Empresas nesta busca
             </p>
             {!liveReady ? (
               <>
-                <p className="mt-2 text-4xl font-extrabold text-podium-yellow">—</p>
+                <p className="mt-1.5 text-xl font-semibold text-podium-yellow">—</p>
                 <p className="mt-2 text-xs text-podium-muted">
                   Escolha o nicho para ver o volume
                 </p>
               </>
             ) : !count ? (
-              <div className="mt-3 h-12 animate-pulse rounded-xl bg-white/10" />
+              <div className="mt-2 h-8 animate-pulse rounded-md bg-white/10" />
             ) : (
               <>
-                <p className="mt-2 text-4xl font-extrabold text-podium-yellow">
+                <p className="mt-1.5 text-xl font-semibold text-podium-yellow">
                   {formatCountTotal(count)}
                 </p>
                 {countQuery.isFetching ? (

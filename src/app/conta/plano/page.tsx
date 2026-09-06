@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
 import { planosHref } from "@/lib/billing/href";
 import {
@@ -41,19 +41,19 @@ export default function ContaPlanoPage() {
   });
 
   if (!p || billingQuery.isLoading) {
-    return <div className="min-h-40 animate-pulse rounded-2xl bg-white/5" />;
+    return <div className="min-h-40 animate-pulse rounded-md bg-white/5" />;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <GlassCard className="p-4 md:p-5" highlight hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+    <div className="flex flex-col gap-3">
+      <GlassCard className="p-3" highlight hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Plano e cobrança
         </p>
-        <p className="mt-2 text-2xl font-semibold text-podium-white">
+        <p className="mt-2 text-lg font-semibold text-podium-white">
           {accountPlanName(billing, p)}
         </p>
-        <p className="mt-3 text-3xl font-semibold text-podium-yellow">
+        <p className="mt-2 text-xl font-semibold text-podium-yellow">
           {accountCredits(billing, p).toLocaleString("pt-BR")}
         </p>
         <p className="mt-1 text-sm text-podium-muted">
@@ -84,10 +84,10 @@ export default function ContaPlanoPage() {
         {billing?.subscription?.cancelAtPeriodEnd ? (
           <p className="mt-2 text-xs text-podium-yellow">Cancela no fim do ciclo.</p>
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href={planosHref("/conta/plano")}
-            className="inline-flex h-8 items-center rounded-md bg-podium-yellow px-3 text-xs font-semibold text-podium-navy"
+            className={buttonClassName({ variant: "primary", size: "md" })}
           >
             Trocar plano / Recarregar
           </Link>
@@ -113,8 +113,8 @@ export default function ContaPlanoPage() {
         ) : null}
       </GlassCard>
 
-      <GlassCard className="p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">
+      <GlassCard className="p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
           {COPY.contaExtrato}
         </p>
         <p className="mt-1 text-xs text-podium-muted">O que entrou e saiu</p>
@@ -143,8 +143,8 @@ export default function ContaPlanoPage() {
         </div>
       </GlassCard>
 
-      <GlassCard className="p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">
+      <GlassCard className="p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
           Faturas
         </p>
         <div className="mt-3 space-y-2">

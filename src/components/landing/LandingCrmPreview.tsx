@@ -96,13 +96,13 @@ export function LandingCrmPreview({ className }: { className?: string }) {
     <div
       ref={root}
       className={cn(
-        "relative w-full overflow-x-auto rounded-2xl border border-white/10 bg-podium-panel/80 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md md:p-5",
+        "relative w-full overflow-x-auto rounded-md border border-white/10 bg-podium-panel/80 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
         className,
       )}
       role="region"
       aria-label={COPY.landingCrmPreviewLabel}
     >
-      <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
+      <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
         {COPY.landingCrmPreviewLabel}
       </p>
       <div className="grid min-w-[28rem] grid-cols-3 gap-3">
@@ -110,10 +110,10 @@ export function LandingCrmPreview({ className }: { className?: string }) {
           const inCol = cards.filter((c) => c.col === column.key);
           return (
             <div key={column.key} className="min-w-0">
-              <p className="mb-2 truncate text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+              <p className="mb-2 truncate text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 {column.title}
               </p>
-              <div className="min-h-[11rem] space-y-2 rounded-xl bg-black/20 p-2">
+              <div className="min-h-[11rem] space-y-2 rounded-md bg-black/20 p-2">
                 {inCol.map((card) => (
                   <motion.div
                     key={card.nome}

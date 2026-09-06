@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { AutomacoesPanel } from "@/components/automacoes/AutomacoesPanel";
-import { SectionTitle } from "@/components/SectionTitle";
+import { buttonClassName } from "@/components/ui/Button";
 import { BACK } from "@/lib/back";
 import { requireSession } from "@/lib/auth/session";
 import { withFrom } from "@/lib/billing/href";
@@ -28,15 +28,19 @@ function AutomacoesLocked({
   });
   return (
     <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
-      <GlassCard className="p-8">
+      <GlassCard className="p-3">
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           {copy.eyebrow}
         </p>
-        <p className="mt-3 text-base font-semibold">{copy.title}</p>
-        <p className="mt-3 text-sm text-podium-gray">{copy.body}</p>
+        <p className="mt-2 text-sm font-semibold">{copy.title}</p>
+        <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
         <Link
           href={withFrom(copy.primary.href, "/automacoes")}
-          className="mt-6 inline-flex rounded-md bg-podium-yellow px-4 py-2 text-xs font-medium text-podium-navy"
+          className={buttonClassName({
+            variant: "primary",
+            size: "md",
+            className: "mt-3",
+          })}
         >
           {copy.primary.label}
         </Link>
@@ -69,8 +73,7 @@ export default async function AutomacoesPage() {
     }
     return (
       <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
-        <SectionTitle>{COPY.automacoesTitle}</SectionTitle>
-        <p className="mt-2 max-w-2xl text-pretty text-sm text-podium-muted">
+        <p className="max-w-2xl text-pretty text-sm text-podium-muted">
           {COPY.automacoesLead}
         </p>
         <AutomacoesPanel initialPipelines={pipelines} />
@@ -81,9 +84,9 @@ export default async function AutomacoesPage() {
     console.error("automacoes_page_error", err);
     return (
       <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
-        <GlassCard className="p-8">
-          <p className="text-base font-semibold">Não deu para abrir Automações.</p>
-          <p className="mt-3 text-sm text-podium-gray">
+        <GlassCard className="p-3">
+          <p className="text-sm font-semibold">Não deu para abrir Automações.</p>
+          <p className="mt-2 text-sm text-podium-gray">
             {userFacingDbBusyMessage(err)}
           </p>
         </GlassCard>

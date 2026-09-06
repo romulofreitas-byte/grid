@@ -70,8 +70,8 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          "relative w-full max-w-sm overflow-hidden rounded-t-2xl border border-white/15",
-          "bg-podium-navy/80 p-5 shadow-2xl backdrop-blur-2xl sm:rounded-2xl",
+          "relative w-full max-w-sm overflow-hidden rounded-t-md border border-white/15",
+          "bg-podium-navy/80 p-3 shadow-2xl backdrop-blur-2xl sm:rounded-md",
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -104,7 +104,7 @@ export function ConfirmDialog({
             type="button"
             disabled={pending}
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-podium-muted hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
+            className="h-8 rounded-md px-3 text-xs font-medium text-podium-muted hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
           >
             {cancelLabel}
           </button>
@@ -113,7 +113,7 @@ export function ConfirmDialog({
             type="button"
             disabled={pending}
             onClick={onConfirm}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-podium-yellow px-3 py-1.5 text-sm font-extrabold text-podium-navy hover:brightness-110 disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-gradient-to-b from-[#ffc933] to-podium-yellow px-3 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
           >
             {confirmIcon}
             {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}

@@ -3,11 +3,12 @@
 import { BrandLogo } from "@/components/BrandLogo";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
+import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const fieldClass =
-  "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 export function OpsLoginForm({ configured }: { configured: boolean }) {
   const router = useRouter();
@@ -44,16 +45,16 @@ export function OpsLoginForm({ configured }: { configured: boolean }) {
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-12">
       <BrandLogo variant="endorsed" className="h-10" />
-      <h1 className="mt-8 text-2xl font-extrabold tracking-tight">Ops</h1>
+      <h1 className="mt-6 text-xl font-semibold tracking-tight">Ops</h1>
       <Hint className="mt-2">Área interna. Só quem tem o link e a senha.</Hint>
-      <GlassCard className="mt-6 p-6" hover={false}>
+      <GlassCard className="mt-4 p-3" hover={false}>
         {!configured ? (
           <p className="text-sm text-podium-muted">
             Ops desligado. Defina GRID_OPS_PASSWORD no servidor.
           </p>
         ) : (
           <form onSubmit={onSubmit} className="space-y-4">
-            <label className="block text-sm font-semibold">
+            <label className="block text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               E-mail
               <input
                 className={fieldClass}
@@ -64,7 +65,7 @@ export function OpsLoginForm({ configured }: { configured: boolean }) {
                 required
               />
             </label>
-            <label className="block text-sm font-semibold">
+            <label className="block text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Senha
               <input
                 className={fieldClass}
@@ -78,13 +79,9 @@ export function OpsLoginForm({ configured }: { configured: boolean }) {
             {error ? (
               <p className="text-sm text-podium-alert">{error}</p>
             ) : null}
-            <button
-              type="submit"
-              disabled={pending}
-              className="w-full rounded-xl bg-podium-yellow px-4 py-2.5 text-sm font-extrabold text-podium-navy disabled:opacity-60"
-            >
+            <Button type="submit" variant="primary" size="md" disabled={pending} className="w-full">
               {pending ? "Entrando…" : "Entrar"}
-            </button>
+            </Button>
           </form>
         )}
       </GlassCard>

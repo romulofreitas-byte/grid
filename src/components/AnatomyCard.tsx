@@ -231,12 +231,14 @@ export function AnatomyCard({
   decisorNome,
   volta,
   now = new Date(),
+  embedded = false,
 }: {
   market: MarketBrief;
   uf?: string | null;
   decisorNome?: string | null;
   volta?: string | null;
   now?: Date;
+  embedded?: boolean;
 }) {
   const status = seasonStatus(market.sazonalidadeMeses, now);
   const place = [market.cidade, uf].filter(Boolean).join(" · ");
@@ -247,8 +249,7 @@ export function AnatomyCard({
   const tip = market.dorPrincipal.trim();
   const angulo = market.perguntaConsideracao.trim();
 
-  return (
-    <GlassCard className="relative overflow-hidden border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
+  const body = (
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -304,6 +305,13 @@ export function AnatomyCard({
           </div>
         ) : null}
       </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <GlassCard className="relative shrink-0 border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
+      {body}
     </GlassCard>
   );
 }

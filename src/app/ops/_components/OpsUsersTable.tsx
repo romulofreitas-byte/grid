@@ -14,7 +14,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import Link from "next/link";
 
 const fieldClass =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 export function OpsUsersTable({
   users,

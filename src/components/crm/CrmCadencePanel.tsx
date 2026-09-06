@@ -51,14 +51,14 @@ export function CrmCadencePanel({
         onClick={onClose}
       />
       <aside className="relative flex h-full w-full max-w-md flex-col border-l border-white/10 bg-podium-navy shadow-2xl">
-        <header className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-white/10 px-3 py-3">
           <div>
             <p className={CRM_LABEL}>{COPY.crmCadenceTitle}</p>
-            <h2 className="mt-1 text-base font-semibold">{COPY.crmAdjustCadence}</h2>
-            <p className="mt-1 text-sm font-medium text-podium-white">
+            <h2 className="mt-1 text-sm font-semibold">{COPY.crmAdjustCadence}</h2>
+            <p className="mt-0.5 text-xs text-podium-muted">
               {pipelineNome}
             </p>
-            <p className="mt-2 text-pretty text-xs leading-relaxed text-podium-gray">
+            <p className="mt-1.5 text-pretty text-xs leading-relaxed text-podium-gray">
               {COPY.crmCadenceHint}
             </p>
           </div>
@@ -70,7 +70,7 @@ export function CrmCadencePanel({
             <X className="h-4 w-4" />
           </button>
         </header>
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
           {stages.map((stage, index) => {
             const count = deals.filter((deal) => deal.stage_id === stage.id)
               .length;
@@ -174,7 +174,7 @@ export function CrmCadencePanel({
           })}
         </div>
         <form
-          className="flex gap-2 border-t border-white/10 px-5 py-4"
+          className="flex gap-2 border-t border-white/10 px-3 py-3"
           onSubmit={(event) => {
             event.preventDefault();
             const nome = newName.trim();

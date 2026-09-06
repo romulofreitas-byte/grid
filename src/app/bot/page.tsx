@@ -6,8 +6,8 @@ import Link from "next/link";
 export default function BotPage() {
   return (
     <PublicPage>
-      <SectionTitle className="mt-8">GridBot/1.0</SectionTitle>
-      <GlassCard className="mt-6 space-y-4 p-6 text-sm leading-relaxed text-podium-gray">
+      <SectionTitle className="mt-4">GridBot/1.0</SectionTitle>
+      <GlassCard className="mt-4 space-y-4 p-3 text-sm leading-relaxed text-podium-gray">
         <p>
           O <strong className="text-podium-white">GridBot</strong> é o crawler
           do GRID · Mundo Pódium. Ele visita sites públicos de empresas para
@@ -32,7 +32,7 @@ export default function BotPage() {
           <strong className="text-podium-white">Como bloquear:</strong> no{" "}
           <code>robots.txt</code> do seu site:
         </p>
-        <pre className="overflow-x-auto rounded-xl bg-black/30 p-4 text-xs text-podium-white">
+        <pre className="overflow-x-auto rounded-md bg-black/30 p-3 text-xs text-podium-white">
 {`User-agent: GridBot
 Disallow: /`}
         </pre>

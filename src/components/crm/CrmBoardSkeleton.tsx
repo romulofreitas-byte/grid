@@ -45,7 +45,7 @@ export function CrmLanesSkeleton({ lanes = 4 }: { lanes?: number }) {
           key={index}
           className="flex h-full min-h-0 w-[17.5rem] shrink-0 flex-col rounded-lg border border-white/[0.07] bg-podium-navy/40"
         >
-          <header className="shrink-0 space-y-2 border-b border-white/[0.06] px-3 py-3">
+          <header className="shrink-0 space-y-2 border-b border-white/[0.06] px-2.5 py-2">
             <Pulse className="h-2 w-8" />
             <Pulse className="h-4 w-28" />
             <Pulse className="h-2.5 w-16" />
@@ -73,7 +73,7 @@ export function CrmBoardSkeleton({
           {opening ? (
             <CrmOpeningChip />
           ) : (
-            <Pulse className="h-7 w-48" />
+            <Pulse className="h-5 w-40" />
           )}
           <Pulse className="mt-2 h-4 w-72 max-w-full" />
         </div>

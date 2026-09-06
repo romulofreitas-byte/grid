@@ -22,35 +22,35 @@ export default function OptOutPage() {
 
   return (
     <PublicPage className="max-w-lg">
-      <SectionTitle className="mt-8">Pedir para uma empresa sair da base</SectionTitle>
-      <GlassCard className="mt-6 p-6">
+      <SectionTitle className="mt-4">Pedir para uma empresa sair da base</SectionTitle>
+      <GlassCard className="mt-4 p-3">
         {done ? (
           <p className="text-sm text-podium-gray">
             Solicitação registrada. Processamos em até 15 dias.
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
-            <label className="block text-sm text-podium-gray">
+            <label className="block text-xs text-podium-gray">
               CNPJ ou nome
               <input
                 required
                 value={documento}
                 onChange={(e) => setDocumento(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none"
+                className="mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none"
               />
             </label>
-            <label className="block text-sm text-podium-gray">
+            <label className="block text-xs text-podium-gray">
               Motivo (opcional)
               <textarea
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 rows={3}
-                className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none"
+                className="mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none"
               />
             </label>
             <button
               type="submit"
-              className="w-full rounded-xl bg-podium-yellow py-3 text-sm font-bold text-podium-navy"
+              className="w-full rounded-md bg-podium-yellow py-2 text-xs font-medium text-podium-navy"
             >
               Solicitar remoção
             </button>

@@ -34,7 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 const NEW_PIPELINE = "__new__";
 
@@ -64,9 +64,9 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block text-sm text-podium-gray">
+    <label className="block text-xs text-podium-gray">
       {label}
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-1">{children}</div>
     </label>
   );
 }
@@ -80,7 +80,7 @@ function CopyField({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex min-h-[2.5rem] items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+    <div className="flex min-h-8 items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-1.5">
       <p className="min-w-0 flex-1 truncate font-mono text-[11px] text-podium-gray">
         {value}
       </p>
@@ -337,14 +337,14 @@ export function AutomacoesPanel({
 
   return (
     <div className="mt-6 space-y-6">
-      <GlassCard className="p-6 hover:translate-y-0 md:p-8">
+      <GlassCard className="p-3 hover:translate-y-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
               Campanhas
             </p>
             {formOpen ? (
-              <h3 className="mt-2 text-base font-semibold text-podium-white">
+              <h3 className="mt-1 text-sm font-semibold text-podium-white">
                 Nova automação
               </h3>
             ) : createdNome ? (
@@ -468,7 +468,7 @@ export function AutomacoesPanel({
                     ? "Limite de 10 atingido"
                     : "Criar campanha"}
               </Button>
-              <div className="rounded-xl border border-dashed border-white/15 bg-black/20 px-4 py-3 text-sm text-podium-muted">
+              <div className="rounded-md border border-dashed border-white/15 bg-black/20 px-4 py-3 text-sm text-podium-muted">
                 {COPY.automacoesUnlockBar}
               </div>
               {atCap ? (
@@ -487,9 +487,9 @@ export function AutomacoesPanel({
       </GlassCard>
 
       {endpoints.length > 0 ? (
-        <GlassCard className="space-y-4 p-6 hover:translate-y-0 md:p-8">
+        <GlassCard className="space-y-3 p-3 hover:translate-y-0">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
               Suas campanhas
             </p>
             <Hint className="mt-2">{COPY.automacoesListHint}</Hint>
@@ -525,12 +525,12 @@ export function AutomacoesPanel({
         </p>
       ) : null}
 
-      <GlassCard className="space-y-5 p-6 hover:translate-y-0 md:p-8">
+      <GlassCard className="space-y-3 p-3 hover:translate-y-0">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Payload
           </p>
-          <h3 className="mt-2 text-base font-semibold text-podium-white">
+          <h3 className="mt-1 text-sm font-semibold text-podium-white">
             {payloadKind === "person" ? "JSON — pessoa" : "JSON — empresa"}
           </h3>
           <Hint className="mt-2">
@@ -544,7 +544,7 @@ export function AutomacoesPanel({
             ? "Cria um cartão no nome da pessoa, sem CNPJ."
             : "Cria um cartão com razão social, contato e CNPJ."}
         </p>
-        <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/20 p-3 text-[11px] text-podium-muted">
+        <pre className="overflow-x-auto rounded-md border border-white/10 bg-black/20 p-3 text-[11px] text-podium-muted">
           {JSON.stringify(payloadExample, null, 2)}
         </pre>
       </GlassCard>
@@ -602,7 +602,7 @@ function CampaignRow({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/10 bg-white/[0.04] transition-[border-color] duration-200 ease-out",
+        "rounded-md border border-white/10 bg-white/[0.04] transition-[border-color] duration-200 ease-out",
         open && "border-podium-yellow/25",
       )}
     >
@@ -680,7 +680,7 @@ function CampaignRow({
                 ariaLabel="Copiar valor do header"
               />
             ) : (
-              <div className="flex min-h-[2.5rem] items-center rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+              <div className="flex min-h-[2.5rem] items-center rounded-md border border-white/10 bg-black/20 px-3 py-2">
                 <p className="text-[11px] text-podium-muted">
                   Chave oculta. Se perdeu, gere outra — a antiga para de
                   funcionar.
@@ -869,7 +869,7 @@ function CampaignHelp({
       )}
       {isAds ? null : (
         <details
-          className="rounded-xl border border-white/10 bg-black/20"
+          className="rounded-md border border-white/10 bg-black/20"
           onClick={(event) => event.stopPropagation()}
           onToggle={(event) => event.stopPropagation()}
         >

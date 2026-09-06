@@ -3,6 +3,7 @@
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
+import { Button } from "@/components/ui/Button";
 import {
   cohortLabel,
   formatBrl,
@@ -18,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const fieldClass =
-  "w-28 rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm text-podium-white outline-none focus:border-podium-yellow/40";
+  "w-28 rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none focus:border-podium-yellow/40";
 
 async function readJson<T>(res: Response): Promise<T> {
   const data = (await res.json()) as T & { error?: string };
@@ -106,7 +107,7 @@ export function OpsUserSheet({ id }: { id: string }) {
       {u ? (
         <>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
+            <h1 className="text-xl font-semibold tracking-tight">
               {u.nome || "Sem nome"}
             </h1>
             <p className="mt-1 text-sm text-podium-muted">
@@ -117,38 +118,38 @@ export function OpsUserSheet({ id }: { id: string }) {
           </div>
 
           <div className="grid gap-3 md:grid-cols-4">
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-[11px] font-bold uppercase text-podium-muted">
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Plano
               </p>
-              <p className="mt-1 font-extrabold">{planLabel(u.plan)}</p>
+              <p className="mt-1 font-semibold">{planLabel(u.plan)}</p>
               <Hint className="mt-1">
                 {cohortLabel(u.cohort)}
                 {u.cancelAtPeriodEnd ? " · cancela no fim" : ""}
               </Hint>
             </GlassCard>
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-[11px] font-bold uppercase text-podium-muted">
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Créditos
               </p>
-              <p className="mt-1 font-extrabold">{formatInt(u.credits)}</p>
+              <p className="mt-1 font-semibold">{formatInt(u.credits)}</p>
               <Hint className="mt-1">
                 plano {formatInt(u.balance.plan)} · pack{" "}
                 {formatInt(u.balance.pack)}
               </Hint>
             </GlassCard>
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-[11px] font-bold uppercase text-podium-muted">
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 LTV
               </p>
-              <p className="mt-1 font-extrabold">{formatBrl(u.ltvCents)}</p>
+              <p className="mt-1 font-semibold">{formatBrl(u.ltvCents)}</p>
               <Hint className="mt-1">Soma dos pedidos pagos</Hint>
             </GlassCard>
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-[11px] font-bold uppercase text-podium-muted">
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Ativação
               </p>
-              <p className="mt-1 font-extrabold">
+              <p className="mt-1 font-semibold">
                 {u.activated ? "Sim" : "Não"}
               </p>
               <Hint className="mt-1">
@@ -158,8 +159,8 @@ export function OpsUserSheet({ id }: { id: string }) {
             </GlassCard>
           </div>
 
-          <GlassCard className="p-4" hover={false}>
-            <p className="text-sm font-bold">Uso</p>
+          <GlassCard className="p-3" hover={false}>
+            <p className="text-sm font-semibold">Uso</p>
             <ul className="mt-2 grid grid-cols-2 gap-2 text-sm text-podium-gray md:grid-cols-4">
               <li>Buscas {formatInt(u.usage.searches)}</li>
               <li>Qualificações {formatInt(u.usage.enrich)}</li>
@@ -168,14 +169,14 @@ export function OpsUserSheet({ id }: { id: string }) {
             </ul>
           </GlassCard>
 
-          <GlassCard className="space-y-4 p-4" hover={false}>
+          <GlassCard className="space-y-3 p-3" hover={false}>
             <SectionTitle>Ações</SectionTitle>
             {actionError ? (
               <p className="text-sm text-podium-alert">{actionError}</p>
             ) : null}
 
             <div className="flex flex-wrap items-end gap-2">
-              <label className="text-xs font-bold uppercase text-podium-muted">
+              <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Créditos
                 <input
                   className={`mt-1 block ${fieldClass}`}
@@ -188,8 +189,10 @@ export function OpsUserSheet({ id }: { id: string }) {
               </label>
               {confirm === "credits" || confirm === "credits-revoke" ? (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="md"
                     disabled={act.isPending}
                     onClick={() =>
                       act.mutate({
@@ -200,42 +203,44 @@ export function OpsUserSheet({ id }: { id: string }) {
                         },
                       })
                     }
-                    className="rounded-xl bg-podium-yellow px-3 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-60"
                   >
                     {confirm === "credits-revoke"
                       ? `Confirmar retirada de ${creditsPhrase(Number.isFinite(creditsQty) ? creditsQty : 0)}`
                       : `Confirmar ${creditsPhrase(Number.isFinite(creditsQty) ? creditsQty : 0)}`}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => setConfirm(null)}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold"
                   >
                     Voltar
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => {
                       setActionError(null);
                       setConfirm("credits");
                     }}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
                   >
                     Dar créditos
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => {
                       setActionError(null);
                       setConfirm("credits-revoke");
                     }}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
                   >
                     Retirar créditos
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -243,41 +248,46 @@ export function OpsUserSheet({ id }: { id: string }) {
             <div className="flex flex-wrap gap-2">
               {confirm === "cancel" ? (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="danger"
+                    size="md"
                     disabled={act.isPending}
                     onClick={() =>
                       act.mutate({ path: `/api/ops/users/${id}/cancel` })
                     }
-                    className="rounded-xl bg-podium-alert px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
                   >
                     Confirmar cancelamento no fim do período
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => setConfirm(null)}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold"
                   >
                     Voltar
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => {
                     setActionError(null);
                     setConfirm("cancel");
                   }}
-                  className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
                 >
                   Cancelar plano
-                </button>
+                </Button>
               )}
 
               {confirm === "trial" || confirm === "trial-force" ? (
                 <>
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="md"
                     disabled={act.isPending}
                     onClick={() =>
                       act.mutate({
@@ -285,31 +295,32 @@ export function OpsUserSheet({ id }: { id: string }) {
                         body: { force: confirm === "trial-force" },
                       })
                     }
-                    className="rounded-xl bg-podium-yellow px-3 py-2 text-sm font-extrabold text-podium-navy disabled:opacity-60"
                   >
                     {confirm === "trial-force"
                       ? "Confirmar novo trial de 30 dias"
                       : "Confirmar trial de 30 dias"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="md"
                     onClick={() => setConfirm(null)}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold"
                   >
                     Voltar
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="md"
                   onClick={() => {
                     setActionError(null);
                     setConfirm(u.platformTrialUsed ? "trial-force" : "trial");
                   }}
-                  className="rounded-xl border border-white/10 px-3 py-2 text-sm font-bold hover:border-white/20"
                 >
                   Liberar trial 30d
-                </button>
+                </Button>
               )}
             </div>
             {u.platformTrialUsed ? (
@@ -318,8 +329,8 @@ export function OpsUserSheet({ id }: { id: string }) {
           </GlassCard>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-sm font-bold">Pedidos</p>
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-sm font-semibold">Pedidos</p>
               <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm text-podium-gray">
                 {u.orders.length === 0 ? (
                   <li>Nenhum pedido.</li>
@@ -335,8 +346,8 @@ export function OpsUserSheet({ id }: { id: string }) {
                 )}
               </ul>
             </GlassCard>
-            <GlassCard className="p-4" hover={false}>
-              <p className="text-sm font-bold">Lotes abertos</p>
+            <GlassCard className="p-3" hover={false}>
+              <p className="text-sm font-semibold">Lotes abertos</p>
               <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm text-podium-gray">
                 {u.lots.length === 0 ? (
                   <li>Nenhum lote aberto.</li>
@@ -354,8 +365,8 @@ export function OpsUserSheet({ id }: { id: string }) {
             </GlassCard>
           </div>
 
-          <GlassCard className="p-4" hover={false}>
-            <p className="text-sm font-bold">Ledger</p>
+          <GlassCard className="p-3" hover={false}>
+            <p className="text-sm font-semibold">Ledger</p>
             <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm text-podium-gray">
               {u.ledger.length === 0 ? (
                 <li>Sem movimentos.</li>

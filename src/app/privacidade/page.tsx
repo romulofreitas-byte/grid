@@ -6,8 +6,8 @@ import Link from "next/link";
 export default function PrivacidadePage() {
   return (
     <PublicPage>
-      <SectionTitle className="mt-8">Aviso de privacidade</SectionTitle>
-      <GlassCard className="mt-6 space-y-4 p-6 text-sm leading-relaxed text-podium-gray">
+      <SectionTitle className="mt-4">Aviso de privacidade</SectionTitle>
+      <GlassCard className="mt-4 space-y-4 p-3 text-sm leading-relaxed text-podium-gray">
         <p>
           O GRID utiliza dados dos{" "}
           <strong className="text-podium-white">Dados Abertos do CNPJ</strong> da

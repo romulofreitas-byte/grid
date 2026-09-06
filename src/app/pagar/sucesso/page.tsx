@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { StartingLights } from "@/components/StartingLights";
+import { buttonClassName } from "@/components/ui/Button";
 import { getCatalogItem } from "@/lib/billing/catalog";
 import { billingSuccessReturn } from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
@@ -38,7 +39,7 @@ function CreditCount({ value }: { value: number }) {
 
 function ConfirmCheck() {
   return (
-    <svg viewBox="0 0 48 48" className="h-20 w-20" aria-hidden>
+    <svg viewBox="0 0 48 48" className="h-14 w-14" aria-hidden>
       <circle
         cx="24"
         cy="24"
@@ -89,33 +90,33 @@ function SucessoInner() {
         >
           <div className="podium-checkered shrink-0" />
           <div className="grid min-h-0 flex-1 auto-rows-fr lg:grid-cols-2">
-            <div className="flex flex-col items-center justify-center px-6 py-10 text-center md:px-10">
+            <div className="flex flex-col items-center justify-center px-4 py-6 text-center md:px-8">
               <StartingLights litCount={5} phase="go" />
-              <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+              <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
                 Tudo certo
               </p>
-              <h1 className="mt-3 text-balance text-3xl font-extrabold md:text-4xl">
+              <h1 className="mt-2 text-balance text-xl font-semibold md:text-2xl">
                 Pagamento confirmado
               </h1>
               {item ? (
-                <p className="mt-3 text-pretty text-base text-podium-gray md:text-lg">
+                <p className="mt-2 text-pretty text-sm text-podium-gray">
                   {item.nome}
                   {" · "}
-                  <span className="font-extrabold text-podium-yellow">
+                  <span className="font-semibold text-podium-yellow">
                     <CreditCount value={item.credits} /> créditos
                   </span>{" "}
                   na conta
                 </p>
               ) : (
-                <p className="mt-3 text-pretty text-base text-podium-gray md:text-lg">
+                <p className="mt-2 text-pretty text-sm text-podium-gray">
                   Créditos já estão na conta.
                 </p>
               )}
-              <div className="mt-8">
+              <div className="mt-6">
                 <ConfirmCheck />
               </div>
             </div>
-            <div className="flex flex-col justify-center gap-6 border-t border-white/10 px-6 py-10 md:px-10 lg:border-l lg:border-t-0">
+            <div className="flex flex-col justify-center gap-4 border-t border-white/10 px-4 py-6 md:px-8 lg:border-l lg:border-t-0">
               <p className="text-pretty text-sm leading-relaxed text-podium-gray md:text-base">
                 A mensalidade libera o CRM e o volume de créditos. Qualificar
                 custa 1 crédito. Ligar pela ficha é grátis. Exportar a planilha
@@ -136,13 +137,17 @@ function SucessoInner() {
               >
                 <Link
                   href={next.href}
-                  className="recommend-pulse-once rounded-xl bg-podium-yellow px-6 py-3.5 text-sm font-extrabold text-podium-navy"
+                  className={buttonClassName({
+                    variant: "primary",
+                    size: "md",
+                    className: "recommend-pulse-once",
+                  })}
                 >
                   {next.label}
                 </Link>
                 <Link
                   href="/conta"
-                  className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-bold text-podium-gray"
+                  className={buttonClassName({ variant: "secondary", size: "md" })}
                 >
                   Ver faturas
                 </Link>

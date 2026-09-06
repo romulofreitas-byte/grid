@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { COPY } from "@/lib/copy";
+import { buttonClassName } from "@/components/ui/Button";
 import { motion, useReducedMotion } from "framer-motion";
 
 const STEPS = [
@@ -28,7 +29,7 @@ export function HowItWorks() {
   return (
     <section
       id="como-funciona"
-      className="relative mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:py-28"
+      className="relative mx-auto max-w-6xl scroll-mt-20 px-4 py-12 md:py-16"
     >
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 20 }}
@@ -36,15 +37,15 @@ export function HowItWorks() {
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
-          {COPY.landingHowEyebrow}
-        </p>
-        <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+            {COPY.landingHowEyebrow}
+          </p>
+          <h2 className="mt-3 max-w-lg text-balance text-xl font-semibold tracking-tight text-podium-white md:text-2xl">
           {COPY.landingHowTitle}
         </h2>
         <Link
           href="/tour"
-          className="mt-5 inline-flex rounded-xl bg-podium-yellow px-5 py-2.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
+          className={buttonClassName({ variant: "primary", size: "md", className: "mt-4" })}
         >
           {COPY.landingHowTourCta}
         </Link>
@@ -68,7 +69,7 @@ export function HowItWorks() {
               ease: [0.16, 1, 0.3, 1],
             }}
           >
-            <span className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-podium-yellow/50 bg-podium-navy text-xs font-extrabold text-podium-yellow md:h-11 md:w-11 md:text-sm">
+            <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-podium-yellow/50 bg-podium-navy text-[11px] font-semibold text-podium-yellow md:h-9 md:w-9">
               {step.n}
             </span>
             <div className="min-w-0 pt-1 md:pt-2">

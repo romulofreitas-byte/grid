@@ -33,7 +33,7 @@ import type { CrmImportRunIssue } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 const FIELD_MAX: Record<ImportIssueField, number> = {
   company: 120,
@@ -192,7 +192,7 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
         </p>
       ) : null}
       {editable.length > 0 ? (
-        <details className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+        <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
             <span>{COPY.importacoesEditFields}</span>
             <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
@@ -301,7 +301,7 @@ function ErrorRow({
 }) {
   const diagnosis = importIssueDiagnosis(issue);
   return (
-    <li className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+    <li className="rounded-md border border-white/10 bg-white/[0.02] p-3">
       <p className="text-[11px] font-semibold text-podium-white">Linha {issue.row}</p>
       {diagnosis ? (
         <p className="mt-0.5 text-[11px] text-podium-muted">{diagnosis}</p>

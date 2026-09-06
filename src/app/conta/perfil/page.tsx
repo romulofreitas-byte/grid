@@ -39,7 +39,7 @@ export default function ContaPerfilPage() {
   });
 
   if (!p) {
-    return <div className="min-h-40 animate-pulse rounded-2xl bg-white/5" />;
+    return <div className="min-h-40 animate-pulse rounded-md bg-white/5" />;
   }
 
   const documentoDisplay =
@@ -48,9 +48,9 @@ export default function ContaPerfilPage() {
       : (p.documento ?? "");
 
   return (
-    <GlassCard className="space-y-4 p-4 md:p-5" hover={false}>
+    <GlassCard className="space-y-3 p-3" hover={false}>
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Dados cadastrais
         </p>
         <Hint className="mt-1">{COPY.contaIdentityHint}</Hint>
@@ -66,7 +66,7 @@ export default function ContaPerfilPage() {
         }
       />
 
-      <label className="block text-sm text-podium-gray">
+      <label className="block text-xs text-podium-gray">
         Como se chama
         <Hint className="mt-0.5">{COPY.comoChama}</Hint>
         <input
@@ -76,7 +76,7 @@ export default function ContaPerfilPage() {
         />
       </label>
 
-      <label className="block text-sm text-podium-gray">
+      <label className="block text-xs text-podium-gray">
         Nome completo
         <input
           defaultValue={p.nome ?? ""}
@@ -96,7 +96,7 @@ export default function ContaPerfilPage() {
         commitText="blur"
       />
 
-      <label className="block text-sm text-podium-gray">
+      <label className="block text-xs text-podium-gray">
         Empresa
         <input
           defaultValue={p.empresa_usuario ?? ""}
@@ -105,7 +105,7 @@ export default function ContaPerfilPage() {
         />
       </label>
 
-      <label className="block text-sm text-podium-gray">
+      <label className="block text-xs text-podium-gray">
         Cidade
         <input
           defaultValue={p.cidade_usuario ?? ""}
@@ -114,7 +114,7 @@ export default function ContaPerfilPage() {
         />
       </label>
 
-      <label className="block text-sm text-podium-gray">
+      <label className="block text-xs text-podium-gray">
         CPF ou CNPJ
         <Hint className="mt-0.5">{COPY.contaDocumentoHint}</Hint>
         <input

@@ -29,17 +29,17 @@ export function LandingBenefits() {
 
   return (
     <section className="relative border-y border-white/[0.06] bg-white/[0.02]">
-      <div className="mx-auto max-w-6xl px-4 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-podium-muted">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
             {COPY.landingBenefitsEyebrow}
           </p>
-          <h2 className="mt-3 max-w-lg text-balance text-2xl font-extrabold tracking-tight text-podium-white md:text-4xl">
+          <h2 className="mt-3 max-w-lg text-balance text-xl font-semibold tracking-tight text-podium-white md:text-2xl">
             {COPY.landingBenefitsTitle}
           </h2>
         </motion.div>
@@ -73,7 +73,7 @@ export function LandingBenefits() {
                 ) : null}
                 <span
                   className={cn(
-                    "font-extrabold text-3xl tracking-tight tabular-nums md:text-4xl",
+                    "font-semibold text-xl tracking-tight tabular-nums md:text-2xl",
                     on ? "text-podium-yellow" : "text-podium-muted",
                   )}
                 >

@@ -31,7 +31,7 @@ import { useBillingMe } from "@/hooks/useBillingMe";
 const NEW_PIPELINE = "__new__";
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 const COLUMN_OPTIONS: Array<{ id: ImportColumnKey; label: string }> = [
   { id: "skip", label: "Ignorar" },
@@ -53,7 +53,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block text-sm text-podium-gray">
+    <label className="block text-xs text-podium-gray">
       {label}
       <div className="mt-1.5">{children}</div>
     </label>
@@ -266,19 +266,19 @@ export function ImportacoesPanel({
 
   return (
     <div className="mt-6 space-y-6">
-      <GlassCard className="space-y-6 p-6 hover:translate-y-0 md:p-8">
+      <GlassCard className="space-y-4 p-3 hover:translate-y-0">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Arquivo
           </p>
-          <h3 className="mt-2 text-base font-semibold text-podium-white">
+          <h3 className="mt-1 text-sm font-semibold text-podium-white">
             Planilha
           </h3>
           <Hint className="mt-2">{COPY.importacoesFileHint}</Hint>
         </div>
 
         <Step n={1} title="Escolher o arquivo">
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 px-4 py-7 text-center hover:border-podium-yellow/40">
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-white/15 px-3 py-4 text-center hover:border-podium-yellow/40">
             <Upload className="h-5 w-5 text-podium-yellow" />
             <span className="text-sm text-podium-gray">
               {fileName ? "Trocar CSV ou Excel" : "CSV ou Excel, até 500 linhas"}
@@ -314,7 +314,7 @@ export function ImportacoesPanel({
                 {`${table.rows.length} linha${table.rows.length === 1 ? "" : "s"}${table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""} · ${readyCount} pronta${readyCount === 1 ? "" : "s"}.`}
               </p>
               {problemRows.length > 0 ? (
-                <div className="rounded-xl border border-white/10 px-3 py-2.5">
+                <div className="rounded-md border border-white/10 px-3 py-2.5">
                   <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                     {COPY.importacoesProblemPreview}
                   </p>
@@ -344,7 +344,7 @@ export function ImportacoesPanel({
                   e-mail).
                 </p>
               ) : null}
-              <details className="group rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+              <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
                   <span>{COPY.importacoesMoreOptions}</span>
                   <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
@@ -354,7 +354,7 @@ export function ImportacoesPanel({
                     O nome da coluna pode ser qualquer um — o Grid usa o que
                     você escolher à direita.
                   </p>
-                  <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
+                  <div className="divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
                     {mappedIndexes.map((row) => columnRow(row.index))}
                   </div>
                   {skippedIndexes.length > 0 ? (
@@ -369,7 +369,7 @@ export function ImportacoesPanel({
                           : `Mostrar o resto (${skippedIndexes.length})`}
                       </button>
                       {showSkipped ? (
-                        <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10">
+                        <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
                           {skippedIndexes.map((row) => columnRow(row.index))}
                         </div>
                       ) : null}
@@ -387,7 +387,7 @@ export function ImportacoesPanel({
                     </p>
                   )}
                   {readyCount > 0 ? (
-                    <div className="overflow-x-auto rounded-xl border border-white/10">
+                    <div className="overflow-x-auto rounded-md border border-white/10">
                       <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                         Como entra no Grid
                       </p>
@@ -489,7 +489,7 @@ export function ImportacoesPanel({
         </Step>
 
         <Step n={4} title={`Importar para ${destName}`}>
-          <label className="flex items-start gap-3 rounded-xl border border-white/10 px-3 py-3 text-sm text-podium-gray">
+          <label className="flex items-start gap-3 rounded-md border border-white/10 px-3 py-3 text-sm text-podium-gray">
             <input
               type="checkbox"
               className="mt-0.5"

@@ -196,7 +196,7 @@ export function AppShell({
               <div
                 className={cn(
                   "flex min-h-0 flex-1 flex-col",
-                  lockHeight && "min-w-0 overflow-hidden",
+                  lockHeight && "h-0 min-w-0 overflow-hidden",
                   !lockHeight && "min-h-full",
                 )}
               >

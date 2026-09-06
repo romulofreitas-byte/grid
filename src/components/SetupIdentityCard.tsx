@@ -49,7 +49,7 @@ export function SetupIdentityCard({
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center text-center">
-      <h1 className="font-[family-name:var(--font-sora)] text-3xl font-extrabold tracking-tight md:text-5xl">
+      <h1 className="font-[family-name:var(--font-sora)] text-xl font-semibold tracking-tight md:text-2xl">
         {COPY.setupStepPhoto}
       </h1>
       {echo ? (
@@ -62,7 +62,7 @@ export function SetupIdentityCard({
         disabled={busy}
         aria-label="Enviar foto"
         className={cn(
-          "group relative mt-8 w-40 overflow-hidden rounded-2xl border transition md:mt-10 md:w-52",
+          "group relative mt-6 w-36 overflow-hidden rounded-md border transition md:mt-8 md:w-44",
           "aspect-[3/4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/60",
           photoOn
             ? "border-podium-yellow/50 shadow-[0_0_0_1px_rgba(250,204,21,0.15)]"
@@ -79,7 +79,7 @@ export function SetupIdentityCard({
           />
         ) : (
           <span className="flex h-full w-full flex-col items-center justify-center gap-3">
-            <span className="font-[family-name:var(--font-sora)] text-4xl font-extrabold text-podium-yellow md:text-5xl">
+            <span className="font-[family-name:var(--font-sora)] text-2xl font-semibold text-podium-yellow md:text-3xl">
               {initials(profile)}
             </span>
             <span className="text-[11px] font-medium text-podium-muted">
@@ -87,7 +87,7 @@ export function SetupIdentityCard({
             </span>
           </span>
         )}
-        <span className="absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-podium-yellow text-podium-navy shadow-lg">
+        <span className="absolute bottom-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-md bg-podium-yellow text-podium-navy shadow-lg">
           <Camera className="h-4 w-4" />
         </span>
       </button>
@@ -97,7 +97,7 @@ export function SetupIdentityCard({
           <li
             key={badge.id}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] transition",
+              "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition",
               badge.on
                 ? "border-podium-yellow/40 bg-podium-yellow/15 text-podium-yellow"
                 : "border-white/10 bg-white/[0.03] text-podium-muted",

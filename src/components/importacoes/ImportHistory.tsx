@@ -186,12 +186,12 @@ export function ImportHistory() {
 
   return (
     <div className="space-y-4 pb-10 md:pb-14">
-      <GlassCard id="historico-importacao" className="space-y-3 p-6 hover:translate-y-0 md:p-8">
+      <GlassCard id="historico-importacao" className="space-y-3 p-3 hover:translate-y-0">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Histórico
           </p>
-          <h3 className="mt-2 text-base font-semibold text-podium-white">
+          <h3 className="mt-1 text-sm font-semibold text-podium-white">
             {COPY.importacoesHistoryTitle}
           </h3>
           <p className="mt-1 text-[11px] text-podium-muted">
@@ -219,7 +219,7 @@ export function ImportHistory() {
       {older.length > 0 ? (
         <details
           ref={olderRef}
-          className="group mb-2 scroll-mb-10 rounded-xl border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
+          className="group mb-2 scroll-mb-10 rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
           onToggle={(event) => {
             const el = event.currentTarget;
             if (!el.open) {

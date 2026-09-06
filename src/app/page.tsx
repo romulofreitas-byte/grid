@@ -12,6 +12,7 @@ import { LandingQualify } from "@/components/landing/LandingQualify";
 import { BrandLogo } from "@/components/BrandLogo";
 import { RaceAtmosphere } from "@/components/RaceAtmosphere";
 import { COPY } from "@/lib/copy";
+import { buttonClassName } from "@/components/ui/Button";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -59,7 +60,7 @@ export default function LandingPage() {
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
           <div>
             <motion.h1
-              className="max-w-xl text-balance text-3xl font-extrabold leading-tight tracking-tight text-podium-white md:text-5xl md:leading-tight"
+              className="max-w-xl text-balance text-2xl font-semibold leading-tight tracking-tight text-podium-white md:text-4xl md:leading-tight"
               initial={reduce ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease }}
@@ -95,7 +96,10 @@ export default function LandingPage() {
             >
               <Link
                 href={signedIn ? "/painel" : "/entrar?modo=cadastro"}
-                className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
+                className={buttonClassName({
+                  variant: "primary",
+                  size: "lg",
+                })}
               >
                 {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
               </Link>
@@ -129,7 +133,7 @@ export default function LandingPage() {
 
       <section className="relative lg:hidden">
         <div className="sticky top-14 z-30 border-b border-podium-yellow/25 bg-podium-navy/95 px-4 py-3 backdrop-blur-xl">
-          <h2 className="text-lg font-extrabold tracking-tight text-podium-white">
+          <h2 className="text-sm font-semibold tracking-tight text-podium-white">
             {COPY.landingPreviewLabel}
           </h2>
         </div>

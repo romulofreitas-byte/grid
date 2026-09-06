@@ -33,6 +33,7 @@ import {
 import type { PainelMetrics, PainelRange, PainelTaskRow } from "@/lib/painel/types";
 import { ProductTour } from "@/components/tour/ProductTour";
 import { Select } from "@/components/ui/Select";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 function formatPct(part: number, whole: number): string {
@@ -46,15 +47,19 @@ function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
     feature: "crm",
   });
   return (
-    <GlassCard className="p-6">
+    <GlassCard className="p-3">
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
         {copy.eyebrow}
       </p>
-      <p className="mt-2 text-base font-semibold">{copy.title}</p>
+      <p className="mt-2 text-sm font-semibold">{copy.title}</p>
       <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
       <Link
         href={withFrom(copy.primary.href, "/painel")}
-        className="mt-4 inline-flex rounded-md bg-podium-yellow px-4 py-2 text-xs font-medium text-podium-navy"
+        className={buttonClassName({
+          variant: "primary",
+          size: "md",
+          className: "mt-3",
+        })}
       >
         {copy.primary.label}
       </Link>
@@ -78,7 +83,7 @@ function TaskList({
   wide?: boolean;
 }) {
   return (
-    <GlassCard className="flex h-full min-h-[240px] flex-col p-4" hover={false}>
+    <GlassCard className="flex h-full min-h-[240px] flex-col p-3" hover={false}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">{title}</p>
       {rows.length === 0 ? (
         <p className="mt-3 text-sm text-podium-muted">{empty}</p>
@@ -212,8 +217,7 @@ export function PainelDashboard() {
     <div className="space-y-5" data-tour="painel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <SectionTitle>{COPY.painelTitle}</SectionTitle>
-          <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
+          <Hint className="max-w-xl">{COPY.painelHint}</Hint>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">
@@ -223,7 +227,7 @@ export function PainelDashboard() {
                 type="button"
                 onClick={() => setFilters({ ...filters, range: range as PainelRange })}
                 className={cn(
-                  "rounded-md px-2.5 py-1.5 text-[11px] font-bold transition",
+                  "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition",
                   filters.range === range
                     ? "bg-podium-yellow text-podium-navy"
                     : "text-podium-muted hover:text-podium-white",
@@ -262,7 +266,7 @@ export function PainelDashboard() {
       ) : null}
 
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        <GlassCard className="p-4" hover={false} highlight={missingCalls > 0} data-tour="painel-meta">
+        <GlassCard className="p-3" hover={false} highlight={missingCalls > 0} data-tour="painel-meta">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="relative mx-auto shrink-0 sm:mx-0">
               <div
@@ -272,12 +276,12 @@ export function PainelDashboard() {
               <VoltaRing
                 hoje={k?.callsToday ?? 0}
                 meta={k?.callGoal ?? 20}
-                size="lg"
+                size="md"
                 className="relative"
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Trabalho do dia
               </p>
               <p className="mt-1 text-lg font-semibold leading-tight">
@@ -288,14 +292,14 @@ export function PainelDashboard() {
                     : COPY.painelCallsDone}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-podium-gray">
+                <span className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] font-medium text-podium-gray">
                   <Flame className="h-3 w-3 text-podium-yellow" />
                   {k ? (k.streak === 1 ? "1 dia" : `${k.streak} dias`) : "—"} de sequência
                 </span>
                 {crm && k && k.overdueFollowups > 0 ? (
                   <Link
                     href="/box"
-                    className="inline-flex items-center rounded-full border border-podium-alert/40 bg-podium-alert/10 px-2.5 py-1 text-[11px] font-semibold text-podium-alert"
+                    className="inline-flex items-center rounded-md border border-podium-alert/40 bg-podium-alert/10 px-2 py-0.5 text-[11px] font-medium text-podium-alert"
                   >
                     {k.overdueFollowups === 1 ? "1 atrasado" : `${k.overdueFollowups} atrasados`}
                   </Link>
@@ -304,7 +308,11 @@ export function PainelDashboard() {
               <Link
                 href="/box"
                 data-tour="ligar-agora"
-                className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-md bg-podium-yellow px-3 py-1.5 text-xs font-semibold text-podium-navy hover:brightness-110"
+                className={buttonClassName({
+                  variant: "primary",
+                  size: "md",
+                  className: "mt-3",
+                })}
               >
                 <Phone className="h-4 w-4" />
                 Ligar agora
@@ -313,21 +321,21 @@ export function PainelDashboard() {
           </div>
         </GlassCard>
 
-        <GlassCard className="flex h-full flex-col p-4" hover={false}>
+        <GlassCard className="flex h-full flex-col p-3" hover={false}>
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-podium-muted">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Resultado
             </p>
-            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-podium-muted">
+            <span className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-podium-muted">
               {rangeBadge}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-4">
             <Link href={crm ? crmHref : "/box"} className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-podium-muted">
                 Faturado
               </p>
-              <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
+              <p className="mt-1 truncate text-xl font-semibold tracking-tight">
                 {!m ? "—" : crm && k ? formatBrl(k.billedPeriodCents) : "—"}
               </p>
               <Hint className="mt-1">
@@ -343,10 +351,10 @@ export function PainelDashboard() {
               </Hint>
             </Link>
             <Link href={crm ? crmHref : "/box"} className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-podium-muted">
                 Pipeline
               </p>
-              <p className="mt-1 truncate text-2xl font-semibold tracking-tight">
+              <p className="mt-1 truncate text-xl font-semibold tracking-tight">
                 {!m ? "—" : crm && k ? formatBrl(k.pipelineOpenCents) : "—"}
               </p>
               <Hint className="mt-1">
@@ -359,7 +367,7 @@ export function PainelDashboard() {
             </Link>
           </div>
           <div className="mt-5 flex-1">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-podium-muted">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-podium-muted">
               Win rate {crm && k ? formatPct(k.wonPeriod, winWhole) : "—"}
             </p>
             {m && crm ? (
@@ -470,34 +478,38 @@ export function PainelDashboard() {
               goal={k?.callGoal ?? 20}
             />
           </ChartCard>
-          <GlassCard className="flex h-full flex-col justify-between p-4" hover={false}>
+          <GlassCard className="flex h-full flex-col justify-between p-3" hover={false}>
             <div>
-              <p className="text-sm font-bold">Listas</p>
+              <p className="text-sm font-semibold">Listas</p>
               <Hint className="mt-1">Geradas no recorte · mix atual das salvas.</Hint>
             </div>
             <dl className="mt-4 space-y-3">
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Geradas</dt>
-                <dd className="text-xl font-extrabold tabular-nums">
+                <dd className="text-lg font-semibold tabular-nums">
                   {m ? formatInt(m.lists.generated) : "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Salvas</dt>
-                <dd className="text-xl font-extrabold tabular-nums">
+                <dd className="text-lg font-semibold tabular-nums">
                   {m ? formatInt(m.lists.saved) : "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Em ação / na fila</dt>
-                <dd className="text-xl font-extrabold tabular-nums">
+                <dd className="text-lg font-semibold tabular-nums">
                   {m ? `${formatInt(leadsWorking)} / ${formatInt(leadsQueue)}` : "—"}
                 </dd>
               </div>
             </dl>
             <Link
               href="/largada"
-              className="mt-4 inline-flex rounded-md bg-podium-yellow px-3 py-2 text-center text-[11px] font-bold text-podium-navy hover:brightness-110"
+              className={buttonClassName({
+                variant: "primary",
+                size: "md",
+                className: "mt-3",
+              })}
             >
               Nova lista
             </Link>

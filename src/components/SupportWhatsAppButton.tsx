@@ -22,7 +22,7 @@ export function SupportWhatsAppButton({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl bg-podium-success px-4 py-2.5 text-sm font-extrabold text-podium-navy transition hover:brightness-110",
+        "inline-flex h-8 items-center justify-center gap-1.5 rounded-md bg-podium-success px-3 text-xs font-medium text-podium-navy transition hover:brightness-110",
         className,
       )}
     >

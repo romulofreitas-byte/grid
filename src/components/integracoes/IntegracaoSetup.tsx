@@ -8,7 +8,6 @@ import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
-import { SectionTitle } from "@/components/SectionTitle";
 import { TestRamalButton } from "@/components/TestRamalButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -52,7 +51,7 @@ const STATUS_BADGE: Record<
 };
 
 const INPUT =
-  "w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
+  "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
 
 function Field({
   label,
@@ -62,9 +61,9 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block text-sm text-podium-gray">
+    <label className="block text-xs text-podium-gray">
       {label}
-      <div className="mt-1.5">{children}</div>
+      <div className="mt-1">{children}</div>
     </label>
   );
 }
@@ -111,7 +110,7 @@ function ConnectionCard({
   const nativeDialer = isLiveDialerId(connection.catalog_id ?? connection.provider);
 
   return (
-    <GlassCard className="border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
+    <GlassCard className="border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <p className="flex flex-wrap items-center gap-2 font-semibold text-podium-white">
@@ -401,11 +400,10 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
 
   return (
     <AppShell title={copy.title} back={BACK.painel}>
-      <SectionTitle>{copy.title}</SectionTitle>
       {CONNECTIONS_STANDBY ? (
         <p
           role="status"
-          className="mt-3 text-pretty rounded-lg border border-podium-yellow/30 bg-podium-yellow/10 px-4 py-3 text-sm text-podium-yellow"
+          className="mt-3 text-pretty rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-3 py-2 text-xs text-podium-yellow"
         >
           {COPY.conexoesStandbyBanner}
         </p>
@@ -423,8 +421,8 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="min-w-0 space-y-8">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 space-y-4">
           <section>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
@@ -441,9 +439,9 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
             </div>
             <div className="mt-3 space-y-3">
               {list.isLoading ? (
-                <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
+                <div className="h-16 animate-pulse rounded-md bg-white/5" />
               ) : sortedConnections.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-white/15 px-4 py-6 text-sm text-podium-muted">
+                <p className="rounded-md border border-dashed border-white/15 px-3 py-4 text-xs text-podium-muted">
                   {CONNECTIONS_STANDBY ? COPY.conexoesStandbyEmpty : copy.empty}
                 </p>
               ) : (
@@ -483,7 +481,7 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
                     disabled={!available}
                     onClick={() => pickTool(item)}
                     className={cn(
-                      "group relative flex flex-col items-center gap-2 rounded-xl border px-2 py-3 text-center transition",
+                      "group relative flex flex-col items-center gap-2 rounded-md border px-2 py-2 text-center transition",
                       !available
                         ? "cursor-not-allowed border-white/5 bg-white/[0.015] opacity-55"
                         : on
@@ -515,7 +513,7 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
           </section>
 
           <GlassCard
-            className="space-y-4 border-white/10 bg-white/[0.03] p-5 hover:translate-y-0"
+            className="space-y-3 border-white/10 bg-white/[0.03] p-3 hover:translate-y-0"
             highlight
           >
             <div ref={formRef} className="flex items-center gap-3">
@@ -629,7 +627,7 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
           </GlassCard>
 
           {created ? (
-            <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
+            <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
               <p className="flex items-center gap-2 text-sm font-semibold text-podium-yellow">
                 <Check className="h-4 w-4" />
                 {created.kind === "dialer"
@@ -655,8 +653,8 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
         </div>
 
         <aside className="lg:sticky lg:top-4 lg:self-start">
-          <GlassCard className="border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
+          <GlassCard className="border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Como funciona
             </p>
             <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-relaxed text-podium-gray">

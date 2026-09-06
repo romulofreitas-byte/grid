@@ -6,6 +6,7 @@ import Link from "next/link";
 import { COPY } from "@/lib/copy";
 import type { BoxSlot, BoxSlotId } from "@/lib/box-estrutura";
 import { cn } from "@/lib/utils";
+import { buttonClassName } from "@/components/ui/Button";
 
 function nextGapId(gaps: BoxSlot[], currentId: BoxSlotId): BoxSlotId | null {
   if (gaps.length <= 1) return null;
@@ -89,8 +90,8 @@ export function BoxEstrutura({
   );
 
   const well = panel ? (
-    <div className="mb-6 rounded-xl border border-podium-yellow/20 bg-black/20 px-4 py-3">
-      <p className="text-sm font-extrabold">{panel.title}</p>
+    <div className="mb-4 rounded-md border border-podium-yellow/20 bg-black/20 px-3 py-2.5">
+      <p className="text-sm font-semibold">{panel.title}</p>
       <p className="mt-1 text-sm text-podium-gray">{panel.body}</p>
       {missionOwnsCta ? (
         canSkip ? (
@@ -106,7 +107,7 @@ export function BoxEstrutura({
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Link
             href={panel.href}
-            className="inline-flex rounded-xl border border-white/15 px-4 py-2 text-sm font-extrabold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-yellow"
+            className={buttonClassName({ variant: "secondary", size: "md" })}
           >
             {panel.cta}
           </Link>

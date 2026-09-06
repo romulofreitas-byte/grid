@@ -35,9 +35,9 @@ export default function ContaConexoesPage() {
   const connections = connectionsQuery.data;
 
   return (
-    <div className="space-y-4">
-      <GlassCard className="p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+    <div className="space-y-3">
+      <GlassCard className="p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Conexões desta conta
         </p>
         <Hint className="mt-1">
@@ -62,7 +62,7 @@ export default function ContaConexoesPage() {
         </div>
         <div className="mt-4 space-y-2">
           {connectionsQuery.isLoading ? (
-            <div className="h-16 animate-pulse rounded-xl bg-white/5" />
+            <div className="h-16 animate-pulse rounded-md bg-white/5" />
           ) : !connections || connections.length === 0 ? (
             <p className="text-sm text-podium-muted">Nenhuma conexão configurada.</p>
           ) : (
@@ -85,14 +85,14 @@ export default function ContaConexoesPage() {
                 <Link
                   key={row.id}
                   href={href}
-                  className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2.5 hover:border-podium-yellow/30"
+                  className="flex items-center justify-between rounded-md border border-white/10 px-3 py-1.5 hover:border-podium-yellow/30"
                 >
                   {body}
                 </Link>
               ) : (
                 <div
                   key={row.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 px-3 py-2.5"
+                  className="flex items-center justify-between rounded-md border border-white/10 px-3 py-1.5"
                 >
                   {body}
                 </div>
@@ -106,8 +106,8 @@ export default function ContaConexoesPage() {
         const items = catalogItemsByKind(section.kind);
         const setupHref = kindSetupHref(section.kind);
         return (
-          <GlassCard key={section.kind} className="p-4 md:p-5" hover={false}>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">
+          <GlassCard key={section.kind} className="p-3" hover={false}>
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               {section.label}
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -137,7 +137,7 @@ export default function ContaConexoesPage() {
                     <Link
                       key={item.id}
                       href={setupHref}
-                      className="rounded-xl border border-white/10 px-3 py-2.5 hover:border-podium-yellow/30"
+                      className="rounded-md border border-white/10 px-3 py-1.5 hover:border-podium-yellow/30"
                     >
                       {inner}
                     </Link>
@@ -146,7 +146,7 @@ export default function ContaConexoesPage() {
                 return (
                   <div
                     key={item.id}
-                    className="rounded-xl border border-white/10 px-3 py-2.5 opacity-70"
+                    className="rounded-md border border-white/10 px-3 py-1.5 opacity-70"
                   >
                     {inner}
                   </div>

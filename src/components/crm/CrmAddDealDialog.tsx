@@ -408,7 +408,7 @@ export function CrmAddDealDialog({
         className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
-      <div className="relative flex max-h-[min(92vh,44rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-white/10 bg-podium-navy p-5 shadow-2xl">
+      <div className="relative flex max-h-[min(92vh,44rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.05] p-3 shadow-2xl backdrop-blur-xl">
         <div className="flex shrink-0 items-start justify-between">
           <div>
             <p className={CRM_LABEL}>{COPY.crmAddDeal}</p>
@@ -600,7 +600,7 @@ export function CrmAddDealDialog({
                 onClick={() => void pullFicha()}
                 className="inline-flex items-center gap-2 disabled:opacity-50"
               >
-                <span className="inline-flex items-center rounded-full border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-podium-yellow">
+                <span className="inline-flex items-center rounded-md border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
                   {pulling ? COPY.crmPullFichaLoading : COPY.crmPullFicha}
                 </span>
                 {!pulling ? (
@@ -652,7 +652,7 @@ export function CrmAddDealDialog({
                   <span
                     key={badge.id}
                     className={cn(
-                      "rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+                      "rounded-md border px-1.5 py-0.5 text-[10px] font-medium",
                       badge.found
                         ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-300"
                         : "border-white/10 text-podium-muted",

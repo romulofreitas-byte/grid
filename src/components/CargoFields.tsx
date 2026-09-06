@@ -21,7 +21,7 @@ export function CargoFields({
   return (
     <fieldset>
       {legend ? (
-        <legend className="mb-2 text-sm text-podium-gray">
+        <legend className="mb-2 text-xs text-podium-gray">
           Cargo
           <Hint className="mt-0.5">{COPY.cargoHint}</Hint>
         </legend>

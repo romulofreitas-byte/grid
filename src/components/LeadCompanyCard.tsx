@@ -166,7 +166,7 @@ export function LeadCompanyCard({
     : null;
 
   return (
-    <GlassCard className="border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">
+    <GlassCard className="border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
       <div className="flex items-start gap-3">
         {gridPosition != null && gridScore != null ? (
           <PositionBadge
@@ -219,33 +219,6 @@ export function LeadCompanyCard({
         ) : null}
       </div>
 
-      {revenue ? (
-        <p className="mt-2 text-[11px] leading-snug text-podium-muted">
-          {revenue.regimeHint}. Confiança {revenue.confidence}. {revenue.basis}
-        </p>
-      ) : null}
-
-      <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-          E-mail
-        </p>
-        {emailSeal?.email ? (
-          <>
-            <a
-              href={`mailto:${emailSeal.email}`}
-              className="mt-1 block truncate text-sm font-medium text-podium-white hover:text-podium-yellow"
-            >
-              {emailSeal.email}
-            </a>
-            <EmailSealNotice emailSeal={emailSeal} />
-          </>
-        ) : (
-          <p className="mt-1 text-sm text-podium-muted">
-            <EmptyValue />
-          </p>
-        )}
-      </div>
-
       {company && establishment ? (
         <>
           <button
@@ -254,7 +227,7 @@ export function LeadCompanyCard({
             aria-expanded={showCadastro}
             className="mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-white/10 px-3 py-1.5 text-left text-podium-muted hover:border-white/20 hover:text-podium-gray"
           >
-            <span className="text-xs font-medium">Cadastro da Receita</span>
+            <span className="text-xs font-medium">{COPY.fichaCollapseCadastro}</span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 transition",
@@ -279,6 +252,33 @@ export function LeadCompanyCard({
               <div>
                 <dt className="text-xs text-podium-muted">CNPJ</dt>
                 <dd className="font-medium">{formatCnpj(cnpj)}</dd>
+              </div>
+              {revenue ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs text-podium-muted">Faixa estimada</dt>
+                  <dd className="text-[13px] leading-snug text-podium-gray">
+                    {revenue.regimeHint}. Confiança {revenue.confidence}.{" "}
+                    {revenue.basis}
+                  </dd>
+                </div>
+              ) : null}
+              <div className="sm:col-span-2">
+                <dt className="text-xs text-podium-muted">E-mail</dt>
+                <dd>
+                  {emailSeal?.email ? (
+                    <>
+                      <a
+                        href={`mailto:${emailSeal.email}`}
+                        className="block truncate font-medium text-podium-white hover:text-podium-yellow"
+                      >
+                        {emailSeal.email}
+                      </a>
+                      <EmailSealNotice emailSeal={emailSeal} />
+                    </>
+                  ) : (
+                    <EmptyValue />
+                  )}
+                </dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-xs text-podium-muted">Endereço</dt>

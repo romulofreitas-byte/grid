@@ -9,6 +9,7 @@ import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { gridHref, largadaIntentHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import { matchActivitySuggestion } from "@/lib/activity-suggestion";
@@ -17,7 +18,7 @@ import {
   isFullCnpjQuery,
 } from "@/lib/data/company-search";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
-import { formatCnpj } from "@/lib/format";
+import { formatCnpj, formatPhone } from "@/lib/format";
 import {
   readRecentCompanies,
   rememberRecentCompany,
@@ -46,6 +47,13 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
+function formatHitPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 10) return raw;
+  return formatPhone(digits.slice(0, 2), digits.slice(2)) || raw;
+}
+
 function CompanyRow({
   hit,
   onOpen,
@@ -58,6 +66,8 @@ function CompanyRow({
   saving: boolean;
 }) {
   const qc = useQueryClient();
+  const phone =
+    "telefone" in hit ? formatHitPhone(hit.telefone) : null;
   function warm() {
     qc.setQueryData(leadPreviewKey(hit.cnpj), companyHitToPreview(hit));
     void qc.prefetchQuery({
@@ -67,7 +77,7 @@ function CompanyRow({
     });
   }
   return (
-    <GlassCard className="mb-2 px-4 py-3 hover:bg-white/[0.03]">
+    <GlassCard className="flex items-center gap-3 px-3 py-2 hover:translate-y-0 hover:bg-white/[0.03]">
       <Link
         href={`/lead/${hit.cnpj}?from=empresas`}
         onClick={() => {
@@ -76,37 +86,40 @@ function CompanyRow({
         }}
         onPointerEnter={warm}
         onFocus={warm}
-        className="block"
+        className="min-w-0 flex-1"
       >
         <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate font-bold">
+          <p className="min-w-0 truncate text-sm font-semibold text-podium-white">
             {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
           </p>
-          <p className="shrink-0 text-xs text-podium-muted">
+          <p className="shrink-0 text-[11px] text-podium-muted">
             {hit.municipio}/{hit.uf}
           </p>
         </div>
         {hit.nomeFantasia ? (
-          <p className="mt-0.5 truncate text-xs text-podium-muted">
+          <p className="mt-0.5 truncate text-[11px] text-podium-muted">
             {hit.razaoSocial}
           </p>
         ) : null}
-        <p className="mt-1 text-xs tabular-nums text-podium-muted">
+        <p className="mt-0.5 truncate text-[11px] tabular-nums text-podium-muted">
           {formatCnpj(hit.cnpj)}
+          {phone ? <span> · {phone}</span> : null}
           {"decisorNome" in hit && hit.decisorNome ? (
-            <span className="ml-2 normal-case">· Decisor: {hit.decisorNome}</span>
+            <span> · {hit.decisorNome}</span>
           ) : null}
         </p>
       </Link>
-      <button
+      <Button
         type="button"
+        size="sm"
+        variant="secondary"
         disabled={saving}
         onClick={() => onSaveToPista(hit)}
-        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-podium-yellow px-3 py-1.5 text-xs font-bold text-podium-navy disabled:opacity-40"
+        className="shrink-0"
       >
         <Flag className="h-3 w-3" />
         {saving ? "Salvando…" : COPY.salvarNaPista}
-      </button>
+      </Button>
     </GlassCard>
   );
 }
@@ -185,16 +198,15 @@ export default function EmpresasPage() {
 
   return (
     <AppShell title="Empresas" back={{ href: "/painel", label: "Voltar ao Painel" }}>
-      <h1 className="text-2xl font-extrabold">Buscar empresas</h1>
       <form
-        className="mt-6 flex gap-2"
+        className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           setImmediate(draft.trim());
         }}
       >
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-podium-muted" />
           <input
             value={draft}
             onChange={(e) => {
@@ -205,32 +217,27 @@ export default function EmpresasPage() {
             inputMode="text"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-xl border border-white/10 bg-podium-panel py-3 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+            className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-9 pr-3 text-sm outline-none focus:border-podium-yellow/40"
             aria-label="Buscar empresas"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded-xl bg-podium-yellow px-5 text-sm font-bold text-podium-navy"
-        >
+        <Button type="submit" variant="primary" size="md">
           Buscar
-        </button>
+        </Button>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <button
           type="button"
           onClick={() => setUfOpen((v) => !v)}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold",
-            ufs.length || ufOpen
-              ? "bg-podium-yellow text-podium-navy"
-              : "bg-white/5 text-podium-gray",
-          )}
+          className={buttonClassName({
+            variant: ufs.length || ufOpen ? "accent" : "secondary",
+            size: "sm",
+          })}
         >
           {ufs.length ? ufs.join(" · ") : "Brasil"}
           <ChevronDown
-            className={cn("h-4 w-4 transition", ufOpen && "rotate-180")}
+            className={cn("h-3.5 w-3.5 transition", ufOpen && "rotate-180")}
           />
         </button>
         {ufs.map((uf) => (
@@ -238,7 +245,7 @@ export default function EmpresasPage() {
             key={uf}
             type="button"
             onClick={() => setUfs((cur) => cur.filter((u) => u !== uf))}
-            className="rounded-xl bg-podium-yellow/20 px-3 py-2 text-sm font-bold text-podium-yellow"
+            className={buttonClassName({ variant: "accent", size: "sm" })}
           >
             {uf} ×
           </button>
@@ -246,18 +253,16 @@ export default function EmpresasPage() {
         <button
           type="button"
           onClick={() => setSoMatriz((v) => !v)}
-          className={cn(
-            "rounded-xl px-3 py-2 text-sm font-bold",
-            soMatriz
-              ? "bg-podium-yellow text-podium-navy"
-              : "bg-white/5 text-podium-gray",
-          )}
+          className={buttonClassName({
+            variant: soMatriz ? "accent" : "secondary",
+            size: "sm",
+          })}
         >
           Só matriz
         </button>
       </div>
       {ufOpen ? (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1">
           {ALL_UFS.map((uf) => {
             const on = ufs.includes(uf);
             return (
@@ -269,12 +274,10 @@ export default function EmpresasPage() {
                     on ? cur.filter((u) => u !== uf) : [...cur, uf],
                   )
                 }
-                className={cn(
-                  "rounded-xl px-3 py-2 text-sm font-bold",
-                  on
-                    ? "bg-podium-yellow text-podium-navy"
-                    : "bg-white/5 text-podium-gray",
-                )}
+                className={buttonClassName({
+                  variant: on ? "accent" : "secondary",
+                  size: "sm",
+                })}
               >
                 {uf}
               </button>
@@ -284,9 +287,9 @@ export default function EmpresasPage() {
       ) : null}
 
       {listaHref && activity ? (
-        <GlassCard className="mt-6 p-4">
+        <GlassCard className="mt-4 p-3 hover:translate-y-0">
           <Link href={listaHref} className="block">
-            <p className="text-sm font-bold text-podium-yellow">
+            <p className="text-sm font-semibold text-podium-yellow">
               {COPY.empresasListaCta.replace("{nicho}", activity.nome)}
             </p>
             <p className="mt-1 text-pretty text-xs text-podium-muted">
@@ -297,19 +300,23 @@ export default function EmpresasPage() {
       ) : null}
 
       {query.isFetching && hits.length === 0 ? (
-        <div className="mt-6 h-40 animate-pulse rounded-2xl bg-white/5" />
+        <div className="mt-4 space-y-1">
+          <div className="h-12 animate-pulse rounded-md bg-white/5" />
+          <div className="h-12 animate-pulse rounded-md bg-white/5" />
+          <div className="h-12 animate-pulse rounded-md bg-white/5" />
+        </div>
       ) : query.isError ? (
-        <GlassCard className="mt-6 p-5 text-sm text-podium-muted">
+        <GlassCard className="mt-4 p-3 text-sm text-podium-muted">
           Não foi possível buscar. Tente de novo.
         </GlassCard>
       ) : ready && hits.length === 0 && !query.isFetching ? (
-        <GlassCard className="mt-6 p-5 text-sm text-podium-muted">
+        <GlassCard className="mt-4 p-3 text-sm text-podium-muted">
           {isFullCnpjQuery(q)
             ? COPY.empresaForaDaBase
             : `Nenhuma empresa encontrada para “${q}”.`}
         </GlassCard>
       ) : hits.length > 0 ? (
-        <div className="mt-6 space-y-3">
+        <div className="mt-4 space-y-1">
           <SaveToCrmTelemetry cta={COPY.salvarNaPista} />
           {saveError ? (
             <p className="text-sm text-podium-yellow">{saveError}</p>
@@ -328,18 +335,18 @@ export default function EmpresasPage() {
           ))}
         </div>
       ) : draft.trim().length > 0 && !ready ? (
-        <p className="mt-6 text-sm text-podium-muted">
+        <p className="mt-4 text-sm text-podium-muted">
           {COPY.empresasMinChars}
         </p>
       ) : null}
 
       {!ready && recent.length > 0 ? (
-        <section className="mt-8">
+        <section className="mt-6">
           <SectionTitle>Recentes</SectionTitle>
           {saveError ? (
-            <p className="mt-2 text-sm text-podium-yellow">{saveError}</p>
+            <p className="mt-1.5 text-sm text-podium-yellow">{saveError}</p>
           ) : null}
-          <div className="mt-4 space-y-1">
+          <div className="mt-3 space-y-1">
             {recent.map((h) => (
               <CompanyRow
                 key={h.cnpj}

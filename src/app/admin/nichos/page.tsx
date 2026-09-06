@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { SectionTitle } from "@/components/SectionTitle";
+import { Button } from "@/components/ui/Button";
 import { BACK } from "@/lib/back";
 import { cn } from "@/lib/utils";
 
@@ -121,8 +121,7 @@ export default function AdminNichosPage() {
 
   return (
     <AppShell title="Nichos" back={BACK.painel}>
-      <SectionTitle>Curadoria de segmentos</SectionTitle>
-      <Hint className="mt-2 max-w-2xl text-sm">
+      <Hint className="max-w-2xl text-sm">
         Escolha o segmento e marque as atividades (CNAE) que entram na busca.
         Você também pode incluir CNAEs por código mesmo fora das keywords.
       </Hint>
@@ -131,7 +130,7 @@ export default function AdminNichosPage() {
         <GlassCard className="max-h-[70vh] space-y-4 overflow-auto p-3">
           {(treeQuery.data ?? []).map((n) => (
             <div key={n.id}>
-              <p className="px-2 text-xs font-bold uppercase tracking-wide text-podium-muted">
+              <p className="px-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 {n.nome}
               </p>
               <div className="mt-1 space-y-1">
@@ -141,7 +140,7 @@ export default function AdminNichosPage() {
                     type="button"
                     onClick={() => setSelected(s.id)}
                     className={cn(
-                      "w-full rounded-xl px-3 py-2 text-left text-sm",
+                      "w-full rounded-md px-2.5 py-1.5 text-left text-sm",
                       selected === s.id
                         ? "bg-podium-yellow/15 text-podium-yellow"
                         : "text-podium-gray hover:bg-white/5",
@@ -162,18 +161,18 @@ export default function AdminNichosPage() {
           ))}
         </GlassCard>
 
-        <GlassCard className="p-5">
+        <GlassCard className="p-3">
           {!selected ? (
             <p className="text-sm text-podium-muted">
               Selecione um segmento à esquerda.
             </p>
           ) : detailQuery.isLoading ? (
-            <div className="h-40 animate-pulse rounded-xl bg-white/5" />
+            <div className="h-40 animate-pulse rounded-md bg-white/5" />
           ) : (
             <>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-extrabold">
+                  <h3 className="text-base font-semibold">
                     {detailQuery.data?.preset.nome}
                   </h3>
                   <p className="text-xs text-podium-muted">
@@ -183,56 +182,59 @@ export default function AdminNichosPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() =>
                       setRows((prev) =>
                         prev.map((x) => ({ ...x, incluido: true })),
                       )
                     }
-                    className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-podium-gray hover:bg-white/5"
                   >
                     Marcar todos
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() =>
                       setRows((prev) =>
                         prev.map((x) => ({ ...x, incluido: false })),
                       )
                     }
-                    className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-podium-gray hover:bg-white/5"
                   >
                     Desmarcar todos
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="sm"
                     onClick={() => save.mutate()}
-                    className="rounded-xl bg-podium-yellow px-4 py-2 text-sm font-bold text-podium-navy"
                   >
                     Salvar curadoria
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               <div className="mb-4">
-                <label className="text-xs font-semibold text-podium-muted">
+                <label className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                   Incluir CNAE por código ou descrição
                 </label>
                 <input
                   value={addDraft}
                   onChange={(e) => setAddDraft(e.target.value)}
                   placeholder="Ex.: 1121600 ou águas envasadas"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2 text-sm outline-none focus:border-podium-yellow/40"
+                  className="mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40"
                 />
                 {addDraft.trim().length >= 2 && (
-                  <div className="mt-2 max-h-40 space-y-1 overflow-auto rounded-xl border border-white/10 p-2">
+                  <div className="mt-2 max-h-40 space-y-1 overflow-auto rounded-md border border-white/10 p-2">
                     {(cnaeSearch.data ?? []).slice(0, 12).map((c) => (
                       <button
                         key={c.codigo}
                         type="button"
                         onClick={() => addCnae(c.codigo, c.descricao)}
-                        className="block w-full rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/5"
+                        className="block w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-white/5"
                       >
                         <span className="font-mono text-xs text-podium-muted">
                           {c.codigo}
@@ -257,7 +259,7 @@ export default function AdminNichosPage() {
                 {rows.map((r, idx) => (
                   <label
                     key={r.codigo}
-                    className="flex items-start gap-3 rounded-xl border border-white/5 px-3 py-2"
+                    className="flex items-start gap-3 rounded-md border border-white/5 px-3 py-2"
                   >
                     <input
                       type="checkbox"

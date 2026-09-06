@@ -48,7 +48,7 @@ function pulseStage(step: number) {
       total={TOTAL_STEPS}
       footer={<div className="h-9 w-28 animate-pulse rounded-md bg-white/5" />}
     >
-      <div className="h-40 animate-pulse rounded-2xl bg-white/5" />
+      <div className="h-40 animate-pulse rounded-md bg-white/5" />
     </SetupStage>
   );
 }
@@ -205,7 +205,7 @@ export default function SetupPage() {
             {step > 1 ? (
               <Button
                 variant="ghost"
-                size="lg"
+                size="md"
                 className="mr-auto"
                 disabled={busy}
                 onClick={() => setStep((current) => Math.max(1, current - 1))}
@@ -216,7 +216,7 @@ export default function SetupPage() {
             {step < 4 ? (
               <Button
                 variant="primary"
-                size="lg"
+                size="md"
                 disabled={busy || !canAdvance}
                 onClick={() => void goNext()}
               >
@@ -225,7 +225,7 @@ export default function SetupPage() {
             ) : (
               <Button
                 variant="primary"
-                size="lg"
+                size="md"
                 disabled={busy || !identityOk}
                 onClick={() => void finish()}
               >
@@ -238,13 +238,13 @@ export default function SetupPage() {
     >
       {step === 1 ? (
         <label className="block">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             {COPY.setupIdentityTitle}
           </p>
-          <h1 className="mt-3 font-[family-name:var(--font-sora)] text-3xl font-extrabold tracking-tight md:text-5xl">
+          <h1 className="mt-2 font-[family-name:var(--font-sora)] text-xl font-semibold tracking-tight md:text-2xl">
             {COPY.setupStepName}
           </h1>
-          <p className="mt-3 text-sm text-podium-muted">{COPY.setupIdentityHint}</p>
+          <p className="mt-2 text-sm text-podium-muted">{COPY.setupIdentityHint}</p>
           <input
             id="como_chama"
             autoFocus
@@ -256,14 +256,14 @@ export default function SetupPage() {
                 void goNext();
               }
             }}
-            className="mt-10 w-full border-b border-white/20 bg-transparent pb-3 text-2xl font-semibold outline-none focus:border-podium-yellow/60 md:text-4xl"
+            className="mt-6 w-full border-b border-white/20 bg-transparent pb-2 text-lg font-semibold outline-none focus:border-podium-yellow/60 md:text-xl"
           />
         </label>
       ) : null}
 
       {step === 2 ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <h1 className="font-[family-name:var(--font-sora)] text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">
+          <h1 className="font-[family-name:var(--font-sora)] text-xl font-semibold tracking-tight md:text-2xl">
             {COPY.setupStepMarket}
           </h1>
           <div className="mt-4 min-h-0 flex-1 md:mt-6">
@@ -281,7 +281,7 @@ export default function SetupPage() {
 
       {step === 3 ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <h1 className="font-[family-name:var(--font-sora)] text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">
+          <h1 className="font-[family-name:var(--font-sora)] text-xl font-semibold tracking-tight md:text-2xl">
             {COPY.setupStepCargo}
           </h1>
           {echo ? (

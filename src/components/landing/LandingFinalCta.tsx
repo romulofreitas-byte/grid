@@ -1,6 +1,7 @@
 "use client";
 
 import { COPY } from "@/lib/copy";
+import { buttonClassName } from "@/components/ui/Button";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 
@@ -8,7 +9,7 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
+    <section className="relative mx-auto max-w-6xl px-4 py-12 md:py-16">
       <motion.div
         className="max-w-2xl"
         initial={reduce ? false : { opacity: 0, y: 20 }}
@@ -16,7 +17,7 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
         viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h2 className="text-balance text-3xl font-extrabold tracking-tight text-podium-white md:text-5xl">
+        <h2 className="text-balance text-xl font-semibold tracking-tight text-podium-white md:text-2xl">
           {COPY.landingFinalTitle}
         </h2>
         <p className="mt-4 max-w-lg text-pretty text-base leading-relaxed text-podium-muted md:text-lg">
@@ -25,7 +26,7 @@ export function LandingFinalCta({ signedIn }: { signedIn: boolean }) {
         <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link
             href={signedIn ? "/painel" : "/entrar?modo=cadastro"}
-            className="rounded-xl bg-podium-yellow px-7 py-3.5 text-sm font-bold text-podium-navy transition hover:brightness-110"
+            className={buttonClassName({ variant: "primary", size: "lg" })}
           >
             {signedIn ? COPY.landingSignedInCta : COPY.landingCtaStart}
           </Link>

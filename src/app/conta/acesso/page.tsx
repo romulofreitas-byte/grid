@@ -60,13 +60,13 @@ export default function ContaAcessoPage() {
   }
 
   if (!p) {
-    return <div className="min-h-40 animate-pulse rounded-2xl bg-white/5" />;
+    return <div className="min-h-40 animate-pulse rounded-md bg-white/5" />;
   }
 
   return (
-    <div className="space-y-4">
-      <GlassCard className="space-y-3 p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+    <div className="space-y-3">
+      <GlassCard className="space-y-3 p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           E-mail
         </p>
         <p className="text-lg font-semibold text-podium-white">
@@ -81,13 +81,13 @@ export default function ContaAcessoPage() {
         </Link>
       </GlassCard>
 
-      <GlassCard className="p-4 md:p-5" hover={false}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-yellow">
+      <GlassCard className="p-3" hover={false}>
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Senha
         </p>
         <Hint className="mt-1">{COPY.contaPasswordHint}</Hint>
-        <form onSubmit={onSubmit} className="mt-4 space-y-3">
-          <label className="block text-sm text-podium-gray">
+        <form onSubmit={onSubmit} className="mt-3 space-y-3">
+          <label className="block text-xs text-podium-gray">
             Nova senha
             <input
               type="password"
@@ -98,7 +98,7 @@ export default function ContaAcessoPage() {
               className={CONTA_FIELD_CLASS}
             />
           </label>
-          <label className="block text-sm text-podium-gray">
+          <label className="block text-xs text-podium-gray">
             Confirmar senha
             <input
               type="password"

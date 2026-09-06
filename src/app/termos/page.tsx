@@ -5,8 +5,8 @@ import { SectionTitle } from "@/components/SectionTitle";
 export default function TermosPage() {
   return (
     <PublicPage>
-      <SectionTitle className="mt-8">Termos de uso</SectionTitle>
-      <GlassCard className="mt-6 space-y-4 p-6 text-sm leading-relaxed text-podium-gray">
+      <SectionTitle className="mt-4">Termos de uso</SectionTitle>
+      <GlassCard className="mt-4 space-y-4 p-3 text-sm leading-relaxed text-podium-gray">
         <p>
           O GRID é uma ferramenta de prospecção B2B do Mundo Pódium. O uso é
           destinado a quem usa o GRID e a equipes comerciais autorizadas.

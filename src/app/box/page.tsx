@@ -22,9 +22,9 @@ export default async function BoxPage() {
     unstable_rethrow(err);
     console.error("box_page_error", err);
     return (
-      <div className="rounded-lg border border-white/10 bg-white/[0.03] p-8">
-        <p className="text-lg font-bold text-podium-white">Não deu para carregar as ligações.</p>
-        <p className="mt-3 text-sm text-podium-muted">
+      <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+        <p className="text-sm font-semibold text-podium-white">Não deu para carregar as ligações.</p>
+        <p className="mt-2 text-sm text-podium-muted">
           {userFacingDbBusyMessage(err)}
         </p>
       </div>

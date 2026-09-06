@@ -15,7 +15,7 @@ export function PublicPage({
   back?: { href: string; label: string };
 }) {
   return (
-    <div className="relative min-h-screen px-4 py-12">
+    <div className="relative min-h-screen px-4 py-8">
       <RaceAtmosphere />
       <div className={cn("mx-auto max-w-3xl", className)}>
         <Link href={back.href} className="inline-block">
@@ -24,7 +24,7 @@ export function PublicPage({
             className="h-10 w-auto text-[2.5rem]"
           />
         </Link>
-        <div className="mt-6">
+        <div className="mt-4">
           <BackLink href={back.href}>{back.label}</BackLink>
         </div>
         {children}

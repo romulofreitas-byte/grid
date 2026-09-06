@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useEffect, useState } from "react";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 export function CopyFeedback({
@@ -34,11 +35,11 @@ export function CopyFeedback({
   }
 
   const fieldClass =
-    "mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 text-sm text-podium-white outline-none";
+    "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none";
 
   return (
     <div className={className}>
-      <label className="block text-xs text-podium-muted">
+      <label className="block text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
         {label}
         {multiline ? (
           <textarea
@@ -53,7 +54,7 @@ export function CopyFeedback({
       <button
         type="button"
         onClick={() => void copy()}
-        className="mt-2 inline-flex items-center gap-2 rounded-xl border border-podium-yellow/40 px-4 py-2 text-sm font-bold text-podium-yellow"
+        className={buttonClassName({ variant: "accent", size: "sm", className: "mt-2" })}
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
         {copied ? "Copiado" : actionLabel}

@@ -43,17 +43,17 @@ export function PlanCard({
     <>
       <p
         className={cn(
-          "h-4 text-[10px] font-bold uppercase tracking-[0.18em]",
+          "h-4 text-[10px] font-medium uppercase tracking-[0.12em]",
           featured ? "text-podium-yellow" : "text-podium-muted",
         )}
       >
         {eyebrow}
       </p>
-      <h3 className="mt-2 text-xl font-extrabold">{plan.nome}</h3>
+      <h3 className="mt-2 text-base font-semibold">{plan.nome}</h3>
       <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-pretty text-sm leading-5 text-podium-muted">
         {plan.tagline}
       </p>
-      <p className="mt-4 flex min-h-[2.5rem] items-baseline whitespace-nowrap text-3xl font-extrabold text-podium-yellow">
+      <p className="mt-3 flex min-h-8 items-baseline whitespace-nowrap text-xl font-semibold text-podium-yellow">
         {price}
         {plan.priceCents > 0 ? (
           <span className="text-sm font-medium text-podium-muted">/mês</span>
@@ -105,7 +105,7 @@ export function PlanCard({
           ) : null}
         </div>
       ) : null}
-      <div className="mt-auto pt-6">{cta}</div>
+      <div className="mt-auto pt-3">{cta}</div>
     </>
   );
 
@@ -113,7 +113,7 @@ export function PlanCard({
     return (
       <article
         className={cn(
-          "flex h-full flex-col rounded-2xl border bg-white/[0.03] p-5",
+          "flex h-full flex-col rounded-md border bg-white/[0.03] p-3",
           featured
             ? "border-podium-yellow/40 ring-1 ring-podium-yellow/25"
             : "border-white/[0.08]",
@@ -128,7 +128,7 @@ export function PlanCard({
     <GlassCard
       highlight={featured}
       className={cn(
-        "flex h-full flex-col p-5",
+        "flex h-full flex-col p-3",
         featured && "ring-1 ring-podium-yellow/30",
       )}
     >

@@ -9,7 +9,6 @@ import { AppShell } from "@/components/AppShell";
 import { CopyFeedback } from "@/components/CopyFeedback";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { SectionTitle } from "@/components/SectionTitle";
 import { StartingLights } from "@/components/StartingLights";
 import { useHoldLights, usePodiumWait } from "@/hooks/usePodiumWait";
 import {
@@ -27,6 +26,7 @@ import {
   planosHref,
 } from "@/lib/billing/href";
 import type { BillingOrder } from "@/lib/billing/types";
+import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 const METHODS: Array<{ id: PaymentMethod; label: string; hint: string }> = [
@@ -38,7 +38,7 @@ const METHODS: Array<{ id: PaymentMethod; label: string; hint: string }> = [
 
 const enterEase = [0.16, 1, 0.3, 1] as const;
 const fillCard =
-  "flex h-full min-h-0 w-full flex-col p-6 hover:translate-y-0 md:p-8";
+  "flex h-full min-h-0 w-full flex-col p-3 hover:translate-y-0";
 
 function PagarInner() {
   const router = useRouter();
@@ -168,8 +168,7 @@ function PagarInner() {
   return (
     <AppShell fill title="Pagar" back={planosBack}>
       <div className="shrink-0">
-        <SectionTitle>Pagamento</SectionTitle>
-        <p className="mt-2 text-sm text-podium-muted">
+        <p className="text-sm text-podium-muted">
           Pix em destaque. Cartão e boleto usam Asaas; cartão internacional, Stripe.
           Circle não aparece aqui — é tesouraria.
         </p>
@@ -183,12 +182,12 @@ function PagarInner() {
           transition={{ duration: 0.25, ease: enterEase }}
         >
           <GlassCard className={cn(fillCard, "justify-between")} highlight>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
               {item.kind === "pack" ? "Recarga" : "Plano"}
             </p>
-            <h2 className="mt-3 text-3xl font-extrabold md:text-4xl">{item.nome}</h2>
-            <p className="mt-2 text-sm text-podium-gray md:text-base">{item.tagline}</p>
-            <p className="mt-6 text-4xl font-extrabold text-podium-yellow md:text-5xl">
+            <h2 className="mt-2 text-lg font-semibold md:text-xl">{item.nome}</h2>
+            <p className="mt-2 text-sm text-podium-gray">{item.tagline}</p>
+            <p className="mt-4 text-xl font-semibold text-podium-yellow md:text-2xl">
               {priceLabel}
             </p>
             <p className="mt-2 text-sm text-podium-muted md:text-base">
@@ -214,14 +213,18 @@ function PagarInner() {
           <GlassCard className={fillCard}>
             {offSale ? (
               <div className="flex min-h-0 flex-1 flex-col justify-center gap-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-podium-yellow">
+                <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
                   Em breve
                 </p>
-                <h3 className="text-xl font-extrabold">Fora de venda</h3>
+                <h3 className="text-base font-semibold">Fora de venda</h3>
                 <p className="text-sm text-podium-gray">{SKU_OFF_SALE_MESSAGE}</p>
                 <Link
                   href={planosBack.href}
-                  className="mt-2 inline-flex justify-center rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy hover:brightness-110"
+                  className={buttonClassName({
+                    variant: "primary",
+                    size: "md",
+                    className: "mt-2 w-full",
+                  })}
                 >
                   Ver planos
                 </Link>
@@ -230,17 +233,17 @@ function PagarInner() {
               <div className="flex min-h-0 flex-1 flex-col justify-center gap-5">
                 <div className="flex flex-col items-center gap-3 text-center">
                   <StartingLights litCount={litCount} phase={phase} />
-                  <h3 className="text-balance text-xl font-extrabold">
+                  <h3 className="text-balance text-base font-semibold">
                     Aguardando o sinal do banco
                   </h3>
                 </div>
                 {order?.pixQr ? (
-                  <div className="pix-qr-ring mx-auto w-fit rounded-2xl">
+                  <div className="pix-qr-ring mx-auto w-fit rounded-md">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={order.pixQr}
                       alt="QR Code Pix"
-                      className="h-56 w-56 rounded-xl bg-white p-2 md:h-64 md:w-64"
+                      className="h-48 w-48 rounded-md bg-white p-2 md:h-56 md:w-56"
                     />
                   </div>
                 ) : null}
@@ -262,7 +265,11 @@ function PagarInner() {
                     type="button"
                     onClick={() => void simulate()}
                     disabled={busy || phase === "go"}
-                    className="w-full rounded-xl border border-podium-yellow/40 py-3 text-sm font-bold text-podium-yellow disabled:opacity-60"
+                    className={buttonClassName({
+                      variant: "accent",
+                      size: "md",
+                      className: "w-full",
+                    })}
                   >
                     Confirmar pagamento (demo)
                   </button>
@@ -287,7 +294,7 @@ function PagarInner() {
                           }
                           transition={{ duration: 0.18 }}
                           className={cn(
-                            "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm motion-safe:hover:border-podium-yellow/30",
+                            "flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm motion-safe:hover:border-podium-yellow/30",
                             method === m.id
                               ? "border-podium-yellow/50 bg-podium-yellow/10 shadow-[0_0_24px_rgba(245,179,1,0.16)]"
                               : "border-white/10",
@@ -320,7 +327,7 @@ function PagarInner() {
                       autoCapitalize="characters"
                       autoCorrect="off"
                       spellCheck={false}
-                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40"
+                      className="mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40"
                     />
                   </label>
                 )}
@@ -332,7 +339,7 @@ function PagarInner() {
                       value={documento}
                       onChange={(e) => setDocumento(e.target.value)}
                       placeholder="000.000.000-00"
-                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-podium-panel px-3 py-2.5 outline-none focus:border-podium-yellow/40"
+                      className="mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs outline-none focus:border-podium-yellow/40"
                     />
                     <Hint className="mt-1">
                       Obrigatório no Asaas para Pix, cartão e boleto.
@@ -349,7 +356,11 @@ function PagarInner() {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-podium-yellow py-3.5 text-sm font-extrabold text-podium-navy disabled:opacity-60"
+                    className={buttonClassName({
+                      variant: "primary",
+                      size: "lg",
+                      className: "w-full",
+                    })}
                   >
                     {busy ? (
                       <>

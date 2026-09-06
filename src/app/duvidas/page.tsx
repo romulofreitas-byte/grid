@@ -9,7 +9,7 @@ export default function DuvidasPage() {
 
   return (
     <PublicPage>
-      <SectionTitle className="mt-8">Dúvidas</SectionTitle>
+      <SectionTitle className="mt-4">Dúvidas</SectionTitle>
       <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
         Respostas rápidas sobre o GRID. Se não estiver aqui, o agente
         automático no WhatsApp atende 24 horas.

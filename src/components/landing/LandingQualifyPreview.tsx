@@ -166,7 +166,7 @@ export function LandingQualifyPreview({ className }: { className?: string }) {
     <div
       ref={root}
       className={cn(
-        "relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-podium-panel/80 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
+        "relative w-full max-w-md overflow-hidden rounded-md border border-white/10 bg-podium-panel/80 p-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-md",
         className,
       )}
       role="region"
