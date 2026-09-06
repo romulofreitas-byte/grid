@@ -1065,7 +1065,7 @@ describe("enrichCompany crawl", () => {
     input.sharedCount = 150;
 
     const { row } = await enrichCompany(input);
-    expect(mapsQueries[0]).toBe('"Delpra Pré-Moldados" Uberaba MG');
+    expect(mapsQueries[0]).toBe("delpra Uberaba MG");
     expect(mapsQueries.every((q) => !/contador/i.test(q))).toBe(true);
     expect(row.gmb?.matched).toBe(true);
     expect(row.gmb?.match_by).toEqual(expect.arrayContaining(["title", "city"]));

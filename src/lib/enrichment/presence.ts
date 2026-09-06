@@ -13,6 +13,11 @@ import {
 } from "@/lib/enrichment/company-name";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
+import {
+  emailDomainCorrelatesWithBrand,
+  isOwnDomainEmail,
+  receitaEmailHost,
+} from "@/lib/contact-confidence";
 import type {
   GmbCard,
   GmbCardCheck,
@@ -65,6 +70,8 @@ export type GmbSearchInput = {
   websiteHost?: string | null;
   /** Skip street in Maps queries — Receita address is the office, not the shop. */
   sharedVerdict?: SharedPhoneVerdict;
+  /** Receita email — branded host (drimafer.com.br) is often the Maps trading name. */
+  receitaEmail?: string | null;
 };
 
 export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
@@ -556,17 +563,46 @@ function sameSearchToken(a: string, b: string): boolean {
 
 /** First strong brand token when the Receita name is too long for Maps. */
 export function gmbCompactSearchName(input: GmbSearchInput): string | null {
-  const tokens = presenceBrandTokens(
+  const fromFantasia = presenceBrandTokens(
+    "",
+    input.nomeFantasia,
+    input.municipio,
+  );
+  const fromAll = presenceBrandTokens(
     input.razaoSocial,
     input.nomeFantasia,
     input.municipio,
   );
-  if (tokens.length === 0) return null;
-  const compact = tokens[0];
+  const compact = fromFantasia[0] ?? fromAll[0];
   const full = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
   if (!compact || sameSearchToken(compact, full)) return null;
   return compact;
 }
+
+/** Label from a branded Receita email host (`marcia@drimafer.com.br` → drimafer). */
+export function gmbEmailBrandLabel(input: GmbSearchInput): string | null {
+  const email = input.receitaEmail?.trim();
+  if (!email || !isOwnDomainEmail(email)) return null;
+  if (
+    !emailDomainCorrelatesWithBrand(
+      email,
+      input.razaoSocial,
+      input.nomeFantasia,
+      input.municipio,
+    )
+  ) {
+    return null;
+  }
+  const host = receitaEmailHost(email);
+  const label = (host?.split(".")[0] ?? "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "");
+  if (label.length < 4) return null;
+  return label;
+}
+
+const COMPACT_FIRST_MIN_LEN = 6;
 
 export function gmbSearchQuery(
   input: GmbSearchInput,
@@ -586,6 +622,25 @@ export function gmbSearchQuery(
   return [namePart, street, place].filter(Boolean).join(" ").trim();
 }
 
+function pushCompactBrandQueries(
+  push: (q: string) => void,
+  input: GmbSearchInput,
+  brand: string,
+): void {
+  push(
+    gmbSearchQuery(
+      { ...input, nomeFantasia: brand, razaoSocial: brand },
+      { quoted: false, includeStreet: false },
+    ),
+  );
+  push(
+    gmbSearchQuery(
+      { ...input, nomeFantasia: brand, razaoSocial: brand },
+      { quoted: true, includeStreet: false },
+    ),
+  );
+}
+
 /** City first; street only when the Receita phone is not the accountant's. */
 export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   const skipStreet = input.sharedVerdict === "contabilidade";
@@ -593,25 +648,26 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   const push = (q: string) => {
     if (q && !list.includes(q)) list.push(q);
   };
+  const compact = gmbCompactSearchName(input);
+  const emailBrand = gmbEmailBrandLabel(input);
+  const shortFirst =
+    Boolean(compact && compact.length >= COMPACT_FIRST_MIN_LEN) ||
+    Boolean(emailBrand && emailBrand.length >= COMPACT_FIRST_MIN_LEN);
+  if (shortFirst) {
+    if (compact && compact.length >= COMPACT_FIRST_MIN_LEN) {
+      pushCompactBrandQueries(push, input, compact);
+    }
+    if (emailBrand && (!compact || !sameSearchToken(emailBrand, compact))) {
+      pushCompactBrandQueries(push, input, emailBrand);
+    }
+  }
   push(gmbSearchQuery(input, { quoted: true, includeStreet: false }));
   if (!skipStreet) {
     push(gmbSearchQuery(input, { quoted: true, includeStreet: true }));
   }
   push(gmbSearchQuery(input, { quoted: false, includeStreet: false }));
-  const compact = gmbCompactSearchName(input);
-  if (compact) {
-    push(
-      gmbSearchQuery(
-        { ...input, nomeFantasia: compact, razaoSocial: compact },
-        { quoted: true, includeStreet: false },
-      ),
-    );
-    push(
-      gmbSearchQuery(
-        { ...input, nomeFantasia: compact, razaoSocial: compact },
-        { quoted: false, includeStreet: false },
-      ),
-    );
+  if (compact && compact.length < COMPACT_FIRST_MIN_LEN) {
+    pushCompactBrandQueries(push, input, compact);
   }
   const tokens = presenceBrandTokens(
     input.razaoSocial,
@@ -621,10 +677,16 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   if (tokens.length >= 2) {
     const place = [input.municipio, input.uf].filter(Boolean).join(" ");
     const phrase = tokens.slice(0, 2).join(" ");
-    if (place) push(`"${phrase}" ${place}`);
+    if (place) {
+      push(`${phrase} ${place}`);
+      push(`"${phrase}" ${place}`);
+    }
   }
   const cep = formatCepDigits(input.cep);
   if (cep) {
+    if (compact && compact.length >= COMPACT_FIRST_MIN_LEN) {
+      push(`${compact} ${cep}`);
+    }
     const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
     if (name) push(`"${name}" ${cep}`);
   }
@@ -1116,8 +1178,17 @@ function mapsPlaceFromSerper(
 function mapsWebsiteOnCard(website: string | undefined): boolean {
   if (!website?.trim()) return false;
   try {
-    const host = new URL(withHttp(website)).hostname.toLowerCase();
+    const host = new URL(withHttp(website))
+      .hostname.toLowerCase()
+      .replace(/^www\./, "");
     if (host.includes("google.com") || host.includes("maps.google")) {
+      return false;
+    }
+    if (
+      host === "whatsapp.com" ||
+      host.endsWith(".whatsapp.com") ||
+      host === "wa.me"
+    ) {
       return false;
     }
     return !isDirectoryUrl(website);

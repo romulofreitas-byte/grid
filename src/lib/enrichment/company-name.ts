@@ -50,18 +50,59 @@ export function mapsCidUrl(cid: string): string {
   return `https://www.google.com/maps?cid=${encodeURIComponent(cid)}`;
 }
 
+function withMapsHttp(raw: string): string {
+  return /^https?:\/\//i.test(raw)
+    ? raw
+    : `https://${raw.replace(/^\/\//, "")}`;
+}
+
+/** Decimal cid packed in `/place/` `!1s0x…:0x…` feature ids. */
+function cidFromMapsFeatureId(raw: string): string | null {
+  const match = raw.match(/1s0x[0-9a-f]+:0x([0-9a-f]+)/i);
+  if (!match?.[1]) return null;
+  try {
+    const cid = BigInt(`0x${match[1]}`).toString(10);
+    return cid === "0" ? null : cid;
+  } catch {
+    return null;
+  }
+}
+
 /** Public cid from a Maps / GBP URL. Short goo.gl links have none. */
 export function cidFromMapsUrl(raw: string | null | undefined): string | null {
   if (!raw?.trim()) return null;
+  const trimmed = raw.trim();
   try {
-    const withProto = /^https?:\/\//i.test(raw)
-      ? raw.trim()
-      : `https://${raw.trim().replace(/^\/\//, "")}`;
-    const u = new URL(withProto);
+    const u = new URL(withMapsHttp(trimmed));
     const fromQuery = u.searchParams.get("cid")?.trim();
     if (fromQuery) return fromQuery;
     const inPath = u.pathname.match(/\/cid\/([^/]+)/i)?.[1]?.trim();
-    return inPath || null;
+    if (inPath) return inPath;
+    const fromData = cidFromMapsFeatureId(
+      `${u.pathname}?${u.search}${u.hash}`,
+    );
+    if (fromData) return fromData;
+  } catch {
+    /* fall through to the raw string */
+  }
+  return cidFromMapsFeatureId(trimmed);
+}
+
+/** Trading name in `/maps/place/Nome-da-Empresa/…`. */
+export function mapsPlaceNameFromUrl(
+  raw: string | null | undefined,
+): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const u = new URL(withMapsHttp(raw.trim()));
+    const seg = u.pathname.match(/\/maps\/place\/([^/]+)/i)?.[1];
+    if (!seg) return null;
+    const name = decodeURIComponent(seg.replace(/\+/g, " "))
+      .replace(/@.*$/, "")
+      .replace(/[_-]+/g, " ")
+      .trim();
+    if (!name || /^[\d.,\-\s]+$/.test(name)) return null;
+    return name.slice(0, 120);
   } catch {
     return null;
   }

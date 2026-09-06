@@ -99,6 +99,24 @@ describe("needsDiscoveryRetry", () => {
     expect(needsDiscoveryRetry(cleared)).toBe(false);
   });
 
+  it("retries a Maps miss stamped under the previous compact-query rules", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "drimafer.com.br",
+          domain_status: "nao_confirmado",
+          gmb: { name: "", url: "", matched: false, status: "none" },
+          fonte: {
+            discovery: {
+              fonte: "6",
+              coletado_em: "2026-09-06T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("retries a Maps miss even when the site was already found", () => {
     expect(
       needsDiscoveryRetry(

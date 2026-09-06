@@ -132,4 +132,14 @@ describe("presenceBrandTokens", () => {
       ),
     ).toContain("genesis");
   });
+
+  it("drops generic machine/construction nouns so the brand token stays first", () => {
+    expect(
+      presenceBrandTokens(
+        "DRIMAFER MAQUINAS E EQUIPAMENTOS PARA CONSTRUCAO CIVIL LTDA",
+        null,
+        "Diadema",
+      ),
+    ).toEqual(["drimafer", "civil"]);
+  });
 });

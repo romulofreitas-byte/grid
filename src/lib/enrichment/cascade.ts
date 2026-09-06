@@ -325,6 +325,7 @@ function receitaGmbInput(
       { ddd: est.ddd2, telefone: est.telefone2 },
     ],
     sharedVerdict,
+    receitaEmail: est.email,
   };
 }
 

@@ -5,6 +5,7 @@ import {
   domainFromGmb,
   gmbCardFromPlace,
   gmbCompactSearchName,
+  gmbEmailBrandLabel,
   gmbSearchQuery,
   gmbSearchQueryList,
   hitsFromSerperJson,
@@ -372,6 +373,49 @@ describe("Maps × Receita matching", () => {
     expect(gmbCompactSearchName(futura)).toBe("futura");
     expect(gmbSearchQueryList(futura)).toContain('"futura" Vicosa MG');
     expect(gmbCompactSearchName(silva)).toBeNull();
+  });
+
+  it("searches the short Maps brand before the long Receita name", () => {
+    const drimafer = {
+      nomeFantasia: null,
+      razaoSocial:
+        "DRIMAFER MAQUINAS E EQUIPAMENTOS PARA CONSTRUCAO CIVIL LTDA",
+      municipio: "Diadema",
+      uf: "SP",
+      logradouro: "Rua Tupinambas",
+      numero: "1267",
+      cep: "09991090",
+      receitaEmail: "marcia@drimafer.com.br",
+    };
+    expect(gmbCompactSearchName(drimafer)).toBe("drimafer");
+    expect(gmbEmailBrandLabel(drimafer)).toBe("drimafer");
+    const queries = gmbSearchQueryList(drimafer);
+    expect(queries[0]).toBe("drimafer Diadema SP");
+    expect(queries[1]).toBe('"drimafer" Diadema SP');
+    expect(queries.some((q) => /MAQUINAS E EQUIPAMENTOS/i.test(q))).toBe(true);
+  });
+
+  it("does not use a free or accountant email as a Maps brand", () => {
+    expect(
+      gmbEmailBrandLabel({
+        nomeFantasia: null,
+        razaoSocial: "DRIMAFER MAQUINAS E EQUIPAMENTOS PARA CONSTRUCAO CIVIL LTDA",
+        municipio: "Diadema",
+        uf: "SP",
+        receitaEmail: "marcia@gmail.com",
+      }),
+    ).toBeNull();
+  });
+
+  it("does not search a generic razão token before a short fantasia", () => {
+    const pizza = {
+      nomeFantasia: "Pizza Hut",
+      razaoSocial: "PH GOIANIA ALIMENTOS LTDA",
+      municipio: "Goiania",
+      uf: "GO",
+    };
+    expect(gmbCompactSearchName(pizza)).toBe("pizza");
+    expect(gmbSearchQueryList(pizza)[0]).toBe('"Pizza Hut" Goiania GO');
   });
 
   it("rejects a neighbor listing that only shares the street address", () => {
@@ -742,6 +786,17 @@ describe("gmbCardFromPlace", () => {
     expect(gmbCardFromPlace({ title: "Padaria" }).score).toBe(0);
   });
 
+  it("does not treat WhatsApp as the company website on the Maps card", () => {
+    const card = gmbCardFromPlace({
+      title: "Drimafer Máquinas e Equipamentos",
+      website: "https://whatsapp.com",
+      rating: 5,
+      ratingCount: 8,
+    });
+    expect(card.filled).not.toContain("website");
+    expect(card.filled).toContain("reviews");
+  });
+
   it("counts hours from an object shape", () => {
     expect(
       gmbCardFromPlace({
@@ -928,6 +983,52 @@ describe("searchGmb", () => {
     expect(listing.cid).toBe("222");
     expect(queries).toHaveLength(2);
     expect(queries[1]).toMatch(/Anhanguera/);
+  });
+
+  it("finds a unique brand pin on the compact query before the long razão", async () => {
+    const pin = {
+      title: "Drimafer Máquinas e Equipamentos",
+      address: "R. Tupinambás, 1267 - Diadema - SP",
+      cid: "17943018822088826880",
+      rating: 5,
+      ratingCount: 8,
+      website: "https://whatsapp.com",
+    };
+    process.env.SERPER_API_KEY = "test";
+    const queries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        let q = "";
+        try {
+          q = (JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "";
+        } catch {
+          q = "";
+        }
+        queries.push(q);
+        const places = /^drimafer Diadema SP$/i.test(q) ? [pin] : [];
+        return new Response(JSON.stringify({ places }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    const listing = await searchGmb({
+      nomeFantasia: null,
+      razaoSocial:
+        "DRIMAFER MAQUINAS E EQUIPAMENTOS PARA CONSTRUCAO CIVIL LTDA",
+      municipio: "Diadema",
+      uf: "SP",
+      logradouro: "Rua Tupinambas",
+      numero: "1267",
+      cep: "09991090",
+      receitaEmail: "marcia@drimafer.com.br",
+    });
+    expect(queries[0]).toBe("drimafer Diadema SP");
+    expect(listing.matched).toBe(true);
+    expect(listing.name).toBe("Drimafer Máquinas e Equipamentos");
+    expect(listing.website_host).toBeNull();
+    expect(listing.card?.filled).not.toContain("website");
   });
 
   it("matches a trading-name Maps card via the compact brand query", async () => {

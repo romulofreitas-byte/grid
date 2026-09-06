@@ -177,6 +177,19 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.fonte.maps?.fonte).toBe("human");
   });
 
+  it("crava a ficha from a /place/ URL the operator copied from Maps", () => {
+    const href =
+      "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z/data=!3m1!4b1!4m6!3m5!1s0x94ce455536cfb6c9:0xce7f0a7f9addee96!8m2!3d-23.6940753!4d-46.6088771";
+    const result = applyPresenceCorrection(enrichment(), { maps: href });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    const cid = BigInt("0xce7f0a7f9addee96").toString(10);
+    expect(result.row.gmb?.matched).toBe(true);
+    expect(result.row.gmb?.cid).toBe(cid);
+    expect(result.row.gmb?.url).toBe(`https://www.google.com/maps?cid=${cid}`);
+    expect(result.row.gmb?.name).toBe("Drimafer Máquinas e Equipamentos");
+  });
+
   it("drops Instagram pain after a human correction", () => {
     const withIg = applyPresenceCorrection(
       enrichment({ domain_status: "confirmado", socials: {} }),

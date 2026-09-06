@@ -1,5 +1,9 @@
 import { parseCompanySite } from "@/lib/enrichment/company-site";
-import { cidFromMapsUrl, mapsCidUrl } from "@/lib/enrichment/company-name";
+import {
+  cidFromMapsUrl,
+  mapsCidUrl,
+  mapsPlaceNameFromUrl,
+} from "@/lib/enrichment/company-name";
 import { normalizeSocialUrl } from "@/lib/enrichment/extract";
 import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import { parseInstagramHandle } from "@/lib/instagram";
@@ -348,7 +352,10 @@ export function applyPresenceCorrection(
       const cid = cidFromMapsUrl(url);
       next.gmb = {
         name:
-          options.companyName?.trim() || row.gmb?.name || "Google Maps",
+          mapsPlaceNameFromUrl(url) ||
+          options.companyName?.trim() ||
+          row.gmb?.name ||
+          "Google Maps",
         url: cid ? mapsCidUrl(cid) : url,
         matched: true,
         status: "matched",

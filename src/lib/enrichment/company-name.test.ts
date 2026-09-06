@@ -9,6 +9,7 @@ import {
   companyMapsQuery,
   leadMapsHref,
   mapsListingHref,
+  mapsPlaceNameFromUrl,
 } from "./company-name";
 
 describe("displayCompanyName", () => {
@@ -169,5 +170,21 @@ describe("cidFromMapsUrl", () => {
     expect(cidFromMapsUrl("https://www.google.com/maps?cid=12345")).toBe("12345");
     expect(cidFromMapsUrl("maps.google.com/?cid=99")).toBe("99");
     expect(cidFromMapsUrl("https://maps.app.goo.gl/abc")).toBeNull();
+  });
+
+  it("reads cid from a /place/ feature id", () => {
+    const href =
+      "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z/data=!3m1!4b1!4m6!3m5!1s0x94ce455536cfb6c9:0xce7f0a7f9addee96!8m2!3d-23.6940753!4d-46.6088771";
+    expect(cidFromMapsUrl(href)).toBe(BigInt("0xce7f0a7f9addee96").toString(10));
+  });
+});
+
+describe("mapsPlaceNameFromUrl", () => {
+  it("reads the trading name from a /place/ path", () => {
+    expect(
+      mapsPlaceNameFromUrl(
+        "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z",
+      ),
+    ).toBe("Drimafer Máquinas e Equipamentos");
   });
 });

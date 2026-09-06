@@ -206,6 +206,28 @@ describe("POST /api/enrich action=correct", () => {
     expect(enqueueEnrichment).not.toHaveBeenCalled();
   });
 
+  it("patches a Maps /place/ URL sent as maps, not gmb", async () => {
+    const href =
+      "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z/data=!3m1!4b1!4m6!3m5!1s0x94ce455536cfb6c9:0xce7f0a7f9addee96";
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "correct",
+        corrections: { maps: href },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recrawl).toBe(false);
+    expect(json.error).toBeUndefined();
+    expect(json.enrichment.gmb.matched).toBe(true);
+    expect(json.enrichment.gmb.cid).toBe(
+      BigInt("0xce7f0a7f9addee96").toString(10),
+    );
+    expect(json.enrichment.gmb.name).toBe("Drimafer Máquinas e Equipamentos");
+    expect(upsertEnrichment).toHaveBeenCalledOnce();
+  });
+
   it("enqueues a confirm recrawl when the domain changes", async () => {
     const res = await POST(
       correctRequest({

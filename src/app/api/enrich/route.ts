@@ -37,6 +37,7 @@ const correctionsSchema = z.object({
   youtube: z.string().nullable().optional(),
   whatsapp: z.string().nullable().optional(),
   gmb: z.string().nullable().optional(),
+  maps: z.string().nullable().optional(),
 });
 
 const schema = z

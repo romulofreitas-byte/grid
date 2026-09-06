@@ -19,6 +19,7 @@ const STOPWORDS = new Set([
   "do",
   "da",
   "de",
+  "para",
   "e",
   "brasil",
 ]);
@@ -173,6 +174,12 @@ const WEAK_PRESENCE_TOKENS = new Set([
   "servicos",
   "ensino",
   "educacao",
+  "maquina",
+  "maquinas",
+  "equipamento",
+  "equipamentos",
+  "construcao",
+  "construcoes",
 ]);
 
 function stripAccents(text: string): string {
