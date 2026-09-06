@@ -99,13 +99,15 @@ export function applyMapsConfirm(
     );
   }
   const collectedAt = (options.now ?? new Date()).toISOString();
-  let next: LeadEnrichment = {
+  const next = {
     ...row,
     gmb: { ...row.gmb, matched: true, status: "matched" },
   };
-  next.fonte = stamp(next, "gmb", collectedAt);
-  next.fonte = stamp(next, "maps", collectedAt);
-  return finishPatch(next, options.scoreProfile ?? "b2c_local");
+  const withGmb = { ...next, fonte: stamp(next, "gmb", collectedAt) };
+  return finishPatch(
+    { ...withGmb, fonte: stamp(withGmb, "maps", collectedAt) },
+    options.scoreProfile ?? "b2c_local",
+  );
 }
 
 export function normalizeCompanyDomain(raw: string): string | null {
