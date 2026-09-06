@@ -77,7 +77,7 @@ export function CatchUpRunner() {
       role="status"
       className={cn(
         "fixed right-4 bottom-20 z-50 max-w-sm rounded-xl border border-podium-yellow/30 bg-podium-navy/95 px-4 py-3 text-sm text-podium-white shadow-lg md:bottom-6",
-        focusOn && "md:bottom-24",
+        focusOn && "md:bottom-16",
       )}
     >
       {message}

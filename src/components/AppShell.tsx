@@ -145,12 +145,12 @@ export function AppShell({
               chromeSlide,
               focusOn
                 ? "max-h-0 border-transparent opacity-0"
-                : "max-h-12 border-white/10 opacity-100",
+                : "max-h-14 border-white/10 opacity-100",
             )}
             aria-hidden={focusOn || undefined}
             inert={focusOn || undefined}
           >
-            <div className="flex h-12 items-center gap-3 px-3 md:px-4">
+            <div className="flex h-14 items-center gap-3 px-3 md:px-4">
               <Link href="/painel" className="flex shrink-0 items-center md:hidden" aria-label="GRID">
                 <BrandLogo
                   variant="mark"
@@ -167,7 +167,7 @@ export function AppShell({
               )}
               <div className="ml-auto flex min-w-0 items-center justify-end gap-2">
                 <LongOpChip />
-                <Suspense fallback={<span className="inline-block h-10 w-36" />}>
+                <Suspense fallback={<span className="inline-block h-11 w-56" />}>
                   <PilotHeaderAvatar />
                 </Suspense>
               </div>

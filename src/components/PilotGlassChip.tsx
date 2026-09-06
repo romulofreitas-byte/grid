@@ -24,7 +24,7 @@ export function PilotGlassChip({
     <span
       title={omitTitle ? undefined : fullName}
       className={cn(
-        "inline-flex max-w-full items-center gap-2.5 rounded-xl border py-1.5 pl-1.5",
+        "inline-flex max-w-full items-center gap-3 rounded-xl border py-2 pl-2",
         chevron ? "pr-2" : "pr-3",
         "border-white/[0.10] bg-podium-panel",
         className,
@@ -35,7 +35,7 @@ export function PilotGlassChip({
         size="header"
         shape="squircle"
       />
-      <span className="flex min-w-0 flex-col items-start justify-center leading-tight">
+      <span className="flex min-w-0 flex-col items-start justify-center gap-0.5 leading-snug">
         <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
           {eyebrow}
         </span>

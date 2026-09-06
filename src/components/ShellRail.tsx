@@ -244,7 +244,7 @@ export function ShellRail({
       )}
       onClick={onToggle}
     >
-      <div className={cn("flex h-12 shrink-0 items-center", open ? "px-3" : "justify-center")}>
+      <div className={cn("flex h-14 shrink-0 items-center", open ? "px-3" : "justify-center")}>
         <Link
           href={homeHref}
           className="flex min-w-0 items-center"

@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Maximize2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { useFocusMode } from "@/components/FocusModeProvider";
+import { FocusSwitch } from "@/components/FocusSwitch";
 import { PilotGlassChip } from "@/components/PilotGlassChip";
 import { logoutPilot } from "@/lib/auth/logout-client";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
-import { COPY } from "@/lib/copy";
 import { displayName, headerGivenName } from "@/lib/pilot-profile";
 import {
   footerItemKey,
@@ -84,31 +84,13 @@ export function PilotHeaderAvatar() {
 
   return (
     <>
-      <div className="hidden min-w-0 md:block">
-        <button
-          type="button"
-          aria-pressed={focusOn}
-          aria-label={focusOn ? COPY.focusExit : COPY.focusEnter}
-          title={focusOn ? COPY.focusExit : COPY.focusEnter}
-          onClick={toggleFocus}
-          className="group inline-flex max-w-full rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-podium-yellow ring-offset-2 ring-offset-podium-navy"
-        >
-          <PilotGlassChip
-            profile={p}
-            shortName={shortName}
-            fullName={fullName}
-            eyebrow={COPY.focusBadgeEyebrow}
-            omitTitle
-            chevron={
-              <Maximize2 className="h-3.5 w-3.5 shrink-0 text-podium-muted transition-colors group-hover:text-podium-yellow" />
-            }
-            className={cn(
-              "transition-[border-color] duration-200",
-              "group-hover:border-podium-yellow/40",
-              focusOn && "border-podium-yellow/40",
-            )}
-          />
-        </button>
+      <div className="hidden min-w-0 items-center gap-2 md:flex">
+        <FocusSwitch on={focusOn} onToggle={toggleFocus} />
+        <PilotGlassChip
+          profile={p}
+          shortName={shortName}
+          fullName={fullName}
+        />
       </div>
       <div ref={rootRef} className="relative min-w-0 shrink-0 md:hidden">
         <button
