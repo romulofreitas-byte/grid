@@ -90,7 +90,7 @@ const emptyTech: TechSignals = {
   viewport: true,
 };
 
-function completeRow(): LeadEnrichment {
+function completeRow(partial: Partial<LeadEnrichment> = {}): LeadEnrichment {
   return {
     cnpj: "00000000000000",
     domain: "exemplo.com.br",
@@ -110,6 +110,7 @@ function completeRow(): LeadEnrichment {
     stage: "complete",
     collected_at: "2026-08-13T12:00:00.000Z",
     expires_at: "2026-09-12T12:00:00.000Z",
+    ...partial,
   };
 }
 
@@ -226,6 +227,59 @@ describe("POST /api/enrich action=correct", () => {
     );
     expect(json.enrichment.gmb.name).toBe("Drimafer Máquinas e Equipamentos");
     expect(upsertEnrichment).toHaveBeenCalledOnce();
+  });
+
+  it("crava a Maps candidate with confirmMaps and does not recrawl", async () => {
+    getEnrichment.mockResolvedValue(
+      completeRow({
+        gmb: {
+          name: "Pizza Hut",
+          url: "https://www.google.com/maps?cid=222",
+          matched: false,
+          status: "candidate",
+          cid: "222",
+        },
+      }),
+    );
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "correct",
+        corrections: { confirmMaps: true },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recrawl).toBe(false);
+    expect(json.enrichment.gmb.matched).toBe(true);
+    expect(json.enrichment.gmb.status).toBe("matched");
+    expect(json.enrichment.gmb.cid).toBe("222");
+    expect(enqueueEnrichment).not.toHaveBeenCalled();
+  });
+
+  it("rejects confirmMaps when the ficha only has a Maps search URL", async () => {
+    getEnrichment.mockResolvedValue(
+      completeRow({
+        gmb: {
+          name: "",
+          url: "https://www.google.com/maps/search/?api=1&query=Mexicar",
+          matched: false,
+          status: "none",
+        },
+      }),
+    );
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "correct",
+        corrections: { confirmMaps: true },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({
+      error: expect.stringMatching(/cole a URL/i),
+    });
+    expect(upsertEnrichment).not.toHaveBeenCalled();
   });
 
   it("enqueues a confirm recrawl when the domain changes", async () => {

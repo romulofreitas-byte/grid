@@ -572,6 +572,11 @@ export function isAuditLive(signal: AuditSignal): boolean {
   return signal.found && !signal.unverified;
 }
 
+/** Found but not locked to this CNPJ — confirm, don't treat as missing. */
+export function isAuditCandidate(signal: AuditSignal): boolean {
+  return signal.found && signal.unverified;
+}
+
 /** Site, Instagram and Google drive Qualificada / Oportunidade — same three as the public home. */
 export const QUALIFY_SUMMARY_IDS = ["site", "instagram", "maps", "gmb"] as const;
 

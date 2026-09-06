@@ -6,6 +6,7 @@ import {
   emptyAuditSignals,
   isAuditGap,
   isAuditLive,
+  isAuditCandidate,
   isSiteFetchFailed,
   isSiteOffline,
   qualifyChipKind,
@@ -265,6 +266,7 @@ describe("buildAuditSignals", () => {
     expect(candidate.found).toBe(true);
     expect(candidate.unverified).toBe(true);
     expect(isAuditLive(candidate)).toBe(false);
+    expect(isAuditCandidate(candidate)).toBe(true);
     expect(candidate.hint).toMatch(/a confirmar/i);
   });
 
@@ -437,6 +439,7 @@ describe("buildAuditSignals", () => {
     expect(gmb.unverified).toBe(true);
     expect(isAuditLive(gmb)).toBe(false);
     expect(isAuditGap(gmb)).toBe(false);
+    expect(isAuditCandidate(gmb)).toBe(true);
     expect(gmb.openLabel).toBe("Abrir no Maps");
     expect(gmb.href).toBe("https://www.google.com/maps?cid=222");
     expect(gmb.hint).toMatch(/não cruzamos/i);
@@ -444,6 +447,7 @@ describe("buildAuditSignals", () => {
     expect(maps.found).toBe(true);
     expect(maps.unverified).toBe(true);
     expect(isAuditGap(maps)).toBe(false);
+    expect(isAuditCandidate(maps)).toBe(true);
     expect(maps.hint).toMatch(/confirme se é este/i);
     expect(maps.hint).toMatch(/2 pins/i);
   });
@@ -460,6 +464,7 @@ describe("buildAuditSignals", () => {
     const maps = byId(row, "maps");
     const gmb = byId(row, "gmb");
     expect(isAuditGap(maps)).toBe(false);
+    expect(isAuditCandidate(maps)).toBe(false);
     expect(maps.found).toBe(false);
     expect(maps.unverified).toBe(true);
     expect(maps.value).toBe("CONFIRMAR PIN");

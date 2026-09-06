@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyMapsConfirm,
   applyPresenceCorrection,
   applySiteConfirm,
   applySiteReject,
+  hasPresenceFields,
+  mapsPinConfirmable,
   PresenceCorrectionError,
 } from "./correct-presence";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -188,6 +191,50 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.gmb?.cid).toBe(cid);
     expect(result.row.gmb?.url).toBe(`https://www.google.com/maps?cid=${cid}`);
     expect(result.row.gmb?.name).toBe("Drimafer Máquinas e Equipamentos");
+  });
+
+  it("crava a stored Maps candidate without a pasted URL", () => {
+    const row = enrichment({
+      gmb: {
+        name: "Pizza Hut",
+        url: "https://www.google.com/maps?cid=222",
+        matched: false,
+        status: "candidate",
+        cid: "222",
+        card: {
+          filled: ["reviews"],
+          score: 1,
+          rating: 4.2,
+          ratingCount: 80,
+          category: null,
+        },
+      },
+    });
+    expect(mapsPinConfirmable(row)).toBe(true);
+    expect(hasPresenceFields({ confirmMaps: true })).toBe(true);
+    const result = applyPresenceCorrection(row, { confirmMaps: true });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.gmb?.matched).toBe(true);
+    expect(result.row.gmb?.status).toBe("matched");
+    expect(result.row.gmb?.cid).toBe("222");
+    expect(result.row.gmb?.name).toBe("Pizza Hut");
+    expect(result.row.gmb?.card?.ratingCount).toBe(80);
+    expect(result.row.fonte.gmb?.fonte).toBe("human");
+    expect(result.row.fonte.maps?.fonte).toBe("human");
+  });
+
+  it("does not confirm a Maps miss that is only a search URL", () => {
+    const miss = enrichment({
+      gmb: {
+        name: "",
+        url: "https://www.google.com/maps/search/?api=1&query=Mexicar",
+        matched: false,
+        status: "none",
+      },
+    });
+    expect(mapsPinConfirmable(miss)).toBe(false);
+    expect(() => applyMapsConfirm(miss)).toThrow(PresenceCorrectionError);
   });
 
   it("drops Instagram pain after a human correction", () => {

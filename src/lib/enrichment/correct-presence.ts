@@ -1,6 +1,7 @@
 import { parseCompanySite } from "@/lib/enrichment/company-site";
 import {
   cidFromMapsUrl,
+  isMapsUrl,
   mapsCidUrl,
   mapsPlaceNameFromUrl,
 } from "@/lib/enrichment/company-name";
@@ -9,7 +10,11 @@ import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { normalizePhoneBR } from "@/lib/phone";
 import { computeDorDigital } from "@/lib/scoring";
-import type { LeadEnrichment, ScoreProfile } from "@/lib/types";
+import {
+  gmbListingIsCandidate,
+  type LeadEnrichment,
+  type ScoreProfile,
+} from "@/lib/types";
 
 export type PresenceCorrection = {
   domain?: string | null;
@@ -20,6 +25,8 @@ export type PresenceCorrection = {
   whatsapp?: string | null;
   gmb?: string | null;
   maps?: string | null;
+  /** Human said the stored Maps candidate is this CNPJ — no URL paste. */
+  confirmMaps?: boolean;
 };
 
 export type PresenceCorrectionResult =
@@ -59,7 +66,46 @@ const PRESENCE_KEYS = [
 ] as const;
 
 export function hasPresenceFields(correction: PresenceCorrection): boolean {
-  return PRESENCE_KEYS.some((key) => correction[key] !== undefined);
+  return (
+    PRESENCE_KEYS.some((key) => correction[key] !== undefined) ||
+    correction.confirmMaps === true
+  );
+}
+
+function mapsSearchUrl(url: string | null | undefined): boolean {
+  return Boolean(url && /\/maps\/search/i.test(url));
+}
+
+/** Candidate pin the operator can cravar without pasting a URL. */
+export function mapsPinConfirmable(
+  row: LeadEnrichment | null | undefined,
+): boolean {
+  const listing = row?.gmb;
+  if (!gmbListingIsCandidate(listing)) return false;
+  if (listing.cid?.trim()) return true;
+  const url = listing.url?.trim();
+  if (!url || mapsSearchUrl(url) || !isMapsUrl(url)) return false;
+  return true;
+}
+
+/** Human said this Maps candidate is the company pin. */
+export function applyMapsConfirm(
+  row: LeadEnrichment,
+  options: { scoreProfile?: ScoreProfile; now?: Date } = {},
+): LeadEnrichment {
+  if (!mapsPinConfirmable(row) || !row.gmb) {
+    throw new PresenceCorrectionError(
+      "Não há pin para confirmar. Cole a URL da ficha no Maps.",
+    );
+  }
+  const collectedAt = (options.now ?? new Date()).toISOString();
+  let next: LeadEnrichment = {
+    ...row,
+    gmb: { ...row.gmb, matched: true, status: "matched" },
+  };
+  next.fonte = stamp(next, "gmb", collectedAt);
+  next.fonte = stamp(next, "maps", collectedAt);
+  return finishPatch(next, options.scoreProfile ?? "b2c_local");
 }
 
 export function normalizeCompanyDomain(raw: string): string | null {
@@ -265,6 +311,15 @@ export function applyPresenceCorrection(
   const scoreProfile = options.scoreProfile ?? "b2c_local";
   const collectedAt = (options.now ?? new Date()).toISOString();
 
+  const mapsRaw =
+    correction.maps !== undefined ? correction.maps : correction.gmb;
+  if (correction.confirmMaps === true && mapsRaw === undefined) {
+    return {
+      kind: "patch",
+      row: applyMapsConfirm(row, { scoreProfile, now: options.now }),
+    };
+  }
+
   if (correction.domain !== undefined) {
     if (correction.domain == null || correction.domain.trim() === "") {
       return {
@@ -342,8 +397,6 @@ export function applyPresenceCorrection(
     next.fonte = stamp(next, "whatsapp", collectedAt);
   }
 
-  const mapsRaw =
-    correction.maps !== undefined ? correction.maps : correction.gmb;
   if (mapsRaw !== undefined) {
     if (mapsRaw == null || mapsRaw.trim() === "") {
       next.gmb = { name: "", url: "", matched: false, status: "none" };

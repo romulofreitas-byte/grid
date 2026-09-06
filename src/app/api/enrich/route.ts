@@ -38,6 +38,7 @@ const correctionsSchema = z.object({
   whatsapp: z.string().nullable().optional(),
   gmb: z.string().nullable().optional(),
   maps: z.string().nullable().optional(),
+  confirmMaps: z.boolean().optional(),
 });
 
 const schema = z

@@ -14,6 +14,7 @@ import {
   emptyAuditSignals,
   isAuditGap,
   isAuditLive,
+  isAuditCandidate,
   isSiteOffline,
   qualifyChipKind,
   scanningSignalIds,
@@ -22,7 +23,7 @@ import {
 } from "@/lib/audit/signals";
 import { ENRICH_CREDIT_COST, creditsPhrase } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
-import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
+import { mapsPinConfirmable, type PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
@@ -112,7 +113,7 @@ function CompactTrail({
   );
 }
 
-type SealKind = "live" | "gap" | "pending" | "scanning" | "unverified";
+type SealKind = "live" | "gap" | "pending" | "scanning" | "unverified" | "candidate";
 
 function assetSeal(
   signal: AuditSignal,
@@ -137,8 +138,8 @@ function assetSeal(
     }
     return { text: COPY.fichaSealLiveSocial, kind: "live" };
   }
-  if (signal.found && signal.unverified) {
-    return { text: COPY.fichaSealUnverified, kind: "unverified" };
+  if (isAuditCandidate(signal)) {
+    return { text: COPY.fichaSealUnverified, kind: "candidate" };
   }
   if (signal.unverified && signal.sealKind === "unverified") {
     return {
@@ -169,6 +170,7 @@ function SealPill({
         "shrink-0 rounded-full font-bold uppercase tracking-[0.1em]",
         compact ? "max-w-full truncate px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]",
         seal.kind === "live" && "bg-podium-success/15 text-podium-success",
+        seal.kind === "candidate" && "bg-podium-info/15 text-podium-info",
         seal.kind === "gap" && "bg-amber-400/15 text-amber-300",
         (seal.kind === "scanning" || seal.kind === "unverified") &&
           "bg-podium-yellow/15 text-podium-yellow",
@@ -295,6 +297,7 @@ function SelectedSignalCard({
   correctError,
   editSeed,
   onCorrect,
+  canConfirmMaps,
 }: {
   signal: AuditSignal;
   scanning: boolean;
@@ -309,6 +312,7 @@ function SelectedSignalCard({
   correctError?: string | null;
   editSeed?: string;
   onCorrect?: (corrections: PresenceCorrection) => void;
+  canConfirmMaps?: boolean;
 }) {
   const field =
     canCorrect && onCorrect && isEditablePresence(signal.id) ? signal.id : null;
@@ -330,7 +334,12 @@ function SelectedSignalCard({
   return (
     <div
       ref={cardRef}
-      className="rounded-lg border border-white/10 bg-podium-navy/50 p-4"
+      className={cn(
+        "rounded-lg border p-4",
+        isAuditCandidate(signal)
+          ? "border-podium-info/35 bg-podium-info/[0.06]"
+          : "border-white/10 bg-podium-navy/50",
+      )}
     >
       <div className="flex items-start gap-3">
         <AuditLogo
@@ -392,6 +401,27 @@ function SelectedSignalCard({
                 className="ml-2 font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
               >
                 Não é
+              </button>
+            </p>
+          ) : null}
+          {canConfirmMaps && onCorrect ? (
+            <p className="mt-2 text-[11px] leading-snug text-podium-muted">
+              {COPY.fichaMapsConfirmHint}
+              <button
+                type="button"
+                disabled={correctPending}
+                onClick={() => onCorrect({ confirmMaps: true })}
+                className="ml-2 font-bold text-podium-yellow hover:underline disabled:opacity-40"
+              >
+                {correctPending ? "Atualizando…" : COPY.fichaMapsConfirmThis}
+              </button>
+              <button
+                type="button"
+                disabled={correctPending}
+                onClick={() => onCorrect({ maps: null })}
+                className="ml-2 font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
+              >
+                {COPY.fichaMapsRejectThis}
               </button>
             </p>
           ) : null}
@@ -485,6 +515,7 @@ function SignalTile({
   reduce: boolean;
 }) {
   const live = isAuditLive(signal);
+  const candidate = isAuditCandidate(signal);
   const presenceGap = isAuditGap(signal) && signal.group === "presenca";
   return (
     <button
@@ -500,9 +531,11 @@ function SignalTile({
             ? "border-podium-yellow/40 bg-podium-yellow/[0.06]"
             : live
               ? "border-podium-success/45 bg-podium-success/10 hover:border-podium-success/60"
-              : presenceGap
-                ? "border-amber-400/50 bg-amber-400/10 hover:border-amber-400/70"
-                : "border-dashed border-white/15 bg-transparent hover:border-white/25",
+              : candidate
+                ? "border-podium-info/45 bg-podium-info/10 hover:border-podium-info/60"
+                : presenceGap
+                  ? "border-amber-400/50 bg-amber-400/10 hover:border-amber-400/70"
+                  : "border-dashed border-white/15 bg-transparent hover:border-white/25",
         scanning && !selected && !reduce && "audit-scan-pulse",
         presenceGap && !scanning && !selected && !reduce && "audit-gap-pulse",
       )}
@@ -512,7 +545,7 @@ function SignalTile({
         initials={signal.initials}
         accent={signal.accent}
         size="sm"
-        lit={live || selected || scanning}
+        lit={live || candidate || selected || scanning}
       />
       <span
         className={cn(
@@ -521,9 +554,11 @@ function SignalTile({
             ? "text-podium-yellow"
             : live
               ? "text-podium-white"
-              : presenceGap
-                ? "text-amber-200"
-                : "text-podium-muted",
+              : candidate
+                ? "text-podium-info"
+                : presenceGap
+                  ? "text-amber-200"
+                  : "text-podium-muted",
         )}
       >
         {signal.name}
@@ -782,6 +817,11 @@ export function DigitalAuditPanel({
                     : undefined
                 }
                 canCorrect={canCorrect}
+                canConfirmMaps={
+                  selected.id === "maps" &&
+                  mapsPinConfirmable(enrichment) &&
+                  canCorrect
+                }
                 correctPending={correctPending}
                 correctError={correctError}
                 editSeed={
