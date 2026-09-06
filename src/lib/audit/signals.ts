@@ -46,7 +46,7 @@ export const AUDIT_GROUPS: Array<{
   {
     id: "presenca",
     label: "Presença",
-    hint: "Onde a empresa aparece — site, redes, Google e WhatsApp.",
+    hint: "Onde a empresa aparece — site, redes, Maps, Google Meu Negócio e WhatsApp.",
   },
   {
     id: "ferramentas",
@@ -85,6 +85,12 @@ const MARK = {
     logo: "/audit/youtube.svg",
     initials: "YT",
     accent: "#FF0000",
+  },
+  maps: {
+    name: "Maps",
+    logo: "/audit/maps.svg",
+    initials: "MP",
+    accent: "#34A853",
   },
   gmb: {
     name: "Google Meu Negócio",
@@ -376,6 +382,45 @@ function gmbHint(
   corroborated: boolean,
 ): string {
   const status = gmbListingStatus(listing);
+  if (status === "none" || !listing) {
+    if (fonte === "human") {
+      return "Você removeu a ficha desta qualificação.";
+    }
+    if (listing) {
+      return "Sem pin no Maps não há card do Google Meu Negócio.";
+    }
+    return "Qualifique para buscar o Google Meu Negócio.";
+  }
+  const score = listing.card?.score ?? 0;
+  if (score >= 3) {
+    if (fonte === "human") {
+      return "Ficha inserida por você — não veio da Receita.";
+    }
+    if (status === "candidate") {
+      return "Card público nesta cidade — não cruzamos com este CNPJ.";
+    }
+    if (corroborated) {
+      return listing.match_by?.includes("city") &&
+        !listing.match_by?.includes("address") &&
+        !listing.match_by?.includes("phone") &&
+        !listing.match_by?.includes("cep") &&
+        !listing.match_by?.includes("website")
+        ? "Card completo conferido com a Receita (nome e cidade)."
+        : "Card completo conferido com a Receita.";
+    }
+    return "Card público do Google Meu Negócio.";
+  }
+  return score > 0
+    ? `Pin no Maps, mas o card público está incompleto (${score}/5).`
+    : "Pin no Maps sem os campos que o cliente vê no Google.";
+}
+
+function mapsHint(
+  listing: GmbListing | null | undefined,
+  fonte: string | undefined,
+  corroborated: boolean,
+): string {
+  const status = gmbListingStatus(listing);
   if (status === "matched") {
     if (fonte === "human") {
       return "Ficha inserida por você — não veio da Receita.";
@@ -383,26 +428,28 @@ function gmbHint(
     if (corroborated) {
       return listing?.match_by?.includes("city") &&
         !listing.match_by?.includes("address") &&
-        !listing.match_by?.includes("phone")
+        !listing.match_by?.includes("phone") &&
+        !listing.match_by?.includes("cep") &&
+        !listing.match_by?.includes("website")
         ? "Conferido com a Receita (nome e cidade)."
-        : "Conferido com a Receita (endereço/telefone).";
+        : "Conferido com a Receita (endereço, CEP, telefone ou site).";
     }
-    return "Ficha do Google Meu Negócio encontrada na busca.";
+    return "Ficha encontrada no Google Maps.";
   }
   if (status === "candidate") {
     const n = listing?.candidates_in_city;
     if (n && n > 1) {
-      return `Há ${n} cards no Maps nesta cidade — não cruzamos com este CNPJ.`;
+      return `Há ${n} pins no Maps nesta cidade — não cruzamos com este CNPJ.`;
     }
-    return "Card no Maps nesta cidade — não cruzamos com este CNPJ.";
+    return "Pin no Maps nesta cidade — não cruzamos com este CNPJ.";
   }
   if (listing) {
     if (fonte === "human") {
       return "Você removeu a ficha desta qualificação.";
     }
-    return "Busca no Maps não achou card para esta empresa.";
+    return "Busca no Maps não achou pin para esta empresa.";
   }
-  return "Qualifique para buscar o Google Meu Negócio.";
+  return "Qualifique para buscar o Google Maps.";
 }
 
 function gmbOpenLabel(listing: GmbListing | null | undefined): string | null {
@@ -526,7 +573,7 @@ export function isAuditLive(signal: AuditSignal): boolean {
 }
 
 /** Site, Instagram and Google drive Qualificada / Oportunidade — same three as the public home. */
-export const QUALIFY_SUMMARY_IDS = ["site", "instagram", "gmb"] as const;
+export const QUALIFY_SUMMARY_IDS = ["site", "instagram", "maps", "gmb"] as const;
 
 export type QualifyChipKind = "qualificando" | "qualificada" | "oportunidade";
 
@@ -597,9 +644,9 @@ export function scanningSignalIds(
   if (stage === "home") return ["site"];
   if (stage === "presence") {
     const step = enrichment?.fonte.presence_scan?.fonte;
-    if (step === "gmb") return ["gmb"];
+    if (step === "gmb" || step === "maps") return ["maps", "gmb"];
     if (step) return [step];
-    return ["instagram"];
+    return ["maps", "instagram"];
   }
   if (stage === "site") return [...SCAN_TOOLS_IDS];
   return [];
@@ -630,6 +677,7 @@ export function emptyAuditSignals(): AuditSignal[] {
     pendingSignal("facebook", "presenca", MARK.facebook),
     pendingSignal("linkedin", "presenca", MARK.linkedin),
     pendingSignal("youtube", "presenca", MARK.youtube),
+    pendingSignal("maps", "presenca", MARK.maps),
     pendingSignal("gmb", "presenca", MARK.gmb),
     pendingSignal("whatsapp", "presenca", MARK.whatsapp),
     pendingSignal("atualizacao", "presenca", MARK.atualizacao),
@@ -807,16 +855,20 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       ),
     }),
     signal({
-      id: "gmb",
+      id: "maps",
       group: "presenca",
-      ...MARK.gmb,
+      ...MARK.maps,
       found:
         gmbListingStatus(e.gmb) === "matched" ||
         gmbListingStatus(e.gmb) === "candidate",
       unverified:
         e.gmb == null || gmbListingStatus(e.gmb) === "candidate",
       href: mapsListingHref(e.gmb),
-      openLabel: gmbOpenLabel(e.gmb),
+      openLabel:
+        gmbListingStatus(e.gmb) === "matched" ||
+        gmbListingStatus(e.gmb) === "candidate"
+          ? COPY.fichaMapsOpenListing
+          : null,
       value:
         gmbListingStatus(e.gmb) === "matched" ||
         gmbListingStatus(e.gmb) === "candidate"
@@ -824,6 +876,37 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
           : e.gmb
             ? "NÃO ENCONTRADO"
             : "—",
+      hint: mapsHint(e.gmb, e.fonte.gmb?.fonte ?? e.fonte.maps?.fonte, corroborated),
+      sealLabel:
+        gmbListingStatus(e.gmb) === "matched"
+          ? COPY.fichaSealMapsLive
+          : undefined,
+      sealKind:
+        gmbListingStatus(e.gmb) === "matched" ? "live" : undefined,
+    }),
+    signal({
+      id: "gmb",
+      group: "presenca",
+      ...MARK.gmb,
+      found:
+        (gmbListingStatus(e.gmb) === "matched" ||
+          gmbListingStatus(e.gmb) === "candidate") &&
+        (e.gmb?.card?.score ?? 0) >= 3,
+      unverified:
+        e.gmb == null ||
+        gmbListingStatus(e.gmb) === "candidate" ||
+        ((e.gmb?.card?.score ?? 0) >= 3 &&
+          gmbListingStatus(e.gmb) !== "matched"),
+      href: mapsListingHref(e.gmb),
+      openLabel: gmbOpenLabel(e.gmb),
+      value:
+        gmbListingStatus(e.gmb) === "none"
+          ? e.gmb
+            ? "NÃO ENCONTRADO"
+            : "—"
+          : (e.gmb?.card?.score ?? 0) >= 3
+            ? e.gmb?.name || "Google Meu Negócio"
+            : `INCOMPLETO · ${e.gmb?.card?.score ?? 0}/5`,
       hint: gmbHint(e.gmb, e.fonte.gmb?.fonte, corroborated),
       note: gmbCardNote(e.gmb),
       ...gmbSeal(e.gmb),

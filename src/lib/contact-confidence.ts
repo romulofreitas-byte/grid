@@ -244,6 +244,8 @@ export function sealRank(seal: ContactSeal): number {
       return 5;
     case "ATUALIZADO":
       return 4;
+    case "MAPS":
+      return 4;
     case "GRUPO":
       return 3;
     case "NAO_CONFIRMADO":
@@ -261,7 +263,7 @@ export type DeriveSealInput = {
   sitePhones: NormalizedPhone[];
   sharedCount: number;
   sharedVerdict: SharedPhoneVerdict;
-  /** Matched Maps card phone equals Receita. Never a stored Maps number. */
+  /** Matched Maps card phone equals Receita. Number may also land on `phones` with seal MAPS. */
   mapsPhoneMatch?: boolean;
 };
 
@@ -300,9 +302,9 @@ export function deriveSeal(input: DeriveSealInput): {
     sharedVerdict !== "contabilidade"
   ) {
     return {
-      seal: "CONFIRMADO",
+      seal: "MAPS",
       principalIsSite: false,
-      sideNote: "conferido no Maps",
+      sideNote: "ficha do Google Maps",
     };
   }
 

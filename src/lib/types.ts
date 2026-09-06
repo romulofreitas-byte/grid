@@ -4,6 +4,7 @@ export type ScoreProfile = "b2c_local" | "b2b_industria";
 export type ContactSeal =
   | "CONFIRMADO"
   | "ATUALIZADO"
+  | "MAPS"
   | "COMPARTILHADO"
   | "GRUPO"
   | "NAO_CONFIRMADO";
@@ -16,6 +17,7 @@ export type PhoneSource =
   | "site_schema"
   | "site_texto"
   | "site_whatsapp"
+  | "maps"
   | "osm";
 
 export type PhoneEvidence = {
@@ -38,7 +40,7 @@ export type EnrichmentStage =
   | "site"
   | "complete";
 
-export type GmbMatchBy = "title" | "address" | "city" | "phone";
+export type GmbMatchBy = "title" | "address" | "city" | "phone" | "cep" | "website";
 
 /** Public Maps-card fields we can audit without storing address/review text. */
 export const GMB_CARD_CHECKS = [
@@ -65,7 +67,7 @@ export type GmbListingStatus = "matched" | "candidate" | "none";
 /** Inferred from public-card richness — Google does not expose “claimed”. */
 export type GmbCardKind = "structured" | "maps_card";
 
-/** In-memory phone cross-ref. Never stores the Maps number. */
+/** In-memory phone cross-ref vs Receita. Maps-only numbers live on `phones`. */
 export type GmbPhoneVsReceita =
   | "igual"
   | "diferente"
@@ -96,6 +98,8 @@ export type GmbListing = {
   kind?: GmbCardKind | null;
   /** Title+city hits in the last Maps page when this is a candidate. */
   candidates_in_city?: number | null;
+  /** E.164 from a matched pin — merged into `phones`, not shown as address text. */
+  phone_e164?: string | null;
 };
 
 export function gmbNoneListing(): GmbListing {
@@ -122,13 +126,15 @@ export function gmbListingIsCandidate(
   return gmbListingStatus(listing) === "candidate";
 }
 
-/** Phone, street+title, or strong title+city — never address-only. Candidate ≠ corroborated. */
+/** Phone, CEP, website, street+title, or strong title+city. Candidate ≠ corroborated. */
 export function gmbListingCorroborated(
   listing: GmbListing | null | undefined,
 ): boolean {
   if (!listing?.matched) return false;
   const by = listing.match_by ?? [];
-  if (by.includes("phone")) return true;
+  if (by.includes("phone") || by.includes("cep") || by.includes("website")) {
+    return true;
+  }
   if (!by.includes("title")) return false;
   return by.includes("address") || by.includes("city");
 }

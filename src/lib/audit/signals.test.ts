@@ -291,7 +291,7 @@ describe("buildAuditSignals", () => {
     expect(live.unverified).toBe(false);
     expect(live.hint).toMatch(/maps/i);
 
-    const gmb = byId(
+    const maps = byId(
       enrichment({
         gmb: {
           name: "Distribuidora Silva",
@@ -300,9 +300,9 @@ describe("buildAuditSignals", () => {
           match_by: ["address", "phone"],
         },
       }),
-      "gmb",
+      "maps",
     );
-    expect(gmb.hint).toMatch(/receita/i);
+    expect(maps.hint).toMatch(/receita/i);
   });
 
   it("treats a human-corrected Instagram as found, not a candidate", () => {
@@ -386,17 +386,25 @@ describe("buildAuditSignals", () => {
     expect(isAuditGap(fb)).toBe(true);
   });
 
-  it("shows Google Meu Negócio when the listing matched", () => {
-    const gmb = byId(
-      enrichment({
-        gmb: {
-          name: "Marmoraria Carvalho",
-          url: "https://maps.google.com/?cid=1",
-          matched: true,
+  it("shows Maps when the listing matched and GMB when the public card is structured", () => {
+    const row = enrichment({
+      gmb: {
+        name: "Marmoraria Carvalho",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        match_by: ["phone"],
+        card: {
+          filled: ["phone", "website", "hours"],
+          score: 3,
+          rating: 4.2,
+          ratingCount: 10,
+          category: "Marble contractor",
         },
-      }),
-      "gmb",
-    );
+      },
+    });
+    const maps = byId(row, "maps");
+    const gmb = byId(row, "gmb");
+    expect(isAuditLive(maps)).toBe(true);
     expect(isAuditLive(gmb)).toBe(true);
     expect(gmb.openLabel).toBe("Abrir ficha");
   });
@@ -436,45 +444,45 @@ describe("buildAuditSignals", () => {
     expect(gmb.value).toBe("Pizza Hut");
   });
 
-  it("treats a Maps miss as a gap", () => {
-    const gmb = byId(
-      enrichment({
-        gmb: { name: "", url: "", matched: false, status: "none" },
-        fonte: {
-          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
-        },
-      }),
-      "gmb",
-    );
+  it("treats a Maps miss as a gap on both Google tiles", () => {
+    const row = enrichment({
+      gmb: { name: "", url: "", matched: false, status: "none" },
+      fonte: {
+        gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+      },
+    });
+    const maps = byId(row, "maps");
+    const gmb = byId(row, "gmb");
+    expect(isAuditGap(maps)).toBe(true);
+    expect(maps.value).toBe("NÃO ENCONTRADO");
     expect(isAuditGap(gmb)).toBe(true);
     expect(gmb.value).toBe("NÃO ENCONTRADO");
     expect(gmb.openLabel).toBeNull();
   });
 
-  it("describes Maps card completeness without treating a thin card as missing", () => {
-    const thin = byId(
-      enrichment({
-        gmb: {
-          name: "Distribuidora Silva",
-          url: "https://maps.google.com/?cid=1",
-          matched: true,
-          match_by: ["phone"],
-          card: {
-            filled: ["phone"],
-            score: 1,
-            rating: null,
-            ratingCount: 0,
-            category: null,
-          },
+  it("keeps the Maps pin live when the public Google card is thin", () => {
+    const row = enrichment({
+      gmb: {
+        name: "Distribuidora Silva",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        match_by: ["phone"],
+        card: {
+          filled: ["phone"],
+          score: 1,
+          rating: null,
+          ratingCount: 0,
+          category: null,
         },
-      }),
-      "gmb",
-    );
-    expect(isAuditLive(thin)).toBe(true);
-    expect(thin.sealLabel).toBe("Incompleto");
-    expect(thin.note).toMatch(/card 1\/5/i);
-    expect(thin.note).toMatch(/falta/i);
-    expect(thin.hint).toMatch(/receita/i);
+      },
+    });
+    const maps = byId(row, "maps");
+    const gmb = byId(row, "gmb");
+    expect(isAuditLive(maps)).toBe(true);
+    expect(isAuditGap(gmb)).toBe(true);
+    expect(gmb.value).toMatch(/incompleto/i);
+    expect(gmb.note).toMatch(/card 1\/5/i);
+    expect(gmb.hint).toMatch(/incompleto/i);
 
     const full = byId(
       enrichment({
@@ -565,7 +573,7 @@ describe("buildAuditSignals", () => {
 
   it("builds a pending logo board and maps stages to scanning tiles", () => {
     const pending = emptyAuditSignals();
-    expect(pending).toHaveLength(18);
+    expect(pending).toHaveLength(19);
     expect(pending.every((s) => s.unverified && !s.found)).toBe(true);
     expect(scanningSignalIds(null, true)).toEqual(["site"]);
     expect(scanningSignalIds("home", true)).toEqual(["site"]);
@@ -580,7 +588,7 @@ describe("buildAuditSignals", () => {
 });
 
 describe("qualifyChipKind", () => {
-  it("is Qualificada when site, Instagram and Google are live", () => {
+  it("is Qualificada when site, Instagram, Maps and the Google card are live", () => {
     const signals = buildAuditSignals(
       enrichment({
         domain: "exemplo.com.br",
@@ -592,6 +600,13 @@ describe("qualifyChipKind", () => {
           url: "https://maps.google.com/?cid=1",
           matched: true,
           match_by: ["phone"],
+          card: {
+            filled: ["phone", "website", "hours", "photo", "reviews"],
+            score: 5,
+            rating: 4.8,
+            ratingCount: 12,
+            category: "Software company",
+          },
         },
       }),
     );

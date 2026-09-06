@@ -167,6 +167,16 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.fonte.gmb?.fonte).toBe("human");
   });
 
+  it("accepts maps as an alias for the listing URL", () => {
+    const result = applyPresenceCorrection(enrichment(), {
+      maps: "https://www.google.com/maps?cid=918273",
+    });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.gmb?.cid).toBe("918273");
+    expect(result.row.fonte.maps?.fonte).toBe("human");
+  });
+
   it("drops Instagram pain after a human correction", () => {
     const withIg = applyPresenceCorrection(
       enrichment({ domain_status: "confirmado", socials: {} }),

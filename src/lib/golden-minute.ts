@@ -1,6 +1,6 @@
 import type { MarketPack } from "@/lib/market/packs";
 import { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
-import { gmbListingThin } from "@/lib/types";
+import { gmbListingStatus, gmbListingThin } from "@/lib/types";
 import type { DigitalSignalId, LeadEnrichment } from "@/lib/types";
 
 export { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
@@ -65,9 +65,9 @@ export const CONTEXT_RULES: ContextRule[] = [
   {
     id: "sem-gmb",
     priority: 6,
-    when: (e) => Boolean(e.gmb) && !e.gmb?.matched,
-    phrase: () => "não achei a ficha de vocês no Google Meu Negócio",
-    fonte: () => "Google Meu Negócio",
+    when: (e) => gmbListingStatus(e.gmb) === "none" && Boolean(e.gmb),
+    phrase: () => "não achei a ficha de vocês no Google Maps",
+    fonte: () => "Google Maps",
   },
   {
     id: "gmb-incompleto",

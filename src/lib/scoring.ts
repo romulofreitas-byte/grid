@@ -118,7 +118,7 @@ export function computeGridScore(input: ScoreInput): number {
   if (input.capitalNaFaixa) raw += w.fit.capitalNaFaixa;
   if (input.idadeMinimaOk) raw += w.fit.idadeMinima;
 
-  if (input.phoneSeal === "CONFIRMADO" || input.phoneSeal === "ATUALIZADO") {
+  if (input.phoneSeal === "CONFIRMADO" || input.phoneSeal === "ATUALIZADO" || input.phoneSeal === "MAPS") {
     raw += w.contatabilidade.telefoneConfirmado;
   } else if (input.phoneSeal === "COMPARTILHADO") {
     raw += w.contatabilidade.telefoneCompartilhado;

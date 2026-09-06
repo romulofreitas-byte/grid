@@ -2,7 +2,7 @@ import { uniquePhones } from "@/lib/crm/dial";
 import { peopleFromDeal } from "@/lib/crm/people";
 import type { CrmDeal } from "@/lib/crm/types";
 import { formatPhone } from "@/lib/format";
-import type { LeadDossier, LeadEnrichment } from "@/lib/types";
+import { gmbListingStatus, type LeadDossier, type LeadEnrichment } from "@/lib/types";
 
 export const CRM_PRESENCE_BADGE_IDS = [
   "site",
@@ -81,7 +81,7 @@ export function briefingPresenceFromEnrichment(
       domainStatus: enrichment.domain_status,
       instagram: enrichment.socials?.instagram,
       whatsapp: enrichment.whatsapp,
-      gmbMatched: enrichment.gmb?.matched,
+      gmbMatched: gmbListingStatus(enrichment.gmb) !== "none",
     }) ?? emptyBriefingPresence()
   );
 }

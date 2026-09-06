@@ -8,8 +8,10 @@ import {
   gmbSearchQuery,
   gmbSearchQueryList,
   hitsFromSerperJson,
+  instagramSearchQueries,
   preferGmbListing,
   mapsAddressMatchesReceita,
+  mapsCepMatchesReceita,
   mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
   mapsPlaceListingUrl,
@@ -24,6 +26,7 @@ import {
   socialHitMatchesBrand,
   socialHitMatchesLoose,
   titleMatchesCompany,
+  upgradeGmbWithWebsite,
 } from "./presence";
 
 describe("titleMatchesCompany", () => {
@@ -813,7 +816,8 @@ describe("searchGmb", () => {
     });
     expect(listing.status).toBe("candidate");
     expect(listing.cid).toBe("222");
-    expect(queries).toHaveLength(1);
+    expect(queries.length).toBeGreaterThanOrEqual(1);
+    expect(queries[0]).toBe('"Pizza Hut" Goiania GO');
   });
 
   it("still tries the street query when the city page is only a candidate", async () => {
@@ -931,3 +935,100 @@ describe("preferGmbListing", () => {
     expect(chosen).toBe(next);
   });
 });
+
+describe("instagramSearchQueries", () => {
+  it("searches Instagram without city and finishes with CEP", () => {
+    const queries = instagramSearchQueries({
+      nomeFantasia: "Loires Tecnologia",
+      razaoSocial: "LOIRES INFORMATICA LTDA",
+      municipio: "Campo Grande",
+      uf: "MS",
+      cep: "79004290",
+    });
+    expect(queries.map((item) => item.q)).toEqual([
+      'site:instagram.com "Loires Tecnologia"',
+      "site:instagram.com loires",
+      '"Loires Tecnologia" Instagram',
+      '"Loires Tecnologia" Instagram 79004-290',
+    ]);
+    expect(queries[3]?.geo).toBe(true);
+  });
+
+  it("only geo-anchors a weak brand", () => {
+    const queries = instagramSearchQueries({
+      nomeFantasia: "DISTRIBUIDORA SILVA",
+      razaoSocial: "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
+      municipio: "Contagem",
+      uf: "MG",
+      cep: "30130100",
+    });
+    expect(queries).toEqual([
+      { q: '"DISTRIBUIDORA SILVA" Instagram 30130-100', geo: true },
+    ]);
+  });
+});
+
+describe("maps CEP and website lock", () => {
+  it("matches a Maps pin by CEP + title", () => {
+    expect(
+      mapsCepMatchesReceita(
+        "R. Calarge, 508 - Campo Grande - MS, 79004-290",
+        "79004290",
+      ),
+    ).toBe(true);
+    const scored = scoreMapsPlace(
+      {
+        title: "Loires Tecnologia & Sistemas",
+        address: "R. Calarge, 508 - Campo Grande - MS, 79004-290",
+        website: "https://loires.com.br",
+      },
+      {
+        nomeFantasia: "LOIRES INFORMATICA",
+        razaoSocial: "LOIRES INFORMATICA LTDA",
+        municipio: "Campo Grande",
+        uf: "MS",
+        cep: "79004290",
+        websiteHost: "loires.com.br",
+      },
+    );
+    expect(scored.matched).toBe(true);
+    expect(scored.match_by).toEqual(
+      expect.arrayContaining(["title", "cep", "website"]),
+    );
+  });
+
+  it("does not upgrade a franchise candidate by shared website", () => {
+    const upgraded = upgradeGmbWithWebsite(
+      {
+        name: "Pizza Hut",
+        url: "https://www.google.com/maps?cid=1",
+        matched: false,
+        status: "candidate",
+        website_host: "pizzahut.com.br",
+        match_by: ["title", "city"],
+        candidates_in_city: 3,
+      },
+      "pizzahut.com.br",
+    );
+    expect(upgraded?.matched).toBe(false);
+    expect(upgraded?.status).toBe("candidate");
+  });
+
+  it("upgrades a unique candidate when the Maps website is the confirmed host", () => {
+    const upgraded = upgradeGmbWithWebsite(
+      {
+        name: "Loires Tecnologia & Sistemas",
+        url: "https://www.google.com/maps?cid=9",
+        matched: false,
+        status: "candidate",
+        website_host: "loires.com.br",
+        match_by: ["title", "city"],
+        candidates_in_city: 1,
+      },
+      "loires.com.br",
+    );
+    expect(upgraded?.matched).toBe(true);
+    expect(upgraded?.match_by).toContain("website");
+  });
+});
+

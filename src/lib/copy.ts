@@ -247,6 +247,8 @@ export const COPY = {
   fichaSealGmbThin: "Incompleto",
   fichaGmbOpenMaps: "Abrir no Maps",
   fichaGmbOpenListing: "Abrir ficha",
+  fichaMapsOpenListing: "Abrir no Maps",
+  fichaSealMapsLive: "No Maps",
   fichaSealUnverified: "A confirmar",
   fichaSealPending: "Ainda não vimos",
   fichaSealScanning: "Buscando",

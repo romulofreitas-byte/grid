@@ -55,6 +55,7 @@ function pickPrimary(contacts: ContactInfo[]): ContactInfo | null {
   return (
     contacts.find((c) => c.seal === "CONFIRMADO") ??
     contacts.find((c) => c.seal === "ATUALIZADO") ??
+    contacts.find((c) => c.seal === "MAPS") ??
     contacts[0] ??
     null
   );
@@ -925,7 +926,6 @@ export default function LeadPage() {
             onRefresh={
               hasCompleteAudit ? () => runQualify(true) : undefined
             }
-            mapsUrl={mapsUrl}
             confirmPending={confirmSiteMutation.isPending}
             onConfirmSite={(domain) =>
               confirmSiteMutation.mutate({ action: "confirm", domain })

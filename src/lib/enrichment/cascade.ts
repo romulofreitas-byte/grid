@@ -22,7 +22,9 @@ import {
   pickBestDomainHit,
   preferGmbListing,
   searchGmb,
+  searchInstagramProfile,
   searchSocialProfile,
+  upgradeGmbWithWebsite,
   serperOrganic,
   socialFonteFromHit,
   socialsFromHits,
@@ -309,6 +311,7 @@ function receitaGmbInput(
     uf: est.uf,
     logradouro: est.logradouro,
     numero: est.numero,
+    cep: est.cep,
     phones: [
       { ddd: est.ddd1, telefone: est.telefone1 },
       { ddd: est.ddd2, telefone: est.telefone2 },
@@ -406,6 +409,7 @@ function buildPhoneEvidences(input: {
   sharedCount: number;
   sharedVerdict: SharedPhoneVerdict;
   mapsPhoneMatch?: boolean;
+  mapsPhone?: ReturnType<typeof normalizePhoneBR> | null;
 }): PhoneEvidence[] {
   const derived = deriveSeal({
     domainStatus: input.domainStatus,
@@ -428,6 +432,13 @@ function buildPhoneEvidences(input: {
         if (!existing.sources.includes(s)) existing.sources.push(s);
       }
       if (isWhatsApp) existing.isWhatsApp = true;
+      if (
+        sources.includes("maps") &&
+        existing.seal !== "CONFIRMADO" &&
+        existing.seal !== "ATUALIZADO"
+      ) {
+        existing.seal = "MAPS";
+      }
       return;
     }
     evidences.push({
@@ -449,13 +460,19 @@ function buildPhoneEvidences(input: {
     const onMaps = input.mapsPhoneMatch === true;
     pushEvidence(
       input.receita,
-      onSite ? ["receita", "site_tel"] : ["receita"],
+      [
+        "receita",
+        ...(onSite ? (["site_tel"] as const) : []),
+        ...(onMaps ? (["maps"] as const) : []),
+      ],
       false,
-      onSite || onMaps
+      onSite
         ? "CONFIRMADO"
-        : derived.principalIsSite
-          ? undefined
-          : derived.seal,
+        : onMaps
+          ? "MAPS"
+          : derived.principalIsSite
+            ? undefined
+            : derived.seal,
     );
   }
   if (input.domainStatus === "confirmado") {
@@ -469,11 +486,23 @@ function buildPhoneEvidences(input: {
       );
     }
   }
+  if (
+    input.mapsPhone &&
+    input.sharedVerdict !== "contabilidade"
+  ) {
+    const already = evidences.some((e) => e.e164 === input.mapsPhone!.e164);
+    if (!already) {
+      pushEvidence(input.mapsPhone, ["maps"], false, "MAPS");
+    } else {
+      pushEvidence(input.mapsPhone, ["maps"], false);
+    }
+  }
 
   evidences.sort((a, b) => {
     const rank: Record<string, number> = {
       CONFIRMADO: 5,
       ATUALIZADO: 4,
+      MAPS: 4,
       GRUPO: 3,
       NAO_CONFIRMADO: 2,
       COMPARTILHADO: 1,
@@ -654,6 +683,10 @@ export async function enrichCompany(
       est.ddd1,
     );
     const listing = extras.gmb ?? gmb;
+    const mapsPhone =
+      listing?.matched && listing.phone_e164
+        ? normalizePhoneBR(listing.phone_e164)
+        : null;
     const phones = buildPhoneEvidences({
       domainStatus: domain_status,
       receita,
@@ -661,6 +694,7 @@ export async function enrichCompany(
       sharedCount: input.sharedCount,
       sharedVerdict: input.sharedVerdict,
       mapsPhoneMatch: listing?.phone_vs_receita === "igual",
+      mapsPhone,
     });
     const tech = extras.tech ?? detectTech("", "");
     const mergedSocials: LeadEnrichment["socials"] = {
@@ -1082,6 +1116,32 @@ export async function enrichCompany(
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
 
+  if (domain_status === "confirmado" && domain) {
+    const host = domain.replace(/^www\./i, "").toLowerCase();
+    const upgraded = upgradeGmbWithWebsite(gmb, host);
+    if (upgraded && upgraded !== gmb) {
+      gmb = upgraded;
+      fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+    }
+    if (gmbListingStatus(gmb) !== "matched") {
+      const sitePhones = snap.sitePhones.map((p) => ({
+        ddd: p.ddd,
+        telefone: p.local,
+      }));
+      const withSite = await searchGmb({
+        ...gmbInput,
+        websiteHost: host,
+        sitePhones,
+        nomeFantasia: brandOverride || gmbInput.nomeFantasia,
+      });
+      const preferred = preferGmbListing(gmb, withSite);
+      if (preferred !== gmb) {
+        gmb = preferred;
+        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+      }
+    }
+  }
+
   if (
     domain &&
     domain_status !== "confirmado" &&
@@ -1100,7 +1160,6 @@ export async function enrichCompany(
   }
 
   const gmbCorroborated = gmbListingCorroborated(gmb);
-  // Sem site: busca social com token forte, ou com Maps cruzado à Receita (marca fraca).
   const canSearchSocialWithoutSite =
     strongBrandTokens.length > 0 || gmbCorroborated;
 
@@ -1112,29 +1171,34 @@ export async function enrichCompany(
       if (snap.socials[step]) {
         return { step, kind: "site" as const, url: undefined };
       }
-      if (!siteConfirmed && !canSearchSocialWithoutSite) {
-        return { step, kind: "skipped_weak_brand" as const, url: undefined };
-      }
       if (socialsFromSearch[step]) {
         return { step, kind: null, url: undefined };
       }
-      let found = await searchSocialProfile({
+      if (step === "instagram") {
+        const found = await searchInstagramProfile({
+          ...presencePlace,
+          brandOverride,
+          blockedLabels: blockedSocialLabels,
+          cep: est.cep,
+          logradouro: est.logradouro,
+          numero: est.numero,
+        });
+        return {
+          step,
+          kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
+          url: found ?? undefined,
+        };
+      }
+      if (!siteConfirmed && !canSearchSocialWithoutSite) {
+        return { step, kind: "skipped_weak_brand" as const, url: undefined };
+      }
+      const found = await searchSocialProfile({
         platform: step,
         ...presencePlace,
         brandOverride,
         blockedLabels: blockedSocialLabels,
         allowWeakBrand: gmbCorroborated,
       });
-      if (!found && step === "instagram" && gmbCorroborated) {
-        found = await searchSocialProfile({
-          platform: "instagram",
-          ...presencePlace,
-          brandOverride,
-          blockedLabels: blockedSocialLabels,
-          allowWeakBrand: true,
-          webQuery: true,
-        });
-      }
       return {
         step,
         kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",

@@ -10,7 +10,7 @@ import {
   searchableCompanyName,
 } from "@/lib/enrichment/company-name";
 import { parseInstagramHandle } from "@/lib/instagram";
-import { phonesMatch } from "@/lib/phone";
+import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import type {
   GmbCard,
   GmbCardCheck,
@@ -55,7 +55,12 @@ export type GmbSearchInput = {
   uf: string;
   logradouro?: string | null;
   numero?: string | null;
+  cep?: string | null;
   phones?: Array<{ ddd: string | null; telefone: string | null }>;
+  /** Site phones after crawl — same match as Receita, never accountant-shared. */
+  sitePhones?: Array<{ ddd: string | null; telefone: string | null }>;
+  /** Confirmed company host — Maps website must equal this to lock by site. */
+  websiteHost?: string | null;
   /** Skip street in Maps queries — Receita address is the office, not the shop. */
   sharedVerdict?: SharedPhoneVerdict;
 };
@@ -147,6 +152,14 @@ export function mapsPhoneVsReceita(
 
 function mapsIdentityLocked(match_by: GmbMatchBy[]): boolean {
   if (match_by.includes("phone")) return true;
+  if (match_by.includes("title") && match_by.includes("cep")) return true;
+  if (match_by.includes("website") && match_by.includes("title")) {
+    return (
+      match_by.includes("address") ||
+      match_by.includes("cep") ||
+      match_by.includes("phone")
+    );
+  }
   return match_by.includes("title") && match_by.includes("address");
 }
 
@@ -165,6 +178,54 @@ export function mapsPhoneMatchesReceita(
     if (phonesMatch(mapsPhone, raw, phone.ddd)) return true;
   }
   return false;
+}
+
+function mapsPhoneMatchesKnown(
+  mapsPhone: string | undefined,
+  input: GmbSearchInput,
+): boolean {
+  if (input.sharedVerdict === "contabilidade") return false;
+  if (mapsPhoneMatchesReceita(mapsPhone, input.phones)) return true;
+  return mapsPhoneMatchesReceita(mapsPhone, input.sitePhones);
+}
+
+/** 8-digit CEP as humans type it, or null. */
+export function formatCepDigits(
+  cep: string | null | undefined,
+): string | null {
+  const digits = (cep ?? "").replace(/\D/g, "");
+  if (digits.length !== 8) return null;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+export function mapsCepMatchesReceita(
+  mapsAddress: string | undefined,
+  cep: string | null | undefined,
+): boolean {
+  const want = (cep ?? "").replace(/\D/g, "");
+  if (want.length !== 8 || !mapsAddress?.trim()) return false;
+  return mapsAddress.replace(/\D/g, "").includes(want);
+}
+
+export function hitMentionsCep(
+  hit: OrganicHit,
+  cep: string | null | undefined,
+): boolean {
+  const want = (cep ?? "").replace(/\D/g, "");
+  if (want.length !== 8) return false;
+  const hay = `${hit.title} ${hit.snippet ?? ""} ${hit.link}`.replace(/\D/g, "");
+  return hay.includes(want);
+}
+
+export function hitMentionsStreet(
+  hit: OrganicHit,
+  logradouro: string | null | undefined,
+): boolean {
+  const log = stripAccents(logradouro ?? "")
+    .replace(STREET_PREFIX, "")
+    .trim();
+  if (log.length < 4) return false;
+  return stripAccents(`${hit.title} ${hit.snippet ?? ""}`).includes(log);
 }
 
 export function mapsAddressMatchesReceita(
@@ -255,9 +316,14 @@ export function scoreMapsPlace(
     municipio: input.municipio,
     uf: input.uf,
   });
-  const phone =
-    input.sharedVerdict !== "contabilidade" &&
-    mapsPhoneMatchesReceita(place.phoneNumber, input.phones);
+  const phone = mapsPhoneMatchesKnown(place.phoneNumber, input);
+  const cep = mapsCepMatchesReceita(place.address, input.cep);
+  const mapsHost = websiteHostFromMapsPlace(place);
+  const website = Boolean(
+    input.websiteHost &&
+      mapsHost &&
+      mapsHost === input.websiteHost.replace(/^www\./i, "").toLowerCase(),
+  );
 
   if (title) {
     match_by.push("title");
@@ -270,12 +336,26 @@ export function scoreMapsPlace(
     match_by.push("city");
     score += 1;
   }
+  if (cep) {
+    match_by.push("cep");
+    score += 3;
+  }
+  if (website) {
+    match_by.push("website");
+    score += 3;
+  }
   if (phone) {
     match_by.push("phone");
     score += 4;
   }
 
-  const matched = Boolean(phone || (title && address) || (strongTitle && city));
+  const matched = Boolean(
+    phone ||
+      (title && address) ||
+      (title && cep) ||
+      (website && title && (address || cep || city)) ||
+      (strongTitle && city),
+  );
   return { score, match_by, matched };
 }
 
@@ -369,6 +449,10 @@ export function gmbListingFromPlace(
   },
 ): GmbListing {
   const card = gmbCardFromPlace(place);
+  const mapsPhone =
+    opts.matched && input.sharedVerdict !== "contabilidade"
+      ? normalizePhoneBR(place.phoneNumber ?? "")
+      : null;
   return {
     name: place.title,
     url: mapsPlaceListingUrl(place),
@@ -381,6 +465,7 @@ export function gmbListingFromPlace(
     phone_vs_receita: mapsPhoneVsReceita(place, input, opts.matched),
     kind: gmbCardKindFromScore(card.score),
     candidates_in_city: opts.candidates_in_city ?? null,
+    phone_e164: mapsPhone?.e164 ?? null,
   };
 }
 
@@ -498,6 +583,11 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
         { quoted: true, includeStreet: false },
       ),
     );
+  }
+  const cep = formatCepDigits(input.cep);
+  if (cep) {
+    const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+    if (name) push(`"${name}" ${cep}`);
   }
   return list;
 }
@@ -992,6 +1082,7 @@ export function pickSocialHit(
   municipio: string,
   blockedLabels: string[] = [],
   allowWeakBrand = false,
+  geo?: { cep?: string | null; logradouro?: string | null },
 ): string | null {
   const blocked = blockedLabels
     .map((l) => l.toLowerCase().replace(/[^a-z0-9]/g, ""))
@@ -999,6 +1090,8 @@ export function pickSocialHit(
   const matches = allowWeakBrand
     ? socialHitMatchesLoose
     : socialHitMatchesBrand;
+  const needCep = Boolean(geo?.cep && formatCepDigits(geo.cep));
+  const needStreet = Boolean(!needCep && geo?.logradouro?.trim());
   for (const hit of hits) {
     try {
       const hostname = new URL(hit.link).hostname.toLowerCase();
@@ -1017,6 +1110,8 @@ export function pickSocialHit(
     ) {
       continue;
     }
+    if (needCep && !hitMentionsCep(hit, geo?.cep)) continue;
+    if (needStreet && !hitMentionsStreet(hit, geo?.logradouro)) continue;
     if (matches(hit, razaoSocial, nomeFantasia, municipio)) {
       return hit.link;
     }
@@ -1052,6 +1147,120 @@ export function presenceQuery(
     return `"${name}" ${label} ${place}`.trim();
   }
   return `site:${SOCIAL_HOST[platform]} "${name}" ${place}`.trim();
+}
+
+export type InstagramSearchInput = {
+  nomeFantasia: string | null;
+  razaoSocial: string;
+  municipio: string;
+  uf: string;
+  brandOverride?: string | null;
+  blockedLabels?: string[];
+  cep?: string | null;
+  logradouro?: string | null;
+  numero?: string | null;
+};
+
+export function instagramSearchQueries(
+  input: InstagramSearchInput,
+): Array<{ q: string; geo: boolean }> {
+  const name =
+    input.brandOverride?.trim() ||
+    searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+  const strong = presenceBrandTokens(
+    input.razaoSocial,
+    input.brandOverride?.trim() || input.nomeFantasia,
+    input.municipio,
+  );
+  const compact = strong[0] ?? null;
+  const cep = formatCepDigits(input.cep);
+  const street = [input.logradouro, input.numero]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
+  const out: Array<{ q: string; geo: boolean }> = [];
+  const push = (q: string, geo: boolean) => {
+    const trimmed = q.replace(/\s+/g, " ").trim();
+    if (!trimmed || out.some((item) => item.q === trimmed)) return;
+    out.push({ q: trimmed, geo });
+  };
+  if (strong.length > 0 && name) {
+    push(`site:instagram.com "${name}"`, false);
+    if (compact && !sameSearchToken(compact, name)) {
+      push(`site:instagram.com ${compact}`, false);
+    }
+    push(`"${name}" Instagram`, false);
+  }
+  if (name && cep) {
+    push(`"${name}" Instagram ${cep}`, true);
+  } else if (name && street) {
+    push(`"${name}" Instagram "${street}" ${input.municipio}`, true);
+  }
+  return out.slice(0, 4);
+}
+
+/** Instagram search that does not require a site or a Maps pin. */
+export async function searchInstagramProfile(
+  input: InstagramSearchInput,
+): Promise<string | null> {
+  const queries = instagramSearchQueries(input);
+  if (queries.length === 0) return null;
+  const fantasia = input.brandOverride?.trim() || input.nomeFantasia;
+  for (const step of queries) {
+    const hits = await serperOrganic(step.q);
+    const found = pickSocialHit(
+      hits,
+      SOCIAL_HOST.instagram,
+      input.razaoSocial,
+      fantasia,
+      input.municipio,
+      input.blockedLabels,
+      step.geo,
+    );
+    if (found) return found;
+  }
+  return null;
+}
+
+export function upgradeGmbWithWebsite(
+  listing: GmbListing | null | undefined,
+  websiteHost: string | null | undefined,
+): GmbListing | null {
+  if (!listing) return listing ?? null;
+  const want = websiteHost?.replace(/^www\./i, "").toLowerCase().trim();
+  if (!want) return listing;
+  const status = gmbListingStatus(listing);
+  if (status === "matched" || status === "none") return listing;
+  const host = listing.website_host?.replace(/^www\./i, "").toLowerCase();
+  if (!host || host !== want) return listing;
+  const match_by: GmbMatchBy[] = [...(listing.match_by ?? [])];
+  if (!match_by.includes("title")) return listing;
+  if (!match_by.includes("website")) match_by.push("website");
+  const many = (listing.candidates_in_city ?? 1) > 1;
+  const anchored =
+    match_by.includes("address") ||
+    match_by.includes("cep") ||
+    match_by.includes("phone");
+  if (many && !anchored) return listing;
+  return { ...listing, matched: true, status: "matched", match_by };
+}
+
+export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
+  const queries = gmbSearchQueryList(input);
+  if (queries.length === 0) return gmbNoneListing();
+
+  const take = async (query: string): Promise<GmbListing> =>
+    resolveGmbListing(await serperMaps(query), input);
+
+  let best: GmbListing | null = null;
+  for (const query of queries) {
+    const listing = await take(query);
+    if (listing.matched || listing.status === "matched") return listing;
+    if (listing.status === "candidate") {
+      if (!best || listingCardBetter(listing, best)) best = listing;
+    }
+  }
+  return best ?? gmbNoneListing();
 }
 
 export async function searchSocialProfile(input: {
@@ -1103,43 +1312,6 @@ export async function searchSocialProfile(input: {
     input.blockedLabels,
     input.allowWeakBrand === true,
   );
-}
-
-export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
-  const queries = gmbSearchQueryList(input);
-  if (queries.length === 0) return gmbNoneListing();
-
-  const take = async (query: string): Promise<GmbListing> =>
-    resolveGmbListing(await serperMaps(query), input);
-
-  const first = await take(queries[0]);
-  if (first.matched || first.status === "matched") return first;
-
-  const rest = queries.slice(1);
-  const skipStreet = input.sharedVerdict === "contabilidade";
-  const streetQuery = !skipStreet && rest.length > 0 ? rest[0] : null;
-
-  if (first.status === "candidate") {
-    if (!streetQuery) return first;
-    const street = await take(streetQuery);
-    if (street.matched || street.status === "matched") return street;
-    if (street.status === "candidate" && listingCardBetter(street, first)) {
-      return street;
-    }
-    return first;
-  }
-
-  if (rest.length === 0) return gmbNoneListing();
-  const extra = await Promise.all(rest.map((query) => take(query)));
-  for (const listing of extra) {
-    if (listing.matched || listing.status === "matched") return listing;
-  }
-  let best: GmbListing | null = null;
-  for (const listing of extra) {
-    if (listing.status !== "candidate") continue;
-    if (!best || listingCardBetter(listing, best)) best = listing;
-  }
-  return best ?? gmbNoneListing();
 }
 
 /** Extract a website host from a matched GMB listing (not maps.google). */

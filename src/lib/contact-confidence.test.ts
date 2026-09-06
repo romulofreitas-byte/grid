@@ -59,7 +59,7 @@ describe("deriveSeal", () => {
     expect(r.seal).toBe("NAO_CONFIRMADO");
   });
 
-  it("CONFIRMADO from a matched Maps phone without a site", () => {
+  it("MAPS from a matched Maps phone without a site", () => {
     const r = deriveSeal({
       domainStatus: "nao_encontrado",
       receita,
@@ -68,7 +68,7 @@ describe("deriveSeal", () => {
       sharedVerdict: "proprio",
       mapsPhoneMatch: true,
     });
-    expect(r.seal).toBe("CONFIRMADO");
+    expect(r.seal).toBe("MAPS");
     expect(r.sideNote).toMatch(/maps/i);
   });
 

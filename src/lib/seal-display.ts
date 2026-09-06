@@ -8,6 +8,8 @@ export function sealLabel(seal: ContactSeal, qtdEmpresas = 0): string {
       return "Confere com o site oficial";
     case "ATUALIZADO":
       return "Número atualizado pelo site da empresa";
+    case "MAPS":
+      return "Número encontrado na ficha do Google Maps";
     case "COMPARTILHADO":
       return `Este número aparece em ${qtdEmpresas} empresas — provavelmente é do escritório, não da empresa`;
     case "GRUPO":
@@ -27,6 +29,8 @@ export function sealDisplay(seal: ContactSeal): {
       return { colorClass: "text-podium-success", title: "Confirmado" };
     case "ATUALIZADO":
       return { colorClass: "text-podium-yellow", title: "Do site" };
+    case "MAPS":
+      return { colorClass: "text-sky-300", title: "Maps" };
     case "COMPARTILHADO":
       return { colorClass: "text-amber-400", title: "Contabilidade" };
     case "GRUPO":
@@ -43,6 +47,8 @@ export function sealCsvLabel(seal: ContactSeal): string {
       return "Confirmado";
     case "ATUALIZADO":
       return "Atualizado";
+    case "MAPS":
+      return "Maps";
     case "COMPARTILHADO":
       return "Contabilidade — provável escritório";
     case "GRUPO":

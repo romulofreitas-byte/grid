@@ -13,6 +13,7 @@ const EXPORTABLE_SOURCES = new Set<OutboundPhoneSource>([
   "site_schema",
   "site_texto",
   "site_whatsapp",
+  "maps",
 ]);
 
 export type LeadOutboundContext = {

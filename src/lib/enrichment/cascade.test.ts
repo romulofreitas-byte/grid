@@ -479,7 +479,7 @@ describe("enrichCompany crawl", () => {
     const { row } = await enrichCompany(input);
     expect(row.domain_status).toBe("nao_encontrado");
     expect(row.socials.instagram).toBeUndefined();
-    expect(row.fonte.instagram?.fonte).toBe("skipped_weak_brand");
+    expect(row.fonte.instagram?.fonte).toBe("serper_miss");
     delete process.env.SERPER_API_KEY;
   });
 
@@ -666,6 +666,49 @@ describe("enrichCompany crawl", () => {
     expect(row.domain_status).toBe("nao_encontrado");
     expect(row.socials.instagram).toBe("https://www.instagram.com/colegiogenesis/");
     expect(row.fonte.instagram?.fonte).toBe("serper");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("finds an Instagram handle with a brand prefix without site or Maps", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://www.instagram.com/erp.loires/",
+                  title: "Loires Tecnologia & Sistemas (@erp.loires)",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "Loires Tecnologia";
+    input.company.razao_social = "LOIRES INFORMATICA LTDA";
+    input.municipioNome = "Campo Grande";
+    input.establishment.uf = "MS";
+    input.establishment.cep = "79004290";
+
+    const { row } = await enrichCompany(input);
+    expect(row.socials.instagram).toContain("erp.loires");
+    expect(row.fonte.instagram?.fonte).toBe("serper");
+    expect(row.gmb?.matched).toBe(false);
     delete process.env.SERPER_API_KEY;
   });
 
@@ -1288,7 +1331,7 @@ describe("enrichCompany crawl", () => {
     delete process.env.SERPER_API_KEY;
   });
 
-  it("confirms the Receita phone from a matched Maps card without storing the number", async () => {
+  it("confirms the Receita phone from a matched Maps card with a Maps seal", async () => {
     process.env.SERPER_API_KEY = "test";
     vi.stubGlobal(
       "fetch",
@@ -1325,11 +1368,9 @@ describe("enrichCompany crawl", () => {
     expect(row.gmb?.phone_vs_receita).toBe("igual");
     expect(row.gmb?.url).toBe("https://www.google.com/maps?cid=31");
     const receita = row.phones.find((p) => p.sources.includes("receita"));
-    expect(receita?.seal).toBe("CONFIRMADO");
-    expect(row.phones.every((p) => !p.sources.includes("gmb" as never))).toBe(
-      true,
-    );
-    expect(JSON.stringify(row.gmb)).not.toMatch(/3333/);
+    expect(receita?.seal).toBe("MAPS");
+    expect(receita?.sources).toContain("maps");
+    expect(row.phones.some((p) => p.sources.includes("maps"))).toBe(true);
     delete process.env.SERPER_API_KEY;
   });
 

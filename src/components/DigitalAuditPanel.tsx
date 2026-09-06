@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronDown, ExternalLink, MapPin } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { AuditLogo } from "@/components/AuditLogo";
 import { Button } from "@/components/ui/Button";
@@ -43,13 +43,11 @@ function qualifyChipCopy(kind: QualifyChipKind): { text: string; className: stri
 }
 
 function QualifyHeader({
-  mapsUrl,
   showRefresh,
   refreshing,
   onRefresh,
   chip,
 }: {
-  mapsUrl?: string | null;
   showRefresh?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -92,17 +90,6 @@ function QualifyHeader({
               : `${COPY.atualizarQualificacao} · ${creditsPhrase(ENRICH_CREDIT_COST)}`}
           </button>
         ) : null}
-        {mapsUrl ? (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-podium-muted transition hover:bg-white/5 hover:text-podium-gray"
-          >
-            <MapPin className="h-3.5 w-3.5" />
-            Maps
-          </a>
-        ) : null}
       </div>
     </div>
   );
@@ -144,6 +131,7 @@ function assetSeal(
     }
     if (tools) return { text: COPY.fichaSealToolLive, kind: "live" };
     if (signal.id === "site") return { text: COPY.fichaSealLiveSite, kind: "live" };
+    if (signal.id === "maps") return { text: COPY.fichaSealMapsLive, kind: "live" };
     if (signal.id === "gmb" || signal.id === "atualizacao") {
       return { text: COPY.fichaSealLiveGoogle, kind: "live" };
     }
@@ -229,7 +217,7 @@ const EDITABLE_PRESENCE = new Set([
   "facebook",
   "linkedin",
   "youtube",
-  "gmb",
+  "maps",
   "whatsapp",
 ]);
 
@@ -239,7 +227,7 @@ type EditablePresenceId =
   | "facebook"
   | "linkedin"
   | "youtube"
-  | "gmb"
+  | "maps"
   | "whatsapp";
 
 const PRESENCE_PLACEHOLDER: Record<EditablePresenceId, string> = {
@@ -248,7 +236,7 @@ const PRESENCE_PLACEHOLDER: Record<EditablePresenceId, string> = {
   facebook: "URL do Facebook",
   linkedin: "URL do LinkedIn",
   youtube: "URL do YouTube",
-  gmb: "URL do Google Meu Negócio",
+  maps: "URL do Google Maps",
   whatsapp: "telefone ou wa.me",
 };
 
@@ -270,7 +258,7 @@ function presenceSeed(
   if (id === "facebook") return enrichment.socials.facebook ?? "";
   if (id === "linkedin") return enrichment.socials.linkedin ?? "";
   if (id === "youtube") return enrichment.socials.youtube ?? "";
-  if (id === "gmb") {
+  if (id === "maps") {
     const listing = enrichment.gmb;
     if (!listing) return "";
     if (listing.matched || gmbListingIsCandidate(listing)) return listing.url;
@@ -593,7 +581,6 @@ export function DigitalAuditPanel({
   qualifyError = null,
   onQualify,
   onRefresh,
-  mapsUrl = null,
   confirmPending = false,
   onConfirmSite,
   onRejectSite,
@@ -611,7 +598,6 @@ export function DigitalAuditPanel({
   qualifyError?: string | null;
   onQualify?: () => void;
   onRefresh?: () => void;
-  mapsUrl?: string | null;
   confirmPending?: boolean;
   onConfirmSite?: (domain: string) => void;
   onRejectSite?: (domain: string) => void;
@@ -705,7 +691,6 @@ export function DigitalAuditPanel({
   return (
     <GlassCard className={cn("p-5 hover:translate-y-0", className)}>
       <QualifyHeader
-        mapsUrl={mapsUrl}
         showRefresh={showRefresh}
         refreshing={refreshing || (Boolean(onRefresh) && qualifyPending)}
         onRefresh={onRefresh}

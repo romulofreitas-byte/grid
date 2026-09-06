@@ -15,6 +15,7 @@ export type PresenceCorrection = {
   youtube?: string | null;
   whatsapp?: string | null;
   gmb?: string | null;
+  maps?: string | null;
 };
 
 export type PresenceCorrectionResult =
@@ -50,6 +51,7 @@ const PRESENCE_KEYS = [
   "youtube",
   "whatsapp",
   "gmb",
+  "maps",
 ] as const;
 
 export function hasPresenceFields(correction: PresenceCorrection): boolean {
@@ -336,14 +338,17 @@ export function applyPresenceCorrection(
     next.fonte = stamp(next, "whatsapp", collectedAt);
   }
 
-  if (correction.gmb !== undefined) {
-    if (correction.gmb == null || correction.gmb.trim() === "") {
+  const mapsRaw =
+    correction.maps !== undefined ? correction.maps : correction.gmb;
+  if (mapsRaw !== undefined) {
+    if (mapsRaw == null || mapsRaw.trim() === "") {
       next.gmb = { name: "", url: "", matched: false, status: "none" };
     } else {
-      const url = gmbUrl(correction.gmb);
+      const url = gmbUrl(mapsRaw);
       const cid = cidFromMapsUrl(url);
       next.gmb = {
-        name: options.companyName?.trim() || row.gmb?.name || "Google Meu Negócio",
+        name:
+          options.companyName?.trim() || row.gmb?.name || "Google Maps",
         url: cid ? mapsCidUrl(cid) : url,
         matched: true,
         status: "matched",
@@ -352,6 +357,7 @@ export function applyPresenceCorrection(
       };
     }
     next.fonte = stamp(next, "gmb", collectedAt);
+    next.fonte = stamp(next, "maps", collectedAt);
   }
 
   return { kind: "patch", row: finishPatch(next, scoreProfile) };

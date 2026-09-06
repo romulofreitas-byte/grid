@@ -7,11 +7,13 @@ export const outboundPhoneSourceSchema = z.enum([
   "site_schema",
   "site_texto",
   "site_whatsapp",
+  "maps",
 ]);
 
 export const contactSealSchema = z.enum([
   "CONFIRMADO",
   "ATUALIZADO",
+  "MAPS",
   "COMPARTILHADO",
   "GRUPO",
   "NAO_CONFIRMADO",
