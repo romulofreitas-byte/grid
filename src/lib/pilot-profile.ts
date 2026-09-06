@@ -306,11 +306,17 @@ export function profileReadiness(profile: Profile): number {
   return Math.round((slots.filter(Boolean).length / slots.length) * 100);
 }
 
-export function displayName(profile: Pick<Profile, "como_chama" | "nome">): string {
+export function displayName(profile: {
+  como_chama?: string | null;
+  nome?: string | null;
+}): string {
   return profile.como_chama?.trim() || profile.nome?.trim() || "Piloto";
 }
 
-export function initials(profile: Pick<Profile, "como_chama" | "nome">): string {
+export function initials(profile: {
+  como_chama?: string | null;
+  nome?: string | null;
+}): string {
   const source = displayName(profile);
   const parts = source.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "P";

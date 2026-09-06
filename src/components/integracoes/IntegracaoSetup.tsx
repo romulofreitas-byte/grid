@@ -209,7 +209,7 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
   const billing = useBillingMe();
   const formRef = useRef<HTMLDivElement>(null);
   const copy = PAGE[kind];
-  const [selectedId, setSelectedId] = useState(copy.defaultId);
+  const [selectedId, setSelectedId] = useState<string>(copy.defaultId);
   const [fields, setFields] = useState(emptyFields);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<IntegrationConnectionPublic | null>(null);

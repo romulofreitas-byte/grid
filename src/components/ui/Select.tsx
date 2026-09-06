@@ -99,7 +99,7 @@ export function Select({
       }
       setOpen(false);
     }
-    function onKey(event: KeyboardEvent) {
+    function onKey(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
