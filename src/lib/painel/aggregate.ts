@@ -147,7 +147,6 @@ function emptyCrmCharts(): Pick<
 export function emptyPainelMetrics(partial: {
   range: PainelMetrics["range"];
   pipelineId: string | null;
-  suggestedPipelineId?: string | null;
   crmAllowed: boolean;
   trialExpired: boolean;
   pipelines?: PainelMetrics["pipelines"];
@@ -162,7 +161,6 @@ export function emptyPainelMetrics(partial: {
     pipelineId: partial.pipelineId,
     crmAllowed: partial.crmAllowed,
     trialExpired: partial.trialExpired,
-    suggestedPipelineId: partial.suggestedPipelineId ?? null,
     pipelines: partial.pipelines ?? [],
     kpis: emptyKpis(
       partial.callGoal ?? 20,
@@ -344,7 +342,6 @@ export function aggregatePainel(input: PainelSnapshot): Omit<
   return {
     range: input.range,
     pipelineId: input.pipelineId,
-    suggestedPipelineId: null,
     pipelines: input.pipelines,
     kpis: {
       callsToday,

@@ -1,5 +1,4 @@
 import { getBalance } from "@/lib/billing/service";
-import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
 import { isCrmStageKey } from "@/lib/crm/cadence";
 import { getDataSource, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
@@ -183,7 +182,7 @@ async function loadPainelMetricsPg(
     };
   });
 
-  const aggregated = aggregatePainel({
+  return aggregatePainel({
     now,
     range: filters.range,
     pipelineId,
@@ -199,14 +198,6 @@ async function loadPainelMetricsPg(
     activities,
     outcomeEvents,
   });
-
-  return {
-    ...aggregated,
-    suggestedPipelineId:
-      pickDefaultCrmPipeline(
-        pipelines.map((row) => ({ ...row, deal_count: row.openDeals })),
-      )?.id ?? null,
-  };
 }
 
 function loadPainelMetricsMock(
@@ -265,7 +256,7 @@ function loadPainelMetricsMock(
       outcome: mapOutcomeEvent(row.meta.outcome),
     }));
   const profile = store.profiles.find((row) => row.id === userId);
-  const aggregated = aggregatePainel({
+  return aggregatePainel({
     now,
     range: filters.range,
     pipelineId,
@@ -284,13 +275,6 @@ function loadPainelMetricsMock(
     activities,
     outcomeEvents,
   });
-  return {
-    ...aggregated,
-    suggestedPipelineId:
-      pickDefaultCrmPipeline(
-        pipelines.map((row) => ({ ...row, deal_count: row.openDeals })),
-      )?.id ?? null,
-  };
 }
 
 export async function loadPainelMetrics(
@@ -323,7 +307,6 @@ export async function loadPainelMetrics(
     return emptyPainelMetrics({
       range: filters.range,
       pipelineId: filters.pipelineId ?? null,
-      suggestedPipelineId: core.suggestedPipelineId,
       crmAllowed: false,
       trialExpired,
       pipelines: core.pipelines,

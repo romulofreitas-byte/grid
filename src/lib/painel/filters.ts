@@ -4,11 +4,11 @@ import { PAINEL_RANGES, type PainelRange } from "@/lib/painel/types";
 export { PAINEL_RANGES };
 export type { PainelRange };
 
-export const PAINEL_PIPELINE_STORAGE_KEY = "grid.painel.pipeline";
 export const PAINEL_PIPELINE_ALL = "all";
 
 export type PainelFilters = {
   range: PainelRange;
+  /** omit = todos os nichos */
   pipelineId?: string;
 };
 

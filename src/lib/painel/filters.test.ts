@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import { parsePainelFilters, painelFiltersQueryString } from "./filters";
 
 describe("parsePainelFilters", () => {
-  it("defaults to 30d and accepts pipeline uuid", () => {
-    expect(parsePainelFilters(new URLSearchParams()).range).toBe("30d");
+  it("defaults to 30d and all niches", () => {
+    expect(parsePainelFilters(new URLSearchParams())).toEqual({ range: "30d" });
+  });
+
+  it("accepts pipeline uuid", () => {
     const parsed = parsePainelFilters(
       new URLSearchParams(
         "range=7d&pipeline=a1000000-0000-4000-8000-000000000001",

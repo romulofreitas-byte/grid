@@ -55,7 +55,6 @@ export type PainelKpis = {
 export type PainelMetrics = {
   range: PainelRange;
   pipelineId: string | null;
-  suggestedPipelineId: string | null;
   crmAllowed: boolean;
   trialExpired: boolean;
   pipelines: PainelPipelineOption[];

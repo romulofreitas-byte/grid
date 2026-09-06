@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Flame, Phone } from "lucide-react";
 import { ChartCard } from "@/components/charts/ChartCard";
@@ -24,7 +24,6 @@ import { paywallCopy } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import {
   PAINEL_PIPELINE_ALL,
-  PAINEL_PIPELINE_STORAGE_KEY,
   PAINEL_RANGES,
   painelFiltersQueryString,
   painelRangeLabel,
@@ -36,28 +35,9 @@ import { ProductTour } from "@/components/tour/ProductTour";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 
-const PIPELINE_UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 function formatPct(part: number, whole: number): string {
   if (!whole) return "—";
   return `${Math.round((part / whole) * 100)}%`;
-}
-
-function readStoredPipeline(): string | null {
-  try {
-    return localStorage.getItem(PAINEL_PIPELINE_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredPipeline(value: string) {
-  try {
-    localStorage.setItem(PAINEL_PIPELINE_STORAGE_KEY, value);
-  } catch {
-    /* ignore quota / private mode */
-  }
 }
 
 function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
@@ -154,8 +134,6 @@ export function PainelDashboard() {
     () => parsePainelFilters(searchParams),
     [searchParams],
   );
-  const [filtersReady, setFiltersReady] = useState(() => Boolean(filters.pipelineId));
-  const suggestedApplied = useRef(false);
 
   const setFilters = useMemo(() => {
     return (next: PainelFilters) => {
@@ -164,24 +142,8 @@ export function PainelDashboard() {
     };
   }, [pathname, router]);
 
-  useLayoutEffect(() => {
-    if (filters.pipelineId) {
-      writeStoredPipeline(filters.pipelineId);
-      setFiltersReady(true);
-      return;
-    }
-    const stored = readStoredPipeline();
-    if (stored && stored !== PAINEL_PIPELINE_ALL && PIPELINE_UUID.test(stored)) {
-      setFilters({ ...filters, pipelineId: stored });
-    }
-    setFiltersReady(true);
-    // Mount-only: hydrate last nicho before the first fetch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const query = useQuery({
     queryKey: ["painel-metrics", painelFiltersQueryString(filters)],
-    enabled: filtersReady,
     queryFn: async () => {
       const qs = painelFiltersQueryString(filters);
       const res = await fetch(`/api/painel/metrics${qs ? `?${qs}` : ""}`);
@@ -197,26 +159,12 @@ export function PainelDashboard() {
   const m = query.data;
 
   useEffect(() => {
-    if (!m) return;
-    if (
-      filters.pipelineId &&
-      m.pipelines.length > 0 &&
-      !m.pipelines.some((row) => row.id === filters.pipelineId)
-    ) {
-      writeStoredPipeline(PAINEL_PIPELINE_ALL);
-      const next = { ...filters };
-      delete next.pipelineId;
-      setFilters(next);
-      return;
-    }
-    if (!filtersReady || filters.pipelineId || !m.suggestedPipelineId) return;
-    if (suggestedApplied.current) return;
-    const stored = readStoredPipeline();
-    if (stored === PAINEL_PIPELINE_ALL) return;
-    if (stored && PIPELINE_UUID.test(stored)) return;
-    suggestedApplied.current = true;
-    setFilters({ ...filters, pipelineId: m.suggestedPipelineId });
-  }, [filtersReady, filters, m, setFilters]);
+    if (!m || !filters.pipelineId || m.pipelines.length === 0) return;
+    if (m.pipelines.some((row) => row.id === filters.pipelineId)) return;
+    const next = { ...filters };
+    delete next.pipelineId;
+    setFilters(next);
+  }, [filters, m, setFilters]);
 
   const error = query.error instanceof Error ? query.error.message : null;
   const crm = Boolean(m?.crmAllowed);
@@ -252,14 +200,11 @@ export function PainelDashboard() {
 
   function selectPipeline(value: string) {
     if (value === PAINEL_PIPELINE_ALL) {
-      suggestedApplied.current = true;
-      writeStoredPipeline(PAINEL_PIPELINE_ALL);
       const next = { ...filters };
       delete next.pipelineId;
       setFilters(next);
       return;
     }
-    writeStoredPipeline(value);
     setFilters({ ...filters, pipelineId: value });
   }
 
