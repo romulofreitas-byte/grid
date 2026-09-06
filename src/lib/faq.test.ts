@@ -49,6 +49,8 @@ describe("maps FAQ", () => {
     expect(item?.answer).toMatch(/nome e pela cidade/i);
     expect(item?.answer).toMatch(/não grava telefone/i);
     expect(item?.answer).toMatch(/não usa a API do Google Places/i);
+    expect(item?.answer).toMatch(/candidato/i);
+    expect(item?.answer).toMatch(/Não possui/i);
   });
 });
 

@@ -119,7 +119,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O GRID usa Google Maps?",
     answer:
-      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca a ficha do Google Meu Negócio pelo nome e pela cidade — o endereço fiscal da Receita muitas vezes é o do escritório, não o da operação. Cruza telefone ou nome+cidade/endereço com o cadastro e lê se o card público está completo (telefone, site, horário, foto, nota). Não usa a API do Google Places e não grava telefone, texto de avaliação nem coordenadas.",
+      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca o card público no Maps pelo nome e pela cidade — o endereço fiscal da Receita muitas vezes é o do escritório, não o da operação. Cruza telefone ou nome+cidade/endereço com o cadastro e lê se o card está completo (telefone, site, horário, foto, nota). Se achar a marca na cidade mas não cruzar com este CNPJ (rede/franquia), mostra o card como candidato — não como ficha da empresa. “Não possui” só aparece quando a busca não acha card. Não usa a API do Google Places e não grava telefone, texto de avaliação nem coordenadas.",
   },
   {
     id: "quando-credito",

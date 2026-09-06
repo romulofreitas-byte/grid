@@ -4,7 +4,11 @@ import {
   presenceBrandTokens,
 } from "@/lib/enrichment/confirm-domain";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
-import { mapsCidUrl, searchableCompanyName } from "@/lib/enrichment/company-name";
+import {
+  isMapsUrl,
+  mapsCidUrl,
+  searchableCompanyName,
+} from "@/lib/enrichment/company-name";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { phonesMatch } from "@/lib/phone";
 import type {
@@ -12,9 +16,14 @@ import type {
   GmbCardCheck,
   GmbListing,
   GmbMatchBy,
+  GmbPhoneVsReceita,
   SharedPhoneVerdict,
 } from "@/lib/types";
-import { GMB_CARD_CHECKS } from "@/lib/types";
+import {
+  GMB_CARD_CHECKS,
+  gmbCardKindFromScore,
+  gmbNoneListing,
+} from "@/lib/types";
 
 export type OrganicHit = {
   link: string;
@@ -87,11 +96,61 @@ function withHttp(raw: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, "")}`;
 }
 
-function mapsPlaceUrl(place: MapsPlace): string {
-  if (place.website) return withHttp(place.website);
-  if (place.link) return withHttp(place.link);
+/** Maps listing URL only — never the business website. */
+export function mapsPlaceListingUrl(place: MapsPlace): string {
   if (place.cid) return mapsCidUrl(place.cid);
+  if (place.link) {
+    const href = withHttp(place.link);
+    if (isMapsUrl(href)) return href;
+  }
   return "";
+}
+
+export function websiteHostFromMapsPlace(place: MapsPlace): string | null {
+  if (!mapsWebsiteOnCard(place.website)) return null;
+  try {
+    return new URL(withHttp(place.website!))
+      .hostname.replace(/^www\./i, "")
+      .toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function receitaHasPhone(
+  phones: Array<{ ddd: string | null; telefone: string | null }> = [],
+): boolean {
+  return phones.some((phone) =>
+    Boolean(`${phone.ddd ?? ""}${phone.telefone ?? ""}`.replace(/\D/g, "")),
+  );
+}
+
+export function mapsPhoneVsReceita(
+  place: MapsPlace,
+  input: GmbSearchInput,
+  matched: boolean,
+): GmbPhoneVsReceita | null {
+  if (!matched) return null;
+  if (input.sharedVerdict === "contabilidade") return "ignorado_compartilhado";
+  const mapsHas = Boolean(place.phoneNumber?.trim());
+  const receitaHas = receitaHasPhone(input.phones);
+  if (mapsHas && receitaHas) {
+    return mapsPhoneMatchesReceita(place.phoneNumber, input.phones)
+      ? "igual"
+      : "diferente";
+  }
+  if (mapsHas) return "so_maps";
+  if (receitaHas) return "so_receita";
+  return null;
+}
+
+function mapsIdentityLocked(match_by: GmbMatchBy[]): boolean {
+  if (match_by.includes("phone")) return true;
+  return match_by.includes("title") && match_by.includes("address");
+}
+
+function mapsTitleCityHit(match_by: GmbMatchBy[]): boolean {
+  return match_by.includes("title") && match_by.includes("city");
 }
 
 export function mapsPhoneMatchesReceita(
@@ -223,22 +282,140 @@ export function pickBestMapsPlace(
   places: MapsPlace[],
   input: GmbSearchInput,
 ): { place: MapsPlace; match_by: GmbMatchBy[]; score: number } | null {
-  let best: { place: MapsPlace; match_by: GmbMatchBy[]; score: number } | null =
-    null;
+  const scored: Array<{
+    place: MapsPlace;
+    match_by: GmbMatchBy[];
+    score: number;
+    matched: boolean;
+  }> = [];
+  for (const place of places) {
+    if (!place.title) continue;
+    const result = scoreMapsPlace(place, input);
+    scored.push({ place, ...result });
+  }
+
+  const identity = scored.filter(
+    (item) => item.matched && mapsIdentityLocked(item.match_by),
+  );
+  if (identity.length > 0) {
+    return pickRankedMapsPlace(identity);
+  }
+
+  const brandCity = scored.filter(
+    (item) => item.matched && !mapsIdentityLocked(item.match_by),
+  );
+  if (brandCity.length === 1) return pickRankedMapsPlace(brandCity);
+  return null;
+}
+
+function pickRankedMapsPlace(
+  items: Array<{ place: MapsPlace; match_by: GmbMatchBy[]; score: number }>,
+): { place: MapsPlace; match_by: GmbMatchBy[]; score: number } {
+  let best = items[0];
+  for (let i = 1; i < items.length; i++) {
+    if (mapsPlaceBetter(items[i], best)) best = items[i];
+  }
+  return best;
+}
+
+export function countTitleCityPlaces(
+  places: MapsPlace[],
+  input: GmbSearchInput,
+): number {
+  let count = 0;
   for (const place of places) {
     if (!place.title) continue;
     const scored = scoreMapsPlace(place, input);
-    if (!scored.matched) continue;
-    const candidate = {
-      place,
-      match_by: scored.match_by,
-      score: scored.score,
-    };
-    if (!best || mapsPlaceBetter(candidate, best)) {
-      best = candidate;
-    }
+    if (mapsTitleCityHit(scored.match_by)) count += 1;
   }
-  return best;
+  return count;
+}
+
+/** Brand+city card that is not identity-locked to this CNPJ (chain / weak brand). */
+export function pickBestCandidateMapsPlace(
+  places: MapsPlace[],
+  input: GmbSearchInput,
+): {
+  place: MapsPlace;
+  match_by: GmbMatchBy[];
+  score: number;
+  count: number;
+} | null {
+  const hits: Array<{
+    place: MapsPlace;
+    match_by: GmbMatchBy[];
+    score: number;
+  }> = [];
+  for (const place of places) {
+    if (!place.title) continue;
+    const scored = scoreMapsPlace(place, input);
+    if (!mapsTitleCityHit(scored.match_by)) continue;
+    if (mapsIdentityLocked(scored.match_by)) continue;
+    hits.push({ place, match_by: scored.match_by, score: scored.score });
+  }
+  if (hits.length === 0) return null;
+  return { ...pickRankedMapsPlace(hits), count: hits.length };
+}
+
+export function gmbListingFromPlace(
+  place: MapsPlace,
+  input: GmbSearchInput,
+  opts: {
+    matched: boolean;
+    match_by: GmbMatchBy[];
+    status: "matched" | "candidate";
+    candidates_in_city?: number | null;
+  },
+): GmbListing {
+  const card = gmbCardFromPlace(place);
+  return {
+    name: place.title,
+    url: mapsPlaceListingUrl(place),
+    matched: opts.matched,
+    match_by: opts.match_by,
+    cid: place.cid ?? null,
+    card,
+    status: opts.status,
+    website_host: websiteHostFromMapsPlace(place),
+    phone_vs_receita: mapsPhoneVsReceita(place, input, opts.matched),
+    kind: gmbCardKindFromScore(card.score),
+    candidates_in_city: opts.candidates_in_city ?? null,
+  };
+}
+
+export function resolveGmbListing(
+  places: MapsPlace[],
+  input: GmbSearchInput,
+): GmbListing {
+  const matched = pickBestMapsPlace(places, input);
+  const cityHits = countTitleCityPlaces(places, input);
+  if (matched) {
+    return gmbListingFromPlace(matched.place, input, {
+      matched: true,
+      match_by: matched.match_by,
+      status: "matched",
+      candidates_in_city: cityHits || 1,
+    });
+  }
+  const candidate = pickBestCandidateMapsPlace(places, input);
+  if (candidate) {
+    return gmbListingFromPlace(candidate.place, input, {
+      matched: false,
+      match_by: candidate.match_by,
+      status: "candidate",
+      candidates_in_city: candidate.count,
+    });
+  }
+  return gmbNoneListing();
+}
+
+function listingCardBetter(candidate: GmbListing, current: GmbListing): boolean {
+  const a = [candidate.card?.score ?? 0, candidate.card?.ratingCount ?? 0];
+  const b = [current.card?.score ?? 0, current.card?.ratingCount ?? 0];
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return false;
 }
 
 export function gmbSearchQuery(
@@ -877,29 +1054,58 @@ export async function searchSocialProfile(input: {
   );
 }
 
-export async function searchGmb(input: GmbSearchInput): Promise<GmbListing | null> {
-  for (const query of gmbSearchQueryList(input)) {
-    const places = await serperMaps(query);
-    const best = pickBestMapsPlace(places, input);
-    if (!best) continue;
-    return {
-      name: best.place.title,
-      url: mapsPlaceUrl(best.place),
-      matched: true,
-      match_by: best.match_by,
-      cid: best.place.cid ?? null,
-      card: gmbCardFromPlace(best.place),
-    };
+export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
+  const queries = gmbSearchQueryList(input);
+  if (queries.length === 0) return gmbNoneListing();
+
+  const take = async (query: string): Promise<GmbListing> =>
+    resolveGmbListing(await serperMaps(query), input);
+
+  const first = await take(queries[0]);
+  if (first.matched || first.status === "matched") return first;
+
+  const rest = queries.slice(1);
+  const skipStreet = input.sharedVerdict === "contabilidade";
+  const streetQuery = !skipStreet && rest.length > 0 ? rest[0] : null;
+
+  if (first.status === "candidate") {
+    if (!streetQuery) return first;
+    const street = await take(streetQuery);
+    if (street.matched || street.status === "matched") return street;
+    if (street.status === "candidate" && listingCardBetter(street, first)) {
+      return street;
+    }
+    return first;
   }
-  return { name: "", url: "", matched: false };
+
+  if (rest.length === 0) return gmbNoneListing();
+  const extra = await Promise.all(rest.map((query) => take(query)));
+  for (const listing of extra) {
+    if (listing.matched || listing.status === "matched") return listing;
+  }
+  let best: GmbListing | null = null;
+  for (const listing of extra) {
+    if (listing.status !== "candidate") continue;
+    if (!best || listingCardBetter(listing, best)) best = listing;
+  }
+  return best ?? gmbNoneListing();
 }
 
 /** Extract a website host from a matched GMB listing (not maps.google). */
 export function domainFromGmb(listing: GmbListing | null): string | null {
-  if (!listing?.matched || !listing.url) return null;
+  if (!listing?.matched) return null;
+  const stored = listing.website_host?.trim().toLowerCase().replace(/^www\./, "");
+  if (
+    stored &&
+    !stored.includes("google.com") &&
+    !stored.includes("maps.google")
+  ) {
+    return stored;
+  }
+  if (!listing.url) return null;
   try {
     const u = new URL(withHttp(listing.url));
-    const host = u.hostname.toLowerCase();
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
     if (
       host.includes("google.com") ||
       host.includes("maps.google") ||
@@ -907,7 +1113,7 @@ export function domainFromGmb(listing: GmbListing | null): string | null {
     ) {
       return null;
     }
-    return host.replace(/^www\./, "");
+    return host;
   } catch {
     return null;
   }

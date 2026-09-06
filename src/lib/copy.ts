@@ -240,6 +240,8 @@ export const COPY = {
   fichaSealGmbComplete: "Completo",
   fichaSealGmbPartial: "Parcial",
   fichaSealGmbThin: "Incompleto",
+  fichaGmbOpenMaps: "Abrir no Maps",
+  fichaGmbOpenListing: "Abrir ficha",
   fichaSealUnverified: "A confirmar",
   fichaSealPending: "Ainda não vimos",
   fichaSealScanning: "Buscando",

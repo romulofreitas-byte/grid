@@ -10,6 +10,7 @@ import {
 import {
   GMB_CARD_CHECKS,
   gmbListingCorroborated,
+  gmbListingStatus,
   type GmbCardCheck,
   type GmbListing,
   type LeadEnrichment,
@@ -329,24 +330,37 @@ function formatGmbRating(
 }
 
 function gmbCardNote(listing: GmbListing | null | undefined): string | undefined {
-  if (!listing?.matched || !listing.card) return undefined;
+  const status = gmbListingStatus(listing);
+  if (!listing?.card || (status !== "matched" && status !== "candidate")) {
+    return undefined;
+  }
   const card = listing.card;
   const ratingBit = formatGmbRating(card.rating, card.ratingCount);
+  const phoneBit =
+    listing.matched && listing.phone_vs_receita === "diferente"
+      ? "Maps mostra outro telefone."
+      : listing.matched && listing.phone_vs_receita === "igual"
+        ? "Telefone igual ao da Receita."
+        : "";
   if (card.score >= 5) {
-    return ratingBit ? `Card completo · ${ratingBit}` : "Card completo.";
+    return [ratingBit ? `Card completo · ${ratingBit}` : "Card completo.", phoneBit]
+      .filter(Boolean)
+      .join(" ");
   }
   const missing = GMB_CARD_CHECKS.filter(
     (check) => !card.filled.includes(check),
   ).map((check) => GMB_CARD_LABEL[check]);
   const lack = missing.length ? `Falta ${joinPt(missing)}.` : "";
-  return [`Card ${card.score}/5`, ratingBit, lack].filter(Boolean).join(" · ");
+  return [`Card ${card.score}/5`, ratingBit, lack, phoneBit]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function gmbSeal(listing: GmbListing | null | undefined): {
   sealLabel?: string;
   sealKind?: "live" | "unverified";
 } {
-  if (!listing?.matched || !listing.card) return {};
+  if (gmbListingStatus(listing) !== "matched" || !listing?.card) return {};
   if (listing.card.score >= 5) {
     return { sealLabel: COPY.fichaSealGmbComplete, sealKind: "live" };
   }
@@ -354,6 +368,49 @@ function gmbSeal(listing: GmbListing | null | undefined): {
     return { sealLabel: COPY.fichaSealGmbPartial, sealKind: "unverified" };
   }
   return { sealLabel: COPY.fichaSealGmbThin, sealKind: "unverified" };
+}
+
+function gmbHint(
+  listing: GmbListing | null | undefined,
+  fonte: string | undefined,
+  corroborated: boolean,
+): string {
+  const status = gmbListingStatus(listing);
+  if (status === "matched") {
+    if (fonte === "human") {
+      return "Ficha inserida por você — não veio da Receita.";
+    }
+    if (corroborated) {
+      return listing?.match_by?.includes("city") &&
+        !listing.match_by?.includes("address") &&
+        !listing.match_by?.includes("phone")
+        ? "Conferido com a Receita (nome e cidade)."
+        : "Conferido com a Receita (endereço/telefone).";
+    }
+    return "Ficha do Google Meu Negócio encontrada na busca.";
+  }
+  if (status === "candidate") {
+    const n = listing?.candidates_in_city;
+    if (n && n > 1) {
+      return `Há ${n} cards no Maps nesta cidade — não cruzamos com este CNPJ.`;
+    }
+    return "Card no Maps nesta cidade — não cruzamos com este CNPJ.";
+  }
+  if (listing) {
+    if (fonte === "human") {
+      return "Você removeu a ficha desta qualificação.";
+    }
+    return "Busca no Maps não achou card para esta empresa.";
+  }
+  return "Qualifique para buscar o Google Meu Negócio.";
+}
+
+function gmbOpenLabel(listing: GmbListing | null | undefined): string | null {
+  const status = gmbListingStatus(listing);
+  if (status === "candidate") return COPY.fichaGmbOpenMaps;
+  if (status !== "matched") return null;
+  if (listing?.card && listing.card.score < 3) return COPY.fichaGmbOpenMaps;
+  return COPY.fichaGmbOpenListing;
 }
 
 function presenceSearched(e: LeadEnrichment, key: string): boolean {
@@ -753,26 +810,21 @@ export function buildAuditSignals(e: LeadEnrichment): AuditSignal[] {
       id: "gmb",
       group: "presenca",
       ...MARK.gmb,
-      found: Boolean(e.gmb?.matched),
-      unverified: e.gmb == null,
+      found:
+        gmbListingStatus(e.gmb) === "matched" ||
+        gmbListingStatus(e.gmb) === "candidate",
+      unverified:
+        e.gmb == null || gmbListingStatus(e.gmb) === "candidate",
       href: mapsListingHref(e.gmb),
-      openLabel: e.gmb?.matched ? "Abrir ficha" : null,
-      value: e.gmb?.matched ? e.gmb.name : e.gmb ? "NÃO ENCONTRADO" : "—",
-      hint: e.gmb?.matched
-        ? e.fonte.gmb?.fonte === "human"
-          ? "Ficha inserida por você — não veio da Receita."
-          : corroborated
-            ? e.gmb.match_by?.includes("city") &&
-              !e.gmb.match_by?.includes("address") &&
-              !e.gmb.match_by?.includes("phone")
-              ? "Conferido com a Receita (nome e cidade)."
-              : "Conferido com a Receita (endereço/telefone)."
-            : "Ficha do Google Meu Negócio encontrada na busca."
-        : e.gmb
-          ? e.fonte.gmb?.fonte === "human"
-            ? "Você removeu a ficha desta qualificação."
-            : "Busca no Google Meu Negócio não achou a ficha."
-          : "Qualifique para buscar o Google Meu Negócio.",
+      openLabel: gmbOpenLabel(e.gmb),
+      value:
+        gmbListingStatus(e.gmb) === "matched" ||
+        gmbListingStatus(e.gmb) === "candidate"
+          ? e.gmb?.name || "Maps"
+          : e.gmb
+            ? "NÃO ENCONTRADO"
+            : "—",
+      hint: gmbHint(e.gmb, e.fonte.gmb?.fonte, corroborated),
       note: gmbCardNote(e.gmb),
       ...gmbSeal(e.gmb),
     }),

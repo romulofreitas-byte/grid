@@ -26,7 +26,7 @@ import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
-import type { LeadEnrichment } from "@/lib/types";
+import { gmbListingIsCandidate, type LeadEnrichment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function qualifyChipCopy(kind: QualifyChipKind): { text: string; className: string } {
@@ -270,7 +270,12 @@ function presenceSeed(
   if (id === "facebook") return enrichment.socials.facebook ?? "";
   if (id === "linkedin") return enrichment.socials.linkedin ?? "";
   if (id === "youtube") return enrichment.socials.youtube ?? "";
-  if (id === "gmb") return enrichment.gmb?.matched ? enrichment.gmb.url : "";
+  if (id === "gmb") {
+    const listing = enrichment.gmb;
+    if (!listing) return "";
+    if (listing.matched || gmbListingIsCandidate(listing)) return listing.url;
+    return "";
+  }
   return enrichment.whatsapp ?? "";
 }
 

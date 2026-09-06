@@ -261,6 +261,8 @@ export type DeriveSealInput = {
   sitePhones: NormalizedPhone[];
   sharedCount: number;
   sharedVerdict: SharedPhoneVerdict;
+  /** Matched Maps card phone equals Receita. Never a stored Maps number. */
+  mapsPhoneMatch?: boolean;
 };
 
 /**
@@ -290,6 +292,18 @@ export function deriveSeal(input: DeriveSealInput): {
           ? `mesmo telefone em ${sharedCount} empresas do grupo`
           : undefined;
     return { seal: "CONFIRMADO", principalIsSite: false, sideNote: note };
+  }
+
+  if (
+    input.mapsPhoneMatch &&
+    receita &&
+    sharedVerdict !== "contabilidade"
+  ) {
+    return {
+      seal: "CONFIRMADO",
+      principalIsSite: false,
+      sideNote: "conferido no Maps",
+    };
   }
 
   if (domainStatus === "confirmado" && sitePhones.length > 0) {

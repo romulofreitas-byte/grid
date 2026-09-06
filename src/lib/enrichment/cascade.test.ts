@@ -1022,6 +1022,8 @@ describe("enrichCompany crawl", () => {
     expect(row.gmb?.matched).toBe(true);
     expect(row.gmb?.match_by).toEqual(expect.arrayContaining(["title", "city"]));
     expect(row.gmb?.card?.ratingCount).toBe(49);
+    expect(row.gmb?.website_host).toBe("delpra.net.br");
+    expect(row.gmb?.phone_vs_receita).toBe("ignorado_compartilhado");
     expect(row.domain).toBe("delpra.net.br");
     expect(row.fonte.domain?.fonte).toBe("gmb");
     expect(row.domain_status).toBe("confirmado");
@@ -1283,6 +1285,161 @@ describe("enrichCompany crawl", () => {
     expect(queries).toContain('"Lavanderia 60 Minutos"');
     expect(row.domain).toBe("lavanderia60minutos.com.br");
     expect(row.fonte.domain?.fonte).toBe("serper");
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("confirms the Receita phone from a matched Maps card without storing the number", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Solaris Belo Horizonte",
+                  phoneNumber: "(31) 3333-1111",
+                  cid: "31",
+                  address: "Rua A, 1 - Belo Horizonte - MG",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    const { row } = await enrichCompany(input);
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.gmb?.phone_vs_receita).toBe("igual");
+    expect(row.gmb?.url).toBe("https://www.google.com/maps?cid=31");
+    const receita = row.phones.find((p) => p.sources.includes("receita"));
+    expect(receita?.seal).toBe("CONFIRMADO");
+    expect(row.phones.every((p) => !p.sources.includes("gmb" as never))).toBe(
+      true,
+    );
+    expect(JSON.stringify(row.gmb)).not.toMatch(/3333/);
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("keeps a franchise Maps card as a candidate and does not confirm the site", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Pizza Hut",
+                  address: "Av. T-63, 100 - Goiânia - GO",
+                  phoneNumber: "(62) 3250-1111",
+                  website: "https://pizzahutgo.com",
+                  cid: "111",
+                  ratingCount: 80,
+                },
+                {
+                  title: "Pizza Hut",
+                  address: "Av. Anhanguera, 200 - Goiânia - GO",
+                  phoneNumber: "(62) 3250-2222",
+                  website: "https://pizzahutgo.com",
+                  cid: "222",
+                  ratingCount: 210,
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.includes("pizzahutgo.com")) {
+          return htmlResponse("<html><body>Pizza Hut</body></html>");
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "Pizza Hut";
+    input.company.razao_social = "PH GOIANIA ALIMENTOS LTDA";
+    input.municipioNome = "Goiania";
+    input.establishment.uf = "GO";
+    input.establishment.logradouro = "Rua do Contador";
+    input.establishment.numero = "10";
+    input.establishment.ddd1 = "62";
+    input.establishment.telefone1 = "40024003";
+    input.sharedVerdict = "contabilidade";
+    input.sharedCount = 40;
+    const { row } = await enrichCompany(input);
+    expect(row.gmb?.matched).toBe(false);
+    expect(row.gmb?.status).toBe("candidate");
+    expect(row.gmb?.cid).toBe("222");
+    expect(row.domain).toBeNull();
+    expect(row.phones.some((p) => p.seal === "CONFIRMADO")).toBe(false);
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("confirms an unconfirmed domain when the matched Maps website is the same host", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const domain = "solaris-maps.com.br";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(
+            JSON.stringify({
+              places: [
+                {
+                  title: "Solaris Belo Horizonte",
+                  phoneNumber: "(31) 3333-1111",
+                  website: `https://www.${domain}`,
+                  cid: "44",
+                  address: "Rua A, 1 - Belo Horizonte - MG",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes(domain)) {
+          return htmlResponse("<html><body>Olá</body></html>");
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const { row } = await enrichCompany(companyInput(domain));
+    expect(row.domain).toBe(domain);
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.gmb?.website_host).toBe(domain);
+    expect(row.domain_status).toBe("confirmado");
     delete process.env.SERPER_API_KEY;
   });
 

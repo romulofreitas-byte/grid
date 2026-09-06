@@ -337,13 +337,14 @@ export function applyPresenceCorrection(
 
   if (correction.gmb !== undefined) {
     if (correction.gmb == null || correction.gmb.trim() === "") {
-      next.gmb = { name: "", url: "", matched: false };
+      next.gmb = { name: "", url: "", matched: false, status: "none" };
     } else {
       const url = gmbUrl(correction.gmb);
       next.gmb = {
         name: options.companyName?.trim() || row.gmb?.name || "Google Meu Negócio",
         url,
         matched: true,
+        status: "matched",
       };
     }
     next.fonte = stamp(next, "gmb", collectedAt);

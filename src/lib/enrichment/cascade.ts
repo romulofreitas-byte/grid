@@ -376,6 +376,7 @@ function buildPhoneEvidences(input: {
   sitePhones: SitePhone[];
   sharedCount: number;
   sharedVerdict: SharedPhoneVerdict;
+  mapsPhoneMatch?: boolean;
 }): PhoneEvidence[] {
   const derived = deriveSeal({
     domainStatus: input.domainStatus,
@@ -383,6 +384,7 @@ function buildPhoneEvidences(input: {
     sitePhones: input.sitePhones,
     sharedCount: input.sharedCount,
     sharedVerdict: input.sharedVerdict,
+    mapsPhoneMatch: input.mapsPhoneMatch === true,
   });
   const evidences: PhoneEvidence[] = [];
   const pushEvidence = (
@@ -415,11 +417,16 @@ function buildPhoneEvidences(input: {
     const onSite =
       input.domainStatus === "confirmado" &&
       input.sitePhones.some((p) => sameNumberBR(p, input.receita!));
+    const onMaps = input.mapsPhoneMatch === true;
     pushEvidence(
       input.receita,
       onSite ? ["receita", "site_tel"] : ["receita"],
       false,
-      onSite ? "CONFIRMADO" : derived.principalIsSite ? undefined : derived.seal,
+      onSite || onMaps
+        ? "CONFIRMADO"
+        : derived.principalIsSite
+          ? undefined
+          : derived.seal,
     );
   }
   if (input.domainStatus === "confirmado") {
@@ -499,6 +506,14 @@ export async function enrichCompany(
   const est = input.establishment;
   const normalizeHost = (h: string) =>
     h.replace(/^https?:\/\//, "").replace(/^www\./, "").toLowerCase();
+  const gmbConfirmsDomain = (
+    listing: GmbListing | null,
+    host: string | null,
+  ): boolean => {
+    if (!host || !gmbListingCorroborated(listing)) return false;
+    const fromMaps = domainFromGmb(listing);
+    return Boolean(fromMaps && normalizeHost(fromMaps) === normalizeHost(host));
+  };
   const discarded = new Set(
     (options.discardedDomains ?? []).map(normalizeHost).filter(Boolean),
   );
@@ -609,12 +624,14 @@ export async function enrichCompany(
       `${est.ddd1 ?? ""}${est.telefone1 ?? ""}`,
       est.ddd1,
     );
+    const listing = extras.gmb ?? gmb;
     const phones = buildPhoneEvidences({
       domainStatus: domain_status,
       receita,
       sitePhones,
       sharedCount: input.sharedCount,
       sharedVerdict: input.sharedVerdict,
+      mapsPhoneMatch: listing?.phone_vs_receita === "igual",
     });
     const tech = extras.tech ?? detectTech("", "");
     const mergedSocials: LeadEnrichment["socials"] = {
@@ -890,6 +907,9 @@ export async function enrichCompany(
       ) {
         confirmed = true;
       }
+      if (!confirmed && gmbConfirmsDomain(gmb, domain)) {
+        confirmed = true;
+      }
       if (forceHost) confirmed = true;
       domain_status = confirmed ? "confirmado" : "nao_confirmado";
       snap = snapshotFromHtml({
@@ -978,6 +998,7 @@ export async function enrichCompany(
     timings.crawl_ms = elapsed(crawlStarted);
 
     if (forceHost) confirmed = true;
+    if (!confirmed && gmbConfirmsDomain(gmb, domain)) confirmed = true;
     domain_status = confirmed ? "confirmado" : domain ? "nao_confirmado" : "nao_encontrado";
     siteBrand = extractSiteBrand(combinedHtml);
     snap = snapshotFromHtml({
@@ -1017,12 +1038,25 @@ export async function enrichCompany(
   );
 
   if (!gmb) {
-    const listing = await searchGmb(gmbInput);
-    gmb =
-      listing && listing.matched
-        ? listing
-        : { name: "", url: "", matched: false };
+    gmb = await searchGmb(gmbInput);
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+  }
+
+  if (
+    domain &&
+    domain_status !== "confirmado" &&
+    gmbConfirmsDomain(gmb, domain)
+  ) {
+    domain_status = "confirmado";
+    snap = snapshotFromHtml({
+      confirmed: true,
+      html: combinedHtml,
+      finalUrl,
+      domain,
+      ddd1: est.ddd1,
+      qsaNomes: input.qsaNomes ?? [],
+      collectedAt: collected_at,
+    });
   }
 
   const gmbCorroborated = gmbListingCorroborated(gmb);

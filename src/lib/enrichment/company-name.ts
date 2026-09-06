@@ -50,27 +50,62 @@ export function mapsCidUrl(cid: string): string {
   return `https://www.google.com/maps?cid=${encodeURIComponent(cid)}`;
 }
 
-export function mapsListingHref(
-  listing: { matched?: boolean; cid?: string | null; url?: string } | null | undefined,
-): string | null {
-  if (!listing?.matched) return null;
-  if (listing.cid) return mapsCidUrl(listing.cid);
-  return listing.url?.trim() || null;
+export function isMapsUrl(raw: string | null | undefined): boolean {
+  if (!raw?.trim()) return false;
+  try {
+    const withProto = /^https?:\/\//i.test(raw)
+      ? raw
+      : `https://${raw.replace(/^\/\//, "")}`;
+    const u = new URL(withProto);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = u.pathname.toLowerCase();
+    return (
+      host === "maps.google.com" ||
+      host === "maps.app.goo.gl" ||
+      host === "goo.gl" ||
+      (host === "google.com" && path.startsWith("/maps")) ||
+      (host.endsWith(".google.com") && path.startsWith("/maps"))
+    );
+  } catch {
+    return false;
+  }
 }
 
-/** Prefer a matched listing cid; otherwise a quoted search, not a naked neighborhood query. */
+export function mapsListingHref(
+  listing:
+    | {
+        matched?: boolean;
+        status?: string;
+        cid?: string | null;
+        url?: string;
+      }
+    | null
+    | undefined,
+): string | null {
+  if (!listing) return null;
+  const status =
+    listing.status ??
+    (listing.matched ? "matched" : listing.cid || listing.url ? "candidate" : "none");
+  if (status === "none") return null;
+  if (listing.cid) return mapsCidUrl(listing.cid);
+  const url = listing.url?.trim();
+  if (url && isMapsUrl(url)) return url;
+  return url || null;
+}
+
+/** Prefer a listing cid; otherwise a quoted search, not a naked neighborhood query. */
 export function leadMapsHref(
   input: Parameters<typeof companyMapsQuery>[0],
-  listing?: { matched?: boolean; cid?: string | null; url?: string } | null,
+  listing?: {
+    matched?: boolean;
+    status?: string;
+    cid?: string | null;
+    url?: string;
+  } | null,
 ): string {
   const fromListing = mapsListingHref(listing);
   if (fromListing && listing?.cid) return fromListing;
-  if (
-    fromListing &&
-    /google\.com\/maps|maps\.app\.goo\.gl|goo\.gl\/maps/i.test(fromListing)
-  ) {
-    return fromListing;
-  }
+  if (fromListing && isMapsUrl(fromListing)) return fromListing;
   return companyMapsSearchUrl(input);
 }
 

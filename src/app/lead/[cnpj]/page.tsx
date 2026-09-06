@@ -607,6 +607,8 @@ export default function LeadPage() {
   const wa = primaryE164 ? `https://wa.me/${primaryE164}` : null;
   const needsMapsHint =
     primary?.seal === "COMPARTILHADO" || primary?.seal === "NAO_CONFIRMADO";
+  const mapsPhoneDiverge =
+    displayEnrichment?.gmb?.phone_vs_receita === "diferente";
   const fillCard = "hover:translate-y-0";
 
   function markLigando() {
@@ -776,7 +778,9 @@ export default function LeadPage() {
                 ) : null}
                 {needsMapsHint ? (
                   <p className="mt-2 text-xs text-podium-muted">
-                    Confira no Maps antes de discar.
+                    {mapsPhoneDiverge
+                      ? "Maps mostra outro número — confira antes de discar."
+                      : "Confira no Maps antes de discar."}
                   </p>
                 ) : null}
                 <div className="mt-3">

@@ -60,6 +60,19 @@ export type GmbCard = {
   category?: string | null;
 };
 
+export type GmbListingStatus = "matched" | "candidate" | "none";
+
+/** Inferred from public-card richness — Google does not expose “claimed”. */
+export type GmbCardKind = "structured" | "maps_card";
+
+/** In-memory phone cross-ref. Never stores the Maps number. */
+export type GmbPhoneVsReceita =
+  | "igual"
+  | "diferente"
+  | "so_maps"
+  | "so_receita"
+  | "ignorado_compartilhado";
+
 export type GmbListing = {
   name: string;
   url: string;
@@ -70,9 +83,46 @@ export type GmbListing = {
   cid?: string | null;
   /** Completeness of the public card. Absent on human insert / legacy rows. */
   card?: GmbCard | null;
+  /**
+   * Identity vs this CNPJ. Absent on legacy/human rows:
+   * `matched` → matched, else none (empty miss) or candidate if cid/url remain.
+   */
+  status?: GmbListingStatus;
+  /** Public website host from the Maps card. Never a maps.google host. */
+  website_host?: string | null;
+  /** Phone cross-ref vs Receita. Only set when `matched`. */
+  phone_vs_receita?: GmbPhoneVsReceita | null;
+  /** Structured GBP vs thin Maps pin. Absent when there is no card. */
+  kind?: GmbCardKind | null;
+  /** Title+city hits in the last Maps page when this is a candidate. */
+  candidates_in_city?: number | null;
 };
 
-/** Phone, street+title, or strong title+city — never address-only. */
+export function gmbNoneListing(): GmbListing {
+  return { name: "", url: "", matched: false, status: "none" };
+}
+
+export function gmbCardKindFromScore(score: number): GmbCardKind {
+  return score >= 3 ? "structured" : "maps_card";
+}
+
+export function gmbListingStatus(
+  listing: GmbListing | null | undefined,
+): GmbListingStatus {
+  if (!listing) return "none";
+  if (listing.status) return listing.status;
+  if (listing.matched) return "matched";
+  if (listing.cid || listing.url) return "candidate";
+  return "none";
+}
+
+export function gmbListingIsCandidate(
+  listing: GmbListing | null | undefined,
+): boolean {
+  return gmbListingStatus(listing) === "candidate";
+}
+
+/** Phone, street+title, or strong title+city — never address-only. Candidate ≠ corroborated. */
 export function gmbListingCorroborated(
   listing: GmbListing | null | undefined,
 ): boolean {

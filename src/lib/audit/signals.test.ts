@@ -401,6 +401,56 @@ describe("buildAuditSignals", () => {
     expect(gmb.openLabel).toBe("Abrir ficha");
   });
 
+  it("shows a city Maps candidate as to-confirm, not missing", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Pizza Hut",
+          url: "https://www.google.com/maps?cid=222",
+          matched: false,
+          status: "candidate",
+          cid: "222",
+          match_by: ["title", "city"],
+          candidates_in_city: 2,
+          card: {
+            filled: ["phone", "website", "reviews"],
+            score: 3,
+            rating: 4.4,
+            ratingCount: 210,
+            category: "Pizza restaurant",
+          },
+        },
+        fonte: {
+          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+        },
+      }),
+      "gmb",
+    );
+    expect(gmb.found).toBe(true);
+    expect(gmb.unverified).toBe(true);
+    expect(isAuditLive(gmb)).toBe(false);
+    expect(isAuditGap(gmb)).toBe(false);
+    expect(gmb.openLabel).toBe("Abrir no Maps");
+    expect(gmb.href).toBe("https://www.google.com/maps?cid=222");
+    expect(gmb.hint).toMatch(/não cruzamos/i);
+    expect(gmb.value).toBe("Pizza Hut");
+  });
+
+  it("treats a Maps miss as a gap", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: { name: "", url: "", matched: false, status: "none" },
+        fonte: {
+          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+        },
+      }),
+      "gmb",
+    );
+    expect(isAuditGap(gmb)).toBe(true);
+    expect(gmb.value).toBe("NÃO ENCONTRADO");
+    expect(gmb.openLabel).toBeNull();
+  });
+
   it("describes Maps card completeness without treating a thin card as missing", () => {
     const thin = byId(
       enrichment({

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { gmbListingCorroborated } from "@/lib/types";
 import { presenceBrandTokens } from "./confirm-domain";
 import {
+  domainFromGmb,
   gmbCardFromPlace,
   gmbSearchQuery,
   gmbSearchQueryList,
@@ -9,12 +10,15 @@ import {
   mapsAddressMatchesReceita,
   mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
+  mapsPlaceListingUrl,
   pickBestDomainHit,
   pickBestMapsPlace,
   pickSocialHit,
   presenceQuery,
+  resolveGmbListing,
   scoreDomainHit,
   scoreMapsPlace,
+  searchGmb,
   socialHitMatchesBrand,
   socialHitMatchesLoose,
   titleMatchesCompany,
@@ -432,6 +436,19 @@ describe("Maps × Receita matching", () => {
         silva,
       ).matched,
     ).toBe(false);
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Distribuidora Silva Contagem",
+          address: "Av. João César, 1 - Contagem - MG",
+          cid: "88",
+        },
+      ],
+      silva,
+    );
+    expect(listing.status).toBe("candidate");
+    expect(listing.matched).toBe(false);
+    expect(listing.cid).toBe("88");
   });
 
   it("prefers the listing with more reviews when identity scores tie", () => {
@@ -441,25 +458,107 @@ describe("Maps × Receita matching", () => {
       municipio: "Uberaba",
       uf: "MG",
     };
-    const best = pickBestMapsPlace(
+    const places = [
+      {
+        title: "Delpra Pré-Moldados",
+        address: "Uberaba - MG",
+        website: "https://delpra-velho.net.br",
+        cid: "1",
+        ratingCount: 2,
+      },
+      {
+        title: "Delpra Pré-Moldados",
+        address: "Uberaba - MG",
+        website: "https://delpra.net.br",
+        cid: "2",
+        rating: 5,
+        ratingCount: 49,
+      },
+    ];
+    expect(pickBestMapsPlace(places, input)).toBeNull();
+    const listing = resolveGmbListing(places, input);
+    expect(listing.status).toBe("candidate");
+    expect(listing.website_host).toBe("delpra.net.br");
+    expect(listing.cid).toBe("2");
+  });
+
+  it("does not match a chain when several brand cards share the city", () => {
+    const hut = {
+      nomeFantasia: "Pizza Hut",
+      razaoSocial: "PH GOIANIA ALIMENTOS LTDA",
+      municipio: "Goiania",
+      uf: "GO",
+      logradouro: "Rua do Contador",
+      numero: "10",
+      phones: [{ ddd: "62", telefone: "40024003" }],
+      sharedVerdict: "contabilidade" as const,
+    };
+    const places = [
+      {
+        title: "Pizza Hut",
+        address: "Av. T-63, 100 - Goiânia - GO",
+        phoneNumber: "(62) 3250-1111",
+        website: "https://pizzahutgo.com",
+        cid: "111",
+        rating: 4.1,
+        ratingCount: 80,
+      },
+      {
+        title: "Pizza Hut",
+        address: "Av. Anhanguera, 200 - Goiânia - GO",
+        phoneNumber: "(62) 3250-2222",
+        website: "https://pizzahutgo.com",
+        cid: "222",
+        rating: 4.4,
+        ratingCount: 210,
+      },
+    ];
+    expect(pickBestMapsPlace(places, hut)).toBeNull();
+    const listing = resolveGmbListing(places, hut);
+    expect(listing.matched).toBe(false);
+    expect(listing.status).toBe("candidate");
+    expect(listing.cid).toBe("222");
+    expect(listing.url).toBe("https://www.google.com/maps?cid=222");
+    expect(listing.website_host).toBe("pizzahutgo.com");
+    expect(listing.candidates_in_city).toBe(2);
+    expect(listing.phone_vs_receita).toBeNull();
+    expect(gmbListingCorroborated(listing)).toBe(false);
+    expect(domainFromGmb(listing)).toBeNull();
+  });
+
+  it("keeps a unique strong brand on title + city as matched", () => {
+    const listing = resolveGmbListing(
       [
         {
           title: "Delpra Pré-Moldados",
           address: "Uberaba - MG",
-          website: "https://delpra-velho.net.br",
-          ratingCount: 2,
-        },
-        {
-          title: "Delpra Pré-Moldados",
-          address: "Uberaba - MG",
           website: "https://delpra.net.br",
-          rating: 5,
+          cid: "49",
           ratingCount: 49,
         },
       ],
-      input,
+      {
+        nomeFantasia: "Delpra Pré-Moldados",
+        razaoSocial: "DELPRA PRE MOLDADOS LTDA",
+        municipio: "Uberaba",
+        uf: "MG",
+      },
     );
-    expect(best?.place.website).toBe("https://delpra.net.br");
+    expect(listing.matched).toBe(true);
+    expect(listing.status).toBe("matched");
+    expect(listing.url).toBe("https://www.google.com/maps?cid=49");
+    expect(listing.website_host).toBe("delpra.net.br");
+    expect(domainFromGmb(listing)).toBe("delpra.net.br");
+  });
+
+  it("stores a Maps URL, not the website, on the listing", () => {
+    expect(
+      mapsPlaceListingUrl({
+        title: "Solaris",
+        website: "https://solaris.com.br",
+        cid: "9",
+      }),
+    ).toBe("https://www.google.com/maps?cid=9");
   });
 
   it("treats municipality in the Maps title as a city match", () => {
@@ -636,5 +735,106 @@ describe("socialHitMatchesLoose", () => {
         true,
       ),
     ).toBeNull();
+  });
+});
+
+describe("searchGmb", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.SERPER_API_KEY;
+  });
+
+  function mapsFetch(placesByCall: Array<unknown[]>) {
+    const queries: string[] = [];
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        try {
+          queries.push(
+            ((JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? ""),
+          );
+        } catch {
+          queries.push("");
+        }
+        const places = placesByCall[queries.length - 1] ?? [];
+        return new Response(JSON.stringify({ places }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    return queries;
+  }
+
+  it("stops after the first Maps page when a chain is only a city candidate", async () => {
+    const queries = mapsFetch([
+      [
+        {
+          title: "Pizza Hut",
+          address: "Av. T-63, 100 - Goiânia - GO",
+          cid: "111",
+          ratingCount: 80,
+        },
+        {
+          title: "Pizza Hut",
+          address: "Av. Anhanguera, 200 - Goiânia - GO",
+          cid: "222",
+          ratingCount: 210,
+        },
+      ],
+      [{ title: "Should not run" }],
+    ]);
+    const listing = await searchGmb({
+      nomeFantasia: "Pizza Hut",
+      razaoSocial: "PH GOIANIA ALIMENTOS LTDA",
+      municipio: "Goiania",
+      uf: "GO",
+      logradouro: "Rua do Contador",
+      numero: "10",
+      phones: [{ ddd: "62", telefone: "40024003" }],
+      sharedVerdict: "contabilidade",
+    });
+    expect(listing.status).toBe("candidate");
+    expect(listing.cid).toBe("222");
+    expect(queries).toHaveLength(1);
+  });
+
+  it("still tries the street query when the city page is only a candidate", async () => {
+    const queries = mapsFetch([
+      [
+        {
+          title: "Pizza Hut",
+          address: "Av. T-63, 100 - Goiânia - GO",
+          cid: "111",
+        },
+        {
+          title: "Pizza Hut",
+          address: "Av. 85, 50 - Goiânia - GO",
+          cid: "333",
+        },
+      ],
+      [
+        {
+          title: "Pizza Hut",
+          address: "Av. Anhanguera, 200 - Goiânia - GO",
+          cid: "222",
+        },
+      ],
+      [{ title: "Should not run" }],
+    ]);
+    const listing = await searchGmb({
+      nomeFantasia: "Pizza Hut",
+      razaoSocial: "PH GOIANIA ALIMENTOS LTDA",
+      municipio: "Goiania",
+      uf: "GO",
+      logradouro: "Av. Anhanguera",
+      numero: "200",
+      phones: [{ ddd: "62", telefone: "32501111" }],
+    });
+    expect(listing.matched).toBe(true);
+    expect(listing.cid).toBe("222");
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).toMatch(/Anhanguera/);
   });
 });

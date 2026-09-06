@@ -133,4 +133,14 @@ describe("leadMapsHref", () => {
     expect(href).toContain("google.com/maps/search");
     expect(decodeURIComponent(href)).toContain('"GRUPO ATOS"');
   });
+
+  it("deep-links a city candidate even when identity did not match", () => {
+    expect(
+      leadMapsHref(query, {
+        matched: false,
+        status: "candidate",
+        cid: "999",
+      }),
+    ).toBe("https://www.google.com/maps?cid=999");
+  });
 });

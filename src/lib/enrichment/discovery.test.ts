@@ -97,4 +97,22 @@ describe("needsDiscoveryRetry", () => {
     expect(humanClearedDomain(cleared)).toBe(true);
     expect(needsDiscoveryRetry(cleared)).toBe(false);
   });
+
+  it("does not re-qualify the grid when Maps missed but the site was already found", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "pizzahutgo.com",
+          domain_status: "nao_confirmado",
+          gmb: { name: "", url: "", matched: false },
+          fonte: {
+            discovery: {
+              fonte: "4",
+              coletado_em: "2026-09-01T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
 });

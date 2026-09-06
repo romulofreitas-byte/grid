@@ -59,6 +59,31 @@ describe("deriveSeal", () => {
     expect(r.seal).toBe("NAO_CONFIRMADO");
   });
 
+  it("CONFIRMADO from a matched Maps phone without a site", () => {
+    const r = deriveSeal({
+      domainStatus: "nao_encontrado",
+      receita,
+      sitePhones: [],
+      sharedCount: 1,
+      sharedVerdict: "proprio",
+      mapsPhoneMatch: true,
+    });
+    expect(r.seal).toBe("CONFIRMADO");
+    expect(r.sideNote).toMatch(/maps/i);
+  });
+
+  it("does not use a Maps phone when the Receita number is the accountant's", () => {
+    const r = deriveSeal({
+      domainStatus: "nao_encontrado",
+      receita,
+      sitePhones: [],
+      sharedCount: 12,
+      sharedVerdict: "contabilidade",
+      mapsPhoneMatch: true,
+    });
+    expect(r.seal).toBe("COMPARTILHADO");
+  });
+
   it("CONTABILIDADE when shared and owners differ", () => {
     const r = deriveSeal({
       domainStatus: "nao_encontrado",
