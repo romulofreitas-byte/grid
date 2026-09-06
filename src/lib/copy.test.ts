@@ -342,6 +342,16 @@ describe("COPY crm grid attach", () => {
   });
 });
 
+describe("COPY ficha maps", () => {
+  it("keeps Maps confirm labels short", () => {
+    expect(COPY.fichaMapsConfirmThis).toBe("É este");
+    expect(COPY.fichaMapsRejectThis).toBe("Não é");
+    expect(COPY.inserirQualificacao).toBe("Inserir");
+    expect(COPY.fichaMapsConfirmHint.length).toBeLessThan(40);
+    expect(COPY.fichaMapsOpenSearch).toMatch(/busca/i);
+  });
+});
+
 describe("COPY focus mode", () => {
   it("names the chip toggle and the desktop badge", () => {
     expect(COPY.focusEnter).toBe("Entrar no modo Focus");

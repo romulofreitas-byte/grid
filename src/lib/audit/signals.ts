@@ -439,15 +439,15 @@ function mapsHint(
   if (status === "candidate") {
     const n = listing?.candidates_in_city;
     if (n && n > 1) {
-      return `Há ${n} pins no Maps nesta cidade. Confirme se é este.`;
+      return `${n} pins nesta cidade — confirme se é este.`;
     }
-    return "Pin no Maps nesta cidade — confirme se é este.";
+    return "Confirme se é este pin.";
   }
   if (listing) {
     if (fonte === "human") {
       return "Você removeu a ficha desta qualificação.";
     }
-    return "Não cravamos um pin neste CNPJ. Abra a busca e confirme a ficha certa.";
+    return "Sem pin. Abra a busca e confirme a ficha.";
   }
   return "Qualifique para buscar o Google Maps.";
 }

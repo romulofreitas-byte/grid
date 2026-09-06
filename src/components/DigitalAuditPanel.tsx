@@ -1,12 +1,20 @@
-"use client";
+﻿"use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type Ref } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { AuditLogo } from "@/components/AuditLogo";
 import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/GlassCard";
-import { SectionTitle } from "@/components/SectionTitle";
 import {
   AUDIT_GROUPS,
   buildAuditSignals,
@@ -21,6 +29,7 @@ import {
   type AuditSignal,
   type QualifyChipKind,
 } from "@/lib/audit/signals";
+import { GRID_PRESENCE_IDS } from "@/lib/audit/grid-presence";
 import { ENRICH_CREDIT_COST, creditsPhrase } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
 import { mapsPinConfirmable, type PresenceCorrection } from "@/lib/enrichment/correct-presence";
@@ -48,11 +57,13 @@ function QualifyHeader({
   refreshing,
   onRefresh,
   chip,
+  action,
 }: {
   showRefresh?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
   chip?: QualifyChipKind | null;
+  action?: ReactNode;
 }) {
   const chipCopy = chip ? qualifyChipCopy(chip) : null;
   return (
@@ -62,9 +73,7 @@ function QualifyHeader({
           Qualificação
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <SectionTitle className="text-base md:text-base">
-            Ativos digitais
-          </SectionTitle>
+          <h2 className="text-sm font-semibold text-podium-white">Ativos</h2>
           {chipCopy ? (
             <span
               className={cn(
@@ -77,14 +86,15 @@ function QualifyHeader({
           ) : null}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-2">
+        {action}
         {showRefresh && onRefresh ? (
           <button
             type="button"
             title={COPY.atualizarQualificacaoHint}
             disabled={refreshing}
             onClick={onRefresh}
-            className="inline-flex h-7 shrink-0 items-center rounded-md px-2 text-[11px] font-medium text-podium-muted transition hover:bg-white/5 hover:text-podium-gray disabled:opacity-50"
+            className="inline-flex h-8 shrink-0 items-center rounded-md px-2 text-[11px] font-medium text-podium-muted transition hover:bg-white/5 hover:text-podium-gray disabled:opacity-50"
           >
             {refreshing
               ? COPY.atualizandoQualificacao
@@ -106,7 +116,7 @@ function CompactTrail({
   const line = liveArrivalLine(enrichment, qualifying);
   if (!line) return null;
   return (
-    <p className="mt-4 flex items-center gap-2 text-sm font-bold text-podium-yellow">
+    <p className="mt-2 flex items-center gap-2 text-xs font-bold text-podium-yellow">
       <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-podium-yellow" />
       {line}
     </p>
@@ -170,10 +180,10 @@ function SealPill({
         "shrink-0 rounded-full font-bold uppercase tracking-[0.1em]",
         compact ? "max-w-full truncate px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]",
         seal.kind === "live" && "bg-podium-success/15 text-podium-success",
-        seal.kind === "candidate" && "bg-podium-info/15 text-podium-info",
-        seal.kind === "gap" && "bg-amber-400/15 text-amber-300",
-        (seal.kind === "scanning" || seal.kind === "unverified") &&
+        (seal.kind === "candidate" || seal.kind === "unverified") &&
           "bg-podium-yellow/15 text-podium-yellow",
+        seal.kind === "gap" && "bg-white/10 text-podium-muted",
+        seal.kind === "scanning" && "bg-podium-yellow/15 text-podium-yellow",
         seal.kind === "pending" && "bg-white/10 text-podium-muted",
       )}
     >
@@ -181,6 +191,13 @@ function SealPill({
     </span>
   );
 }
+
+const actionChip =
+  "inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[10px] font-bold transition disabled:opacity-40";
+const confirmChip =
+  "border-podium-yellow/55 text-podium-yellow hover:border-podium-yellow hover:bg-podium-yellow/10";
+const rejectChip =
+  "border-white/15 text-podium-gray hover:border-white/25 hover:text-podium-white";
 
 function OpenLinks({
   signal,
@@ -197,7 +214,7 @@ function OpenLinks({
   ];
   if (items.length === 0) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <>
       {items.map((link, i) => (
         <a
           key={link.href}
@@ -205,17 +222,17 @@ function OpenLinks({
           target="_blank"
           rel="noreferrer"
           className={cn(
-            "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] font-medium transition",
+            actionChip,
             primary && i === 0
               ? "border-white/20 bg-white/[0.06] text-podium-white"
-              : "border-white/10 text-podium-muted hover:border-white/20 hover:text-podium-gray",
+              : "border-white/10 font-medium text-podium-muted hover:border-white/20 hover:text-podium-gray",
           )}
         >
-          <ExternalLink className="h-3.5 w-3.5" />
+          <ExternalLink className="h-3 w-3" />
           {link.label}
         </a>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -297,7 +314,8 @@ function SelectedSignalCard({
   correctError,
   editSeed,
   onCorrect,
-  canConfirmMaps,
+  canConfirmMapsPin,
+  canRejectMaps,
 }: {
   signal: AuditSignal;
   scanning: boolean;
@@ -312,13 +330,30 @@ function SelectedSignalCard({
   correctError?: string | null;
   editSeed?: string;
   onCorrect?: (corrections: PresenceCorrection) => void;
-  canConfirmMaps?: boolean;
+  canConfirmMapsPin?: boolean;
+  canRejectMaps?: boolean;
 }) {
   const field =
     canCorrect && onCorrect && isEditablePresence(signal.id) ? signal.id : null;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(editSeed ?? "");
   const pendingRef = useRef(false);
+  const confirmSite = Boolean(canConfirmSite && onConfirmSite && onRejectSite);
+  const confirmMaps = Boolean(
+    onCorrect && (canConfirmMapsPin || canRejectMaps),
+  );
+  const busy = Boolean(confirmPending || correctPending);
+  const hasOpenLinks =
+    Boolean(signal.href && signal.openLabel) || signal.links.length > 0;
+  const showActionRow =
+    hasOpenLinks || confirmSite || confirmMaps || Boolean(field);
+  const needsActionHint =
+    !scanning &&
+    (isAuditCandidate(signal) ||
+      isAuditGap(signal) ||
+      Boolean(signal.unverified) ||
+      confirmSite ||
+      confirmMaps);
 
   useEffect(() => {
     setEditing(false);
@@ -331,310 +366,313 @@ function SelectedSignalCard({
     }
     pendingRef.current = Boolean(correctPending);
   }, [correctPending, correctError]);
+
   return (
-    <div
-      ref={cardRef}
-      className={cn(
-        "rounded-lg border p-4",
-        isAuditCandidate(signal)
-          ? "border-podium-info/35 bg-podium-info/[0.06]"
-          : "border-white/10 bg-podium-navy/50",
-      )}
-    >
-      <div className="flex items-start gap-3">
+    <div ref={cardRef} className="min-w-0">
+      <div className="flex items-start gap-2">
         <AuditLogo
           logo={signal.logo}
           initials={signal.initials}
           accent={signal.accent}
+          size="sm"
           lit
         />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <p className="text-sm font-semibold">{signal.name}</p>
-            <SealPill signal={signal} scanning={scanning} />
+            <SealPill compact signal={signal} scanning={scanning} />
           </div>
           {signal.href ? (
             <a
               href={signal.href}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 block break-all text-sm font-medium text-podium-yellow hover:underline"
+              className="mt-0.5 block truncate text-xs font-medium text-podium-yellow hover:underline"
             >
               {signal.value}
             </a>
           ) : (
-            <p className="mt-1 break-all text-sm text-podium-gray">
+            <p className="mt-0.5 truncate text-xs text-podium-gray">
               {signal.value}
             </p>
           )}
           {siteDown ? (
-            <p className="mt-2 text-xs font-bold text-amber-400">
+            <p className="mt-1 text-[11px] font-bold text-amber-400">
               Site fora do ar
             </p>
           ) : null}
-          {signal.hint ? (
-            <p className="mt-2 text-xs leading-snug text-podium-muted">
+          {needsActionHint && signal.hint ? (
+            <p className="mt-1 text-[11px] leading-snug text-podium-muted">
               {signal.hint}
             </p>
           ) : null}
-          {signal.note ? (
-            <p className="mt-2 text-xs leading-snug text-podium-muted">
+          {signal.note && !isAuditLive(signal) && !scanning ? (
+            <p className="mt-1 text-[11px] leading-snug text-podium-muted">
               {signal.note}
             </p>
           ) : null}
-          <OpenLinks signal={signal} primary />
-          {canConfirmSite && onConfirmSite && onRejectSite ? (
-            <p className="mt-2 text-[11px] leading-snug text-podium-muted">
-              Site ainda não confirmado.
-              <button
-                type="button"
-                disabled={confirmPending}
-                onClick={onConfirmSite}
-                className="ml-2 font-bold text-podium-yellow hover:underline disabled:opacity-40"
-              >
-                {confirmPending ? "Atualizando…" : "É este"}
-              </button>
-              <button
-                type="button"
-                disabled={confirmPending}
-                onClick={onRejectSite}
-                className="ml-2 font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
-              >
-                Não é
-              </button>
-            </p>
-          ) : null}
-          {canConfirmMaps && onCorrect ? (
-            <p className="mt-2 text-[11px] leading-snug text-podium-muted">
-              {COPY.fichaMapsConfirmHint}
-              <button
-                type="button"
+          {editing && field ? (
+            <form
+              className="mt-1.5 space-y-1.5"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                const value = draft.trim();
+                if (!value) return;
+                onCorrect?.(toPresenceCorrection(field, value));
+              }}
+            >
+              <input
+                value={draft}
+                onChange={(ev) => setDraft(ev.target.value)}
+                placeholder={PRESENCE_PLACEHOLDER[field]}
                 disabled={correctPending}
-                onClick={() => onCorrect({ confirmMaps: true })}
-                className="ml-2 font-bold text-podium-yellow hover:underline disabled:opacity-40"
-              >
-                {correctPending ? "Atualizando…" : COPY.fichaMapsConfirmThis}
-              </button>
-              <button
-                type="button"
-                disabled={correctPending}
-                onClick={() => onCorrect({ maps: null })}
-                className="ml-2 font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
-              >
-                {COPY.fichaMapsRejectThis}
-              </button>
-            </p>
-          ) : null}
-          {field ? (
-            editing ? (
-              <form
-                className="mt-3 space-y-2"
-                onSubmit={(ev) => {
-                  ev.preventDefault();
-                  const value = draft.trim();
-                  if (!value) return;
-                  onCorrect?.(toPresenceCorrection(field, value));
-                }}
-              >
-                <input
-                  value={draft}
-                  onChange={(ev) => setDraft(ev.target.value)}
-                  placeholder={PRESENCE_PLACEHOLDER[field]}
-                  disabled={correctPending}
-                  className="h-9 w-full rounded-lg border border-white/15 bg-white/[0.04] px-3 text-sm text-podium-white placeholder:text-podium-muted focus:border-podium-yellow/50 focus:outline-none focus:ring-2 focus:ring-podium-yellow/30 disabled:opacity-50"
-                />
-                <p className="text-[11px] leading-snug text-podium-muted">
-                  {COPY.corrigirQualificacaoHint}
-                </p>
-                {correctError ? (
-                  <p className="text-xs text-amber-400">{correctError}</p>
-                ) : null}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="submit"
-                    disabled={correctPending || !draft.trim()}
-                    className="text-xs font-bold text-podium-yellow hover:underline disabled:opacity-40"
-                  >
-                    {correctPending ? "Salvando…" : COPY.salvarQualificacao}
-                  </button>
-                  {isAuditLive(signal) || signal.found ? (
-                    <button
-                      type="button"
-                      disabled={correctPending}
-                      onClick={() =>
-                        onCorrect?.(toPresenceCorrection(field, null))
-                      }
-                      className="text-xs font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
-                    >
-                      {COPY.limparQualificacao}
-                    </button>
-                  ) : null}
+                className="h-8 w-full rounded-md border border-white/15 bg-white/[0.04] px-2.5 text-sm text-podium-white placeholder:text-podium-muted focus:border-podium-yellow/50 focus:outline-none focus:ring-2 focus:ring-podium-yellow/30 disabled:opacity-50"
+              />
+              <p className="text-[10px] leading-snug text-podium-muted">
+                {COPY.corrigirQualificacaoHint}
+              </p>
+              {correctError ? (
+                <p className="text-xs text-amber-400">{correctError}</p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={correctPending || !draft.trim()}
+                  className="text-[11px] font-bold text-podium-yellow hover:underline disabled:opacity-40"
+                >
+                  {correctPending ? "Salvando…" : COPY.salvarQualificacao}
+                </button>
+                {isAuditLive(signal) || signal.found ? (
                   <button
                     type="button"
                     disabled={correctPending}
-                    onClick={() => {
-                      setEditing(false);
-                      setDraft(editSeed ?? "");
-                    }}
-                    className="text-xs font-semibold text-podium-muted hover:text-podium-gray disabled:opacity-40"
+                    onClick={() =>
+                      onCorrect?.(toPresenceCorrection(field, null))
+                    }
+                    className="text-[11px] font-bold text-podium-gray hover:text-podium-yellow disabled:opacity-40"
                   >
-                    {COPY.cancelarQualificacao}
+                    {COPY.limparQualificacao}
                   </button>
-                </div>
-              </form>
-            ) : (
-              <p className="mt-2 text-[11px] leading-snug text-podium-muted">
+                ) : null}
                 <button
                   type="button"
                   disabled={correctPending}
-                  onClick={() => setEditing(true)}
-                  className="font-bold text-podium-yellow hover:underline disabled:opacity-40"
+                  onClick={() => {
+                    setEditing(false);
+                    setDraft(editSeed ?? "");
+                  }}
+                  className="text-[11px] font-semibold text-podium-muted hover:text-podium-gray disabled:opacity-40"
                 >
-                  {signal.found ? COPY.corrigirQualificacao : COPY.inserirQualificacao}
+                  {COPY.cancelarQualificacao}
                 </button>
-              </p>
-            )
-          ) : null}
+              </div>
+            </form>
+          ) : (
+            <>
+              {showActionRow ? (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <OpenLinks signal={signal} primary />
+                {confirmSite ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={onConfirmSite}
+                      className={cn(actionChip, confirmChip)}
+                    >
+                      {confirmPending ? "Atualizando…" : "É este"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={onRejectSite}
+                      className={cn(actionChip, rejectChip)}
+                    >
+                      Não é
+                    </button>
+                  </>
+                ) : null}
+                {confirmMaps ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        canConfirmMapsPin || !signal.href
+                          ? onCorrect?.({ confirmMaps: true })
+                          : onCorrect?.({ maps: signal.href })
+                      }
+                      className={cn(actionChip, confirmChip)}
+                    >
+                      {correctPending
+                        ? "Atualizando…"
+                        : COPY.fichaMapsConfirmThis}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onCorrect?.({ maps: null })}
+                      className={cn(actionChip, rejectChip)}
+                    >
+                      {COPY.fichaMapsRejectThis}
+                    </button>
+                  </>
+                ) : null}
+                {field ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setEditing(true)}
+                    className="text-[10px] font-bold text-podium-yellow hover:underline disabled:opacity-40"
+                  >
+                    {signal.found
+                      ? COPY.corrigirQualificacao
+                      : COPY.inserirQualificacao}
+                  </button>
+                ) : null}
+                </div>
+              ) : null}
+              {correctError ? (
+                <p className="mt-1 text-xs text-amber-400">{correctError}</p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function SignalTile({
+function presenceConfirm(signal: AuditSignal): boolean {
+  return isAuditCandidate(signal) || signal.sealKind === "unverified";
+}
+
+function PresenceIconButton({
   signal,
   selected,
   scanning,
+  labeled = false,
+  size = "compact",
   onSelect,
   reduce,
 }: {
   signal: AuditSignal;
   selected: boolean;
   scanning: boolean;
+  labeled?: boolean;
+  size?: "compact" | "master";
   onSelect: () => void;
   reduce: boolean;
 }) {
   const live = isAuditLive(signal);
-  const candidate = isAuditCandidate(signal);
-  const presenceGap = isAuditGap(signal) && signal.group === "presenca";
+  const confirm = presenceConfirm(signal);
+  const seal = assetSeal(signal, scanning);
+  const master = size === "master";
   return (
     <button
       type="button"
+      title={`${signal.name} · ${seal.text}`}
+      aria-label={`${signal.name}, ${seal.text}`}
       aria-pressed={selected}
       aria-busy={scanning || undefined}
       onClick={onSelect}
       className={cn(
-        "group box-border flex h-[7.5rem] w-full min-w-0 flex-col items-center justify-between rounded-lg border px-1.5 py-2.5 text-center transition-[border-color,background-color,box-shadow] duration-300",
-        selected
-          ? "border-podium-yellow/50 bg-podium-yellow/10 shadow-[inset_0_0_0_1px_rgba(245,179,1,0.15)]"
-          : scanning
-            ? "border-podium-yellow/40 bg-podium-yellow/[0.06]"
-            : live
-              ? "border-podium-success/45 bg-podium-success/10 hover:border-podium-success/60"
-              : candidate
-                ? "border-podium-info/45 bg-podium-info/10 hover:border-podium-info/60"
-                : presenceGap
-                  ? "border-amber-400/50 bg-amber-400/10 hover:border-amber-400/70"
-                  : "border-dashed border-white/15 bg-transparent hover:border-white/25",
-        scanning && !selected && !reduce && "audit-scan-pulse",
-        presenceGap && !scanning && !selected && !reduce && "audit-gap-pulse",
+        "group inline-flex items-center justify-center overflow-hidden border transition",
+        master
+          ? "h-10 min-w-0 flex-1 rounded-lg"
+          : labeled
+            ? "h-7 gap-1.5 rounded-md px-1.5"
+            : "h-7 w-7 rounded-md",
+        selected && "ring-1 ring-podium-yellow/40",
+        scanning
+          ? "border-podium-yellow/40 bg-podium-yellow/[0.06]"
+          : live
+            ? "border-podium-success/55 bg-podium-success/10 hover:border-podium-success/75"
+            : confirm
+              ? "border-podium-yellow/60 bg-podium-yellow/10 hover:border-podium-yellow/80"
+              : "border-dashed border-white/15 bg-transparent hover:border-white/25",
+        scanning && !reduce && "audit-scan-pulse",
+        confirm && !scanning && !reduce && "audit-gap-pulse",
       )}
     >
-      <AuditLogo
-        logo={signal.logo}
-        initials={signal.initials}
-        accent={signal.accent}
-        size="sm"
-        lit={live || candidate || selected || scanning}
-      />
-      <span
+      <img
+        src={signal.logo}
+        alt=""
         className={cn(
-          "line-clamp-2 h-[2.5em] w-full text-[10px] font-medium leading-tight",
-          selected || scanning
-            ? "text-podium-yellow"
-            : live
-              ? "text-podium-white"
-              : candidate
-                ? "text-podium-info"
-                : presenceGap
-                  ? "text-amber-200"
-                  : "text-podium-muted",
+          "shrink-0 object-contain",
+          master ? "h-6 w-6" : "h-4 w-4",
+          live || confirm || scanning
+            ? "opacity-100"
+            : master
+              ? "opacity-40"
+              : "opacity-35 grayscale",
         )}
-      >
-        {signal.name}
-      </span>
-      <SealPill signal={signal} scanning={scanning} compact />
+      />
+      {labeled ? (
+        <span
+          className={cn(
+            "max-w-[7.5rem] truncate text-[10px] font-medium",
+            scanning
+              ? "text-podium-yellow"
+              : live
+                ? "text-podium-success"
+                : confirm
+                  ? "text-podium-yellow"
+                  : "text-podium-muted",
+          )}
+        >
+          {signal.name}
+        </span>
+      ) : null}
     </button>
   );
 }
 
-function SignalTileGrid({
+function PresenceIconRow({
   items,
   selectedId,
   scanningIds,
   pickSignal,
   reduce,
-  tileTransition,
+  labeled = false,
+  size = "compact",
 }: {
   items: AuditSignal[];
   selectedId: string | null;
   scanningIds: Set<string>;
   pickSignal: (id: string) => void;
-  reduce: boolean | null;
-  tileTransition: {
-    duration: number;
-    ease?: readonly [number, number, number, number];
-  };
+  reduce: boolean;
+  labeled?: boolean;
+  size?: "compact" | "master";
 }) {
   if (items.length === 0) return null;
   return (
-    <div className="mt-3 grid grid-cols-4 gap-2 [grid-template-columns:repeat(4,minmax(0,1fr))]">
-      {items.map((signal, index) => (
-        <motion.div
+    <div
+      className={cn(
+        "flex items-center",
+        size === "master" ? "w-full gap-1.5 sm:gap-2" : "flex-wrap gap-1",
+      )}
+    >
+      {items.map((signal) => (
+        <PresenceIconButton
           key={signal.id}
-          className="min-w-0"
-          initial={reduce ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            ...tileTransition,
-            delay: reduce ? 0 : index * 0.03,
-          }}
-        >
-          <SignalTile
-            signal={signal}
-            selected={selectedId === signal.id}
-            scanning={scanningIds.has(signal.id)}
-            onSelect={() => pickSignal(signal.id)}
-            reduce={Boolean(reduce)}
-          />
-        </motion.div>
+          signal={signal}
+          selected={selectedId === signal.id}
+          scanning={scanningIds.has(signal.id)}
+          labeled={labeled}
+          size={size}
+          onSelect={() => pickSignal(signal.id)}
+          reduce={reduce}
+        />
       ))}
     </div>
   );
 }
 
-export function DigitalAuditPanel({
-  enrichment,
-  compact = false,
-  qualifying = false,
-  refreshing = false,
-  qualifyPending = false,
-  qualifyError = null,
-  onQualify,
-  onRefresh,
-  confirmPending = false,
-  onConfirmSite,
-  onRejectSite,
-  correctPending = false,
-  correctError = null,
-  onCorrectPresence,
-  mapsSearchUrl,
-  className,
-}: {
+type AuditPanelProps = {
   enrichment: LeadEnrichment | null;
   compact?: boolean;
   qualifying?: boolean;
-  /** Paid re-run of an already-complete audit — keep prior result visible. */
   refreshing?: boolean;
   qualifyPending?: boolean;
   qualifyError?: string | null;
@@ -648,7 +686,72 @@ export function DigitalAuditPanel({
   onCorrectPresence?: (corrections: PresenceCorrection) => void;
   mapsSearchUrl?: string | null;
   className?: string;
-}) {
+};
+
+type AuditBoardValue = {
+  enrichment: LeadEnrichment | null;
+  reduce: boolean;
+  selected: AuditSignal | null;
+  selectedId: string | null;
+  scanningIds: Set<string>;
+  pickSignal: (id: string) => void;
+  presence: AuditSignal[];
+  signals: AuditSignal[];
+  groupsOpen: boolean;
+  setGroupsOpen: (open: boolean | ((current: boolean) => boolean)) => void;
+  toolsMissingOpen: boolean;
+  setToolsMissingOpen: (open: boolean | ((current: boolean) => boolean)) => void;
+  showQualifyCta: boolean;
+  showRefresh: boolean;
+  showBoard: boolean;
+  showTools: boolean;
+  previewPresence: boolean;
+  awaitingAudit: boolean;
+  firstRunStreaming: boolean;
+  complete: boolean;
+  refreshing: boolean;
+  qualifyPending: boolean;
+  qualifyError: string | null;
+  onQualify?: () => void;
+  onRefresh?: () => void;
+  confirmPending: boolean;
+  correctPending: boolean;
+  correctError: string | null;
+  chip: ReturnType<typeof qualifyChipKind>;
+  siteDown: boolean;
+  canConfirmSite: boolean;
+  canCorrect: boolean;
+  onConfirmSite?: (domain: string) => void;
+  onRejectSite?: (domain: string) => void;
+  onCorrectPresence?: (corrections: PresenceCorrection) => void;
+  detailRef: Ref<HTMLDivElement>;
+};
+
+const AuditBoardContext = createContext<AuditBoardValue | null>(null);
+
+function useAuditBoard() {
+  const ctx = useContext(AuditBoardContext);
+  if (!ctx) throw new Error("Lead ficha audit is missing its provider");
+  return ctx;
+}
+
+export function LeadFichaAuditProvider({
+  children,
+  enrichment,
+  qualifying = false,
+  refreshing = false,
+  qualifyPending = false,
+  qualifyError = null,
+  onQualify,
+  onRefresh,
+  confirmPending = false,
+  onConfirmSite,
+  onRejectSite,
+  correctPending = false,
+  correctError = null,
+  onCorrectPresence,
+  mapsSearchUrl,
+}: Omit<AuditPanelProps, "className" | "compact"> & { children: ReactNode }) {
   const reduce = useReducedMotion();
   const detailRef = useRef<HTMLDivElement>(null);
   const firstRunStreaming = (qualifying || qualifyPending) && !refreshing;
@@ -680,42 +783,30 @@ export function DigitalAuditPanel({
   const [selectedId, setSelectedId] = useState(() =>
     defaultAuditSelection(signals),
   );
-  const [logosOpen, setLogosOpen] = useState(!compact);
+  const [groupsOpen, setGroupsOpen] = useState(false);
   const [toolsMissingOpen, setToolsMissingOpen] = useState(false);
 
   useEffect(() => {
     setSelectedId(defaultAuditSelection(signals));
     setToolsMissingOpen(false);
+    setGroupsOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when auditKey changes
   }, [auditKey]);
 
   function pickSignal(id: string) {
     setSelectedId(id);
-    requestAnimationFrame(() => {
-      detailRef.current?.scrollIntoView({
-        behavior: reduce ? "auto" : "smooth",
-        block: "nearest",
-      });
-    });
   }
 
   const selected =
     signals.find((s) => s.id === selectedId) ?? signals[0] ?? null;
-  const tileTransition = reduce
-    ? { duration: 0 }
-    : { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const };
-  // First-time only — never replace a completed audit with the Qualificar CTA.
   const showQualifyCta =
     Boolean(onQualify) && !onRefresh && !firstRunStreaming && !complete;
-  // Always keep Atualizar when the parent offers it (completed audit).
   const showRefresh = Boolean(onRefresh);
   const awaitingAudit =
     !enrichment && !firstRunStreaming && !showQualifyCta && !refreshing;
-  /** Empty CTA: show Presença tiles as preview; Ferramentas wait until audit starts. */
   const previewPresence = showQualifyCta;
   const auditActive = Boolean(enrichment || firstRunStreaming || refreshing);
-  const showBoard =
-    (previewPresence || auditActive) && (!compact || logosOpen);
+  const showBoard = previewPresence || auditActive;
   const showTools = auditActive;
   const siteDown = enrichment != null && isSiteOffline(enrichment);
   const canConfirmSite =
@@ -733,50 +824,127 @@ export function DigitalAuditPanel({
     scanning: firstRunStreaming && !complete,
     complete,
   });
+  const presence = GRID_PRESENCE_IDS.map(
+    (id) => signals.find((s) => s.id === id),
+  ).filter((s): s is AuditSignal => Boolean(s));
+
+  const value: AuditBoardValue = {
+    enrichment,
+    reduce: Boolean(reduce),
+    selected,
+    selectedId,
+    scanningIds,
+    pickSignal,
+    presence,
+    signals,
+    groupsOpen,
+    setGroupsOpen,
+    toolsMissingOpen,
+    setToolsMissingOpen,
+    showQualifyCta,
+    showRefresh,
+    showBoard,
+    showTools,
+    previewPresence,
+    awaitingAudit,
+    firstRunStreaming,
+    complete,
+    refreshing,
+    qualifyPending,
+    qualifyError,
+    onQualify,
+    onRefresh,
+    confirmPending,
+    correctPending,
+    correctError,
+    chip,
+    siteDown,
+    canConfirmSite,
+    canCorrect,
+    onConfirmSite,
+    onRejectSite,
+    onCorrectPresence,
+    detailRef,
+  };
 
   return (
-    <GlassCard className={cn("p-5 hover:translate-y-0", className)}>
+    <AuditBoardContext.Provider value={value}>
+      {children}
+    </AuditBoardContext.Provider>
+  );
+}
+
+export function LeadFichaAuditBoard({ className }: { className?: string }) {
+  const board = useAuditBoard();
+  const {
+    presence,
+    signals,
+    selectedId,
+    scanningIds,
+    pickSignal,
+    reduce,
+    groupsOpen,
+    setGroupsOpen,
+    showQualifyCta,
+    showRefresh,
+    showBoard,
+    showTools,
+    previewPresence,
+    awaitingAudit,
+    firstRunStreaming,
+    complete,
+    refreshing,
+    qualifyPending,
+    qualifyError,
+    onQualify,
+    onRefresh,
+    chip,
+    enrichment,
+  } = board;
+
+  const toolsGroup = AUDIT_GROUPS.find((group) => group.id === "ferramentas");
+  const toolSignals = signals.filter((s) => s.group === "ferramentas");
+
+  return (
+    <GlassCard className={cn("p-3 hover:translate-y-0", className)}>
       <QualifyHeader
         showRefresh={showRefresh}
         refreshing={refreshing || (Boolean(onRefresh) && qualifyPending)}
         onRefresh={onRefresh}
         chip={chip}
+        action={
+          showQualifyCta && onQualify ? (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={qualifyPending}
+              onClick={onQualify}
+              title={COPY.qualificarFichaLeadHint}
+            >
+              {qualifyPending
+                ? "Qualificando…"
+                : `${COPY.qualificar} · ${creditsPhrase(ENRICH_CREDIT_COST)}`}
+            </Button>
+          ) : null
+        }
       />
       {showQualifyCta ? (
-        <>
-          <p className="mt-3 text-sm text-podium-muted">
-            {COPY.qualificarFichaLead}
-          </p>
-          {qualifyError ? (
-            <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
-          ) : null}
-          <Button
-            variant="primary"
-            size="lg"
-            disabled={qualifyPending}
-            onClick={onQualify}
-            title={COPY.qualificarFichaLeadHint}
-            className="mt-4 w-full"
-          >
-            {qualifyPending
-              ? "Qualificando…"
-              : `${COPY.qualificar} · ${creditsPhrase(ENRICH_CREDIT_COST)}`}
-          </Button>
-        </>
+        <p className="mt-2 text-xs text-podium-muted">
+          {COPY.qualificarFichaLead}
+        </p>
       ) : null}
-      {qualifyError && !showQualifyCta ? (
-        <p className="mt-3 text-sm text-amber-400">{qualifyError}</p>
+      {qualifyError ? (
+        <p className="mt-2 text-sm text-amber-400">{qualifyError}</p>
       ) : null}
       {refreshing ? (
-        <p className="mt-3 flex items-center gap-2 text-sm font-medium text-podium-yellow">
+        <p className="mt-2 flex items-center gap-2 text-xs font-medium text-podium-yellow">
           <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-podium-yellow" />
           {COPY.atualizandoQualificacao} Mantendo o resultado atual até terminar.
         </p>
       ) : null}
       {awaitingAudit ? (
-        <p className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm leading-relaxed text-podium-gray">
-          Site, redes e Google desta empresa ainda não foram buscados. A ordem da
-          lista usa só o cadastro da Receita até você qualificar.
+        <p className="mt-2 text-xs leading-relaxed text-podium-gray">
+          Site, redes e Google desta empresa ainda não foram buscados.
         </p>
       ) : null}
       {(firstRunStreaming || (enrichment && !complete && !refreshing)) && (
@@ -786,154 +954,139 @@ export function DigitalAuditPanel({
         />
       )}
 
-      {selected && showBoard && !previewPresence ? (
-        <div className="mt-4">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-            Em foco
+      {showBoard ? (
+        <div className="mt-3">
+          <PresenceIconRow
+            items={presence}
+            selectedId={selectedId}
+            scanningIds={scanningIds}
+            pickSignal={pickSignal}
+            reduce={reduce}
+            size="master"
+          />
+          <p className="mt-2 text-[11px] text-podium-muted">
+            {COPY.fichaAuditSelectHint}
           </p>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selected.id}
-              initial={reduce ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0 }}
-              transition={{ duration: reduce ? 0 : 0.18 }}
+          {showTools ? (
+            <button
+              type="button"
+              aria-expanded={groupsOpen}
+              onClick={() => setGroupsOpen((open) => !open)}
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-podium-muted hover:text-podium-yellow"
             >
-              <SelectedSignalCard
-                signal={selected}
-                scanning={scanningIds.has(selected.id)}
-                cardRef={detailRef}
-                siteDown={selected.id === "site" && siteDown}
-                canConfirmSite={selected.id === "site" && canConfirmSite}
-                confirmPending={confirmPending}
-                onConfirmSite={
-                  enrichment?.domain && onConfirmSite
-                    ? () => onConfirmSite(enrichment.domain!)
-                    : undefined
-                }
-                onRejectSite={
-                  enrichment?.domain && onRejectSite
-                    ? () => onRejectSite(enrichment.domain!)
-                    : undefined
-                }
-                canCorrect={canCorrect}
-                canConfirmMaps={
-                  selected.id === "maps" &&
-                  mapsPinConfirmable(enrichment) &&
-                  canCorrect
-                }
-                correctPending={correctPending}
-                correctError={correctError}
-                editSeed={
-                  isEditablePresence(selected.id)
-                    ? presenceSeed(selected.id, enrichment)
-                    : ""
-                }
-                onCorrect={onCorrectPresence}
+              {groupsOpen ? COPY.fichaAuditGroupsClose : COPY.fichaAuditGroupsOpen}
+              <ChevronDown
+                className={cn("h-3.5 w-3.5 transition", groupsOpen && "rotate-180")}
               />
-            </motion.div>
-          </AnimatePresence>
+            </button>
+          ) : null}
         </div>
       ) : null}
 
-      {compact ? (
-        <button
-          type="button"
-          onClick={() => setLogosOpen((open) => !open)}
-          className="mt-4 text-xs font-semibold text-podium-muted hover:text-podium-yellow hover:underline"
-        >
-          {logosOpen ? "Recolher cards" : "Ver cards dos ativos"}
-        </button>
+      {showBoard && groupsOpen && showTools && toolsGroup ? (
+        <section className="mt-3">
+          {!previewPresence ? (
+            <p className="text-[11px] text-podium-muted">{toolsGroup.hint}</p>
+          ) : null}
+          <div className="mt-1.5">
+            <PresenceIconRow
+              items={toolSignals}
+              selectedId={selectedId}
+              scanningIds={scanningIds}
+              pickSignal={pickSignal}
+              reduce={reduce}
+              labeled
+            />
+          </div>
+        </section>
       ) : null}
-
-      {showBoard &&
-        AUDIT_GROUPS.map((group) => {
-          if (group.id === "ferramentas" && !showTools) return null;
-          const items = signals.filter((s) => s.group === group.id);
-          if (group.id !== "ferramentas") {
-            return (
-              <section key={group.id} className="mt-5">
-                <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                  <span className="inline-block h-4 w-0.5 rounded-sm bg-podium-yellow" />
-                  {group.label}
-                </h3>
-                {!previewPresence ? (
-                  <p className="mt-1 text-xs text-podium-muted">{group.hint}</p>
-                ) : null}
-                <SignalTileGrid
-                  items={items}
-                  selectedId={selectedId}
-                  scanningIds={scanningIds}
-                  pickSignal={pickSignal}
-                  reduce={reduce}
-                  tileTransition={tileTransition}
-                />
-              </section>
-            );
-          }
-
-          const found = items.filter(
-            (s) => isAuditLive(s) || scanningIds.has(s.id),
-          );
-          const missing = items.filter(
-            (s) => !isAuditLive(s) && !scanningIds.has(s.id),
-          );
-
-          return (
-            <section key={group.id} className="mt-5">
-              <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-podium-muted">
-                <span className="inline-block h-4 w-0.5 rounded-sm bg-podium-yellow" />
-                {group.label}
-              </h3>
-              <p className="mt-1 text-xs text-podium-muted">{group.hint}</p>
-              <SignalTileGrid
-                items={found}
-                selectedId={selectedId}
-                scanningIds={scanningIds}
-                pickSignal={pickSignal}
-                reduce={reduce}
-                tileTransition={tileTransition}
-              />
-              {found.length === 0 && missing.length > 0 && !toolsMissingOpen ? (
-                <p className="mt-3 text-xs text-podium-muted">
-                  Nenhuma ferramenta encontrada ainda.
-                </p>
-              ) : null}
-              {missing.length > 0 ? (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    aria-expanded={toolsMissingOpen}
-                    onClick={() => setToolsMissingOpen((v) => !v)}
-                    className="flex w-full items-center justify-between gap-3 rounded-md border border-dashed border-white/15 px-3 py-2 text-left text-podium-muted hover:border-white/25 hover:text-podium-gray"
-                  >
-                    <span className="text-xs font-medium">
-                      {toolsMissingOpen
-                        ? "Recolher"
-                        : `Ver ${missing.length} ferramenta${missing.length === 1 ? "" : "s"} não encontrada${missing.length === 1 ? "" : "s"}`}
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition",
-                        toolsMissingOpen && "rotate-180",
-                      )}
-                    />
-                  </button>
-                  {toolsMissingOpen ? (
-                    <SignalTileGrid
-                      items={missing}
-                      selectedId={selectedId}
-                      scanningIds={scanningIds}
-                      pickSignal={pickSignal}
-                      reduce={reduce}
-                      tileTransition={tileTransition}
-                    />
-                  ) : null}
-                </div>
-              ) : null}
-            </section>
-          );
-        })}
     </GlassCard>
+  );
+}
+
+export function LeadFichaAuditDetail({ className }: { className?: string }) {
+  const board = useAuditBoard();
+  const {
+    selected,
+    scanningIds,
+    siteDown,
+    canConfirmSite,
+    confirmPending,
+    enrichment,
+    onConfirmSite,
+    onRejectSite,
+    canCorrect,
+    correctPending,
+    correctError,
+    onCorrectPresence,
+    detailRef,
+  } = board;
+
+  if (!selected) {
+    return (
+      <GlassCard
+        className={cn("p-2.5 hover:translate-y-0", className)}
+      >
+        <p className="text-sm leading-relaxed text-podium-gray">
+          {COPY.fichaAuditSelectHint}
+        </p>
+      </GlassCard>
+    );
+  }
+
+  const mapsSelected = selected.id === "maps";
+  const pinConfirmable = mapsPinConfirmable(enrichment);
+
+  return (
+    <GlassCard className={cn("p-2.5 hover:translate-y-0", className)}>
+      <div key={selected.id}>
+          <SelectedSignalCard
+            signal={selected}
+            scanning={scanningIds.has(selected.id)}
+            cardRef={detailRef}
+            siteDown={selected.id === "site" && siteDown}
+            canConfirmSite={selected.id === "site" && canConfirmSite}
+            confirmPending={confirmPending}
+            onConfirmSite={
+              enrichment?.domain && onConfirmSite
+                ? () => onConfirmSite(enrichment.domain!)
+                : undefined
+            }
+            onRejectSite={
+              enrichment?.domain && onRejectSite
+                ? () => onRejectSite(enrichment.domain!)
+                : undefined
+            }
+            canCorrect={canCorrect}
+            canConfirmMapsPin={mapsSelected && pinConfirmable && canCorrect}
+            canRejectMaps={
+              mapsSelected &&
+              canCorrect &&
+              presenceConfirm(selected) &&
+              !pinConfirmable
+            }
+            correctPending={correctPending}
+            correctError={correctError}
+            editSeed={
+              isEditablePresence(selected.id)
+                ? presenceSeed(selected.id, enrichment)
+                : ""
+            }
+            onCorrect={onCorrectPresence}
+          />
+      </div>
+    </GlassCard>
+  );
+}
+
+export function DigitalAuditPanel(props: AuditPanelProps) {
+  const { className, compact: _compact, ...board } = props;
+  return (
+    <LeadFichaAuditProvider {...board}>
+      <div className={cn("flex flex-col gap-3", className)}>
+        <LeadFichaAuditBoard />
+        <LeadFichaAuditDetail />
+      </div>
+    </LeadFichaAuditProvider>
   );
 }

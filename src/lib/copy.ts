@@ -250,7 +250,7 @@ export const COPY = {
   fichaMapsOpenListing: "Abrir no Maps",
   fichaMapsOpenSearch: "Abrir busca no Maps",
   fichaMapsConfirmValue: "CONFIRMAR PIN",
-  fichaMapsConfirmHint: "Abra o pin e confirme se é desta empresa.",
+  fichaMapsConfirmHint: "Confirme se é desta empresa.",
   fichaMapsConfirmThis: "É este",
   fichaMapsRejectThis: "Não é",
   fichaSealMapsLive: "No Maps",
