@@ -6,6 +6,7 @@ import {
   isShellFooterActive,
   isShellFooterGroupActive,
   isShellNavActive,
+  showsOpeningNav,
   SHELL_FOOTER_NAV,
   SHELL_WORK_NAV,
 } from "./shell-nav";
@@ -70,6 +71,14 @@ describe("isShellNavActive", () => {
     expect(isShellNavActive("/listas", "/listas/abc")).toBe(true);
     expect(isShellNavActive("/painel", "/")).toBe(false);
     expect(isShellNavActive("/listas", "/listas-x")).toBe(false);
+  });
+});
+
+describe("showsOpeningNav", () => {
+  it("marks CRM and Ligar while the destination is still loading", () => {
+    expect(showsOpeningNav("/crm")).toBe(true);
+    expect(showsOpeningNav("/box")).toBe(true);
+    expect(showsOpeningNav("/painel")).toBe(false);
   });
 });
 
