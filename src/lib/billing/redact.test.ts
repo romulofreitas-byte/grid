@@ -46,6 +46,32 @@ describe("redactGridRow", () => {
     expect(other.telefone).toBe("••••-••••");
     expect(other.decisorNome).toBeNull();
   });
+
+  it("strips presence URLs on an unrevealed Treino livre row", () => {
+    const withPresence: GridRow = {
+      ...gridRow,
+      hasAudit: true,
+      presence: [
+        {
+          id: "instagram",
+          href: "https://instagram.com/acme",
+          unverified: false,
+        },
+        {
+          id: "whatsapp",
+          href: "https://wa.me/5531999998888",
+          unverified: false,
+        },
+      ],
+    };
+    expect(redactGridRow(withPresence, false).presence).toBeUndefined();
+    expect(
+      redactGridRow(withPresence, false, new Set(["12345678000190"])).presence,
+    ).toEqual(withPresence.presence);
+    expect(redactGridRow(withPresence, true).presence).toEqual(
+      withPresence.presence,
+    );
+  });
 });
 
 describe("redactCompanySearchHit", () => {

@@ -82,6 +82,7 @@ import {
   querySearch,
   querySearchWithTimeout,
 } from "@/lib/data/pg";
+import { gridPresenceFromEnrichment } from "@/lib/audit/grid-presence";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import {
   gridRowFromSnapshot,
@@ -1782,6 +1783,9 @@ async function overlayGridRows(
       enrichmentStatus:
         job?.status ?? (enrichment ? "done" : row.enrichmentStatus),
       hasAudit,
+      presence: hasAudit
+        ? gridPresenceFromEnrichment(enrichment ?? null)
+        : undefined,
     };
   });
   return { rows: nextRows, discoveryRetryCnpjs };

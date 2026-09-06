@@ -537,6 +537,23 @@ export type LeadDossier = {
   };
 };
 
+export type GridPresenceId =
+  | "site"
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "youtube"
+  | "maps"
+  | "gmb"
+  | "whatsapp";
+
+/** Compact presence hits for the results grid — found assets with a URL to open. */
+export type GridPresenceAsset = {
+  id: GridPresenceId;
+  href: string;
+  unverified: boolean;
+};
+
 export type GridRow = {
   cnpj: string;
   razaoSocial: string;
@@ -557,6 +574,8 @@ export type GridRow = {
   sharedVerdict?: SharedPhoneVerdict;
   enrichmentStatus: EnrichmentJobStatus | null;
   hasAudit: boolean;
+  /** Found digital assets after qualify. Omit when the row has no audit. */
+  presence?: GridPresenceAsset[];
   inCrm?: boolean;
   calledToday?: boolean;
   calledAt?: string | null;

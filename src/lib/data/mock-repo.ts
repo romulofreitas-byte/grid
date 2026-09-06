@@ -8,6 +8,7 @@ import {
 import { pickDecisor, resolveDecisor, toPartnerCards } from "@/lib/decisor";
 import { yearsSince } from "@/lib/format";
 import { getMockStore, type MockStore } from "@/lib/data/mock-store";
+import { gridPresenceFromEnrichment } from "@/lib/audit/grid-presence";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
@@ -1249,6 +1250,9 @@ export const mockRepo: GridRepo = {
         gridPosition: lead.grid_position ?? 0,
         enrichmentStatus: job?.status ?? (completeAudit ? "done" : null),
         hasAudit,
+        presence: hasAudit
+          ? gridPresenceFromEnrichment(completeAudit ? enrichment : null)
+          : undefined,
       };
     });
 

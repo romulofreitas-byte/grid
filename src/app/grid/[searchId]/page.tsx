@@ -57,6 +57,7 @@ import {
   useExportCostConfirm,
 } from "@/components/ExportConfirmDialog";
 import { GridMoreMenu } from "@/components/GridMoreMenu";
+import { GridPresenceIcons } from "@/components/GridPresenceIcons";
 import { formatEventWhen } from "@/lib/crm/events";
 import { qualifyCrmHint, type PublicCrmBridge } from "@/lib/crm/bridge";
 import { pickCallConnection } from "@/lib/integrations/call-target";
@@ -1124,6 +1125,7 @@ export default function GridPage() {
             <col className="w-[18rem]" />
             <col className="w-[10rem]" />
             <col />
+            <col className="w-[8rem]" />
             <col className="w-[11.5rem]" />
             <col className="w-[12rem]" />
           </colgroup>
@@ -1144,6 +1146,7 @@ export default function GridPage() {
               </th>
               <th className="px-2 py-2">Pos.</th>
               <th className="px-3 py-2">Empresa</th>
+              <th className="px-2 py-2">Ativos</th>
               <th className="px-3 py-2">Telefone</th>
               <th className="px-3 py-2">Decisor</th>
             </tr>
@@ -1210,6 +1213,9 @@ export default function GridPage() {
                         {row.email}
                       </p>
                     ) : null}
+                  </td>
+                  <td className="px-2 py-2 align-middle">
+                    <GridPresenceIcons presence={row.presence} />
                   </td>
                   <td className="px-3 py-2 align-middle">
                     {formatPhone(ddd, tel) ? (
@@ -1287,6 +1293,7 @@ export default function GridPage() {
                     {row.email}
                   </p>
                 ) : null}
+                <GridPresenceIcons presence={row.presence} className="mt-1.5" />
                 <p className="mt-2 text-sm tabular-nums">
                   {formatPhone(ddd, tel) ?? <EmptyValue />}
                 </p>

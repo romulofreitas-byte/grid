@@ -27,6 +27,7 @@ export function redactGridRow(
     telefone: row.telefone ? MASK_PHONE : null,
     email: row.email ? "••••@••••" : null,
     decisorNome: null,
+    presence: undefined,
   };
 }
 
