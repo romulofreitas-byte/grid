@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { Plus } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { ListTile } from "@/components/ListTile";
@@ -79,10 +80,21 @@ export function ListsBoard({
   return (
     <div className="flex flex-col gap-10">
       <section>
-        <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
-        <Hint className="mt-2 max-w-xl">
-          {COPY.listasSalvasHint}
-        </Hint>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
+            <Hint className="mt-2 max-w-xl">
+              {COPY.listasSalvasHint}
+            </Hint>
+          </div>
+          <Link
+            href={largadaNovaHref}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-podium-yellow/40 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] !text-podium-yellow"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {COPY.novaLista}
+          </Link>
+        </div>
         <SearchGrid
           items={shownSaved}
           empty={
