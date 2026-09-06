@@ -167,10 +167,21 @@ describe("countConfirmedCrmCall", () => {
     await mockRepo.scheduleCrmActivity(USER, ligarDeal!.id, "ligar", dueAt);
     await mockRepo.scheduleCrmActivity(USER, waDeal!.id, "whatsapp", dueAt);
 
-    const doneLigar = await mockRepo.completeCrmActivity(USER, ligarDeal!.id);
+    const ligarOpen = (await mockRepo.getCrmDeal(USER, ligarDeal!.id))!
+      .next_activity!;
+    const waOpen = (await mockRepo.getCrmDeal(USER, waDeal!.id))!.next_activity!;
+    const doneLigar = await mockRepo.completeCrmActivity(
+      USER,
+      ligarDeal!.id,
+      ligarOpen.id,
+    );
     await countConfirmedCrmCall(mockRepo, USER, doneLigar!.deal, doneLigar!.event!.kind);
 
-    const doneWa = await mockRepo.completeCrmActivity(USER, waDeal!.id);
+    const doneWa = await mockRepo.completeCrmActivity(
+      USER,
+      waDeal!.id,
+      waOpen.id,
+    );
     await countConfirmedCrmCall(mockRepo, USER, doneWa!.deal, doneWa!.event!.kind);
 
     const stats = await mockRepo.getPilotStats(USER, { includeNext: false });

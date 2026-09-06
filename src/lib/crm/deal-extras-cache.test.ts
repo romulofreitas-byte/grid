@@ -27,7 +27,11 @@ const briefing: CrmBriefing = {
   phones: [],
   contact: null,
   municipio: "Uberlândia",
+  address: null,
+  cnae: null,
+  decisor: null,
   badges: [],
+  assets: [],
   audited: false,
 };
 

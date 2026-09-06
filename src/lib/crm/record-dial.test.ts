@@ -21,6 +21,7 @@ function deal(overrides: Partial<CrmDealCard> = {}): CrmDealCard {
     created_at: "2026-09-01T12:00:00.000Z",
     updated_at: "2026-09-01T12:00:00.000Z",
     next_activity: null,
+    open_activities: [],
     ...overrides,
   };
 }
@@ -57,12 +58,25 @@ describe("recordCrmDialAfterCall", () => {
           status: "open",
           created_at: "2026-09-01T12:00:00.000Z",
         },
+        open_activities: [
+          {
+            id: "a1",
+            deal_id: "deal-1",
+            kind: "ligar",
+            due_at: "2026-09-05T18:00:00.000Z",
+            status: "open",
+            created_at: "2026-09-01T12:00:00.000Z",
+          },
+        ],
       }),
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/crm/deals/deal-1/complete",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ activityId: "a1" }),
+      }),
     );
     expect(result.deal).toEqual(updated);
     expect(result.event).toEqual(event);

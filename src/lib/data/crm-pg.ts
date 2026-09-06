@@ -1,6 +1,9 @@
+import { earliestOpenActivity, sortOpenActivities } from "@/lib/crm/activity";
 import { digitsCnpj } from "@/lib/crm/bridge";
 import {
+  briefingAssetsFromFields,
   briefingPresenceFromFields,
+  formatReceitaAddress,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
 import {
@@ -17,6 +20,8 @@ import {
   dealSearchHasLetters,
 } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
+import { resolveDecisor } from "@/lib/decisor";
+import type { Partner, RefQualificacao } from "@/lib/types";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
 import {
   INBOUND_EVENT_KEEP,
@@ -230,27 +235,28 @@ async function listStages(q: SqlQuery, pipelineId: string): Promise<CrmStage[]> 
   return rows.map(mapStage);
 }
 
-async function loadOpenActivity(
+async function loadOpenActivities(
   q: SqlQuery,
   dealId: string,
-): Promise<CrmActivity | null> {
+): Promise<CrmActivity[]> {
   const activity = await q(
     `select * from crm_activities
      where deal_id = $1 and status = 'open'
-     order by created_at desc
-     limit 1`,
+     order by due_at asc, created_at asc`,
     [dealId],
   );
-  return activity.rows[0] ? mapActivity(activity.rows[0]) : null;
+  return sortOpenActivities(activity.rows.map(mapActivity));
 }
 
 async function loadCard(q: SqlQuery, dealId: string): Promise<CrmDealCard | null> {
   const { rows } = await q(`select * from crm_deals where id = $1`, [dealId]);
   if (!rows[0]) return null;
   const deal = mapDeal(rows[0]);
+  const open_activities = await loadOpenActivities(q, dealId);
   return {
     ...deal,
-    next_activity: await loadOpenActivity(q, dealId),
+    open_activities,
+    next_activity: earliestOpenActivity(open_activities),
   };
 }
 
@@ -328,17 +334,24 @@ async function assembleBoard(pipeline: CrmPipeline): Promise<CrmBoard> {
       [pipeline.id],
     ),
   ]);
-  const openByDeal = new Map<string, CrmActivity>();
+  const openByDeal = new Map<string, CrmActivity[]>();
   for (const row of activities.rows) {
     const activity = mapActivity(row);
-    openByDeal.set(activity.deal_id, activity);
+    const list = openByDeal.get(activity.deal_id) ?? [];
+    list.push(activity);
+    openByDeal.set(activity.deal_id, list);
   }
   return {
     pipeline,
     stages,
     deals: deals.rows.map((row) => {
       const deal = mapDeal(row);
-      return { ...deal, next_activity: openByDeal.get(deal.id) ?? null };
+      const open_activities = sortOpenActivities(openByDeal.get(deal.id) ?? []);
+      return {
+        ...deal,
+        open_activities,
+        next_activity: earliestOpenActivity(open_activities),
+      };
     }),
   };
 }
@@ -367,20 +380,12 @@ async function insertEvent(
   return mapEvent(inserted.rows[0]!);
 }
 
-async function closeOpen(q: SqlQuery, dealId: string): Promise<void> {
-  await q(
-    `update crm_activities set status = 'done' where deal_id = $1 and status = 'open'`,
-    [dealId],
-  );
-}
-
 async function insertOpen(
   q: SqlQuery,
   dealId: string,
   kind: CrmActivityKind,
   dueAt: string,
 ): Promise<void> {
-  await closeOpen(q, dealId);
   await q(
     `insert into crm_activities (deal_id, kind, due_at, status)
      values ($1, $2, $3::timestamptz, 'open')`,
@@ -871,12 +876,8 @@ export const crmPgMethods = {
     userId: string,
     dealId: string,
   ): Promise<CrmDealCard | null> {
-    const deal = await ownedDeal(query, userId, dealId);
-    if (!deal) return null;
-    return {
-      ...deal,
-      next_activity: await loadOpenActivity(query, dealId),
-    };
+    if (!(await ownedDeal(query, userId, dealId))) return null;
+    return loadCard(query, dealId);
   },
 
   async getCrmBriefingLookup(cnpj: string): Promise<CrmBriefingLookup | null> {
@@ -887,7 +888,16 @@ export const crmPgMethods = {
               e.telefone1,
               e.ddd2,
               e.telefone2,
+              e.logradouro,
+              e.numero,
+              e.bairro,
+              e.uf,
+              e.cnpj_basico,
               m.nome as municipio_nome,
+              rc.descricao as cnae_descricao,
+              c.razao_social,
+              c.natureza_id,
+              le.domain,
               le.domain_status,
               le.socials,
               le.whatsapp,
@@ -895,6 +905,8 @@ export const crmPgMethods = {
               le.expires_at
          from establishments e
          left join ref_municipio m on m.id = e.municipio_id
+         left join ref_cnae rc on rc.codigo = e.cnae_principal
+         left join companies c on c.cnpj_basico = e.cnpj_basico
          left join lead_enrichment le on le.cnpj = e.cnpj
         where e.cnpj = $1::char(14)
         limit 1`,
@@ -914,6 +926,14 @@ export const crmPgMethods = {
         ),
       ].filter((value): value is string => Boolean(value)),
     );
+    const municipioNome = row.municipio_nome ? String(row.municipio_nome) : null;
+    const address = formatReceitaAddress({
+      logradouro: row.logradouro == null ? null : String(row.logradouro),
+      numero: row.numero == null ? null : String(row.numero),
+      bairro: row.bairro == null ? null : String(row.bairro),
+      municipio: municipioNome,
+      uf: row.uf == null ? null : String(row.uf),
+    });
     const expiresAt = row.expires_at
       ? new Date(String(row.expires_at)).getTime()
       : 0;
@@ -924,20 +944,70 @@ export const crmPgMethods = {
         : {};
     const gmb =
       row.gmb && typeof row.gmb === "object" && !Array.isArray(row.gmb)
-        ? (row.gmb as { matched?: unknown })
-        : null;
-    return {
-      municipioNome: row.municipio_nome ? String(row.municipio_nome) : null,
-      extraPhones,
-      presence: enrichmentVisible
-        ? briefingPresenceFromFields({
-            domainStatus:
-              row.domain_status == null ? null : String(row.domain_status),
-            instagram: socials.instagram,
-            whatsapp: row.whatsapp,
-            gmbMatched: gmb?.matched,
+        ? (row.gmb as {
+            matched?: boolean;
+            url?: string;
+            cid?: string | null;
+            status?: string;
           })
-        : null,
+        : null;
+    const presence = enrichmentVisible
+      ? briefingPresenceFromFields({
+          domainStatus:
+            row.domain_status == null ? null : String(row.domain_status),
+          instagram: socials.instagram,
+          whatsapp: row.whatsapp,
+          gmbMatched: gmb?.matched,
+        })
+      : null;
+    const assets = enrichmentVisible
+      ? briefingAssetsFromFields({
+          domain: row.domain == null ? null : String(row.domain),
+          domainStatus:
+            row.domain_status == null ? null : String(row.domain_status),
+          instagram: socials.instagram,
+          whatsapp: row.whatsapp,
+          gmb,
+        })
+      : null;
+    const basico = row.cnpj_basico == null ? "" : String(row.cnpj_basico).trim();
+    let decisor: string | null = null;
+    if (basico) {
+      const [partnersRes, qualsRes] = await Promise.all([
+        query(
+          `select id, cnpj_basico, nome, qualificacao_id, data_entrada, faixa_etaria
+             from partners where cnpj_basico = $1::char(8)`,
+          [basico],
+        ),
+        query(`select id, descricao from ref_qualificacao`),
+      ]);
+      const partners: Partner[] = partnersRes.rows.map((p) => ({
+        id: Number(p.id),
+        cnpj_basico: String(p.cnpj_basico),
+        nome: String(p.nome ?? ""),
+        qualificacao_id: Number(p.qualificacao_id),
+        data_entrada: p.data_entrada == null ? null : String(p.data_entrada),
+        faixa_etaria: p.faixa_etaria == null ? null : Number(p.faixa_etaria),
+      }));
+      const quals: RefQualificacao[] = qualsRes.rows.map((q) => ({
+        id: Number(q.id),
+        descricao: String(q.descricao ?? ""),
+      }));
+      decisor =
+        resolveDecisor(partners, quals, {
+          razaoSocial: row.razao_social == null ? "" : String(row.razao_social),
+          naturezaId:
+            row.natureza_id == null ? null : Number(row.natureza_id),
+        })?.nome ?? null;
+    }
+    return {
+      municipioNome,
+      extraPhones,
+      presence,
+      address,
+      cnae: row.cnae_descricao == null ? null : String(row.cnae_descricao),
+      decisor,
+      assets,
     };
   },
 
@@ -1049,25 +1119,47 @@ export const crmPgMethods = {
     });
   },
 
+  async rescheduleCrmActivity(
+    userId: string,
+    dealId: string,
+    activityId: string,
+    kind: CrmActivityKind,
+    dueAt: string,
+  ): Promise<CrmDealCard | null> {
+    return withTransaction(async (q) => {
+      if (!(await ownedDeal(q, userId, dealId))) return null;
+      const updated = await q(
+        `update crm_activities
+            set kind = $3, due_at = $4::timestamptz
+          where id = $1 and deal_id = $2 and status = 'open'`,
+        [activityId, dealId, kind, dueAt],
+      );
+      if (!updated.rowCount) return null;
+      await q(`update crm_deals set updated_at = now() where id = $1`, [dealId]);
+      return loadCard(q, dealId);
+    });
+  },
+
   async completeCrmActivity(
     userId: string,
     dealId: string,
+    activityId: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
       const open = await q(
         `select * from crm_activities
-          where deal_id = $1 and status = 'open'
-          order by created_at desc
-          limit 1`,
-        [dealId],
+          where id = $1 and deal_id = $2 and status = 'open'`,
+        [activityId, dealId],
       );
       const current = open.rows[0] ? mapActivity(open.rows[0]) : null;
       if (!current) {
         const deal = await loadCard(q, dealId);
         return deal ? { deal, event: null } : null;
       }
-      await closeOpen(q, dealId);
+      await q(`update crm_activities set status = 'done' where id = $1`, [
+        current.id,
+      ]);
       const event = await insertEvent(q, dealId, current.kind, "");
       const deal = await loadCard(q, dealId);
       if (!deal) return null;

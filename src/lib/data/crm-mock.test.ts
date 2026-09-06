@@ -271,16 +271,25 @@ describe("crm mock board", () => {
     });
     const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
     await mockRepo.scheduleCrmActivity(USER, created!.id, "followup", dueAt);
-    const none = await mockRepo.completeCrmActivity(USER, "missing");
+    const none = await mockRepo.completeCrmActivity(
+      USER,
+      "missing",
+      "00000000-0000-4000-8000-000000000001",
+    );
     expect(none).toBeNull();
     const empty = await mockRepo.createCrmDeal(USER, {
       pipelineId: pipeline.id,
       company_name: "Sem volta",
     });
-    const skipped = await mockRepo.completeCrmActivity(USER, empty!.id);
+    const skipped = await mockRepo.completeCrmActivity(
+      USER,
+      empty!.id,
+      "00000000-0000-4000-8000-000000000001",
+    );
     expect(skipped?.event).toBeNull();
     expect(skipped?.deal.next_activity).toBeNull();
-    const done = await mockRepo.completeCrmActivity(USER, created!.id);
+    const open = (await mockRepo.getCrmDeal(USER, created!.id))!.next_activity!;
+    const done = await mockRepo.completeCrmActivity(USER, created!.id, open.id);
     expect(done?.event?.kind).toBe("followup");
     expect(done?.deal.next_activity).toBeNull();
     const events = await mockRepo.listCrmEvents(USER, created!.id);
@@ -377,12 +386,65 @@ describe("crm mock board", () => {
       "whatsapp",
       new Date("2026-09-05T15:00:00.000Z").toISOString(),
     );
-    expect(scheduled?.next_activity?.kind).toBe("whatsapp");
+    expect(scheduled?.next_activity?.kind).toBe("nota");
+    expect(scheduled?.open_activities).toHaveLength(2);
     const undated = await mockRepo.createCrmEvent(USER, created!.id, {
       kind: "nota",
       body: "Só um recado.",
     });
-    expect(undated?.deal.next_activity?.kind).toBe("whatsapp");
+    expect(undated?.deal.next_activity?.kind).toBe("nota");
+    expect(undated?.deal.open_activities).toHaveLength(2);
+  });
+
+  it("logs a WhatsApp without replacing an overdue call", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Não apaga",
+    });
+    const overdue = new Date("2026-08-01T15:00:00.000Z").toISOString();
+    const later = new Date("2026-09-20T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", overdue);
+    const logged = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "whatsapp",
+      body: "Mandei o áudio.",
+    });
+    expect(logged?.deal.next_activity?.kind).toBe("ligar");
+    expect(logged?.deal.open_activities).toHaveLength(1);
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.some((row) => row.kind === "whatsapp")).toBe(true);
+    const meeting = await mockRepo.scheduleCrmActivity(
+      USER,
+      created!.id,
+      "reuniao",
+      later,
+    );
+    expect(meeting?.open_activities.map((row) => row.kind)).toEqual([
+      "ligar",
+      "reuniao",
+    ]);
+    expect(meeting?.next_activity?.kind).toBe("ligar");
+    const ligar = meeting!.open_activities.find((row) => row.kind === "ligar")!;
+    const done = await mockRepo.completeCrmActivity(
+      USER,
+      created!.id,
+      ligar.id,
+    );
+    expect(done?.deal.next_activity?.kind).toBe("reuniao");
+    expect(done?.deal.open_activities).toHaveLength(1);
+    const reuniao = done!.deal.open_activities[0]!;
+    const snoozed = await mockRepo.rescheduleCrmActivity(
+      USER,
+      created!.id,
+      reuniao.id,
+      "reuniao",
+      new Date("2026-09-22T15:00:00.000Z").toISOString(),
+    );
+    expect(snoozed?.open_activities).toHaveLength(1);
+    expect(snoozed?.open_activities[0]?.id).toBe(reuniao.id);
+    expect(snoozed?.next_activity?.due_at).toBe(
+      new Date("2026-09-22T15:00:00.000Z").toISOString(),
+    );
   });
 
   it("reorders pipelines and lists them in the new order", async () => {

@@ -161,6 +161,11 @@ export const activityKindSchema = z.enum(CRM_ACTIVITY_KINDS);
 export const scheduleSchema = z.object({
   kind: activityKindSchema,
   dueAt: z.string().min(10).max(40),
+  activityId: z.string().uuid().optional(),
+});
+
+export const completeSchema = z.object({
+  activityId: z.string().uuid(),
 });
 
 export const logCallSchema = z.object({

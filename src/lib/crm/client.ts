@@ -4,12 +4,6 @@ export const CRM_FIELD =
 export const CRM_LABEL =
   "text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted";
 
-export const CRM_FIELD_LIGHT =
-  "w-full rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] font-normal text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-amber-400";
-
-export const CRM_LABEL_LIGHT =
-  "text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500";
-
 export async function crmFetch<T>(
   url: string,
   init?: RequestInit,

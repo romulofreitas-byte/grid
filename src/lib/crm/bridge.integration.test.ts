@@ -70,6 +70,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       next_activity: null,
+      open_activities: [],
     };
 
     const createCrmDeal = vi
@@ -162,6 +163,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           next_activity: null,
+      open_activities: [],
         }) satisfies CrmDealCard,
     );
     const cnpjs = Array.from({ length: 50 }, (_, i) =>
@@ -226,6 +228,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       next_activity: null,
+      open_activities: [],
     } satisfies CrmDealCard);
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),

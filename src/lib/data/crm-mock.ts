@@ -1,7 +1,10 @@
+import { earliestOpenActivity, sortOpenActivities } from "@/lib/crm/activity";
 import { digitsCnpj } from "@/lib/crm/bridge";
 import { cloneDefaultCadenceEntries, pickCreateStage } from "@/lib/crm/cadence";
 import {
+  briefingAssetsFromFields,
   briefingPresenceFromFields,
+  formatReceitaAddress,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
 import { searchHitsFromDeals } from "@/lib/crm/deal-search";
@@ -13,6 +16,7 @@ import {
 } from "@/lib/crm/inbound-events";
 import { IMPORT_RUN_KEEP, IMPORT_RUN_LIST_LIMIT } from "@/lib/crm/import-history";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
+import { resolveDecisor } from "@/lib/decisor";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
 import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { formatPhone } from "@/lib/format";
@@ -67,11 +71,11 @@ function stagesOf(store: MockStore, pipelineId: string): CrmStage[] {
     .sort((a, b) => a.position - b.position);
 }
 
-function openActivity(store: MockStore, dealId: string): CrmActivity | null {
-  return (
-    store.crm_activities
-      .filter((row) => row.deal_id === dealId && row.status === "open")
-      .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+function openActivities(store: MockStore, dealId: string): CrmActivity[] {
+  return sortOpenActivities(
+    store.crm_activities.filter(
+      (row) => row.deal_id === dealId && row.status === "open",
+    ),
   );
 }
 
@@ -79,7 +83,12 @@ function toCard(store: MockStore, deal: CrmDeal): CrmDealCard {
   if (!deal.people) {
     deal.people = peopleFromDeal(deal);
   }
-  return { ...deal, next_activity: openActivity(store, deal.id) };
+  const open_activities = openActivities(store, deal.id);
+  return {
+    ...deal,
+    open_activities,
+    next_activity: earliestOpenActivity(open_activities),
+  };
 }
 
 function ownPipeline(
@@ -130,12 +139,22 @@ function moveDealInStore(
   if (fromStage !== stageId) compactStage(store, fromStage);
 }
 
-function closeOpenActivity(store: MockStore, dealId: string): void {
-  for (const row of store.crm_activities) {
-    if (row.deal_id === dealId && row.status === "open") {
-      row.status = "done";
-    }
-  }
+function insertActivity(
+  store: MockStore,
+  dealId: string,
+  kind: CrmActivityKind,
+  dueAt: string,
+): CrmActivity {
+  const row: CrmActivity = {
+    id: id(),
+    deal_id: dealId,
+    kind,
+    due_at: dueAt,
+    status: "open",
+    created_at: nowIso(),
+  };
+  store.crm_activities.push(row);
+  return row;
 }
 
 function insertEvent(
@@ -161,25 +180,6 @@ function insertEvent(
     if (body.trim()) deal.notes = body;
     deal.updated_at = now;
   }
-  return row;
-}
-
-function insertActivity(
-  store: MockStore,
-  dealId: string,
-  kind: CrmActivityKind,
-  dueAt: string,
-): CrmActivity {
-  closeOpenActivity(store, dealId);
-  const row: CrmActivity = {
-    id: id(),
-    deal_id: dealId,
-    kind,
-    due_at: dueAt,
-    status: "open",
-    created_at: nowIso(),
-  };
-  store.crm_activities.push(row);
   return row;
 }
 
@@ -575,6 +575,16 @@ export const crmMockMethods = {
       store.lead_enrichment.find(
         (row) => digitsCnpj(row.cnpj) === padded && isEnrichmentVisible(row),
       ) ?? null;
+    const company = store.companies.find(
+      (row) => row.cnpj_basico === est.cnpj_basico,
+    );
+    const partners = store.partners.filter(
+      (row) => row.cnpj_basico === est.cnpj_basico,
+    );
+    const decisor = resolveDecisor(partners, store.ref_qualificacao, {
+      razaoSocial: company?.razao_social ?? "",
+      naturezaId: company?.natureza_id ?? null,
+    });
     return {
       municipioNome,
       extraPhones: uniquePhones(
@@ -589,6 +599,26 @@ export const crmMockMethods = {
             instagram: enrichment.socials?.instagram,
             whatsapp: enrichment.whatsapp,
             gmbMatched: enrichment.gmb?.matched,
+          })
+        : null,
+      address: formatReceitaAddress({
+        logradouro: est.logradouro,
+        numero: est.numero,
+        bairro: est.bairro,
+        municipio: municipioNome,
+        uf: est.uf,
+      }),
+      cnae:
+        store.ref_cnae.find((row) => row.codigo === est.cnae_principal)
+          ?.descricao ?? null,
+      decisor: decisor?.nome ?? null,
+      assets: enrichment
+        ? briefingAssetsFromFields({
+            domain: enrichment.domain,
+            domainStatus: enrichment.domain_status,
+            instagram: enrichment.socials?.instagram,
+            whatsapp: enrichment.whatsapp,
+            gmb: enrichment.gmb,
           })
         : null,
     };
@@ -664,16 +694,45 @@ export const crmMockMethods = {
     return toCard(store, deal);
   },
 
+  async rescheduleCrmActivity(
+    userId: string,
+    dealId: string,
+    activityId: string,
+    kind: CrmActivityKind,
+    dueAt: string,
+  ): Promise<CrmDealCard | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    if (!deal) return null;
+    const activity = store.crm_activities.find(
+      (row) =>
+        row.id === activityId &&
+        row.deal_id === dealId &&
+        row.status === "open",
+    );
+    if (!activity) return null;
+    activity.kind = kind;
+    activity.due_at = dueAt;
+    deal.updated_at = nowIso();
+    return toCard(store, deal);
+  },
+
   async completeCrmActivity(
     userId: string,
     dealId: string,
+    activityId: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);
     if (!deal) return null;
-    const open = openActivity(store, dealId);
+    const open = store.crm_activities.find(
+      (row) =>
+        row.id === activityId &&
+        row.deal_id === dealId &&
+        row.status === "open",
+    );
     if (!open) return { deal: toCard(store, deal), event: null };
-    closeOpenActivity(store, dealId);
+    open.status = "done";
     const event = insertEvent(store, dealId, open.kind, "");
     return { deal: toCard(store, deal), event };
   },

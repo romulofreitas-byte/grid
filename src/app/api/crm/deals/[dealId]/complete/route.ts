@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
-import { guardCrmApi, jsonError } from "@/app/api/crm/_http";
+import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { countConfirmedCrmCall } from "@/lib/crm/record-call";
+import { completeSchema } from "@/lib/crm/schema";
 import { getRepo } from "@/lib/data";
 
 export async function POST(
@@ -11,8 +12,14 @@ export async function POST(
   const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { dealId } = await ctx.params;
+  const parsed = completeSchema.safeParse(await readJson(req));
+  if (!parsed.success) return jsonError("Escolha a ação a concluir.");
   const repo = getRepo();
-  const result = await repo.completeCrmActivity(gated.userId, dealId);
+  const result = await repo.completeCrmActivity(
+    gated.userId,
+    dealId,
+    parsed.data.activityId,
+  );
   if (!result) return jsonError("Negócio não encontrado.", 404);
   if (!result.event) return jsonError("Nenhuma atividade a concluir.");
   await countConfirmedCrmCall(

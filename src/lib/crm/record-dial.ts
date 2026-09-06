@@ -1,5 +1,6 @@
 import { digitsCnpj } from "@/lib/crm/bridge";
 import { crmFetch } from "@/lib/crm/client";
+import { openLigarActivity } from "@/lib/crm/activity";
 import type { CrmDealCard, CrmEvent } from "@/lib/crm/types";
 
 export type RecordCrmDialResult = {
@@ -12,10 +13,11 @@ export type RecordCrmDialResult = {
 export async function recordCrmDialAfterCall(
   deal: CrmDealCard,
 ): Promise<RecordCrmDialResult> {
-  if (deal.next_activity?.kind === "ligar") {
+  const ligar = openLigarActivity(deal);
+  if (ligar) {
     const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
       `/api/crm/deals/${deal.id}/complete`,
-      { method: "POST" },
+      { method: "POST", body: JSON.stringify({ activityId: ligar.id }) },
     );
     return { deal: res.deal, event: res.event };
   }

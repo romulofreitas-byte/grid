@@ -135,6 +135,10 @@ describe("crm briefing", () => {
       municipioNome: "Uberlândia",
       extraPhones: [],
       presence: null,
+      address: null,
+      cnae: null,
+      decisor: null,
+      assets: null,
     }));
     expect(row.audited).toBe(false);
   });
@@ -162,6 +166,10 @@ describe("crm briefing", () => {
         whatsapp: true,
         gmb: false,
       },
+      address: "Rua A, 10 · Centro · Uberlândia/MG",
+      cnae: "Restaurantes",
+      decisor: "Carlos",
+      assets: null,
     });
     const row = await loadCrmBriefing(deal({ cnpj: "12345678000190" }), getLookup);
     expect(getLookup).toHaveBeenCalledWith("12345678000190");
@@ -176,6 +184,9 @@ describe("crm briefing", () => {
       true,
     );
     expect(row.audited).toBe(true);
+    expect(row.address).toBe("Rua A, 10 · Centro · Uberlândia/MG");
+    expect(row.cnae).toBe("Restaurantes");
+    expect(row.decisor).toBe("Carlos");
   });
 
   it("lists extra receita and contact phones without duplicates", () => {

@@ -73,11 +73,11 @@ export function CrmStageChevronBar({
   const itemWidth = `${100 / Math.max(stages.length, 1)}%`;
 
   const arrowClass =
-    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 disabled:pointer-events-none disabled:opacity-30";
+    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-podium-muted hover:bg-white/[0.08] hover:text-podium-white disabled:pointer-events-none disabled:opacity-30";
 
   return (
     <>
-      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-2 py-1.5 md:hidden">
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 px-2 py-1.5 md:hidden">
         {stages.map((stage) => {
           const active = stage.id === activeId;
           return (
@@ -92,7 +92,7 @@ export function CrmStageChevronBar({
                 "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium leading-tight",
                 active
                   ? "bg-podium-yellow text-podium-navy"
-                  : "bg-zinc-100 text-zinc-500",
+                  : "bg-white/5 text-podium-muted",
               )}
             >
               {stage.nome}
@@ -100,65 +100,65 @@ export function CrmStageChevronBar({
           );
         })}
       </div>
-      <div className="hidden shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-2 py-1.5 md:flex">
-      {overflowing ? (
-        <button
-          type="button"
-          aria-label={COPY.crmPrevStages}
-          disabled={!canPrev}
-          onClick={() => scroll(-1)}
-          className={arrowClass}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
-      <div ref={scrollerRef} className="min-w-0 flex-1 overflow-hidden">
-        <div className="flex" style={{ width: trackWidth }}>
-          {stages.map((stage, index) => {
-            const active = stage.id === activeId;
-            return (
-              <button
-                key={stage.id}
-                type="button"
-                data-stage-id={stage.id}
-                title={stage.nome}
-                onClick={() => {
-                  if (!active) onSelect(stage.id);
-                }}
-                className={cn(
-                  "relative shrink-0 truncate px-3 py-1 text-left text-[10px] font-medium leading-tight transition",
-                  active
-                    ? "bg-podium-yellow text-podium-navy"
-                    : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800",
-                )}
-                style={{
-                  flex: `0 0 ${itemWidth}`,
-                  width: itemWidth,
-                  clipPath:
-                    index === 0
-                      ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
-                      : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
-                  marginLeft: index === 0 ? 0 : -6,
-                  paddingLeft: index === 0 ? 10 : 14,
-                }}
-              >
-                {stage.nome}
-              </button>
-            );
-          })}
+      <div className="hidden shrink-0 items-center gap-1 border-b border-white/10 px-2 py-1.5 md:flex">
+        {overflowing ? (
+          <button
+            type="button"
+            aria-label={COPY.crmPrevStages}
+            disabled={!canPrev}
+            onClick={() => scroll(-1)}
+            className={arrowClass}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+        <div ref={scrollerRef} className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex" style={{ width: trackWidth }}>
+            {stages.map((stage, index) => {
+              const active = stage.id === activeId;
+              return (
+                <button
+                  key={stage.id}
+                  type="button"
+                  data-stage-id={stage.id}
+                  title={stage.nome}
+                  onClick={() => {
+                    if (!active) onSelect(stage.id);
+                  }}
+                  className={cn(
+                    "relative shrink-0 truncate px-3 py-1 text-left text-[10px] font-medium leading-tight transition",
+                    active
+                      ? "bg-podium-yellow text-podium-navy"
+                      : "bg-white/5 text-podium-muted hover:bg-white/10 hover:text-podium-white",
+                  )}
+                  style={{
+                    flex: `0 0 ${itemWidth}`,
+                    width: itemWidth,
+                    clipPath:
+                      index === 0
+                        ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
+                        : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
+                    marginLeft: index === 0 ? 0 : -6,
+                    paddingLeft: index === 0 ? 10 : 14,
+                  }}
+                >
+                  {stage.nome}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-      {overflowing ? (
-        <button
-          type="button"
-          aria-label={COPY.crmNextStages}
-          disabled={!canNext}
-          onClick={() => scroll(1)}
-          className={arrowClass}
-        >
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
+        {overflowing ? (
+          <button
+            type="button"
+            aria-label={COPY.crmNextStages}
+            disabled={!canNext}
+            onClick={() => scroll(1)}
+            className={arrowClass}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
     </>
   );

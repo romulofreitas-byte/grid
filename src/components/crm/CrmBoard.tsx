@@ -493,10 +493,7 @@ export function CrmBoard({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-            {COPY.crmNav}
-          </p>
-          <h1 className="mt-1 text-lg font-semibold">
+          <h1 className="text-lg font-semibold">
             {board?.pipeline.nome ??
               pipelines.find((row) => row.id === selectedPipelineId)?.nome ??
               COPY.crmTitle}

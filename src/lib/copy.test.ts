@@ -160,8 +160,8 @@ describe("COPY crm", () => {
     expect(COPY.crmCadenceHint).toMatch(/etapa/i);
     expect(COPY.crmCadenceHint).toMatch(/nicho/i);
     expect(COPY.crmCadenceHint).toMatch(/outras pipelines/i);
-    expect(COPY.crmScheduleHint).toMatch(/não registra/i);
-    expect(COPY.crmLogCallHint).toMatch(/não conta/i);
+    expect(COPY.crmScheduleHint).toMatch(/não substitui/i);
+    expect(COPY.crmLogCallHint).toMatch(/não mexe/i);
     expect(COPY.confirmEyebrow).toBe("Confirmar");
     expect(COPY.confirmCancel).toBe("Cancelar");
     expect(COPY.callAskConfirm).toBe("Ligar");
@@ -170,6 +170,7 @@ describe("COPY crm", () => {
     expect(COPY.callDialHint).toMatch(/confirme/i);
     expect(COPY.gridCalledToday).toBe("Ligou");
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
+    expect(COPY.crmAssetsTitle).toBe("Ativos");
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.boxSprintTitle).toMatch(/trabalho do dia/i);

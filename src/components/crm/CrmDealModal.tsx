@@ -19,6 +19,7 @@ import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
+import { GridPresenceIcons } from "@/components/GridPresenceIcons";
 import { CallConfirmDialog } from "@/components/CallConfirmDialog";
 import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
@@ -26,17 +27,18 @@ import { formatNichoCidade } from "@/lib/nicho-cidade";
 import { leadHrefForCnpj } from "@/lib/back";
 import {
   activitySignal,
-  CRM_NEXT_ACTION_LABELS,
   defaultNextDueLocal,
+  formatDueLabel,
   formatPlannedActivity,
   fromDatetimeLocal,
-  toDatetimeLocal,
+  openActivitiesOf,
 } from "@/lib/crm/activity";
 import {
   buildCrmBriefing,
+  CRM_CARD_PRESENCE_IDS,
   type CrmBriefing,
 } from "@/lib/crm/briefing";
-import { CRM_FIELD_LIGHT, CRM_LABEL_LIGHT, crmFetch } from "@/lib/crm/client";
+import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
 import { formAnswersTitle } from "@/lib/crm/inbound-examples";
 import {
   getCachedDealBriefing,
@@ -163,11 +165,7 @@ export function CrmDealModal({
   );
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [dueLocal, setDueLocal] = useState(
-    deal.next_activity
-      ? toDatetimeLocal(deal.next_activity.due_at)
-      : defaultNextDueLocal(),
-  );
+  const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callPrompt, setCallPrompt] = useState<{ phone: string } | null>(null);
@@ -199,16 +197,22 @@ export function CrmDealModal({
   }, [deal]);
 
   useEffect(() => {
+    if (!briefing.decisor?.trim()) return;
+    const current = peopleRef.current;
+    const primary = current[0] ?? emptyPerson();
+    if (primary.name.trim()) return;
+    const next = [{ ...primary, name: briefing.decisor }, ...current.slice(1)];
+    peopleRef.current = next;
+    setPeople(next);
+  }, [briefing.decisor]);
+
+  useEffect(() => {
     setPhones(deal.phones.length > 0 ? deal.phones : [""]);
     setSecretaries(deal.secretaries.length > 0 ? deal.secretaries : [""]);
     setBody("");
-    setComposerKind(deal.next_activity?.kind ?? "ligar");
+    setComposerKind("ligar");
     setComposerOpen(true);
-    setDueLocal(
-      deal.next_activity
-        ? toDatetimeLocal(deal.next_activity.due_at)
-        : defaultNextDueLocal(),
-    );
+    setDueLocal(defaultNextDueLocal());
     setExpandedEventId(null);
     setDrafts({});
     setAmountDraft(formatCentsInput(deal.amount_cents));
@@ -492,7 +496,36 @@ export function CrmDealModal({
     setBriefingReady(true);
   }
 
-  async function saveComposer() {
+  async function saveRegister() {
+    const note = body.trim();
+    if (!note) {
+      setError(COPY.crmRegisterNeedBody);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+        `/api/crm/deals/${deal.id}/events`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            kind: composerKind,
+            body: note,
+          }),
+        },
+      );
+      onChange(res.deal);
+      prependEvent(res.event);
+      setBody("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não registrou.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveSchedule() {
     const next = nextPayload();
     if (!next) {
       setError("Escolha a ação e o horário.");
@@ -501,29 +534,11 @@ export function CrmDealModal({
     setSaving(true);
     setError(null);
     try {
-      const note = body.trim();
-      if (note) {
-        const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
-          `/api/crm/deals/${deal.id}/events`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              kind: composerKind,
-              body: note,
-              next,
-            }),
-          },
-        );
-        onChange(res.deal);
-        prependEvent(res.event);
-      } else {
-        const scheduled = await crmFetch<{ deal: CrmDealCard }>(
-          `/api/crm/deals/${deal.id}/schedule`,
-          { method: "POST", body: JSON.stringify(next) },
-        );
-        onChange(scheduled.deal);
-      }
-      setBody("");
+      const scheduled = await crmFetch<{ deal: CrmDealCard }>(
+        `/api/crm/deals/${deal.id}/schedule`,
+        { method: "POST", body: JSON.stringify(next) },
+      );
+      onChange(scheduled.deal);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não agendou.");
     } finally {
@@ -531,13 +546,16 @@ export function CrmDealModal({
     }
   }
 
-  async function completePlanned() {
+  async function completePlanned(activityId: string) {
     setSaving(true);
     setError(null);
     try {
       const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
         `/api/crm/deals/${deal.id}/complete`,
-        { method: "POST" },
+        {
+          method: "POST",
+          body: JSON.stringify({ activityId }),
+        },
       );
       onChange(res.deal);
       prependEvent(res.event);
@@ -641,10 +659,15 @@ export function CrmDealModal({
     briefing.phone ??
     null;
   const headerContact = people[0]?.name.trim() || briefing.contact;
-  const plannedTitle = formatPlannedActivity(deal.next_activity);
-  const plannedSignal = activitySignal(deal.next_activity);
-  const extraPeople = people.slice(1);
+  const openActions = openActivitiesOf(deal);
   const nichoCidade = formatNichoCidade(pipelineNome, briefing.municipio);
+  const presenceHits = briefing.assets
+    .filter((asset) => asset.found && asset.href)
+    .map((asset) => ({
+      id: asset.id,
+      href: asset.href!,
+      unverified: Boolean(asset.unverified),
+    }));
 
   return (
     <>
@@ -669,115 +692,116 @@ export function CrmDealModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="crm-deal-title"
-        className="relative flex h-[min(92vh,56rem)] w-[min(96vw,88rem)] flex-col overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-900 shadow-2xl"
+        className="relative flex h-[min(92vh,56rem)] w-[min(96vw,88rem)] flex-col overflow-hidden rounded-lg border border-white/10 bg-podium-navy text-podium-white shadow-2xl"
         initial={reduce ? false : { scale: 0.98 }}
         animate={{ scale: 1 }}
         exit={reduce ? undefined : { scale: 0.98 }}
         transition={presence}
       >
-        <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-3 py-3 md:flex-row md:items-start md:justify-between md:gap-3 md:px-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2
-                    id="crm-deal-title"
-                    className="truncate text-sm font-semibold leading-tight"
+        <header className="flex shrink-0 flex-col gap-2 border-b border-white/10 px-3 py-3 md:px-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2
+                  id="crm-deal-title"
+                  className="truncate text-sm font-semibold leading-tight text-podium-white"
+                >
+                  {deal.company_name}
+                </h2>
+                {deal.cnpj ? (
+                  <Link
+                    href={leadHrefForCnpj(deal.cnpj, deal.meta.searchId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-medium text-podium-yellow hover:underline"
                   >
-                    {deal.company_name}
-                  </h2>
-                  {deal.cnpj ? (
-                    <Link
-                      href={leadHrefForCnpj(deal.cnpj, deal.meta.searchId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-medium text-amber-700 hover:underline"
-                    >
-                      {COPY.crmOpenFicha}
-                    </Link>
-                  ) : null}
-                </div>
-                {nichoCidade ? (
-                  <p className="mt-0.5 truncate text-[10px] text-zinc-400">
-                    {nichoCidade}
-                  </p>
+                    {COPY.crmOpenFicha}
+                  </Link>
                 ) : null}
+              </div>
+              {nichoCidade ? (
+                <p className="mt-0.5 truncate text-[10px] text-podium-muted">
+                  {nichoCidade}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-start gap-1.5">
+              <div className="flex rounded-md border border-white/10 p-0.5">
+                {outcomes.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void setOutcome(id)}
+                    className={cn(
+                      "rounded px-2 py-0.5 text-[10px] font-medium transition",
+                      deal.outcome === id
+                        ? id === "won"
+                          ? "text-emerald-400"
+                          : id === "lost"
+                            ? "text-red-400"
+                            : "text-podium-yellow"
+                        : "text-podium-muted hover:text-podium-gray",
+                    )}
+                  >
+                    {id === "open"
+                      ? COPY.crmOutcomeOpen
+                      : id === "won"
+                        ? COPY.crmOutcomeWon
+                        : COPY.crmOutcomeLost}
+                  </button>
+                ))}
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
+                className="rounded-md p-1.5 text-podium-muted hover:bg-white/5 hover:text-podium-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              {headerPhone ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-700">
-                  <Phone className="h-3 w-3" />
-                  {formatPhoneDisplay(headerPhone)}
-                </span>
-              ) : (
-                <span className="text-[11px] text-zinc-400">{COPY.crmNoPhone}</span>
-              )}
-              {headerContact ? (
-                <span className="truncate text-xs text-zinc-600">
-                  {headerContact}
-                </span>
-              ) : null}
-            </div>
-            {deal.cnpj && briefing.audited && briefing.badges.length > 0 ? (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {briefing.badges.map((badge) => (
-                  <span
-                    key={badge.id}
-                    className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                      badge.found
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-zinc-100 text-zinc-500",
-                    )}
-                  >
-                    {badge.label} · {badge.found ? "ok" : "falta"}
-                  </span>
-                ))}
-              </div>
-            ) : null}
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="flex w-full rounded-md border border-zinc-200 p-0.5 md:w-auto">
-              {outcomes.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void setOutcome(id)}
-                  className={cn(
-                    "flex-1 rounded px-2 py-1 text-[10px] font-medium transition md:flex-none md:py-0.5",
-                    deal.outcome === id
-                      ? id === "won"
-                        ? "text-emerald-700"
-                        : id === "lost"
-                          ? "text-red-700"
-                          : "text-amber-800"
-                      : "text-zinc-400 hover:text-zinc-700",
-                  )}
-                >
-                  {id === "open"
-                    ? COPY.crmOutcomeOpen
-                    : id === "won"
-                      ? COPY.crmOutcomeWon
-                      : COPY.crmOutcomeLost}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {headerPhone ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-xs text-podium-gray">
+                <Phone className="h-3 w-3" />
+                {formatPhoneDisplay(headerPhone)}
+              </span>
+            ) : (
+              <span className="text-[11px] text-podium-muted">{COPY.crmNoPhone}</span>
+            )}
+            {headerContact ? (
+              <span className="truncate text-xs text-podium-gray">
+                {headerContact}
+              </span>
+            ) : null}
             <button
               type="button"
-              onClick={onClose}
-              className="hidden rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-800 md:inline-flex"
+              disabled={saving || !headerPhone}
+              onClick={() => askCall(headerPhone ?? undefined)}
+              className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
             >
-              <X className="h-4 w-4" />
+              <Phone className="h-3.5 w-3.5" />
+              {COPY.crmCallNow}
             </button>
+            <button
+              type="button"
+              disabled={saving || !headerPhone}
+              onClick={() => startWhatsapp()}
+              className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {COPY.crmWhatsappNow}
+            </button>
+            {deal.cnpj && briefing.audited ? (
+              <GridPresenceIcons
+                presence={presenceHits}
+                showMissing
+                ids={CRM_CARD_PRESENCE_IDS}
+                iconClassName="h-3.5 w-3.5"
+                className="ml-0.5 gap-1"
+              />
+            ) : null}
           </div>
         </header>
 
@@ -789,8 +813,8 @@ export function CrmDealModal({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:flex-row md:p-4">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-hidden">
-            <div className="overflow-hidden rounded-md border border-zinc-200 bg-white">
-              <div className="flex flex-wrap gap-1 border-b border-zinc-100 p-2">
+            <div className="shrink-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]">
+              <div className="flex flex-wrap gap-1 border-b border-white/10 p-2">
                 {CRM_COMPOSER_KINDS.map((id) => {
                   const Icon = COMPOSER_ICONS[id];
                   const selected = composerKind === id && composerOpen;
@@ -803,8 +827,8 @@ export function CrmDealModal({
                       className={cn(
                         "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition",
                         selected
-                          ? "border-amber-400 bg-amber-50 text-amber-800"
-                          : "border-transparent text-zinc-500 hover:border-zinc-200 hover:text-zinc-800",
+                          ? "border-podium-yellow/50 bg-podium-yellow/10 text-podium-yellow"
+                          : "border-transparent text-podium-muted hover:border-white/10 hover:text-podium-white",
                       )}
                     >
                       <Icon className="h-3 w-3" />
@@ -820,137 +844,130 @@ export function CrmDealModal({
                 )}
               >
                 <div className="overflow-hidden">
-                  <div className="space-y-2.5 p-2.5">
+                  <div className="p-2.5">
                     <textarea
                       ref={textareaRef}
-                      className={cn(CRM_FIELD_LIGHT, "min-h-16 resize-y")}
+                      className={cn(CRM_FIELD, "min-h-16 resize-y")}
                       value={body}
                       autoComplete="off"
                       onChange={(event) => setBody(event.target.value)}
                       placeholder={COPY.crmComposerPlaceholder}
                     />
-                    <div className="rounded-md bg-zinc-50 px-2.5 py-2">
-                      <p className={CRM_LABEL_LIGHT}>
-                        {CRM_NEXT_ACTION_LABELS[composerKind]}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-end justify-between gap-3">
-                        <CrmDateTimePicker
-                          variant="light"
-                          value={dueLocal || defaultNextDueLocal()}
-                          onChange={setDueLocal}
-                        />
-                        <div className="ml-auto flex shrink-0 items-center gap-2">
-                          {composerKind === "whatsapp" ? (
-                            <button
-                              type="button"
-                              disabled={saving}
-                              onClick={() => startWhatsapp()}
-                              className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-                            >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                              {COPY.crmWhatsappNow}
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            disabled={saving}
-                            title={
-                              composerKind === "ligar"
-                                ? COPY.crmLogCallHint
-                                : COPY.crmScheduleHint
-                            }
-                            onClick={() => void saveComposer()}
-                            className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-                          >
-                            {COPY.crmLogCall}
-                          </button>
-                        </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <CrmDateTimePicker
+                        value={dueLocal || defaultNextDueLocal()}
+                        onChange={setDueLocal}
+                      />
+                      <div className="ml-auto flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          title={COPY.crmScheduleHint}
+                          onClick={() => void saveSchedule()}
+                          className="rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
+                        >
+                          {COPY.crmSchedule}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          title={COPY.crmLogCallHint}
+                          onClick={() => void saveRegister()}
+                          className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                        >
+                          {COPY.crmLogCall}
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            {error ? <p className="text-xs text-red-600">{error}</p> : null}
+            {error ? <p className="text-xs text-podium-alert">{error}</p> : null}
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <p className={CRM_LABEL_LIGHT}>{COPY.crmHistoryTitle}</p>
-              <div className="mt-1.5 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-                {plannedTitle ? (
-                  <article
-                    className={cn(
-                      "rounded-md border px-2.5 py-2",
-                      plannedSignal === "overdue"
-                        ? "border-red-200 bg-red-50"
-                        : plannedSignal === "today"
-                          ? "border-amber-200 bg-amber-50"
-                          : "border-zinc-200 bg-white",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-zinc-800">
-                        {(() => {
-                          const Icon =
-                            COMPOSER_ICONS[deal.next_activity?.kind ?? "nota"];
-                          return <Icon className="h-3 w-3 shrink-0 text-amber-600" />;
-                        })()}
-                        {plannedTitle}
-                      </p>
-                      <div className="flex shrink-0 flex-col items-end gap-0.5">
-                        <p
+            <div className="crm-ficha-aside-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+              <p className={CRM_LABEL}>{COPY.crmOpenActionsTitle}</p>
+              <div className="mt-1.5 space-y-1.5">
+                {openActions.map((activity) => {
+                  const Icon = COMPOSER_ICONS[activity.kind] ?? StickyNote;
+                  const signal = activitySignal(activity);
+                  const when = formatDueLabel(activity.due_at);
+                  return (
+                    <article
+                      key={activity.id}
+                      className={cn(
+                        "rounded-md border px-2.5 py-2",
+                        signal === "overdue"
+                          ? "border-red-500/30 bg-red-500/10"
+                          : signal === "today"
+                            ? "border-podium-yellow/25 bg-podium-yellow/10"
+                            : "border-white/10 bg-white/[0.04]",
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-3.5 w-3.5 shrink-0 text-podium-yellow" />
+                        <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-podium-white">
+                          {formatPlannedActivity(activity)}
+                        </p>
+                        <span
                           className={cn(
-                            "text-[10px] font-medium uppercase tracking-wide",
-                            plannedSignal === "overdue"
-                              ? "text-red-600"
-                              : plannedSignal === "today"
-                                ? "text-amber-700"
-                                : "text-zinc-400",
+                            "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                            signal === "overdue"
+                              ? "bg-red-500/15 text-red-300"
+                              : signal === "today"
+                                ? "bg-podium-yellow/15 text-podium-yellow"
+                                : "bg-white/5 text-podium-muted",
                           )}
                         >
-                          {plannedSignal === "overdue"
+                          {signal === "overdue"
                             ? COPY.crmHistoryTodoOverdue
-                            : plannedSignal === "today"
+                            : signal === "today"
                               ? COPY.crmHistoryTodoToday
-                              : COPY.crmHistoryTodo}
-                        </p>
-                        {deal.next_activity?.created_at ? (
-                          <p className="text-[10px] text-zinc-400">
-                            {COPY.crmCreatedAt}{" "}
-                            {formatEventWhen(deal.next_activity.created_at)}
-                          </p>
+                              : when}
+                        </span>
+                        {activity.kind === "ligar" ? (
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => askCall()}
+                            className="inline-flex items-center gap-0.5 text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50"
+                          >
+                            <Phone className="h-3 w-3" />
+                            {COPY.crmCallNow}
+                          </button>
+                        ) : activity.kind === "whatsapp" ? (
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => startWhatsapp()}
+                            className="inline-flex items-center gap-0.5 text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50"
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            {COPY.crmWhatsappNow}
+                          </button>
                         ) : null}
-                        <div className="mt-0.5 flex items-center gap-2">
-                          {deal.next_activity?.kind === "ligar" ? (
-                            <button
-                              type="button"
-                              disabled={saving}
-                              onClick={() => askCall()}
-                              className="inline-flex items-center gap-0.5 text-[10px] text-zinc-400 hover:text-zinc-800 disabled:opacity-50"
-                            >
-                              <Phone className="h-3 w-3" />
-                              {COPY.crmCallNow}
-                            </button>
-                          ) : null}
-                          <label className="inline-flex cursor-pointer items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-700">
-                            <input
-                              type="checkbox"
-                              disabled={saving}
-                              aria-label={COPY.crmMarkDone}
-                              onChange={(event) => {
-                                event.currentTarget.checked = false;
-                                void completePlanned();
-                              }}
-                              className="h-3 w-3 rounded-sm border-zinc-300 text-amber-700 accent-amber-600 disabled:opacity-50"
-                            />
-                            {COPY.crmMarkDone}
-                          </label>
-                        </div>
+                        <label className="inline-flex cursor-pointer items-center gap-1 text-[10px] text-podium-muted hover:text-podium-gray">
+                          <input
+                            type="checkbox"
+                            disabled={saving}
+                            aria-label={COPY.crmMarkDone}
+                            onChange={(event) => {
+                              event.currentTarget.checked = false;
+                              void completePlanned(activity.id);
+                            }}
+                            className="h-3 w-3 rounded-sm border-white/20 text-podium-yellow accent-podium-yellow disabled:opacity-50"
+                          />
+                          {COPY.crmMarkDone}
+                        </label>
                       </div>
-                    </div>
-                  </article>
-                ) : null}
-                {events.length === 0 && !plannedTitle ? (
-                  <p className="text-xs text-zinc-400">{COPY.crmHistoryEmpty}</p>
+                    </article>
+                  );
+                })}
+                <p className={cn(CRM_LABEL, openActions.length ? "pt-2" : "")}>
+                  {COPY.crmHistoryTitle}
+                </p>
+                {events.length === 0 && openActions.length === 0 ? (
+                  <p className="text-xs text-podium-muted">{COPY.crmHistoryEmpty}</p>
                 ) : (
                   events.map((event) => {
                     const Icon =
@@ -960,11 +977,11 @@ export function CrmDealModal({
                     return (
                       <article
                         key={event.id}
-                        className="rounded-md border border-zinc-200 bg-white px-2.5 py-2"
+                        className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2"
                       >
                         <button
                           type="button"
-                          className="flex w-full items-start justify-between gap-2 text-left"
+                          className="flex w-full items-start gap-2 text-left"
                           onClick={() => {
                             setExpandedEventId(expanded ? null : event.id);
                             setDrafts((current) => ({
@@ -973,18 +990,25 @@ export function CrmDealModal({
                             }));
                           }}
                         >
-                          <p className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-800">
-                            <Icon className="h-3 w-3 text-amber-600" />
-                            {eventTitle(event)}
-                          </p>
-                          <p className="shrink-0 text-[10px] text-zinc-400">
-                            {COPY.crmCreatedAt} {formatEventWhen(event.created_at)}
-                          </p>
+                          <Icon className="mt-0.5 h-3 w-3 shrink-0 text-podium-yellow" />
+                          <span className="min-w-0 flex-1">
+                            <span className="text-[11px] font-medium text-podium-white">
+                              {eventTitle(event)}
+                            </span>
+                            {!expanded && event.body ? (
+                              <span className="mt-0.5 block line-clamp-2 whitespace-pre-wrap text-xs text-podium-gray">
+                                {event.body}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 text-[10px] text-podium-muted">
+                            {formatEventWhen(event.created_at)}
+                          </span>
                         </button>
                         {expanded ? (
                           <div className="mt-2">
                             <textarea
-                              className={cn(CRM_FIELD_LIGHT, "min-h-16 resize-y")}
+                              className={cn(CRM_FIELD, "min-h-16 resize-y")}
                               value={draft}
                               onChange={(row) =>
                                 setDrafts((current) => ({
@@ -997,19 +1021,15 @@ export function CrmDealModal({
                               type="button"
                               disabled={saving}
                               onClick={() => void saveHistory(event.id)}
-                              className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
+                              className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2 py-0.5 text-[10px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
                             >
                               <Check className="h-3 w-3" />
                               {COPY.crmSaveHistory}
                             </button>
                           </div>
-                        ) : event.body ? (
-                          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-600">
-                            {event.body}
-                          </p>
                         ) : null}
                         {event.meta.phone ? (
-                          <p className="mt-1 font-mono text-[10px] text-zinc-400">
+                          <p className="mt-1 font-mono text-[10px] text-podium-muted">
                             {event.meta.phone}
                           </p>
                         ) : null}
@@ -1022,11 +1042,13 @@ export function CrmDealModal({
           </div>
 
           <aside className="crm-ficha-aside-scroll flex w-full shrink-0 flex-col gap-3 overflow-y-auto md:w-[17rem]">
-            <div className="rounded-md border border-zinc-200 bg-white p-2.5">
-              <p className={CRM_LABEL_LIGHT}>{COPY.crmDealAmount}</p>
+            <label className="flex flex-col rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-3">
+              <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-yellow">
+                {COPY.crmDealAmount}
+              </span>
               <input
                 ref={amountRef}
-                className={CRM_FIELD_LIGHT}
+                className="mt-1.5 w-full border-0 bg-transparent p-0 text-lg font-semibold tracking-tight text-podium-white outline-none placeholder:text-podium-muted/70"
                 value={amountDraft}
                 inputMode="decimal"
                 autoComplete="off"
@@ -1035,16 +1057,21 @@ export function CrmDealModal({
                 onChange={(event) => setAmountDraft(event.target.value)}
                 onBlur={() => void persistAmount(amountDraft)}
               />
-              <p className="mt-1 text-[10px] text-zinc-400">
-                {needAmount && deal.amount_cents == null
-                  ? COPY.crmDealAmountNeeded
-                  : deal.outcome === "won"
-                    ? COPY.crmDealAmountHintWon
-                  : deal.outcome === "lost"
-                    ? COPY.crmDealAmountHintLost
-                    : COPY.crmDealAmountHintOpen}
-              </p>
-            </div>
+            </label>
+            {briefing.address || briefing.cnae ? (
+              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+                {briefing.address ? (
+                  <p className="text-[11px] leading-snug text-podium-gray">
+                    {briefing.address}
+                  </p>
+                ) : null}
+                {briefing.cnae ? (
+                  <p className={cn("text-[10px] text-podium-muted", briefing.address && "mt-1")}>
+                    {briefing.cnae}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <CrmDealGridAttach
               deal={deal}
               onChange={onChange}
@@ -1054,44 +1081,26 @@ export function CrmDealModal({
             />
             {deal.meta.form_answers &&
             Object.keys(deal.meta.form_answers).length > 0 ? (
-              <div className="rounded-md border border-zinc-200 bg-white p-2.5">
-                <p className={CRM_LABEL_LIGHT}>
+              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+                <p className={CRM_LABEL}>
                   {formAnswersTitle(deal.meta.form_channel)}
                 </p>
                 <dl className="mt-1.5 space-y-1">
                   {Object.entries(deal.meta.form_answers).map(([key, value]) => (
                     <div key={key} className="flex gap-2 text-[11px]">
-                      <dt className="shrink-0 text-zinc-400">{key}</dt>
-                      <dd className="min-w-0 break-words text-zinc-700">{value}</dd>
+                      <dt className="shrink-0 text-podium-muted">{key}</dt>
+                      <dd className="min-w-0 break-words text-podium-gray">{value}</dd>
                     </div>
                   ))}
                 </dl>
               </div>
             ) : null}
-            <div className="rounded-md border border-zinc-200 bg-white p-2.5">
-              <p className={CRM_LABEL_LIGHT}>{COPY.crmContactLabel}</p>
-              <div className="mt-1.5 flex flex-col gap-1.5">
-                {(["name", "phone", "email"] as const).map((field) => (
-                  <input
-                    key={`primary-${field}`}
-                    className={CRM_FIELD_LIGHT}
-                    value={people[0]?.[field] ?? ""}
-                    placeholder={personPlaceholder(field)}
-                    autoComplete="off"
-                    name={`crm-person-0-${field}`}
-                    onChange={(event) =>
-                      updatePerson(0, field, event.target.value)
-                    }
-                    onBlur={() => flushPeople()}
-                  />
-                ))}
-              </div>
-              <p className={cn(CRM_LABEL_LIGHT, "mt-3")}>{COPY.crmCompanyPhone}</p>
+            <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+              <p className={CRM_LABEL}>{COPY.crmCompanyPhone}</p>
               <div className="mt-1.5">
                 {phoneOptions.length > 1 ? (
                   <Select
                     size="sm"
-                    tone="light"
                     className="w-full"
                     value={companyPhone}
                     name="crm-company-phone"
@@ -1106,7 +1115,7 @@ export function CrmDealModal({
                     ref={companyPhoneRef}
                     type="tel"
                     inputMode="tel"
-                    className={CRM_FIELD_LIGHT}
+                    className={CRM_FIELD}
                     value={companyPhone}
                     autoComplete="off"
                     name="crm-company-phone"
@@ -1120,49 +1129,44 @@ export function CrmDealModal({
                   />
                 )}
               </div>
-              <button
-                type="button"
-                disabled={saving || !companyPhone.trim()}
-                onClick={() => askCall(companyPhone)}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-podium-yellow px-2.5 py-1.5 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                {COPY.crmCallNow}
-              </button>
             </div>
 
-            <div className="rounded-md border border-zinc-200 bg-white p-2.5">
-              <p className={CRM_LABEL_LIGHT}>{COPY.crmPeopleTitle}</p>
+            <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+              <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>
               <div className="mt-1.5 flex flex-col gap-3">
-                {extraPeople.map((person, offset) => {
-                  const index = offset + 1;
-                  return (
+                {people.map((person, index) => (
                     <div key={`person-${index}`} className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-semibold text-zinc-400">
-                          Pessoa {index + 1}
+                        <span className="text-[10px] font-semibold text-podium-muted">
+                          {index === 0 ? COPY.crmContactLabel : `Pessoa ${index + 1}`}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = peopleRef.current.filter((_, i) => i !== index);
-                            peopleRef.current = next;
-                            setPeople(next);
-                            void persistPeople(next);
-                          }}
-                          className="rounded-md p-0.5 text-zinc-300 hover:text-red-600"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                        {index > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = peopleRef.current.filter((_, i) => i !== index);
+                              peopleRef.current = next;
+                              setPeople(next);
+                              void persistPeople(next);
+                            }}
+                            className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
                       </div>
                       {(["name", "phone", "email"] as const).map((field) => (
                         <input
                           key={`${index}-${field}`}
-                          className={CRM_FIELD_LIGHT}
+                          className={CRM_FIELD}
                           value={person[field]}
                           autoComplete="off"
                           name={`crm-person-${index}-${field}`}
-                          placeholder={personPlaceholder(field)}
+                          placeholder={
+                            index === 0 && field === "name"
+                              ? briefing.decisor || personPlaceholder("name")
+                              : personPlaceholder(field)
+                          }
                           onChange={(event) =>
                             updatePerson(index, field, event.target.value)
                           }
@@ -1170,8 +1174,7 @@ export function CrmDealModal({
                         />
                       ))}
                     </div>
-                  );
-                })}
+                ))}
                 <button
                   type="button"
                   onClick={() => {
@@ -1179,18 +1182,18 @@ export function CrmDealModal({
                     peopleRef.current = next;
                     setPeople(next);
                   }}
-                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-zinc-500 hover:text-zinc-800"
+                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {COPY.crmAddPerson}
                 </button>
               </div>
-              <p className={cn(CRM_LABEL_LIGHT, "mt-3")}>{COPY.crmSecretaryName}</p>
+              <p className={cn(CRM_LABEL, "mt-3")}>{COPY.crmSecretaryName}</p>
               <div className="mt-1.5 flex flex-col gap-1.5">
                 {secretaries.map((name, index) => (
                   <div key={`secretary-${index}`} className="flex gap-1.5">
                     <input
-                      className={CRM_FIELD_LIGHT}
+                      className={CRM_FIELD}
                       value={name}
                       autoComplete="off"
                       name={`crm-secretary-${index}`}
@@ -1213,7 +1216,7 @@ export function CrmDealModal({
                           queueSecretaries(next);
                           void persistSecretaries(next);
                         }}
-                        className="rounded-md p-0.5 text-zinc-300 hover:text-red-600"
+                        className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -1225,7 +1228,7 @@ export function CrmDealModal({
                   onClick={() => {
                     queueSecretaries([...secretariesRef.current, ""]);
                   }}
-                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-zinc-500 hover:text-zinc-800"
+                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {COPY.crmAddSecretary}
@@ -1237,7 +1240,7 @@ export function CrmDealModal({
               type="button"
               disabled={saving}
               onClick={() => void remove()}
-              className="mt-auto text-[11px] text-zinc-400 hover:text-red-600"
+              className="mt-auto text-[11px] text-podium-muted hover:text-red-400"
             >
               Tirar do CRM
             </button>

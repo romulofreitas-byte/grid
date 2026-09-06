@@ -235,6 +235,7 @@ export type CrmActivity = {
 
 export type CrmDealCard = CrmDeal & {
   next_activity: CrmActivity | null;
+  open_activities: CrmActivity[];
 };
 
 export type CrmDealSearchHit = {

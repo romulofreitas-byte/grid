@@ -9,7 +9,7 @@ import { ENRICH_CREDIT_COST, creditsPhrase } from "@/lib/billing/catalog";
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import { attachCompanyHitToDeal, enrichJobIsSettled } from "@/lib/crm/add-deal";
-import { CRM_FIELD_LIGHT, CRM_LABEL_LIGHT, crmFetch } from "@/lib/crm/client";
+import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
 import { crmCompanyAttachMode } from "@/lib/crm/company-attach";
 import { clearCachedDealBriefing } from "@/lib/crm/deal-extras-cache";
 import type { CrmDealCard } from "@/lib/crm/types";
@@ -48,7 +48,7 @@ async function pollEnrichSettled(cnpj: string) {
 
 function CnpjCard({ children }: { children: ReactNode }) {
   return (
-    <div className="shrink-0 rounded-md border border-zinc-200 bg-white">
+    <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.03]">
       {children}
     </div>
   );
@@ -56,9 +56,9 @@ function CnpjCard({ children }: { children: ReactNode }) {
 
 function CnpjValue({ cnpj, divided }: { cnpj: string; divided?: boolean }) {
   return (
-    <div className={cn("px-2.5 py-2", divided && "border-b border-zinc-100")}>
-      <p className={CRM_LABEL_LIGHT}>CNPJ</p>
-      <p className="mt-1 font-mono text-[11px] leading-normal text-zinc-700">
+    <div className={cn("px-2.5 py-2", divided && "border-b border-white/10")}>
+      <p className={CRM_LABEL}>CNPJ</p>
+      <p className="mt-1 font-mono text-[11px] leading-normal text-podium-gray">
         {formatCnpj(cnpj)}
       </p>
     </div>
@@ -162,9 +162,9 @@ export function CrmDealGridAttach({
 
   if (mode === "cnpj" && deal.cnpj) {
     return (
-      <div className="shrink-0 rounded-md border border-zinc-200 bg-white p-2.5">
-        <p className={CRM_LABEL_LIGHT}>CNPJ</p>
-        <p className={cn(CRM_FIELD_LIGHT, "mt-1 font-mono")}>{formatCnpj(deal.cnpj)}</p>
+      <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+        <p className={CRM_LABEL}>CNPJ</p>
+        <p className={cn(CRM_FIELD, "mt-1 font-mono")}>{formatCnpj(deal.cnpj)}</p>
       </div>
     );
   }
@@ -176,27 +176,27 @@ export function CrmDealGridAttach({
         <div className="px-2.5 py-2">
           {saving ? (
             <div>
-              <p className="text-[11px] font-medium text-zinc-700">
+              <p className="text-[11px] font-medium text-podium-white">
                 {COPY.crmQualifying}
               </p>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                <div className="h-full w-2/3 animate-pulse rounded-full bg-amber-400" />
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-podium-yellow" />
               </div>
             </div>
           ) : (
             <button
               type="button"
               onClick={() => void qualifyExisting()}
-              className="inline-flex w-full items-center justify-center rounded-md border border-zinc-200 px-2 py-1.5 text-[11px] font-medium text-zinc-700 hover:border-amber-400 hover:text-amber-800"
+              className="inline-flex w-full items-center justify-center rounded-md border border-white/15 px-2 py-1.5 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white"
             >
               {COPY.crmQualifyNow}
             </button>
           )}
-          <p className="mt-1.5 text-[10px] text-zinc-400">
+          <p className="mt-1.5 text-[10px] text-podium-muted">
             {creditsPhrase(ENRICH_CREDIT_COST)} · só se ainda não foi cobrado
           </p>
           {error ? (
-            <p className="mt-1 text-[11px] text-red-600">{error}</p>
+            <p className="mt-1 text-[11px] text-podium-alert">{error}</p>
           ) : null}
         </div>
       </CnpjCard>
@@ -205,8 +205,8 @@ export function CrmDealGridAttach({
 
   return (
     <CnpjCard>
-      <div className="border-b border-zinc-100 px-2.5 py-2">
-        <p className={CRM_LABEL_LIGHT}>{COPY.crmSearchGrid}</p>
+      <div className="border-b border-white/10 px-2.5 py-2">
+        <p className={CRM_LABEL}>{COPY.crmSearchGrid}</p>
       </div>
       <div className="px-2.5 py-2">
         {!open ? (
@@ -216,7 +216,7 @@ export function CrmDealGridAttach({
               setQ(deal.company_name);
               setOpen(true);
             }}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-zinc-200 px-2 py-1.5 text-[11px] font-medium text-zinc-700 hover:border-amber-400 hover:text-amber-800"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-white/15 px-2 py-1.5 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white"
           >
             <Search className="h-3.5 w-3.5" />
             {COPY.crmSearchGrid}
@@ -224,13 +224,13 @@ export function CrmDealGridAttach({
         ) : (
           <div className="space-y-2">
             <input
-              className={CRM_FIELD_LIGHT}
+              className={CRM_FIELD}
               value={q}
               autoComplete="off"
               placeholder="Razão social"
               onChange={(event) => setQ(event.target.value)}
             />
-            <label className="flex items-start gap-2 text-[11px] text-zinc-600">
+            <label className="flex items-start gap-2 text-[11px] text-podium-gray">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -239,11 +239,11 @@ export function CrmDealGridAttach({
               />
               {COPY.crmQualifyNow} ({creditsPhrase(ENRICH_CREDIT_COST)})
             </label>
-            <ul className="max-h-40 overflow-y-auto rounded-md border border-zinc-200">
+            <ul className="max-h-40 overflow-y-auto rounded-md border border-white/10">
               {search.isFetching ? (
-                <li className="px-2 py-2 text-[11px] text-zinc-400">Buscando…</li>
+                <li className="px-2 py-2 text-[11px] text-podium-muted">Buscando…</li>
               ) : (search.data ?? []).length === 0 ? (
-                <li className="px-2 py-2 text-[11px] text-zinc-400">
+                <li className="px-2 py-2 text-[11px] text-podium-muted">
                   {canSearchCompanies(debounced)
                     ? "Nenhuma empresa clara. Não chutamos homônimo."
                     : "Digite a razão social."}
@@ -255,14 +255,12 @@ export function CrmDealGridAttach({
                       type="button"
                       disabled={saving}
                       onClick={() => void pick(hit)}
-                      className={cn(
-                        "flex w-full flex-col items-start px-2 py-1.5 text-left hover:bg-zinc-50 disabled:opacity-50",
-                      )}
+                      className="flex w-full flex-col items-start px-2 py-1.5 text-left hover:bg-white/5 disabled:opacity-50"
                     >
-                      <span className="text-[11px] font-medium text-zinc-800">
+                      <span className="text-[11px] font-medium text-podium-white">
                         {hit.razaoSocial}
                       </span>
-                      <span className="font-mono text-[10px] text-zinc-400">
+                      <span className="font-mono text-[10px] text-podium-muted">
                         {formatCnpj(hit.cnpj)}
                         {hit.municipio ? ` · ${hit.municipio}/${hit.uf}` : ""}
                       </span>
@@ -273,14 +271,14 @@ export function CrmDealGridAttach({
             </ul>
             <button
               type="button"
-              className="text-[10px] text-zinc-400 underline-offset-2 hover:underline"
+              className="text-[10px] text-podium-muted underline-offset-2 hover:underline"
               onClick={() => setOpen(false)}
             >
               Cancelar
             </button>
           </div>
         )}
-        {error ? <p className="mt-1 text-[11px] text-red-600">{error}</p> : null}
+        {error ? <p className="mt-1 text-[11px] text-podium-alert">{error}</p> : null}
       </div>
     </CnpjCard>
   );

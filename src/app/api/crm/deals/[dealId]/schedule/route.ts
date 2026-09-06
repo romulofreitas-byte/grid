@@ -20,12 +20,21 @@ export async function POST(
       ? null
       : new Date(parsed.data.dueAt).toISOString());
   if (!dueAt) return jsonError("Horário inválido.");
-  const deal = await getRepo().scheduleCrmActivity(
-    gated.userId,
-    dealId,
-    parsed.data.kind,
-    dueAt,
-  );
+  const repo = getRepo();
+  const deal = parsed.data.activityId
+    ? await repo.rescheduleCrmActivity(
+        gated.userId,
+        dealId,
+        parsed.data.activityId,
+        parsed.data.kind,
+        dueAt,
+      )
+    : await repo.scheduleCrmActivity(
+        gated.userId,
+        dealId,
+        parsed.data.kind,
+        dueAt,
+      );
   if (!deal) return jsonError("Negócio não encontrado.", 404);
   return NextResponse.json({ deal });
 }

@@ -57,7 +57,10 @@ export function BoxFocusCard({
     setSubmitting(true);
     setError(null);
     try {
-      await crmFetch(`/api/crm/deals/${item.dealId}/complete`, { method: "POST" });
+      await crmFetch(`/api/crm/deals/${item.dealId}/complete`, {
+        method: "POST",
+        body: JSON.stringify({ activityId: item.id }),
+      });
       await crmFetch(`/api/crm/deals/${item.dealId}/schedule`, {
         method: "POST",
         body: JSON.stringify({ kind, dueAt }),
@@ -77,7 +80,7 @@ export function BoxFocusCard({
     try {
       await crmFetch(`/api/crm/deals/${item.dealId}/schedule`, {
         method: "POST",
-        body: JSON.stringify({ kind, dueAt }),
+        body: JSON.stringify({ kind, dueAt, activityId: item.id }),
       });
       setMode("idle");
       await onDone();

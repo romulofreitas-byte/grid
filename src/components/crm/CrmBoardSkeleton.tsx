@@ -70,15 +70,10 @@ export function CrmBoardSkeleton({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-            {COPY.crmNav}
-          </p>
           {opening ? (
-            <div className="mt-2">
-              <CrmOpeningChip />
-            </div>
+            <CrmOpeningChip />
           ) : (
-            <Pulse className="mt-2 h-7 w-48" />
+            <Pulse className="h-7 w-48" />
           )}
           <Pulse className="mt-2 h-4 w-72 max-w-full" />
         </div>

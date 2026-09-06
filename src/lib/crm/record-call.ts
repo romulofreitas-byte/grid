@@ -5,6 +5,7 @@ import {
   preferredCrmPipelineId,
   type LeadCrmRepo,
 } from "@/lib/crm/lead-sync";
+import { openLigarActivity } from "@/lib/crm/activity";
 import type { CrmNextAction } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 import type { CallEventSource, Search } from "@/lib/types";
@@ -79,8 +80,9 @@ export async function recordCompletedCall(
             ),
           );
       if (deal) {
-        if (deal.next_activity?.kind === "ligar") {
-          await repo.completeCrmActivity(input.userId, deal.id);
+        const ligar = openLigarActivity(deal);
+        if (ligar) {
+          await repo.completeCrmActivity(input.userId, deal.id, ligar.id);
         } else {
           await repo.logCrmCall(
             input.userId,

@@ -366,9 +366,17 @@ export type GridRepo = {
     kind: CrmActivityKind,
     dueAt: string,
   ): Promise<CrmDealCard | null>;
+  rescheduleCrmActivity(
+    userId: string,
+    dealId: string,
+    activityId: string,
+    kind: CrmActivityKind,
+    dueAt: string,
+  ): Promise<CrmDealCard | null>;
   completeCrmActivity(
     userId: string,
     dealId: string,
+    activityId: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null>;
   logCrmCall(
     userId: string,
