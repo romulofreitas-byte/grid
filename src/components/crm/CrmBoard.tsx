@@ -14,7 +14,8 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AnimatePresence } from "framer-motion";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { Plus, SlidersHorizontal, Upload } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CrmAddDealDialog } from "@/components/crm/CrmAddDealDialog";
 import { CrmCadencePanel } from "@/components/crm/CrmCadencePanel";
@@ -24,7 +25,7 @@ import { CrmDealSearch } from "@/components/crm/CrmDealSearch";
 import { CrmLane } from "@/components/crm/CrmLane";
 import { CrmLanesSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { CrmPipelineRail } from "@/components/crm/CrmPipelineRail";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { useConnections } from "@/hooks/useConnections";
 import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
@@ -533,6 +534,13 @@ export function CrmBoard({
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {COPY.crmAdjustCadence}
           </Button>
+          <Link
+            href="/importacoes"
+            className={buttonClassName({ variant: "secondary", size: "sm" })}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            {COPY.crmImport}
+          </Link>
           <Button
             type="button"
             size="sm"

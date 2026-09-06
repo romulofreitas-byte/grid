@@ -326,6 +326,7 @@ describe("COPY crm add deal", () => {
     );
     expect(COPY.crmNewPipeline).toBe("Novo nicho");
     expect(COPY.crmAddDealNeedPipeline.toLowerCase()).toMatch(/nicho/);
+    expect(COPY.crmImport).toBe("Importar");
   });
 });
 

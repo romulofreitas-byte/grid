@@ -379,6 +379,7 @@ export const COPY = {
   crmStageSelectLabel: "Etapa",
   crmUnlinkCompany: "Desvincular",
   crmAdjustCadence: "Ajustar cadência",
+  crmImport: "Importar",
   crmNoActivity: "Sem próxima ação",
   crmLogCall: "Salvar",
   crmLogCallHint:
