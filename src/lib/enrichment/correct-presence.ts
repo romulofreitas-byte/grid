@@ -1,4 +1,5 @@
 import { parseCompanySite } from "@/lib/enrichment/company-site";
+import { cidFromMapsUrl, mapsCidUrl } from "@/lib/enrichment/company-name";
 import { normalizeSocialUrl } from "@/lib/enrichment/extract";
 import { midiaPagaLabel } from "@/lib/enrichment/tech";
 import { parseInstagramHandle } from "@/lib/instagram";
@@ -340,11 +341,14 @@ export function applyPresenceCorrection(
       next.gmb = { name: "", url: "", matched: false, status: "none" };
     } else {
       const url = gmbUrl(correction.gmb);
+      const cid = cidFromMapsUrl(url);
       next.gmb = {
         name: options.companyName?.trim() || row.gmb?.name || "Google Meu Negócio",
-        url,
+        url: cid ? mapsCidUrl(cid) : url,
         matched: true,
         status: "matched",
+        ...(cid ? { cid } : {}),
+        ...(row.gmb?.card ? { card: row.gmb.card } : {}),
       };
     }
     next.fonte = stamp(next, "gmb", collectedAt);

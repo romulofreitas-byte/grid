@@ -50,6 +50,23 @@ export function mapsCidUrl(cid: string): string {
   return `https://www.google.com/maps?cid=${encodeURIComponent(cid)}`;
 }
 
+/** Public cid from a Maps / GBP URL. Short goo.gl links have none. */
+export function cidFromMapsUrl(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  try {
+    const withProto = /^https?:\/\//i.test(raw)
+      ? raw.trim()
+      : `https://${raw.trim().replace(/^\/\//, "")}`;
+    const u = new URL(withProto);
+    const fromQuery = u.searchParams.get("cid")?.trim();
+    if (fromQuery) return fromQuery;
+    const inPath = u.pathname.match(/\/cid\/([^/]+)/i)?.[1]?.trim();
+    return inPath || null;
+  } catch {
+    return null;
+  }
+}
+
 export function isMapsUrl(raw: string | null | undefined): boolean {
   if (!raw?.trim()) return false;
   try {

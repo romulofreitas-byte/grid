@@ -154,6 +154,19 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.whatsapp).toBe("5531999887766");
   });
 
+  it("stores a Maps cid from a Google listing URL", () => {
+    const result = applyPresenceCorrection(enrichment(), {
+      gmb: "https://www.google.com/maps?cid=918273",
+    });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.gmb?.matched).toBe(true);
+    expect(result.row.gmb?.status).toBe("matched");
+    expect(result.row.gmb?.cid).toBe("918273");
+    expect(result.row.gmb?.url).toBe("https://www.google.com/maps?cid=918273");
+    expect(result.row.fonte.gmb?.fonte).toBe("human");
+  });
+
   it("drops Instagram pain after a human correction", () => {
     const withIg = applyPresenceCorrection(
       enrichment({ domain_status: "confirmado", socials: {} }),

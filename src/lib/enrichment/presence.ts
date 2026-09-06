@@ -22,6 +22,7 @@ import type {
 import {
   GMB_CARD_CHECKS,
   gmbCardKindFromScore,
+  gmbListingStatus,
   gmbNoneListing,
 } from "@/lib/types";
 
@@ -418,6 +419,47 @@ function listingCardBetter(candidate: GmbListing, current: GmbListing): boolean 
   return false;
 }
 
+function gmbStatusRank(listing: GmbListing | null | undefined): number {
+  const status = gmbListingStatus(listing);
+  if (status === "matched") return 2;
+  if (status === "candidate") return 1;
+  return 0;
+}
+
+/** Prefer identity match, then candidate, then the richer public card. */
+export function preferGmbListing(
+  current: GmbListing | null | undefined,
+  next: GmbListing,
+): GmbListing {
+  if (!current) return next;
+  const nextRank = gmbStatusRank(next);
+  const currentRank = gmbStatusRank(current);
+  if (nextRank > currentRank) return next;
+  if (nextRank < currentRank) return current;
+  if (nextRank > 0 && listingCardBetter(next, current)) return next;
+  return current;
+}
+
+function sameSearchToken(a: string, b: string): boolean {
+  const norm = (value: string) =>
+    stripAccents(value).replace(/[^a-z0-9]+/g, "");
+  return Boolean(norm(a)) && norm(a) === norm(b);
+}
+
+/** First strong brand token when the Receita name is too long for Maps. */
+export function gmbCompactSearchName(input: GmbSearchInput): string | null {
+  const tokens = presenceBrandTokens(
+    input.razaoSocial,
+    input.nomeFantasia,
+    input.municipio,
+  );
+  if (tokens.length === 0) return null;
+  const compact = tokens[0];
+  const full = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+  if (!compact || sameSearchToken(compact, full)) return null;
+  return compact;
+}
+
 export function gmbSearchQuery(
   input: GmbSearchInput,
   opts?: { quoted?: boolean; includeStreet?: boolean },
@@ -448,6 +490,15 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     push(gmbSearchQuery(input, { quoted: true, includeStreet: true }));
   }
   push(gmbSearchQuery(input, { quoted: false, includeStreet: false }));
+  const compact = gmbCompactSearchName(input);
+  if (compact) {
+    push(
+      gmbSearchQuery(
+        { ...input, nomeFantasia: compact, razaoSocial: compact },
+        { quoted: true, includeStreet: false },
+      ),
+    );
+  }
   return list;
 }
 

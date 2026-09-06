@@ -3,6 +3,7 @@ import {
   domainSearchFallbackQueries,
   domainSearchNationalFallbackQueries,
   domainSearchQueries,
+  searchableCompanyName,
 } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { stampDiscoveryFonte } from "@/lib/enrichment/discovery";
@@ -19,6 +20,7 @@ import {
 import {
   domainFromGmb,
   pickBestDomainHit,
+  preferGmbListing,
   searchGmb,
   searchSocialProfile,
   serperOrganic,
@@ -58,7 +60,7 @@ import type {
   SitePerson,
   TechSignals,
 } from "@/lib/types";
-import { gmbListingCorroborated } from "@/lib/types";
+import { gmbListingCorroborated, gmbListingStatus } from "@/lib/types";
 
 export const GRID_USER_AGENT =
   "Mozilla/5.0 (compatible; GridBot/1.0; +https://grid.mundopodium.com.br/bot)";
@@ -313,6 +315,33 @@ function receitaGmbInput(
     ],
     sharedVerdict,
   };
+}
+
+function sameGmbSearchName(a: string, b: string): boolean {
+  const norm = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "");
+  return Boolean(norm(a)) && norm(a) === norm(b);
+}
+
+/** Receita name missed; the live site often has the Maps trading name. */
+async function retryGmbWithSiteBrand(
+  listing: GmbListing | null,
+  input: GmbSearchInput,
+  siteBrand: string | null,
+  siteConfirmed: boolean,
+): Promise<GmbListing | null> {
+  if (!siteConfirmed) return listing;
+  const brand = siteBrand?.trim();
+  if (!brand) return listing;
+  if (gmbListingStatus(listing) === "matched") return listing;
+  const currentName = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+  if (sameGmbSearchName(brand, currentName)) return listing;
+  const retried = await searchGmb({ ...input, nomeFantasia: brand });
+  return preferGmbListing(listing, retried);
 }
 
 function absorbSearchSocials(
@@ -1039,6 +1068,17 @@ export async function enrichCompany(
 
   if (!gmb) {
     gmb = await searchGmb(gmbInput);
+    fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+  }
+
+  const retriedGmb = await retryGmbWithSiteBrand(
+    gmb,
+    gmbInput,
+    siteBrand,
+    domain_status === "confirmado",
+  );
+  if (retriedGmb !== gmb) {
+    gmb = retriedGmb;
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
 

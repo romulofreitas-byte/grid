@@ -1443,6 +1443,80 @@ describe("enrichCompany crawl", () => {
     delete process.env.SERPER_API_KEY;
   });
 
+  it("retries Maps with the confirmed site brand when the Receita name misses", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const domain = "futuraimobiliaria.com.br";
+    const mapsQueries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/maps")) {
+          let q = "";
+          try {
+            q = (JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "";
+          } catch {
+            q = "";
+          }
+          mapsQueries.push(q);
+          const hitTradingName = /Futura Imobili[aá]ria/i.test(q);
+          return new Response(
+            JSON.stringify({
+              places: hitTradingName
+                ? [
+                    {
+                      title: "Futura Imobiliária",
+                      address: "R. dos Estudantes, 101 - Vicosa - MG",
+                      phoneNumber: "(31) 3892-4111",
+                      website: `https://${domain}`,
+                      cid: "77",
+                      rating: 4.7,
+                      ratingCount: 95,
+                      thumbnailUrl: "https://img.test/pin.jpg",
+                      openingHours: ["seg 08:00"],
+                    },
+                  ]
+                : [],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(JSON.stringify({ organic: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (href.endsWith("/robots.txt")) {
+          return new Response("User-agent: *\nAllow: /\n", { status: 200 });
+        }
+        if (href.includes(domain)) {
+          return htmlResponse(
+            `<html><head><meta property="og:site_name" content="Futura Imobiliária"></head><body>Futura CNPJ ${CNPJ}</body></html>`,
+          );
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput(domain);
+    input.establishment.nome_fantasia =
+      "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS";
+    input.company.razao_social =
+      "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA";
+    input.municipioNome = "Vicosa";
+    input.establishment.ddd1 = "31";
+    input.establishment.telefone1 = "38924111";
+    const { row } = await enrichCompany(input);
+    expect(row.domain_status).toBe("confirmado");
+    expect(row.gmb?.matched).toBe(true);
+    expect(row.gmb?.name).toBe("Futura Imobiliária");
+    expect(row.gmb?.card?.rating).toBe(4.7);
+    expect(row.gmb?.card?.ratingCount).toBe(95);
+    expect(row.gmb?.card?.score).toBe(5);
+    expect(mapsQueries.some((q) => /Futura Imobili[aá]ria/i.test(q))).toBe(true);
+    delete process.env.SERPER_API_KEY;
+  });
+
   it("flushes progress so a slow home upsert cannot land after complete", async () => {
     const domain = "sol-progress.test";
     mockSiteFetch({

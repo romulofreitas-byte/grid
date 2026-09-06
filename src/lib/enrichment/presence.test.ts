@@ -4,9 +4,11 @@ import { presenceBrandTokens } from "./confirm-domain";
 import {
   domainFromGmb,
   gmbCardFromPlace,
+  gmbCompactSearchName,
   gmbSearchQuery,
   gmbSearchQueryList,
   hitsFromSerperJson,
+  preferGmbListing,
   mapsAddressMatchesReceita,
   mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
@@ -352,6 +354,20 @@ describe("Maps × Receita matching", () => {
       '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
       "DISTRIBUIDORA SILVA Contagem MG",
     ]);
+  });
+
+  it("adds a compact brand query when the Receita name is longer than the Maps title", () => {
+    const futura = {
+      nomeFantasia: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS",
+      razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
+      municipio: "Vicosa",
+      uf: "MG",
+      logradouro: "Rua X",
+      numero: "1",
+    };
+    expect(gmbCompactSearchName(futura)).toBe("futura");
+    expect(gmbSearchQueryList(futura)).toContain('"futura" Vicosa MG');
+    expect(gmbCompactSearchName(silva)).toBeNull();
   });
 
   it("rejects a neighbor listing that only shares the street address", () => {
@@ -836,5 +852,82 @@ describe("searchGmb", () => {
     expect(listing.cid).toBe("222");
     expect(queries).toHaveLength(2);
     expect(queries[1]).toMatch(/Anhanguera/);
+  });
+
+  it("matches a trading-name Maps card via the compact brand query", async () => {
+    const futuraPlace = {
+      title: "Futura Imobiliária",
+      address: "R. dos Estudantes, 101 - Viçosa - MG",
+      phoneNumber: "(31) 3892-4111",
+      cid: "9",
+      rating: 4.7,
+      ratingCount: 95,
+      thumbnailUrl: "https://img.test/pin.jpg",
+      website: "https://futuraimobiliaria.com.br",
+      openingHours: ["seg 08:00"],
+    };
+    process.env.SERPER_API_KEY = "test";
+    const queries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        let q = "";
+        try {
+          q = (JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "";
+        } catch {
+          q = "";
+        }
+        queries.push(q);
+        const places =
+          /"futura"/i.test(q) && !/empreendimentos/i.test(q) ? [futuraPlace] : [];
+        return new Response(JSON.stringify({ places }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    const listing = await searchGmb({
+      nomeFantasia: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS",
+      razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
+      municipio: "Vicosa",
+      uf: "MG",
+      logradouro: "Rua X",
+      numero: "1",
+      phones: [{ ddd: "31", telefone: "38924111" }],
+    });
+    expect(listing.matched).toBe(true);
+    expect(listing.name).toBe("Futura Imobiliária");
+    expect(listing.card?.rating).toBe(4.7);
+    expect(listing.card?.ratingCount).toBe(95);
+    expect(listing.card?.score).toBe(5);
+    expect(queries.some((q) => /"futura"/i.test(q))).toBe(true);
+  });
+});
+
+describe("preferGmbListing", () => {
+  it("upgrades a miss to a matched trading-name card", () => {
+    const next = resolveGmbListing(
+      [
+        {
+          title: "Futura Imobiliária",
+          address: "Centro, Vicosa - MG",
+          cid: "9",
+          rating: 4.7,
+          ratingCount: 95,
+        },
+      ],
+      {
+        nomeFantasia: "Futura Imobiliária",
+        razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
+        municipio: "Vicosa",
+        uf: "MG",
+      },
+    );
+    expect(next.matched).toBe(true);
+    const chosen = preferGmbListing(
+      { name: "", url: "", matched: false, status: "none" },
+      next,
+    );
+    expect(chosen).toBe(next);
   });
 });

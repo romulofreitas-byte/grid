@@ -5,6 +5,7 @@ import {
   domainSearchFallbackQueries,
   domainSearchNationalFallbackQueries,
   searchableCompanyName,
+  cidFromMapsUrl,
   companyMapsQuery,
   leadMapsHref,
 } from "./company-name";
@@ -142,5 +143,13 @@ describe("leadMapsHref", () => {
         cid: "999",
       }),
     ).toBe("https://www.google.com/maps?cid=999");
+  });
+});
+
+describe("cidFromMapsUrl", () => {
+  it("reads cid from a Maps listing URL", () => {
+    expect(cidFromMapsUrl("https://www.google.com/maps?cid=12345")).toBe("12345");
+    expect(cidFromMapsUrl("maps.google.com/?cid=99")).toBe("99");
+    expect(cidFromMapsUrl("https://maps.app.goo.gl/abc")).toBeNull();
   });
 });
