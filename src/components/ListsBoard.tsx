@@ -1,28 +1,33 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { BookmarkMinus, BookmarkPlus, Plus } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
-import { Hint } from "@/components/Hint";
+import { ListSearchMenu } from "@/components/ListSearchMenu";
+import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { ListTile } from "@/components/ListTile";
-import { SectionTitle } from "@/components/SectionTitle";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
-import { largadaNovaHref } from "@/lib/back";
+import { formatRelativeShort } from "@/lib/format";
+import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
 import {
   applySearchSaved,
-  nextSavedVisibleCount,
   partitionSearches,
   removeSearch,
-  SAVED_LISTS_PAGE_SIZE,
   savedLeadsTotal,
   UNSAVED_LIST_CAP,
 } from "@/lib/searches";
 import type { Search } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import {
+  workSplitClass,
+  workSplitPaneClass,
+  workSplitRailClass,
+} from "@/lib/work-split";
+
+type ListFilter = "salvas" | "rascunhos";
 
 export function ListsBoard({
   initial,
@@ -31,26 +36,35 @@ export function ListsBoard({
   initial: Search[];
   pipelineNomes?: string[];
 }) {
-  const reduce = useReducedMotion();
   const [searches, setSearches] = useState(initial);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [savedVisible, setSavedVisible] = useState(SAVED_LISTS_PAGE_SIZE);
-  const { saved, unsaved } = partitionSearches(searches);
-  const shownSaved = saved.slice(0, savedVisible);
-  const remainingSaved = Math.max(0, saved.length - shownSaved.length);
+  const [filter, setFilter] = useState<ListFilter>("salvas");
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const { saved, unsaved } = partitionSearches(initial);
+    return saved[0]?.id ?? unsaved[0]?.id ?? null;
+  });
+  const { saved, unsaved } = useMemo(
+    () => partitionSearches(searches),
+    [searches],
+  );
   const leadsTotal = savedLeadsTotal(saved);
   const volumeLabel = COPY.listasVolumeAria.replace(
     "{n}",
     leadsTotal.toLocaleString("pt-BR"),
   );
+  const rows = filter === "salvas" ? saved : unsaved;
+  const selected = useMemo(
+    () => searches.find((row) => row.id === selectedId) ?? null,
+    [searches, selectedId],
+  );
 
-  function scrollToSavedLists() {
-    document.getElementById("listas-salvas")?.scrollIntoView({
-      behavior: reduce ? "auto" : "smooth",
-      block: "start",
-    });
-  }
+  useEffect(() => {
+    if (selectedId && searches.some((row) => row.id === selectedId)) return;
+    const next =
+      (filter === "salvas" ? saved : unsaved)[0] ?? saved[0] ?? unsaved[0];
+    setSelectedId(next?.id ?? null);
+  }, [filter, searches, selectedId, saved, unsaved]);
 
   function clearError(searchId: string) {
     setErrors((current) => {
@@ -89,181 +103,231 @@ export function ListsBoard({
   function onDeleted(searchId: string) {
     setSearches((current) => removeSearch(current, searchId));
     clearError(searchId);
+    if (selectedId === searchId) setSelectedId(null);
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <section>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
-            <Hint className="mt-1.5 hidden max-w-xl md:block">
-              {COPY.listasSalvasHint}
-            </Hint>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {leadsTotal > 0 ? (
-              <button
-                type="button"
-                onClick={scrollToSavedLists}
-                title={volumeLabel}
-                aria-label={volumeLabel}
-                className={cn(
-                  buttonClassName({ variant: "accent", size: "sm" }),
-                  !reduce && "listas-volume-pulse",
-                )}
-              >
-                <span className="tracking-tight">
-                  {leadsTotal.toLocaleString("pt-BR")}
-                </span>
-                <span className="uppercase tracking-[0.12em]">
-                  {COPY.listasVolumeLabel}
-                </span>
-              </button>
-            ) : null}
-            <Link
-              href={largadaNovaHref}
-              data-tour="nova-lista"
-              className={buttonClassName({
-                variant: "primary",
-                size: "md",
-                className: "min-h-11 md:min-h-0 md:h-7 md:px-2 md:text-[11px]",
-              })}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {COPY.novaLista}
+  const emptyList =
+    filter === "salvas" ? (
+      <p className="px-1 py-6 text-sm text-podium-muted">
+        Nenhuma lista salva ainda.{" "}
+        {unsaved.length > 0 ? (
+          <>
+            Salve um rascunho, ou faça uma{" "}
+            <Link href={largadaNovaHref} className="text-podium-yellow">
+              {COPY.novaLista.toLowerCase()}
             </Link>
-          </div>
-        </div>
-        <div id="listas-salvas" className="scroll-mt-20">
-          <SearchGrid
-            items={shownSaved}
-            empty={
-              <GlassCard className="p-3 text-sm text-podium-muted">
-                Nenhuma lista salva ainda.{" "}
-                {unsaved.length > 0 ? (
-                  <>
-                    Salve uma das buscas em {COPY.listasNaoSalvas.toLowerCase()},
-                    ou faça uma{" "}
-                  </>
-                ) : (
-                  "Faça uma "
-                )}
-                <Link href={largadaNovaHref} className="text-podium-yellow">
-                  {COPY.novaLista.toLowerCase()}
-                </Link>
-                .
-              </GlassCard>
-            }
-            reduce={Boolean(reduce)}
-            renderCard={(item) => (
-              <ListTile
-                search={item}
-                from="listas"
-                pistaNome={pistaNomeForSearch(item, pipelineNomes)}
-                error={errors[item.id]}
-                pending={pendingId === item.id}
-                onToggleSaved={(next) => void toggleSaved(item, next)}
-                onDeleted={onDeleted}
-              />
-            )}
-          />
-        </div>
-        {remainingSaved > 0 ? (
-          <div className="mt-4 flex justify-center">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setSavedVisible((current) =>
-                  nextSavedVisibleCount(current, saved.length),
-                )
-              }
-            >
-              {COPY.listasMostrarMais.replace("{n}", String(remainingSaved))}
-            </Button>
-          </div>
+            .
+          </>
+        ) : (
+          <>
+            Faça uma{" "}
+            <Link href={largadaNovaHref} className="text-podium-yellow">
+              {COPY.novaLista.toLowerCase()}
+            </Link>
+            .
+          </>
+        )}
+      </p>
+    ) : (
+      <p className="px-1 py-6 text-sm text-podium-muted">
+        {saved.length > 0
+          ? "Todas as buscas estão em Minhas listas."
+          : "Nenhuma busca ainda. Comece uma "}
+        {saved.length === 0 ? (
+          <>
+            <Link href={largadaNovaHref} className="text-podium-yellow">
+              {COPY.novaLista.toLowerCase()}
+            </Link>
+            .
+          </>
         ) : null}
-      </section>
+      </p>
+    );
 
-      <section>
-        <SectionTitle>
-          {COPY.listasNaoSalvas} · {unsaved.length} de {UNSAVED_LIST_CAP}
-        </SectionTitle>
-        <Hint className="mt-1.5 hidden max-w-xl md:block">
-          {COPY.listasNaoSalvasHint}
-        </Hint>
-        <SearchGrid
-          items={unsaved}
-          empty={
-            <GlassCard className="p-3 text-sm text-podium-muted">
-              {saved.length > 0
-                ? "Todas as buscas estão em Minhas listas."
-                : "Nenhuma busca ainda. Comece uma "}
-              {saved.length === 0 ? (
-                <>
-                  <Link href={largadaNovaHref} className="text-podium-yellow">
-                    {COPY.novaLista.toLowerCase()}
-                  </Link>
-                  .
-                </>
-              ) : null}
-            </GlassCard>
-          }
-          reduce={Boolean(reduce)}
-          compact
-          renderCard={(item) => (
-            <ListTile
-              search={item}
-              from="listas"
-              unsaved
-              error={errors[item.id]}
-              pending={pendingId === item.id}
-              onToggleSaved={(next) => void toggleSaved(item, next)}
-              onDeleted={onDeleted}
-            />
-          )}
-        />
-      </section>
+  return (
+    <div className={workSplitClass}>
+      <div className={workSplitRailClass}>
+        <div className="flex shrink-0 items-center gap-2">
+          {leadsTotal > 0 ? (
+            <button
+              type="button"
+              onClick={() => setFilter("salvas")}
+              title={volumeLabel}
+              aria-label={volumeLabel}
+              className={buttonClassName({ variant: "accent", size: "sm" })}
+            >
+              <span className="tracking-tight">
+                {leadsTotal.toLocaleString("pt-BR")}
+              </span>
+              <span className="uppercase tracking-[0.12em]">
+                {COPY.listasVolumeLabel}
+              </span>
+            </button>
+          ) : null}
+          <Link
+            href={largadaNovaHref}
+            data-tour="nova-lista"
+            className={buttonClassName({
+              variant: "primary",
+              size: "md",
+              className: "ml-auto min-h-11 md:min-h-0 md:h-7 md:px-2 md:text-[11px]",
+            })}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {COPY.novaLista}
+          </Link>
+        </div>
+        <div className="mt-2 inline-flex shrink-0 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+          <button
+            type="button"
+            onClick={() => setFilter("salvas")}
+            className={cn(
+              "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition",
+              filter === "salvas"
+                ? "bg-podium-yellow text-podium-navy"
+                : "text-podium-muted hover:text-podium-white",
+            )}
+          >
+            Minhas listas · {saved.length}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("rascunhos")}
+            className={cn(
+              "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition",
+              filter === "rascunhos"
+                ? "bg-podium-yellow text-podium-navy"
+                : "text-podium-muted hover:text-podium-white",
+            )}
+          >
+            {COPY.listasNaoSalvas} · {unsaved.length}/{UNSAVED_LIST_CAP}
+          </button>
+        </div>
+        <div id="listas-salvas" className="mt-2 min-h-0 flex-1 space-y-1">
+          {rows.length === 0
+            ? emptyList
+            : rows.map((item) => (
+                <ListTile
+                  key={item.id}
+                  search={item}
+                  unsaved={!item.saved}
+                  selected={item.id === selectedId}
+                  error={errors[item.id]}
+                  onSelect={() => setSelectedId(item.id)}
+                />
+              ))}
+        </div>
+      </div>
+
+      <div className={cn(workSplitPaneClass, "space-y-3")}>
+        {selected ? (
+          <ListDetail
+            search={selected}
+            pistaNome={
+              selected.saved
+                ? pistaNomeForSearch(selected, pipelineNomes)
+                : null
+            }
+            error={errors[selected.id]}
+            pending={pendingId === selected.id}
+            onToggleSaved={(next) => void toggleSaved(selected, next)}
+            onDeleted={onDeleted}
+          />
+        ) : (
+          <p className="px-1 py-6 text-sm text-podium-muted">
+            Escolha uma lista à esquerda, ou faça uma{" "}
+            <Link href={largadaNovaHref} className="text-podium-yellow">
+              {COPY.novaLista.toLowerCase()}
+            </Link>
+            .
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
-function SearchGrid({
-  items,
-  empty,
-  reduce,
-  compact,
-  renderCard,
+function ListDetail({
+  search,
+  pistaNome,
+  error,
+  pending,
+  onToggleSaved,
+  onDeleted,
 }: {
-  items: Search[];
-  empty: ReactNode;
-  reduce: boolean;
-  compact?: boolean;
-  renderCard: (search: Search) => ReactNode;
+  search: Search;
+  pistaNome?: string | null;
+  error?: string | null;
+  pending?: boolean;
+  onToggleSaved: (saved: boolean) => void;
+  onDeleted: (searchId: string) => void;
 }) {
-  if (items.length === 0) {
-    return <div className="mt-4">{empty}</div>;
-  }
+  const unsaved = !search.saved;
+  const leads = search.total_found ?? 0;
+  const leadLabel = leads === 1 ? COPY.listasLeadOne : COPY.listasLeadMany;
+  const href = gridHref(search.id, "listas");
 
   return (
-    <div
-      className={
-        compact
-          ? "mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-          : "mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-      }
-    >
-      {items.map((search) => (
-        <motion.div
-          key={search.id}
-          layout={!reduce}
-          layoutId={reduce ? undefined : `listas-${search.id}`}
-          transition={{ duration: reduce ? 0 : 0.22 }}
+    <GlassCard className="p-3" hover={false}>
+      {unsaved ? (
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+          {COPY.listasRascunho}
+        </p>
+      ) : null}
+      <p
+        className={cn(
+          "text-base font-semibold leading-snug",
+          unsaved ? "mt-0.5 text-podium-gray" : "text-podium-white",
+        )}
+      >
+        {search.nome}
+      </p>
+      <p className="mt-1 text-[12px] text-podium-muted">
+        {leads.toLocaleString("pt-BR")} {leadLabel}
+        <span> · {formatRelativeShort(search.created_at)}</span>
+      </p>
+      <ListSummaryBadges filters={search.filtros} className="mt-2" />
+      {pistaNome ? (
+        <p className="mt-1.5 truncate text-[11px] text-podium-muted">
+          {COPY.crmPistaPrefix} · {pistaNome}
+        </p>
+      ) : null}
+      {error ? <p className="mt-1.5 text-xs text-red-400">{error}</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Link
+          href={href}
+          className={buttonClassName({ variant: "primary", size: "md" })}
         >
-          {renderCard(search)}
-        </motion.div>
-      ))}
-    </div>
+          Abrir
+        </Link>
+        <Button
+          type="button"
+          size="sm"
+          variant={unsaved ? "accent" : "secondary"}
+          disabled={pending}
+          onClick={() => onToggleSaved(Boolean(unsaved))}
+        >
+          {unsaved ? (
+            <BookmarkPlus className="h-3.5 w-3.5" />
+          ) : (
+            <BookmarkMinus className="h-3.5 w-3.5" />
+          )}
+          {unsaved ? COPY.salvarLista : COPY.tirarDasListas}
+        </Button>
+        <Link
+          href={largadaEditHref(search.id, "listas")}
+          className={buttonClassName({ variant: "secondary", size: "sm" })}
+        >
+          {COPY.ajustar}
+        </Link>
+        {unsaved ? null : (
+          <ListSearchMenu
+            search={search}
+            onDeleted={onDeleted}
+            showAdjust={false}
+          />
+        )}
+      </div>
+    </GlassCard>
   );
 }

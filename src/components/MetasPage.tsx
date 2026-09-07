@@ -32,6 +32,11 @@ import {
 } from "@/lib/calculadora/money";
 import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
+import {
+  workSplitClass,
+  workSplitPaneClass,
+  workSplitRailClass,
+} from "@/lib/work-split";
 
 const fieldClass =
   "mt-1 min-h-11 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-base outline-none focus:border-podium-yellow/40 md:min-h-0 md:text-sm";
@@ -179,9 +184,6 @@ function MetaPickCard({
   onBox,
   draft = false,
   onSelect,
-  onApply,
-  onDelete,
-  applyDisabled,
 }: {
   title: string;
   subtitle?: string;
@@ -190,69 +192,35 @@ function MetaPickCard({
   onBox?: boolean;
   draft?: boolean;
   onSelect?: () => void;
-  onApply?: () => void;
-  onDelete?: () => void;
-  applyDisabled?: boolean;
 }) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={!onSelect}
       className={cn(
-        "flex min-w-0 flex-col rounded-md border text-left",
+        "flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition disabled:cursor-default",
         selected
           ? "border-podium-yellow/40 bg-podium-yellow/10"
           : draft
             ? "border-dashed border-white/20 bg-white/[0.02]"
-            : "border-white/[0.08] bg-white/[0.03]",
+            : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
       )}
     >
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={!onSelect}
-        className="min-w-0 flex-1 px-3 py-3 text-left disabled:cursor-default"
-      >
-        <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-podium-white">
-            {title}
-          </p>
-          {onBox ? (
-            <span className="shrink-0 rounded-md border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-              {COPY.metasNoBox}
-            </span>
-          ) : null}
-        </div>
-        {subtitle ? (
-          <p className="mt-0.5 truncate text-xs text-podium-gray">{subtitle}</p>
-        ) : null}
-        {detail ? (
-          <p className="mt-1 text-xs text-podium-muted">{detail}</p>
-        ) : null}
-      </button>
-      {onApply || onDelete ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/[0.06] px-3 py-2">
-          {onApply ? (
-            <button
-              type="button"
-              disabled={applyDisabled}
-              onClick={onApply}
-              className="text-[11px] font-medium text-podium-yellow disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {COPY.metasUsarNoBox}
-            </button>
-          ) : null}
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center gap-1 text-[11px] font-medium text-podium-muted hover:text-red-400"
-            >
-              <Trash2 className="h-3 w-3" />
-              {COPY.metasExcluir}
-            </button>
-          ) : null}
-        </div>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-medium text-podium-white">
+          {title}
+        </span>
+        <span className="block truncate text-[11px] text-podium-muted">
+          {[subtitle, detail].filter(Boolean).join(" · ")}
+        </span>
+      </span>
+      {onBox ? (
+        <span className="shrink-0 rounded-md border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+          {COPY.metasNoBox}
+        </span>
       ) : null}
-    </div>
+    </button>
   );
 }
 
@@ -422,19 +390,6 @@ export function MetasPage() {
     },
   });
 
-  const applyExisting = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/metas/${id}/apply`, { method: "POST" });
-      return readPayload(res);
-    },
-    onSuccess: (data, id) => {
-      setCache(data);
-      const selected = data.metas.find((row) => row.id === id);
-      if (selected) selectMeta(selected);
-      setJustApplied(true);
-    },
-  });
-
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/metas/${id}`, { method: "DELETE" });
@@ -542,73 +497,61 @@ export function MetasPage() {
     "{n}",
     formatInt(result.ligacoesPorDia),
   );
-  const persistError =
-    save.error ?? applyExisting.error ?? remove.error;
+  const persistError = save.error ?? remove.error;
 
   return (
-    <div className="flex flex-col gap-4">
-      <Hint className="max-w-2xl">{COPY.calculadoraLead}</Hint>
-
-      <GlassCard id="suas-metas" className="p-3" hover={false}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <SectionTitle>{COPY.metasLista}</SectionTitle>
-            {metas.length > 0 ? (
-              <Hint className="mt-1">{COPY.metasListaHint}</Hint>
-            ) : null}
-          </div>
+    <div className={workSplitClass}>
+      <div className={workSplitRailClass}>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={startNew}
-            className={buttonClassName({ variant: "accent", size: "sm" })}
+            className={buttonClassName({
+              variant: "accent",
+              size: "sm",
+              className: "ml-auto",
+            })}
           >
             <Plus className="h-3.5 w-3.5" />
             {COPY.metasNova}
           </button>
         </div>
-        {metas.length === 0 ? (
-          <p className="mt-4 text-sm text-podium-muted">{COPY.metasEmpty}</p>
-        ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {metas.map((meta) => {
-              const daily = calculateFunnel(funnelFromMeta(meta)).ligacoesPorDia;
-              const selected = meta.id === selectedId;
-              const onBox = meta.id === activeMetaId;
-              return (
+        <div id="suas-metas" className="mt-2 min-h-0 flex-1 space-y-1">
+          {metas.length === 0 && selectedId !== null ? (
+            <p className="px-1 py-6 text-sm text-podium-muted">{COPY.metasEmpty}</p>
+          ) : (
+            <>
+              {metas.map((meta) => {
+                const daily = calculateFunnel(funnelFromMeta(meta)).ligacoesPorDia;
+                const selected = meta.id === selectedId;
+                const onBox = meta.id === activeMetaId;
+                return (
+                  <MetaPickCard
+                    key={meta.id}
+                    title={meta.nome}
+                    subtitle={meta.tipo_empresa || undefined}
+                    detail={`${formatBrl(meta.ticket)} · ${formatInt(daily)} lig/dia`}
+                    selected={selected}
+                    onBox={onBox}
+                    onSelect={() => selectMeta(meta)}
+                  />
+                );
+              })}
+              {selectedId === null ? (
                 <MetaPickCard
-                  key={meta.id}
-                  title={meta.nome}
-                  subtitle={meta.tipo_empresa || undefined}
-                  detail={`${formatBrl(meta.ticket)} · ${formatInt(daily)} lig/dia`}
-                  selected={selected}
-                  onBox={onBox}
-                  onSelect={() => selectMeta(meta)}
-                  onApply={
-                    onBox ? undefined : () => applyExisting.mutate(meta.id)
-                  }
-                  applyDisabled={daily < 1 || applyExisting.isPending}
-                  onDelete={
-                    remove.isPending
-                      ? undefined
-                      : () => setPendingDelete(meta)
-                  }
+                  title={draft.nome.trim() || COPY.metasNova}
+                  subtitle={draft.tipo_empresa.trim() || undefined}
+                  detail={COPY.metasRascunho}
+                  selected
+                  draft
                 />
-              );
-            })}
-            {selectedId === null ? (
-              <MetaPickCard
-                title={draft.nome.trim() || COPY.metasNova}
-                subtitle={draft.tipo_empresa.trim() || undefined}
-                detail={COPY.metasRascunho}
-                selected
-                draft
-              />
-            ) : null}
-          </div>
-        )}
-      </GlassCard>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
 
-      <div id="meta-funil" className="flex flex-col gap-6">
+      <div id="meta-funil" className={cn(workSplitPaneClass, "space-y-3")}>
           <GlassCard className="p-3" hover={false}>
             <SectionTitle>{COPY.calculadoraObjetivo}</SectionTitle>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -693,9 +636,12 @@ export function MetasPage() {
             </div>
           </GlassCard>
 
-          <GlassCard className="p-3" hover={false}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <SectionTitle>{COPY.calculadoraTaxas}</SectionTitle>
+          <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+              <span>{COPY.calculadoraTaxas}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+            </summary>
+            <div className="space-y-3 px-3 pb-3">
               {hasCrmRates ? (
                 <button
                   type="button"
@@ -718,7 +664,6 @@ export function MetasPage() {
                     : COPY.calculadoraUsarCrm}
                 </button>
               ) : null}
-            </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {(
                 [
@@ -777,7 +722,8 @@ export function MetasPage() {
                 </label>
               ))}
             </div>
-          </GlassCard>
+            </div>
+          </details>
 
           <GlassCard className="p-3" hover={false}>
             <SectionTitle>{COPY.calculadoraFunil}</SectionTitle>
@@ -808,6 +754,21 @@ export function MetasPage() {
               >
                 {COPY.metasSalvar}
               </Button>
+              {selectedId ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={remove.isPending}
+                  onClick={() => {
+                    const meta = metas.find((row) => row.id === selectedId);
+                    if (meta) setPendingDelete(meta);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {COPY.metasExcluir}
+                </Button>
+              ) : null}
             </div>
             <Hint className="mt-3">{COPY.metasSalvarHint}</Hint>
             {justSaved ? (
@@ -901,29 +862,25 @@ export function MetasPage() {
               </p>
             ) : null}
           </GlassCard>
-      </div>
 
-      <GlassCard className="p-3" hover={false}>
-        <SectionTitle>{COPY.calculadoraGlossario}</SectionTitle>
-        <Hint className="mt-2">{COPY.calculadoraGlossarioLead}</Hint>
-        <div className="mt-4 space-y-2">
-          {CALCULADORA_GLOSSARIO.map((item, index) => (
-            <details
-              key={item.id}
-              open={index === 0}
-              className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-podium-white [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 text-balance">{item.title}</span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-              </summary>
-              <p className="px-4 pb-4 text-pretty text-sm leading-relaxed text-podium-gray">
+      <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+          <span>{COPY.calculadoraGlossario}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+        </summary>
+        <div className="space-y-2 px-3 pb-3">
+          <Hint>{COPY.calculadoraGlossarioLead}</Hint>
+          {CALCULADORA_GLOSSARIO.map((item) => (
+            <div key={item.id} className="rounded-md border border-white/10 px-3 py-2">
+              <p className="text-sm font-semibold text-podium-white">{item.title}</p>
+              <p className="mt-1 text-pretty text-sm leading-relaxed text-podium-gray">
                 {item.body}
               </p>
-            </details>
+            </div>
           ))}
         </div>
-      </GlassCard>
+      </details>
+      </div>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

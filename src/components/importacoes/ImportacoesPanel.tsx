@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Upload } from "lucide-react";
+import { Check, Upload } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
@@ -33,6 +33,11 @@ import { IMPORT_MAX_ROWS } from "@/lib/crm/schema";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import { useBillingMe } from "@/hooks/useBillingMe";
 import { cn } from "@/lib/utils";
+import {
+  workSplitClass,
+  workSplitPaneClass,
+  workSplitRailClass,
+} from "@/lib/work-split";
 
 const NEW_PIPELINE = "__new__";
 
@@ -70,39 +75,46 @@ function Field({
   );
 }
 
-function Step({
-  n,
-  title,
-  status,
-  children,
+function StepStrip({
+  items,
 }: {
-  n: number;
-  title: string;
-  status: "todo" | "current" | "done";
-  children: ReactNode;
+  items: Array<{
+    n: number;
+    title: string;
+    status: "todo" | "current" | "done";
+  }>;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="flex items-center gap-2 text-sm font-semibold text-podium-white">
-        <span
+    <ol className="flex gap-1">
+      {items.map((item) => (
+        <li
+          key={item.n}
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-            status === "done" && "bg-podium-yellow text-podium-navy",
-            status === "current" &&
-              "border border-podium-yellow/70 bg-podium-yellow/15 text-podium-yellow",
-            status === "todo" && "border border-white/15 text-podium-muted",
+            "flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px]",
+            item.status === "done" && "bg-podium-yellow/10 text-podium-white",
+            item.status === "current" && "bg-white/[0.06] text-podium-white",
+            item.status === "todo" && "text-podium-muted",
           )}
         >
-          {status === "done" ? (
-            <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
-          ) : (
-            n
-          )}
-        </span>
-        {title}
-      </p>
-      <div className="pl-7">{children}</div>
-    </div>
+          <span
+            className={cn(
+              "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
+              item.status === "done" && "bg-podium-yellow text-podium-navy",
+              item.status === "current" &&
+                "border border-podium-yellow/70 text-podium-yellow",
+              item.status === "todo" && "border border-white/15",
+            )}
+          >
+            {item.status === "done" ? (
+              <Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
+            ) : (
+              item.n
+            )}
+          </span>
+          <span className="truncate">{item.title}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -239,11 +251,6 @@ export function ImportacoesPanel({
   const skippedIndexes = mapping
     .map((key, index) => ({ key, index }))
     .filter((row) => row.key === "skip");
-  const destName =
-    dest === NEW_PIPELINE
-      ? pipelineNome.trim() || "nicho novo"
-      : initialPipelines.find((pipeline) => pipeline.id === dest)?.nome ??
-        "nicho";
   const credits = billing.data?.balance.total ?? 0;
 
   const importRows = useMutation({
@@ -305,7 +312,7 @@ export function ImportacoesPanel({
     return (
       <div
         key={`${header}-${index}`}
-        className="grid gap-2 p-3 sm:grid-cols-[1fr_148px] sm:items-center"
+        className="grid gap-2 px-2.5 py-2 sm:grid-cols-[1fr_148px] sm:items-center"
       >
         <div className="min-w-0">
           <p className="truncate text-sm text-podium-white">
@@ -389,47 +396,38 @@ export function ImportacoesPanel({
       : "todo";
 
   return (
-    <div className="mt-6 space-y-6">
-      <GlassCard className="space-y-4 p-3 hover:translate-y-0">
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-            Arquivo
-          </p>
-          <h3 className="mt-1 text-sm font-semibold text-podium-white">
-            Planilha
-          </h3>
-          <Hint className="mt-2">{COPY.importacoesFileHint}</Hint>
-        </div>
+    <div className={workSplitClass}>
+      <div className={cn(workSplitRailClass, "space-y-3 lg:w-[28rem]")}>
+        <GlassCard className="space-y-3 p-3 hover:translate-y-0">
+          <StepStrip
+            items={[
+              { n: 1, title: "Arquivo", status: step1 },
+              { n: 2, title: "Campos", status: step2 },
+              { n: 3, title: "Destino", status: step3 },
+              { n: 4, title: "Importar", status: step4 },
+            ]}
+          />
+          <Hint>{COPY.importacoesFileHint}</Hint>
 
-        {table && fileName ? (
-          <p className="rounded-md border border-podium-yellow/25 bg-podium-yellow/10 px-3 py-2 text-xs text-podium-white">
-            <span className="font-medium">{fileName}</span>
-            <span className="text-podium-muted">
-              {` · ${readyCount} pronta${readyCount === 1 ? "" : "s"} · ${destName}`}
-            </span>
-          </p>
-        ) : null}
-
-        <Step n={1} title="Escolher o arquivo" status={step1}>
           <label
             className={cn(
-              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md px-3 py-4 text-center transition",
+              "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md px-3 py-3 text-center transition",
               table
                 ? "border border-podium-yellow/50 bg-podium-yellow/10 hover:border-podium-yellow/70"
                 : "border border-dashed border-white/15 hover:border-podium-yellow/40",
             )}
           >
             {table ? (
-              <Check className="h-5 w-5 text-podium-yellow" strokeWidth={2.5} />
+              <Check className="h-4 w-4 text-podium-yellow" strokeWidth={2.5} />
             ) : (
-              <Upload className="h-5 w-5 text-podium-yellow" />
+              <Upload className="h-4 w-4 text-podium-yellow" />
             )}
             {table && fileName ? (
               <>
                 <span className="max-w-full truncate text-sm font-semibold text-podium-white">
                   {fileName}
                 </span>
-                <span className="text-xs text-podium-gray">{lineSummary}</span>
+                <span className="text-[11px] text-podium-gray">{lineSummary}</span>
                 <span className="text-[11px] font-medium text-podium-yellow">
                   {COPY.importacoesChangeFile}
                 </span>
@@ -451,168 +449,63 @@ export function ImportacoesPanel({
             />
           </label>
           {parseFile.isPending ? (
-            <p className="mt-2 text-sm text-podium-muted">Lendo a planilha…</p>
+            <p className="text-sm text-podium-muted">Lendo a planilha…</p>
           ) : null}
           {fileError ? (
-            <p className="mt-2 text-sm text-podium-alert">{fileError}</p>
+            <p className="text-sm text-podium-alert">{fileError}</p>
           ) : null}
-        </Step>
 
-        <Step n={2} title="O que entra" status={step2}>
           {table ? (
-            <div className="space-y-3">
-              <p className="text-xs text-podium-muted">{`${lineSummary}.`}</p>
-              {salvageHints.map((hint) => (
-                <p key={hint} className="text-[11px] text-podium-muted">
-                  {hint}
-                </p>
-              ))}
-              {emptyCount > 0 ? (
+            <div className="space-y-2">
+              <p className="text-[11px] text-podium-muted">
+                O nome da coluna pode ser qualquer um — o Grid usa o que você
+                escolher à direita.
+              </p>
+              <div className="divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
+                {mappedIndexes.map((row) => columnRow(row.index))}
+              </div>
+              {skippedIndexes.length > 0 ? (
+                <div>
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium text-podium-yellow underline-offset-2 hover:underline"
+                    onClick={() => setShowSkipped((open) => !open)}
+                  >
+                    {showSkipped
+                      ? "Ocultar o resto"
+                      : `Mostrar o resto (${skippedIndexes.length})`}
+                  </button>
+                  {showSkipped ? (
+                    <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
+                      {skippedIndexes.map((row) => columnRow(row.index))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {notesMapped ? (
                 <p className="text-[11px] text-podium-muted">
-                  {emptyCount === 1
-                    ? COPY.importacoesEmptySkippedOne
-                    : COPY.importacoesEmptySkippedMany.replace(
-                        "{n}",
-                        String(emptyCount),
-                      )}
+                  Anotações entram nas notas do cartão. Duas colunas de
+                  observação viram uma nota só.
                 </p>
-              ) : null}
-              {problemRows.length > 0 ? (
-                <div className="rounded-md border border-white/10 px-3 py-2.5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                    {COPY.importacoesProblemPreview}
-                  </p>
-                  <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
-                    {problemRows.slice(0, 6).map((item) => {
-                      const who = [item.input.company, item.input.name]
-                        .filter(Boolean)
-                        .join(" · ");
-                      return (
-                        <li key={item.index}>
-                          Linha {item.index + 1}:{" "}
-                          {item.result.ok ? "" : item.result.message}
-                          {who ? ` · ${who}` : ""}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {problemRows.length > 6 ? (
-                    <p className="mt-1 text-[11px] text-podium-muted">
-                      {`e mais ${problemRows.length - 6}`}
-                    </p>
-                  ) : null}
-                </div>
-              ) : readyCount === 0 ? (
-                <p className="text-sm text-podium-alert">
-                  Precisa de empresa, CNPJ ou um contato (nome, telefone ou
-                  e-mail).
+              ) : (
+                <p className="text-[11px] text-podium-muted">
+                  Tem observação, histórico ou comentário? Aponte para Notas.
                 </p>
-              ) : null}
-              <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
-                  <span>{COPY.importacoesMoreOptions}</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-                </summary>
-                <div className="space-y-3 px-4 pb-4">
-                  <p className="text-xs text-podium-muted">
-                    O nome da coluna pode ser qualquer um — o Grid usa o que
-                    você escolher à direita.
-                  </p>
-                  <div className="divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
-                    {mappedIndexes.map((row) => columnRow(row.index))}
-                  </div>
-                  {skippedIndexes.length > 0 ? (
-                    <div>
-                      <button
-                        type="button"
-                        className="text-[11px] font-medium text-podium-yellow underline-offset-2 hover:underline"
-                        onClick={() => setShowSkipped((open) => !open)}
-                      >
-                        {showSkipped
-                          ? "Ocultar o resto"
-                          : `Mostrar o resto (${skippedIndexes.length})`}
-                      </button>
-                      {showSkipped ? (
-                        <div className="mt-2 divide-y divide-white/10 overflow-hidden rounded-md border border-white/10">
-                          {skippedIndexes.map((row) => columnRow(row.index))}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {notesMapped ? (
-                    <p className="text-[11px] text-podium-muted">
-                      Anotações entram nas notas do cartão. Duas colunas de
-                      observação viram uma nota só.
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-podium-muted">
-                      Tem observação, histórico ou comentário? Aponte para
-                      Notas.
-                    </p>
-                  )}
-                  {readyCount > 0 ? (
-                    <div className="overflow-x-auto rounded-md border border-white/10">
-                      <p className="px-3 pt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                        Como entra no Grid
-                      </p>
-                      <table className="min-w-full text-left text-[11px] text-podium-muted">
-                        <thead>
-                          <tr>
-                            <th className="px-3 py-1.5 font-medium">Empresa</th>
-                            <th className="px-3 py-1.5 font-medium">Contato</th>
-                            <th className="px-3 py-1.5 font-medium">Telefone</th>
-                            <th className="px-3 py-1.5 font-medium">CNPJ</th>
-                            <th className="px-3 py-1.5 font-medium">Notas</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mappedPreview.slice(0, 4).map((row, index) => (
-                            <tr key={index} className="border-t border-white/10">
-                              <td className="max-w-[140px] truncate px-3 py-1.5">
-                                {row.ok ? row.lead.company_name : "—"}
-                              </td>
-                              <td className="max-w-[140px] truncate px-3 py-1.5">
-                                {row.ok ? row.lead.contact_name || "—" : "—"}
-                              </td>
-                              <td className="max-w-[120px] truncate px-3 py-1.5">
-                                {row.ok ? row.lead.phones[0] || "—" : "—"}
-                              </td>
-                              <td className="max-w-[120px] truncate px-3 py-1.5">
-                                {row.ok ? row.lead.cnpj || "a achar" : "—"}
-                              </td>
-                              <td className="max-w-[180px] truncate px-3 py-1.5">
-                                {row.ok ? row.lead.notes || "—" : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : null}
-                </div>
-              </details>
+              )}
             </div>
           ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-podium-muted">
-                Depois do arquivo, cada coluna da planilha aponta para um
-                destes campos:
-              </p>
-              <ul className="flex flex-wrap gap-1.5">
-                {GRID_FIELDS.map((field) => (
-                  <li
-                    key={field.id}
-                    className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-podium-gray"
-                  >
-                    {field.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className="flex flex-wrap gap-1.5">
+              {GRID_FIELDS.map((field) => (
+                <li
+                  key={field.id}
+                  className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-podium-gray"
+                >
+                  {field.label}
+                </li>
+              ))}
+            </ul>
           )}
-        </Step>
 
-        <Step n={3} title="Destino desta subida" status={step3}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nicho">
               <Select
@@ -645,19 +538,17 @@ export function ImportacoesPanel({
             )}
           </div>
           {dest === NEW_PIPELINE ? (
-            <p className="mt-2 text-[11px] text-podium-muted">
+            <p className="text-[11px] text-podium-muted">
               Os cartões entram em Entrada de Lista. Você muda a etapa no quadro
               depois.
             </p>
           ) : null}
-        </Step>
 
-        <Step n={4} title={`Importar para ${destName}`} status={step4}>
           <div className="space-y-2">
             <Button
               variant="primary"
               size="lg"
-              className="h-11 w-full px-5 text-sm font-semibold sm:w-auto"
+              className="h-11 w-full px-5 text-sm font-semibold"
               disabled={importRows.isPending || !canImport}
               onClick={() => importRows.mutate({ mode: "ready", qualify: false })}
             >
@@ -670,6 +561,7 @@ export function ImportacoesPanel({
             {anywayCount > readyCount ? (
               <Button
                 variant="secondary"
+                className="w-full"
                 disabled={importRows.isPending || !canImportAnyway}
                 onClick={() =>
                   importRows.mutate({ mode: "anyway", qualify: false })
@@ -680,10 +572,10 @@ export function ImportacoesPanel({
             ) : null}
           </div>
           {anywayCount > readyCount ? (
-            <Hint className="mt-2">{COPY.importacoesSendAnywayHint}</Hint>
+            <Hint>{COPY.importacoesSendAnywayHint}</Hint>
           ) : null}
           {canImport ? (
-            <div className="mt-3 rounded-md border border-white/10 px-3 py-3">
+            <div className="rounded-md border border-white/10 px-3 py-3">
               <p className="text-sm font-medium text-podium-white">
                 {COPY.importacoesImportAndQualify}
               </p>
@@ -708,15 +600,15 @@ export function ImportacoesPanel({
           {blockReason &&
           blockReason !== COPY.importacoesNeedFile &&
           !importRows.isPending ? (
-            <p className="mt-2 text-[11px] text-podium-muted">{blockReason}</p>
+            <p className="text-[11px] text-podium-muted">{blockReason}</p>
           ) : null}
           {importRows.isError && !isBillingGateError(importRows.error) ? (
-            <p className="mt-2 text-sm text-podium-alert">
+            <p className="text-sm text-podium-alert">
               {(importRows.error as Error).message}
             </p>
           ) : null}
           {importRows.data ? (
-            <p className="mt-2 text-sm text-podium-gray">
+            <p className="text-sm text-podium-gray">
               {`${importRows.data.created ?? 0} no CRM${
                 importRows.data.matched_cnpjs
                   ? ` · ${importRows.data.matched_cnpjs} na lista (com CNPJ)`
@@ -744,30 +636,132 @@ export function ImportacoesPanel({
             </p>
           ) : null}
           {(importRows.data?.errors?.length ?? 0) > 0 ? (
-            <Hint className="mt-2">
-              <a href="#historico-importacao" className="font-semibold text-podium-yellow">
-                {(importRows.data!.errors!.length === 1
+            <Hint>
+              <a
+                href="#historico-importacao"
+                className="font-semibold text-podium-yellow"
+              >
+                {importRows.data!.errors!.length === 1
                   ? COPY.importacoesPanelFixPointerOne
                   : COPY.importacoesPanelFixPointerMany.replace(
                       "{n}",
                       String(importRows.data!.errors!.length),
-                    ))}
+                    )}
               </a>
             </Hint>
           ) : null}
-        </Step>
-      </GlassCard>
+        </GlassCard>
+      </div>
 
-      <ImportHistory />
+      <div className={cn(workSplitPaneClass, "space-y-3")}>
+        <GlassCard className="space-y-3 p-3 hover:translate-y-0">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+            Preview
+          </p>
+          {table ? (
+            <div className="space-y-3">
+              <p className="text-xs text-podium-muted">{`${lineSummary}.`}</p>
+              {salvageHints.map((hint) => (
+                <p key={hint} className="text-[11px] text-podium-muted">
+                  {hint}
+                </p>
+              ))}
+              {emptyCount > 0 ? (
+                <p className="text-[11px] text-podium-muted">
+                  {emptyCount === 1
+                    ? COPY.importacoesEmptySkippedOne
+                    : COPY.importacoesEmptySkippedMany.replace(
+                        "{n}",
+                        String(emptyCount),
+                      )}
+                </p>
+              ) : null}
+              {problemRows.length > 0 ? (
+                <div className="rounded-md border border-white/10 px-3 py-2.5">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                    {COPY.importacoesProblemPreview}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
+                    {problemRows.slice(0, 8).map((item) => {
+                      const who = [item.input.company, item.input.name]
+                        .filter(Boolean)
+                        .join(" · ");
+                      return (
+                        <li key={item.index}>
+                          Linha {item.index + 1}:{" "}
+                          {item.result.ok ? "" : item.result.message}
+                          {who ? ` · ${who}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {problemRows.length > 8 ? (
+                    <p className="mt-1 text-[11px] text-podium-muted">
+                      {`e mais ${problemRows.length - 8}`}
+                    </p>
+                  ) : null}
+                </div>
+              ) : readyCount === 0 ? (
+                <p className="text-sm text-podium-alert">
+                  Precisa de empresa, CNPJ ou um contato (nome, telefone ou
+                  e-mail).
+                </p>
+              ) : null}
+              {readyCount > 0 ? (
+                <div className="overflow-x-auto rounded-md border border-white/10">
+                  <table className="min-w-full text-left text-[11px] text-podium-muted">
+                    <thead>
+                      <tr>
+                        <th className="px-3 py-1.5 font-medium">Empresa</th>
+                        <th className="px-3 py-1.5 font-medium">Contato</th>
+                        <th className="px-3 py-1.5 font-medium">Telefone</th>
+                        <th className="px-3 py-1.5 font-medium">CNPJ</th>
+                        <th className="px-3 py-1.5 font-medium">Notas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mappedPreview.slice(0, 12).map((row, index) => (
+                        <tr key={index} className="border-t border-white/10">
+                          <td className="max-w-[160px] truncate px-3 py-1.5 text-podium-white">
+                            {row.ok ? row.lead.company_name : "—"}
+                          </td>
+                          <td className="max-w-[140px] truncate px-3 py-1.5">
+                            {row.ok ? row.lead.contact_name || "—" : "—"}
+                          </td>
+                          <td className="max-w-[120px] truncate px-3 py-1.5">
+                            {row.ok ? row.lead.phones[0] || "—" : "—"}
+                          </td>
+                          <td className="max-w-[120px] truncate px-3 py-1.5">
+                            {row.ok ? row.lead.cnpj || "a achar" : "—"}
+                          </td>
+                          <td className="max-w-[180px] truncate px-3 py-1.5">
+                            {row.ok ? row.lead.notes || "—" : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-podium-muted">
+              Escolha o arquivo à esquerda para ver as linhas.
+            </p>
+          )}
+        </GlassCard>
 
-      {planHasFeature(billing.data?.balance.plano, "automations") ? (
-        <p className="text-sm text-podium-muted">
-          Formulário, anúncio ou Make?{" "}
-          <Link href="/automacoes" className="font-semibold text-podium-yellow">
-            Abrir Automações
-          </Link>
-        </p>
-      ) : null}
+        <ImportHistory />
+
+        {planHasFeature(billing.data?.balance.plano, "automations") ? (
+          <p className="text-sm text-podium-muted">
+            Formulário, anúncio ou Make?{" "}
+            <Link href="/automacoes" className="font-semibold text-podium-yellow">
+              Abrir Automações
+            </Link>
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

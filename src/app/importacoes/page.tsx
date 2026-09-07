@@ -20,7 +20,7 @@ function ImportLocked({ trialExpired }: { trialExpired: boolean }) {
     feature: "crm",
   });
   return (
-    <AppShell title={COPY.importacoesTitle} back={BACK.painel}>
+    <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
       <GlassCard className="p-3">
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           {copy.eyebrow}
@@ -60,10 +60,7 @@ export default async function ImportacoesPage() {
       pipelines = await repo.listCrmPipelines(session.id);
     }
     return (
-      <AppShell title={COPY.importacoesTitle} back={BACK.painel}>
-        <p className="max-w-2xl text-pretty text-sm text-podium-muted">
-          {COPY.importacoesLead}
-        </p>
+      <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
         <ImportacoesPanel initialPipelines={pipelines} />
       </AppShell>
     );
@@ -71,7 +68,7 @@ export default async function ImportacoesPage() {
     unstable_rethrow(err);
     console.error("importacoes_page_error", err);
     return (
-      <AppShell title={COPY.importacoesTitle} back={BACK.painel}>
+      <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
         <GlassCard className="p-3">
           <p className="text-sm font-semibold">Não deu para abrir Importações.</p>
           <p className="mt-2 text-sm text-podium-gray">

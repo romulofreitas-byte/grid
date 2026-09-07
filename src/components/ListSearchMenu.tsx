@@ -15,9 +15,11 @@ const menuItemClass =
 export function ListSearchMenu({
   search,
   onDeleted,
+  showAdjust = true,
 }: {
   search: Search;
   onDeleted: (searchId: string) => void;
+  showAdjust?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -124,14 +126,16 @@ export function ListSearchMenu({
             </div>
           ) : (
             <>
-              <Link
-                href={largadaEditHref(search.id, "listas")}
-                role="menuitem"
-                className={menuItemClass}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                {COPY.ajustar}
-              </Link>
+              {showAdjust ? (
+                <Link
+                  href={largadaEditHref(search.id, "listas")}
+                  role="menuitem"
+                  className={menuItemClass}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  {COPY.ajustar}
+                </Link>
+              ) : null}
               <button
                 type="button"
                 role="menuitem"

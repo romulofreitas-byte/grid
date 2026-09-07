@@ -15,7 +15,7 @@ export default async function ListasPage() {
     unstable_rethrow(err);
     console.error("listas_page_error", err);
     return (
-      <AppShell title="Listas">
+      <AppShell fill wide lockHeight title="Listas">
         <GlassCard className="p-3">
           <p className="text-sm font-semibold">Não deu para carregar as listas.</p>
           <p className="mt-2 text-sm text-podium-gray">
@@ -49,7 +49,7 @@ async function ListasPageInner() {
   ]);
 
   return (
-    <AppShell title="Listas" back={BACK.painel}>
+    <AppShell fill wide lockHeight title="Listas" back={BACK.painel}>
       <ListsBoard
         initial={[...saved, ...unsaved]}
         pipelineNomes={pipelineNomes}

@@ -27,7 +27,7 @@ function AutomacoesLocked({
     feature,
   });
   return (
-    <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
+    <AppShell fill wide lockHeight title={COPY.automacoesTitle} back={BACK.painel}>
       <GlassCard className="p-3">
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           {copy.eyebrow}
@@ -72,10 +72,7 @@ export default async function AutomacoesPage() {
       pipelines = await repo.listCrmPipelines(session.id);
     }
     return (
-      <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
-        <p className="max-w-2xl text-pretty text-sm text-podium-muted">
-          {COPY.automacoesLead}
-        </p>
+      <AppShell fill wide lockHeight title={COPY.automacoesTitle} back={BACK.painel}>
         <AutomacoesPanel initialPipelines={pipelines} />
       </AppShell>
     );
@@ -83,7 +80,7 @@ export default async function AutomacoesPage() {
     unstable_rethrow(err);
     console.error("automacoes_page_error", err);
     return (
-      <AppShell title={COPY.automacoesTitle} back={BACK.painel}>
+      <AppShell fill wide lockHeight title={COPY.automacoesTitle} back={BACK.painel}>
         <GlassCard className="p-3">
           <p className="text-sm font-semibold">Não deu para abrir Automações.</p>
           <p className="mt-2 text-sm text-podium-gray">

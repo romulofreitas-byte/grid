@@ -8,7 +8,7 @@ export default async function MetasRoute() {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   return (
-    <AppShell title={COPY.calculadoraTitle}>
+    <AppShell fill wide lockHeight title={COPY.calculadoraTitle}>
       <MetasPage />
     </AppShell>
   );
