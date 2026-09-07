@@ -7,6 +7,7 @@ import {
 import { recordSerperCall } from "@/lib/enrichment/serper-stats";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import {
+  cidFromMapsUrl,
   companyMapsSearchUrl,
   isMapsUrl,
   mapsCidUrl,
@@ -265,7 +266,8 @@ export function mapsAddressMatchesReceita(
   const uf = stripAccents(receita.uf);
   if (mun.length >= 3 && hay.includes(mun)) return true;
   if (uf.length === 2 && hay.includes(uf)) return true;
-  return false;
+  // Serper often omits city/UF on the list card; the query already scoped the city.
+  return log.length >= 5;
 }
 
 /** Municipality in Maps address or title — UF alone is too weak. */
@@ -376,7 +378,7 @@ export function scoreMapsPlace(
     phone ||
       (title && address) ||
       (title && cep) ||
-      (website && title && (address || cep || city)) ||
+      (website && title) ||
       (title && city) ||
       (strongTitle && city),
   );
@@ -493,7 +495,16 @@ export function pickBestCandidateMapsPlace(
       ) > 0
     );
   });
-  return pickCandidateFromBucket(hostBrand);
+  const fromHost = pickCandidateFromBucket(hostBrand);
+  if (fromHost) return fromHost;
+  const titleOnly = titled.filter(
+    (item) =>
+      item.match_by.includes("title") && !mapsIdentityLocked(item.match_by),
+  );
+  if (titleOnly.length === 1) {
+    return { ...titleOnly[0], count: 1 };
+  }
+  return null;
 }
 
 export function gmbListingFromPlace(
@@ -589,6 +600,19 @@ function sameSearchToken(a: string, b: string): boolean {
   return Boolean(norm(a)) && norm(a) === norm(b);
 }
 
+const COMPACT_FIRST_MIN_LEN = 6;
+const COMPOUND_HEAD = new Set([
+  "santa",
+  "santo",
+  "sao",
+  "nossa",
+  "nosso",
+  "nova",
+  "novo",
+  "dona",
+  "dom",
+]);
+
 /** First strong brand token when the Receita name is too long for Maps. */
 export function gmbCompactSearchName(input: GmbSearchInput): string | null {
   const fromFantasia = presenceBrandTokens(
@@ -601,8 +625,17 @@ export function gmbCompactSearchName(input: GmbSearchInput): string | null {
     input.nomeFantasia,
     input.municipio,
   );
-  const compact = fromFantasia[0] ?? fromAll[0];
+  const tokens = fromFantasia.length > 0 ? fromFantasia : fromAll;
   const full = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
+  if (tokens.length === 0) return null;
+  if (
+    tokens.length >= 2 &&
+    (tokens[0].length < COMPACT_FIRST_MIN_LEN || COMPOUND_HEAD.has(tokens[0]))
+  ) {
+    const phrase = tokens.slice(0, 2).join(" ");
+    if (!sameSearchToken(phrase, full)) return phrase;
+  }
+  const compact = tokens[0];
   if (!compact || sameSearchToken(compact, full)) return null;
   return compact;
 }
@@ -629,8 +662,6 @@ export function gmbEmailBrandLabel(input: GmbSearchInput): string | null {
   if (label.length < 4) return null;
   return label;
 }
-
-const COMPACT_FIRST_MIN_LEN = 6;
 
 function placeOfGmb(input: { municipio: string; uf: string }): string {
   return [input.municipio, input.uf].filter(Boolean).join(" ").trim();
@@ -754,6 +785,11 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   };
   for (const q of mapsStructuredQueries(input)) push(q);
   const compact = gmbCompactSearchName(input);
+  const tokens = presenceBrandTokens(
+    input.razaoSocial,
+    input.nomeFantasia,
+    input.municipio,
+  );
   const emailBrand = gmbEmailBrandLabel(input);
   const shortFirst =
     Boolean(compact && compact.length >= COMPACT_FIRST_MIN_LEN) ||
@@ -774,19 +810,6 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   if (compact && compact.length < COMPACT_FIRST_MIN_LEN) {
     pushCompactBrandQueries(push, input, compact);
   }
-  const tokens = presenceBrandTokens(
-    input.razaoSocial,
-    input.nomeFantasia,
-    input.municipio,
-  );
-  if (tokens.length >= 2) {
-    const place = [input.municipio, input.uf].filter(Boolean).join(" ");
-    const phrase = tokens.slice(0, 2).join(" ");
-    if (place) {
-      push(`${phrase} ${place}`);
-      push(`"${phrase}" ${place}`);
-    }
-  }
   const cep = formatCepDigits(input.cep);
   if (cep) {
     if (compact && compact.length >= COMPACT_FIRST_MIN_LEN) {
@@ -801,6 +824,8 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     razaoSocial: input.razaoSocial,
     extraNames: input.extraNames,
   })) {
+    const head = stripAccents(alias.split(/\s+/)[0] ?? "");
+    if (tokens.length > 0 && head && !tokens.includes(head)) continue;
     if (aliasExtra >= 2) break;
     const before = list.length;
     pushCompactBrandQueries(push, input, alias);
@@ -1634,6 +1659,15 @@ export function upgradeGmbWithWebsite(
 }
 
 function mapsSearchUrlFromInput(input: GmbSearchInput): string {
+  const place = placeOfGmb(input);
+  if (input.sharedVerdict !== "contabilidade") {
+    for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
+      const digits = mapsPhoneSearchDigits(phone);
+      if (!digits) continue;
+      const query = `${digits} ${place}`.trim();
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    }
+  }
   return companyMapsSearchUrl({
     nomeFantasia: input.nomeFantasia,
     razaoSocial: input.razaoSocial,
@@ -1642,6 +1676,69 @@ function mapsSearchUrlFromInput(input: GmbSearchInput): string {
     logradouro: input.logradouro,
     numero: input.numero,
   });
+}
+
+function firstReceitaPhoneDigits(input: GmbSearchInput): string | null {
+  if (input.sharedVerdict === "contabilidade") return null;
+  for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
+    const digits = mapsPhoneSearchDigits(phone);
+    if (digits) return digits;
+  }
+  return null;
+}
+
+async function searchGmbFromPhoneOrganic(
+  input: GmbSearchInput,
+): Promise<GmbListing | null> {
+  const digits = firstReceitaPhoneDigits(input);
+  if (!digits) return null;
+  const hits = await serperOrganic(digits, 5);
+  let cid: string | null = null;
+  for (const hit of hits) {
+    cid = cidFromMapsUrl(hit.link);
+    if (cid) break;
+  }
+  if (!cid) return null;
+  return resolveGmbListing(await serperMaps(mapsCidUrl(cid)), input);
+}
+
+export function mergeMapsPlaceOntoListing(
+  listing: GmbListing,
+  place: MapsPlace,
+): GmbListing {
+  const card = gmbCardFromPlace(place);
+  const mapsPhone =
+    listing.matched && listing.status === "matched"
+      ? normalizePhoneBR(place.phoneNumber ?? "")
+      : null;
+  return {
+    ...listing,
+    name: place.title || listing.name,
+    cid: place.cid ?? listing.cid,
+    url: mapsPlaceListingUrl(place) || listing.url,
+    card,
+    kind: gmbCardKindFromScore(card.score),
+    website_host: websiteHostFromMapsPlace(place) ?? listing.website_host ?? null,
+    phone_e164: mapsPhone?.e164 ?? listing.phone_e164 ?? null,
+  };
+}
+
+export function gmbListingNeedsHydration(
+  listing: GmbListing | null | undefined,
+): boolean {
+  if (!listing?.cid?.trim()) return false;
+  if (gmbListingStatus(listing) !== "matched") return false;
+  return listing.card == null;
+}
+
+export async function hydrateMatchedGmbListing(
+  listing: GmbListing,
+): Promise<GmbListing> {
+  if (!gmbListingNeedsHydration(listing)) return listing;
+  const places = await serperMaps(mapsCidUrl(listing.cid!));
+  const place = places[0];
+  if (!place) return listing;
+  return mergeMapsPlaceOntoListing(listing, place);
 }
 
 export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
@@ -1659,6 +1756,19 @@ export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
     if (listing.status === "candidate") {
       if (!best || listingCardBetter(listing, best)) best = listing;
     }
+  }
+  const digits = firstReceitaPhoneDigits(input);
+  if (!best && digits && !queries.includes(digits)) {
+    const listing = await take(digits);
+    if (listing.matched || listing.status === "matched") return listing;
+    if (listing.status === "candidate") best = listing;
+  }
+  if (!best) {
+    const fromOrganic = await searchGmbFromPhoneOrganic(input);
+    if (fromOrganic?.matched || fromOrganic?.status === "matched") {
+      return fromOrganic;
+    }
+    if (fromOrganic?.status === "candidate") best = fromOrganic;
   }
   return best ?? gmbNoneListing(searchUrl);
 }

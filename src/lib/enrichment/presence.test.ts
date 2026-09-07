@@ -6,11 +6,14 @@ import {
   gmbCardFromPlace,
   gmbCompactSearchName,
   gmbEmailBrandLabel,
+  gmbListingNeedsHydration,
   gmbSearchQuery,
   gmbSearchQueryList,
+  hydrateMatchedGmbListing,
   mapsStructuredQueries,
   hitsFromSerperJson,
   instagramSearchQueries,
+  mergeMapsPlaceOntoListing,
   preferGmbListing,
   searchInstagramProfile,
   mapsAddressMatchesReceita,
@@ -331,6 +334,9 @@ describe("Maps × Receita matching", () => {
     expect(
       mapsAddressMatchesReceita("Centro, Contagem - MG, 32000-000", silva),
     ).toBe(false);
+    expect(
+      mapsAddressMatchesReceita("Rua das Palmeiras, 100 - Santa Tereza", silva),
+    ).toBe(true);
   });
 
   it("ranks the place that matches Receita phone over the first result", () => {
@@ -444,6 +450,25 @@ describe("Maps × Receita matching", () => {
     expect(gmbSearchQueryList(pizza)[0]).toBe('"Pizza Hut" Goiania GO');
   });
 
+  it("searches the live Maps name, not a generic studio token", () => {
+    const studio = {
+      nomeFantasia: "STUDIO SANTA TEREZA",
+      razaoSocial: "STUDIO SANTA TEREZA LTDA",
+      municipio: "Belo Horizonte",
+      uf: "MG",
+      logradouro: "Rua Marmore",
+      numero: "196",
+      phones: [{ ddd: "31", telefone: "25555527" }],
+    };
+    expect(gmbCompactSearchName(studio)).toBe("santa tereza");
+    const queries = gmbSearchQueryList(studio);
+    expect(queries[0]).toBe("3125555527 Belo Horizonte MG");
+    expect(queries).toContain("santa tereza Belo Horizonte MG");
+    expect(queries).toContain('"santa tereza" Belo Horizonte MG');
+    expect(queries).not.toContain("studio Belo Horizonte MG");
+    expect(queries).not.toContain(`"studio" Belo Horizonte MG`);
+  });
+
   it("rejects a neighbor listing that only shares the street address", () => {
     const atos = {
       nomeFantasia: "GRUPO ATOS",
@@ -550,6 +575,89 @@ describe("Maps × Receita matching", () => {
     expect(listing.match_by).toEqual(expect.arrayContaining(["website"]));
     expect(listing.website_host).toBe("delpra.net.br");
     expect(domainFromGmb(listing)).toBe("delpra.net.br");
+  });
+
+  it("auto-matches a trading-name pin when the Receita phone is on the Maps card", () => {
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Santa Tereza Pilates & Funcional",
+          address: "R. Mármore, 196 - Santa Tereza",
+          phoneNumber: "(31) 2555-5527",
+          website: "https://santaterezapilates.com.br",
+          cid: "55",
+          rating: 4.7,
+          ratingCount: 27,
+          openingHours: ["Fecha 21:30"],
+          thumbnailUrl: "https://img.test/studio.jpg",
+          category: "Estúdio de pilates",
+        },
+      ],
+      {
+        nomeFantasia: "STUDIO SANTA TEREZA",
+        razaoSocial: "STUDIO SANTA TEREZA LTDA",
+        municipio: "Belo Horizonte",
+        uf: "MG",
+        logradouro: "Rua Marmore",
+        numero: "196",
+        phones: [{ ddd: "31", telefone: "25555527" }],
+      },
+    );
+    expect(listing.matched).toBe(true);
+    expect(listing.status).toBe("matched");
+    expect(listing.name).toBe("Santa Tereza Pilates & Funcional");
+    expect(listing.match_by).toEqual(
+      expect.arrayContaining(["phone", "title", "address", "website"]),
+    );
+    expect(listing.website_host).toBe("santaterezapilates.com.br");
+    expect(listing.phone_vs_receita).toBe("igual");
+    expect(listing.card?.score).toBe(5);
+    expect(domainFromGmb(listing)).toBe("santaterezapilates.com.br");
+  });
+
+  it("auto-matches a unique trading-name pin from website + title without city in the address", () => {
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Santa Tereza Pilates & Funcional",
+          address: "R. Mármore, 196 - Santa Tereza",
+          website: "https://santaterezapilates.com.br",
+          cid: "55",
+        },
+      ],
+      {
+        nomeFantasia: "STUDIO SANTA TEREZA",
+        razaoSocial: "STUDIO SANTA TEREZA LTDA",
+        municipio: "Belo Horizonte",
+        uf: "MG",
+      },
+    );
+    expect(listing.matched).toBe(true);
+    expect(listing.match_by).toEqual(
+      expect.arrayContaining(["title", "website"]),
+    );
+    expect(domainFromGmb(listing)).toBe("santaterezapilates.com.br");
+  });
+
+  it("keeps a unique trading-name pin as a candidate when the list card has no phone or site", () => {
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Santa Tereza Pilates & Funcional",
+          address: "R. Mármore, 196 - Santa Tereza",
+          cid: "55",
+        },
+      ],
+      {
+        nomeFantasia: "STUDIO SANTA TEREZA",
+        razaoSocial: "STUDIO SANTA TEREZA LTDA",
+        municipio: "Belo Horizonte",
+        uf: "MG",
+      },
+    );
+    expect(listing.matched).toBe(false);
+    expect(listing.status).toBe("candidate");
+    expect(listing.cid).toBe("55");
   });
 
   it("promotes a moved-address pin when the Maps phone matches the site", () => {
@@ -1284,6 +1392,117 @@ describe("searchGmb", () => {
     });
     expect(listing.status).toBe("none");
     expect(listing.url).toContain("google.com/maps/search");
+  });
+
+  it("crava the pin on a phone-only query when city tokens hide the listing", async () => {
+    const pin = {
+      title: "Santa Tereza Pilates & Funcional",
+      address: "R. Mármore, 196 - Santa Tereza, Belo Horizonte - MG",
+      phoneNumber: "(31) 2555-5527",
+      website: "https://santaterezapilates.com.br",
+      cid: "55",
+      rating: 4.7,
+      ratingCount: 27,
+      openingHours: ["Fecha 21:30"],
+      thumbnailUrl: "https://img.test/studio.jpg",
+      category: "Estúdio de pilates",
+    };
+    process.env.SERPER_API_KEY = "test";
+    const queries: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        let q = "";
+        try {
+          q = (JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "";
+        } catch {
+          q = "";
+        }
+        queries.push(q);
+        const places = q === "3125555527" ? [pin] : [];
+        return new Response(JSON.stringify({ places }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    const listing = await searchGmb({
+      nomeFantasia: "STUDIO SANTA TEREZA",
+      razaoSocial: "STUDIO SANTA TEREZA LTDA",
+      municipio: "Belo Horizonte",
+      uf: "MG",
+      logradouro: "Rua Marmore",
+      numero: "196",
+      phones: [{ ddd: "31", telefone: "25555527" }],
+    });
+    expect(queries[0]).toBe("3125555527 Belo Horizonte MG");
+    expect(queries).toContain("3125555527");
+    expect(listing.matched).toBe(true);
+    expect(listing.name).toBe("Santa Tereza Pilates & Funcional");
+    expect(listing.website_host).toBe("santaterezapilates.com.br");
+    expect(listing.card?.score).toBe(5);
+  });
+
+  it("opens the Maps miss on the Receita phone instead of the quoted cadastro name", async () => {
+    mapsFetch([[], [], [], [], [], [], [], [], [], [], []]);
+    const listing = await searchGmb({
+      nomeFantasia: "STUDIO SANTA TEREZA",
+      razaoSocial: "STUDIO SANTA TEREZA LTDA",
+      municipio: "Belo Horizonte",
+      uf: "MG",
+      phones: [{ ddd: "31", telefone: "25555527" }],
+    });
+    expect(listing.status).toBe("none");
+    expect(decodeURIComponent(listing.url)).toContain("3125555527");
+    expect(decodeURIComponent(listing.url)).not.toContain(
+      '"STUDIO SANTA TEREZA"',
+    );
+  });
+
+  it("hydrates a human-inserted cid into the public Maps card", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            places: [
+              {
+                title: "Santa Tereza Pilates & Funcional",
+                phoneNumber: "(31) 2555-5527",
+                website: "https://santaterezapilates.com.br",
+                cid: "55",
+                rating: 4.7,
+                ratingCount: 27,
+                openingHours: ["Fecha 21:30"],
+                thumbnailUrl: "https://img.test/studio.jpg",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const inserted = {
+      name: "Santa Tereza Pilates & Funcional",
+      url: "https://www.google.com/maps?cid=55",
+      matched: true,
+      status: "matched" as const,
+      cid: "55",
+    };
+    expect(gmbListingNeedsHydration(inserted)).toBe(true);
+    const hydrated = await hydrateMatchedGmbListing(inserted);
+    expect(hydrated.card?.score).toBe(5);
+    expect(hydrated.website_host).toBe("santaterezapilates.com.br");
+    expect(hydrated.phone_e164).toBe("+553125555527");
+    expect(
+      mergeMapsPlaceOntoListing(inserted, {
+        title: "Santa Tereza Pilates & Funcional",
+        website: "https://santaterezapilates.com.br",
+        phoneNumber: "(31) 2555-5527",
+        cid: "55",
+      }).website_host,
+    ).toBe("santaterezapilates.com.br");
   });
 });
 

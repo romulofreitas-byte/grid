@@ -468,6 +468,11 @@ export function applyPresenceCorrection(
       next.gmb = { name: "", url: "", matched: false, status: "none" };
     } else {
       const url = gmbUrl(mapsRaw);
+      if (mapsSearchUrl(url)) {
+        throw new PresenceCorrectionError(
+          "Cole a ficha do Maps, não o link da busca.",
+        );
+      }
       const cid = cidFromMapsUrl(url);
       next.gmb = {
         name:

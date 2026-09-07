@@ -235,6 +235,11 @@ describe("applyPresenceCorrection", () => {
     });
     expect(mapsPinConfirmable(miss)).toBe(false);
     expect(() => applyMapsConfirm(miss)).toThrow(PresenceCorrectionError);
+    expect(() =>
+      applyPresenceCorrection(miss, {
+        maps: "https://www.google.com/maps/search/?api=1&query=Studio%20Santa%20Tereza",
+      }),
+    ).toThrow(/ficha do Maps/);
   });
 
   it("drops Instagram pain after a human correction", () => {

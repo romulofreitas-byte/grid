@@ -180,6 +180,15 @@ const WEAK_PRESENCE_TOKENS = new Set([
   "equipamentos",
   "construcao",
   "construcoes",
+  "studio",
+  "estudio",
+  "academia",
+  "academias",
+  "gym",
+  "fitness",
+  "pilates",
+  "funcional",
+  "espaco",
 ]);
 
 function stripAccents(text: string): string {

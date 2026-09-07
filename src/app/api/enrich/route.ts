@@ -18,6 +18,11 @@ import {
   PresenceCorrectionError,
 } from "@/lib/enrichment/correct-presence";
 import { parseCompanySite } from "@/lib/enrichment/company-site";
+import {
+  domainFromGmb,
+  gmbListingNeedsHydration,
+  hydrateMatchedGmbListing,
+} from "@/lib/enrichment/presence";
 import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { isInteractiveEnrichScope } from "@/lib/enrichment/jobs";
 import {
@@ -218,8 +223,9 @@ export async function POST(req: Request) {
       );
     }
     let decided;
+    let scoreProfile;
     try {
-      const scoreProfile = await resolveJobScoreProfile(repo, searchId);
+      scoreProfile = await resolveJobScoreProfile(repo, searchId);
       decided = applyPresenceCorrection(enrichment, parsed.data.corrections, {
         scoreProfile,
       });
@@ -228,6 +234,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: err.message }, { status: 400 });
       }
       throw err;
+    }
+    if (
+      decided.kind === "patch" &&
+      decided.row.gmb &&
+      gmbListingNeedsHydration(decided.row.gmb)
+    ) {
+      const gmb = await hydrateMatchedGmbListing(decided.row.gmb);
+      const row = { ...decided.row, gmb };
+      const host = domainFromGmb(gmb);
+      const site = host && !row.domain ? parseCompanySite(host) : null;
+      decided = site
+        ? {
+            kind: "recrawl",
+            domain: site.host,
+            homepagePath: site.homepagePath,
+            row: applySiteConfirm(row, site.host, { scoreProfile }),
+          }
+        : { kind: "patch", row };
     }
     if (decided.kind === "recrawl") {
       await repo.skipActiveEnrichmentJobs(cnpj);

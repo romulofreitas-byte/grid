@@ -133,6 +133,16 @@ describe("presenceBrandTokens", () => {
     ).toContain("genesis");
   });
 
+  it("drops venue nouns so a neighborhood fantasia stays searchable", () => {
+    expect(
+      presenceBrandTokens(
+        "STUDIO SANTA TEREZA LTDA",
+        "STUDIO SANTA TEREZA",
+        "Belo Horizonte",
+      ),
+    ).toEqual(["santa", "tereza"]);
+  });
+
   it("drops generic machine/construction nouns so the brand token stays first", () => {
     expect(
       presenceBrandTokens(
