@@ -189,6 +189,18 @@ export const dealMoveSchema = z.object({
   position: z.number().int().min(0).max(9999),
 });
 
+export const dealTransferSchema = z.object({
+  pipelineId: z.string().uuid(),
+});
+
+export const pipelineDeleteSchema = z.object({
+  transferToPipelineId: z.string().uuid().optional(),
+});
+
+export const searchDeleteSchema = z.object({
+  removeEntrada: z.boolean().optional(),
+});
+
 export const activityKindSchema = z.enum(CRM_ACTIVITY_KINDS);
 
 export const scheduleSchema = z.object({

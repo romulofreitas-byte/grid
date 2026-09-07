@@ -25,6 +25,8 @@ export function ListSearchMenu({
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removeEntrada, setRemoveEntrada] = useState(false);
+  const [entradaCount, setEntradaCount] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -60,13 +62,32 @@ export function ListSearchMenu({
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/search/${search.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/search/${search.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removeEntrada }),
+      });
       if (!res.ok) throw new Error("Não foi possível excluir");
       onDeleted(search.id);
     } catch {
       setPending(false);
       setError("Não foi possível excluir. Tente de novo.");
     }
+  }
+
+  function startConfirm() {
+    setConfirming(true);
+    setRemoveEntrada(false);
+    setEntradaCount(null);
+    void fetch(`/api/search/${search.id}/crm-entrada`)
+      .then(async (res) => {
+        if (!res.ok) return;
+        const json = (await res.json()) as { entradaCount?: number };
+        if (typeof json.entradaCount === "number") {
+          setEntradaCount(json.entradaCount);
+        }
+      })
+      .catch(() => undefined);
   }
 
   return (
@@ -93,14 +114,34 @@ export function ListSearchMenu({
         panelRef={panelRef}
         id={menuId}
         align="end"
-        className="w-48 p-1"
+        className="w-64 p-1"
       >
         <div role="menu">
           {confirming ? (
             <div className="space-y-2 px-2 py-2">
               <p className="text-xs text-podium-muted">
-                Excluir “{search.nome}”? Isso não dá para desfazer.
+                {COPY.crmDeleteListWarn.replace("{nome}", search.nome)}
               </p>
+              {entradaCount != null && entradaCount > 0 ? (
+                <label className="flex items-start gap-2 text-xs text-podium-gray">
+                  <input
+                    type="checkbox"
+                    checked={removeEntrada}
+                    onChange={(event) => setRemoveEntrada(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    {COPY.crmDeleteListEntrada.replace("{n}", String(entradaCount))}
+                    <span className="mt-0.5 block text-[10px] text-podium-muted">
+                      {COPY.crmDeleteListEntradaHint}
+                    </span>
+                  </span>
+                </label>
+              ) : (
+                <p className="text-[10px] text-podium-muted">
+                  {COPY.crmDeleteListEntradaHint}
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -139,7 +180,7 @@ export function ListSearchMenu({
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => setConfirming(true)}
+                onClick={() => startConfirm()}
                 className={cn(menuItemClass, "hover:text-red-400")}
               >
                 <Trash2 className="h-3.5 w-3.5" />

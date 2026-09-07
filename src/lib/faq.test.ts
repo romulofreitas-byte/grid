@@ -24,6 +24,8 @@ describe("crm-nativo FAQ", () => {
   it("says the pista starts on Plano Piloto", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "crm-nativo");
     expect(item?.answer).toMatch(/Plano Piloto/);
+    expect(item?.answer).toMatch(/Excluir uma lista não apaga o CRM/);
+    expect(item?.answer).toMatch(/Transfira os negócios|transfere os negócios/);
   });
 });
 

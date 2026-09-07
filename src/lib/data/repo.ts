@@ -12,6 +12,7 @@ import type {
 } from "@/lib/integrations/records";
 import type { CompanySearchOpts } from "@/lib/data/company-search";
 import type { CrmBriefingLookup } from "@/lib/crm/briefing";
+import type { CrmDealTransferResult } from "@/lib/crm/transfer";
 import type {
   CrmActivityKind,
   CrmBoard,
@@ -370,6 +371,19 @@ export type GridRepo = {
     stageId: string,
     position: number,
   ): Promise<CrmDealCard | null>;
+  transferCrmDeal(
+    userId: string,
+    dealId: string,
+    toPipelineId: string,
+  ): Promise<CrmDealTransferResult | null>;
+  countCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number>;
+  deleteCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number>;
   deleteCrmDeal(userId: string, dealId: string): Promise<boolean>;
   scheduleCrmActivity(
     userId: string,

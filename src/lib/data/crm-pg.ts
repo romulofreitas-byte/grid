@@ -22,6 +22,15 @@ import {
   dealSearchHasLetters,
 } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
+import {
+  mapTransferStageId,
+  mergeDealNotes,
+  mergeDealPhones,
+  pickMergeSurvivor,
+  pickOpenActivityKeepId,
+  type CrmDealTransferResult,
+} from "@/lib/crm/transfer";
+import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
 import { resolveDecisor } from "@/lib/decisor";
 import type { Partner, RefQualificacao } from "@/lib/types";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
@@ -1272,6 +1281,225 @@ export const crmPgMethods = {
       await compactStage(q, stageId);
       if (fromStage !== stageId) await compactStage(q, fromStage);
       return loadCard(q, dealId);
+    });
+  },
+
+  async transferCrmDeal(
+    userId: string,
+    dealId: string,
+    toPipelineId: string,
+  ): Promise<CrmDealTransferResult | null> {
+    return withTransaction(async (q) => {
+      const source = await ownedDeal(q, userId, dealId);
+      if (!source) return null;
+      const fromPipelineId = source.pipeline_id;
+      if (fromPipelineId === toPipelineId) {
+        const deal = await loadCard(q, dealId);
+        return deal
+          ? { deal, fromPipelineId, fromDealId: source.id, merged: false }
+          : null;
+      }
+      if (!(await ownedPipeline(q, userId, toPipelineId))) return null;
+      const destStages = await listStages(q, toPipelineId);
+      const sourceStages = await listStages(q, source.pipeline_id);
+      const sourceStage = sourceStages.find((row) => row.id === source.stage_id);
+      const mappedStageId = mapTransferStageId(sourceStage, destStages);
+      if (!mappedStageId) return null;
+
+      let collision: CrmDeal | null = null;
+      if (source.cnpj) {
+        const found = await q(
+          `select * from crm_deals
+            where pipeline_id = $1 and cnpj = $2 and id <> $3
+            limit 1`,
+          [toPipelineId, source.cnpj, source.id],
+        );
+        collision = found.rows[0] ? mapDeal(found.rows[0]) : null;
+      }
+
+      if (collision) {
+        const destStage = destStages.find((row) => row.id === collision.stage_id);
+        const survivorDeal = pickMergeSurvivor(
+          source,
+          collision,
+          sourceStage,
+          destStage,
+        );
+        const other = survivorDeal.id === source.id ? collision : source;
+        const survivorId = survivorDeal.id;
+        const notes = mergeDealNotes(survivorDeal.notes, other.notes);
+        const phones = mergeDealPhones(survivorDeal.phones, other.phones);
+        const amount =
+          survivorDeal.amount_cents == null
+            ? other.amount_cents
+            : survivorDeal.amount_cents;
+        await q(
+          `update crm_deals
+              set notes = $2,
+                  phones = $3::jsonb,
+                  amount_cents = $4,
+                  updated_at = now()
+            where id = $1`,
+          [survivorId, notes, JSON.stringify(phones), amount],
+        );
+        const acts = await q(
+          `select * from crm_activities where deal_id = $1 or deal_id = $2`,
+          [survivorId, other.id],
+        );
+        const keepId = pickOpenActivityKeepId(acts.rows.map(mapActivity));
+        if (keepId) {
+          await q(
+            `update crm_activities
+                set status = 'done'
+              where (deal_id = $1 or deal_id = $2)
+                and status = 'open'
+                and id <> $3`,
+            [survivorId, other.id, keepId],
+          );
+        } else {
+          await q(
+            `update crm_activities
+                set status = 'done'
+              where (deal_id = $1 or deal_id = $2)
+                and status = 'open'`,
+            [survivorId, other.id],
+          );
+        }
+        await q(`update crm_activities set deal_id = $1 where deal_id = $2`, [
+          survivorId,
+          other.id,
+        ]);
+        await q(`update crm_events set deal_id = $1 where deal_id = $2`, [
+          survivorId,
+          other.id,
+        ]);
+        try {
+          await q(
+            `update crm_inbound_events set deal_id = $1 where deal_id = $2`,
+            [survivorId, other.id],
+          );
+        } catch (err) {
+          if (!isUndefinedTableError(err)) throw err;
+        }
+        const otherStageId = other.stage_id;
+        await q(`delete from crm_deals where id = $1`, [other.id]);
+        await compactStage(q, otherStageId);
+        if (survivorId === source.id) {
+          await q(
+            `update crm_deals
+                set position = position + 1
+              where stage_id = $1`,
+            [mappedStageId],
+          );
+          await q(
+            `update crm_deals
+                set pipeline_id = $2,
+                    stage_id = $3,
+                    position = 0,
+                    updated_at = now()
+              where id = $1`,
+            [survivorId, toPipelineId, mappedStageId],
+          );
+          await compactStage(q, source.stage_id);
+          await compactStage(q, mappedStageId);
+        }
+        const deal = await loadCard(q, survivorId);
+        return deal
+          ? {
+              deal,
+              fromPipelineId,
+              fromDealId: source.id,
+              merged: true,
+            }
+          : null;
+      }
+
+      await q(
+        `update crm_deals
+            set position = position + 1
+          where stage_id = $1`,
+        [mappedStageId],
+      );
+      await q(
+        `update crm_deals
+            set pipeline_id = $2,
+                stage_id = $3,
+                position = 0,
+                updated_at = now()
+          where id = $1`,
+        [source.id, toPipelineId, mappedStageId],
+      );
+      await compactStage(q, source.stage_id);
+      await compactStage(q, mappedStageId);
+      const deal = await loadCard(q, source.id);
+      return deal
+        ? { deal, fromPipelineId, fromDealId: source.id, merged: false }
+        : null;
+    });
+  },
+
+  async countCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number> {
+    const { rows } = await query(
+      `select count(*)::int as n
+         from crm_deals d
+         join crm_pipelines p on p.id = d.pipeline_id
+         join crm_stages s on s.id = d.stage_id
+        where p.user_id = $1
+          and d.outcome = 'open'
+          and s.canonical_key = 'entrada'
+          and d.meta->>'searchId' = $2
+          and coalesce(d.meta->>'source', '') not in ('import', 'inbound', 'crm_add')`,
+      [userId, searchId],
+    );
+    return Number(rows[0]?.n ?? 0);
+  },
+
+  async deleteCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number> {
+    return withTransaction(async (q) => {
+      const found = await q(
+        `select d.id, d.stage_id, d.meta, d.outcome, s.canonical_key
+           from crm_deals d
+           join crm_pipelines p on p.id = d.pipeline_id
+           join crm_stages s on s.id = d.stage_id
+          where p.user_id = $1
+            and d.meta->>'searchId' = $2`,
+        [userId, searchId],
+      );
+      const ids: string[] = [];
+      const stages = new Set<string>();
+      for (const row of found.rows) {
+        const meta =
+          row.meta && typeof row.meta === "object" && !Array.isArray(row.meta)
+            ? (row.meta as CrmDeal["meta"])
+            : {};
+        if (
+          !shouldRemoveEntradaDeal({
+            listSearchId: searchId,
+            searchId: meta.searchId,
+            source: meta.source,
+            outcome: mapOutcome(row.outcome),
+            canonicalKey:
+              row.canonical_key == null ? null : String(row.canonical_key),
+          })
+        ) {
+          continue;
+        }
+        ids.push(String(row.id));
+        stages.add(String(row.stage_id));
+      }
+      if (ids.length === 0) return 0;
+      await q(`delete from crm_activities where deal_id = any($1::uuid[])`, [
+        ids,
+      ]);
+      await q(`delete from crm_deals where id = any($1::uuid[])`, [ids]);
+      for (const stageId of stages) await compactStage(q, stageId);
+      return ids.length;
     });
   },
 

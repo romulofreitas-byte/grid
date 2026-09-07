@@ -78,6 +78,7 @@ import type {
   CrmEvent,
   CrmOutcome,
   CrmPerson,
+  CrmPipelineSummary,
   CrmStage,
 } from "@/lib/crm/types";
 import { formatCentsInput, maskDealAmountTyping, parseBrlToCents } from "@/lib/crm/money";
@@ -143,17 +144,26 @@ export function CrmDealModal({
   deal,
   stages,
   pipelineNome,
+  pipelines = [],
   onClose,
   onChange,
   onDeleted,
+  onTransferred,
   onMoveStage,
 }: {
   deal: CrmDealCard;
   stages: CrmStage[];
   pipelineNome: string;
+  pipelines?: CrmPipelineSummary[];
   onClose: () => void;
   onChange: (deal: CrmDealCard) => void;
   onDeleted: (dealId: string) => void;
+  onTransferred?: (result: {
+    fromDealId: string;
+    fromPipelineId: string;
+    deal: CrmDealCard;
+    merged: boolean;
+  }) => void;
   onMoveStage: (stageId: string) => void;
 }) {
   const qc = useQueryClient();
@@ -634,6 +644,29 @@ export function CrmDealModal({
       onDeleted(deal.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não excluiu.");
+      setSaving(false);
+    }
+  }
+
+  async function transferTo(pipelineId: string) {
+    if (!pipelineId || pipelineId === deal.pipeline_id) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await crmFetch<{
+        deal: CrmDealCard;
+        fromPipelineId: string;
+        fromDealId: string;
+        merged: boolean;
+      }>(`/api/crm/deals/${deal.id}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({ pipelineId }),
+      });
+      onTransferred?.(res);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Não foi possível transferir.",
+      );
       setSaving(false);
     }
   }
@@ -1283,6 +1316,25 @@ export function CrmDealModal({
             >
               Tirar do CRM
             </button>
+            {pipelines.filter((row) => row.id !== deal.pipeline_id).length > 0 ? (
+              <div className="mt-3 space-y-1">
+                <p className={CRM_LABEL}>{COPY.crmTransferPipeline}</p>
+                <Select
+                  size="sm"
+                  value=""
+                  disabled={saving}
+                  placeholder={COPY.crmTransferPipeline}
+                  aria-label={COPY.crmTransferPipeline}
+                  onChange={(value) => void transferTo(value)}
+                  options={pipelines
+                    .filter((row) => row.id !== deal.pipeline_id)
+                    .map((row) => ({ value: row.id, label: row.nome }))}
+                />
+                <p className="text-[10px] leading-snug text-podium-muted">
+                  {COPY.crmTransferPipelineHint}
+                </p>
+              </div>
+            ) : null}
           </aside>
         </div>
       </motion.div>

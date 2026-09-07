@@ -20,8 +20,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useShellRailOpen } from "@/components/ShellRail";
+import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
-import { CRM_FIELD } from "@/lib/crm/client";
+import { CRM_FIELD, crmFetch } from "@/lib/crm/client";
+import type { PipelineRemovalPreview } from "@/lib/crm/pipeline-removal";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import {
   exclusiveCrmRails,
@@ -71,7 +73,10 @@ export function CrmPipelineRail({
   onPrefetch?: (pipelineId: string) => void;
   onCreate: (nome: string) => void;
   onRename: (pipelineId: string, nome: string) => void;
-  onDelete: (pipelineId: string) => void;
+  onDelete: (
+    pipelineId: string,
+    opts?: { transferToPipelineId?: string },
+  ) => void | Promise<void>;
   onReorder: (pipelineIds: string[]) => void;
 }) {
   const { open: shellOpen, setOpen: setShellOpen } = useShellRailOpen();
@@ -83,6 +88,11 @@ export function CrmPipelineRail({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [removalPreview, setRemovalPreview] =
+    useState<PipelineRemovalPreview | null>(null);
+  const [transferToId, setTransferToId] = useState("");
+  const [removalError, setRemovalError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [dndReady, setDndReady] = useState(false);
   const dndId = useId();
   const drag = useRef<{ startX: number; startWidth: number; wasOpen: boolean } | null>(
@@ -174,6 +184,28 @@ export function CrmPipelineRail({
     onReorder(arrayMove(pipelines, oldIndex, newIndex).map((row) => row.id));
   }
 
+  async function confirmRemoval(pipelineId: string) {
+    const transferNeeded =
+      removalPreview != null && !removalPreview.canDeleteDirectly;
+    if (transferNeeded && !transferToId) return;
+    setDeleting(true);
+    setRemovalError(null);
+    try {
+      await onDelete(
+        pipelineId,
+        transferNeeded ? { transferToPipelineId: transferToId } : undefined,
+      );
+      setPendingDeleteId(null);
+      setRemovalPreview(null);
+    } catch (err) {
+      setRemovalError(
+        err instanceof Error ? err.message : "Não deu para excluir o nicho.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const active = pipelines.find((row) => row.id === activeId);
   const sortableEnabled = pipelines.length > 1;
   const pipelineIds = pipelines.map((row) => row.id);
@@ -184,6 +216,15 @@ export function CrmPipelineRail({
       pipeline={pipeline}
       selected={pipeline.id === activeId}
       confirming={pendingDeleteId === pipeline.id}
+      removalPreview={
+        pendingDeleteId === pipeline.id ? removalPreview : null
+      }
+      transferToId={transferToId}
+      transferOptions={pipelines
+        .filter((row) => row.id !== pipeline.id)
+        .map((row) => ({ value: row.id, label: row.nome }))}
+      removalError={pendingDeleteId === pipeline.id ? removalError : null}
+      deleting={pendingDeleteId === pipeline.id && deleting}
       renaming={renamingId === pipeline.id}
       renameDraft={renameDraft}
       canDelete={pipeline.id === activeId && pipelines.length > 1}
@@ -200,11 +241,32 @@ export function CrmPipelineRail({
         setRenamingId(pipeline.id);
         setRenameDraft(pipeline.nome);
       }}
-      onAskDelete={() => setPendingDeleteId(pipeline.id)}
-      onCancelDelete={() => setPendingDeleteId(null)}
-      onConfirmDelete={() => {
-        onDelete(pipeline.id);
+      onAskDelete={() => {
+        setPendingDeleteId(pipeline.id);
+        setRemovalPreview(null);
+        setRemovalError(null);
+        setTransferToId(
+          pipelines.find((row) => row.id !== pipeline.id)?.id ?? "",
+        );
+        void crmFetch<{ preview: PipelineRemovalPreview }>(
+          `/api/crm/pipelines/${pipeline.id}/removal`,
+        )
+          .then((res) => setRemovalPreview(res.preview))
+          .catch((err) =>
+            setRemovalError(
+              err instanceof Error ? err.message : "Não deu para conferir o nicho.",
+            ),
+          );
+      }}
+      onCancelDelete={() => {
+        if (deleting) return;
         setPendingDeleteId(null);
+        setRemovalPreview(null);
+        setRemovalError(null);
+      }}
+      onTransferTo={setTransferToId}
+      onConfirmDelete={() => {
+        void confirmRemoval(pipeline.id);
       }}
     />
   ));
@@ -316,6 +378,11 @@ function SortablePipelineRow({
   pipeline,
   selected,
   confirming,
+  removalPreview,
+  transferToId,
+  transferOptions,
+  removalError,
+  deleting,
   renaming,
   renameDraft,
   canDelete,
@@ -327,11 +394,17 @@ function SortablePipelineRow({
   onStartRename,
   onAskDelete,
   onCancelDelete,
+  onTransferTo,
   onConfirmDelete,
 }: {
   pipeline: CrmPipelineSummary;
   selected: boolean;
   confirming: boolean;
+  removalPreview: PipelineRemovalPreview | null;
+  transferToId: string;
+  transferOptions: { value: string; label: string }[];
+  removalError: string | null;
+  deleting: boolean;
   renaming: boolean;
   renameDraft: string;
   canDelete: boolean;
@@ -343,6 +416,7 @@ function SortablePipelineRow({
   onStartRename: () => void;
   onAskDelete: () => void;
   onCancelDelete: () => void;
+  onTransferTo: (pipelineId: string) => void;
   onConfirmDelete: () => void;
 }) {
   const sortable = useSortable({
@@ -416,22 +490,63 @@ function SortablePipelineRow({
       {confirming ? (
         <div className="mx-1 mb-2 rounded-lg border border-white/10 bg-podium-panel p-2">
           <p className="text-[11px] leading-snug text-podium-gray">
-            {COPY.crmDeletePipelineWarn}
+            {removalPreview && !removalPreview.canDeleteDirectly
+              ? COPY.crmDeletePipelineNeedTransfer
+              : COPY.crmDeletePipelineWarn}
           </p>
+          {removalPreview && removalPreview.matchingSavedListCount > 0 ? (
+            <p className="mt-1.5 text-[11px] leading-snug text-podium-muted">
+              {COPY.crmDeletePipelineLists.replace(
+                "{n}",
+                String(removalPreview.matchingSavedListCount),
+              )}
+            </p>
+          ) : null}
+          {removalPreview && !removalPreview.canDeleteDirectly ? (
+            <div className="mt-2">
+              <p className="mb-1 text-[10px] text-podium-muted">
+                {COPY.crmDeletePipelineTransferTo}
+              </p>
+              <Select
+                size="sm"
+                value={transferToId}
+                onChange={onTransferTo}
+                options={transferOptions}
+                aria-label={COPY.crmDeletePipelineTransferTo}
+              />
+            </div>
+          ) : null}
+          {removalError ? (
+            <p className="mt-1.5 text-[11px] text-podium-alert">{removalError}</p>
+          ) : null}
           <div className="mt-2 flex justify-end gap-2">
             <button
               type="button"
+              disabled={deleting}
               onClick={onCancelDelete}
-              className="rounded-md px-2 py-1 text-[11px] text-podium-muted hover:text-podium-white"
+              className="rounded-md px-2 py-1 text-[11px] text-podium-muted hover:text-podium-white disabled:opacity-40"
             >
               Cancelar
             </button>
             <button
               type="button"
+              disabled={
+                deleting ||
+                removalPreview == null ||
+                Boolean(
+                  removalPreview &&
+                    !removalPreview.canDeleteDirectly &&
+                    !transferToId,
+                )
+              }
               onClick={onConfirmDelete}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold text-podium-alert hover:bg-podium-alert/10"
+              className="rounded-md px-2 py-1 text-[11px] font-semibold text-podium-alert hover:bg-podium-alert/10 disabled:opacity-40"
             >
-              {COPY.crmDeletePipelineConfirm}
+              {deleting
+                ? "Excluindo…"
+                : removalPreview && !removalPreview.canDeleteDirectly
+                  ? COPY.crmDeletePipelineTransfer
+                  : COPY.crmDeletePipelineConfirm}
             </button>
           </div>
         </div>

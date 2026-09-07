@@ -516,8 +516,24 @@ export const COPY = {
   crmRenamePipeline: "Renomear nicho",
   crmDeletePipeline: "Excluir nicho",
   crmDeletePipelineWarn:
-    "Isso apaga o CRM deste nicho e todos os negócios.",
+    "Isso apaga o CRM deste nicho e os negócios que ainda estão em Entrada de Lista.",
+  crmDeletePipelineLists:
+    "{n} listas salvas deste nicho continuam. Qualificar de novo pode montar o quadro outra vez.",
+  crmDeletePipelineNeedTransfer:
+    "Há negócios que já avançaram ou que você colocou no CRM. Transfira para outro nicho — import e formulário não voltam.",
+  crmDeletePipelineTransferTo: "Mover negócios para",
   crmDeletePipelineConfirm: "Apagar CRM",
+  crmDeletePipelineTransfer: "Transferir e excluir",
+  crmTransferPipeline: "Mover para outro nicho",
+  crmTransferPipelineHint: "O negócio vai para o quadro escolhido, na etapa equivalente.",
+  crmTransferMerged: "Já havia este CNPJ no destino — os dois foram unidos.",
+  crmDeleteListWarn:
+    "Excluir “{nome}”? A lista some. Qualificação e o CRM do nicho ficam.",
+  crmDeleteListEntrada:
+    "Tirar do CRM os {n} que ainda estão em Entrada desta lista",
+  crmDeleteListEntradaHint:
+    "Quem já avançou e leads de import/formulário ficam. Qualificação permanece.",
+  crmDeleteListConfirm: "Excluir",
   crmOpenPista: "Abrir CRM",
   crmOnGrid: "No CRM",
   crmOpenDeal: "Abrir no CRM",

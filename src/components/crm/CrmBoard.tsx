@@ -698,14 +698,33 @@ export function CrmBoard({
                 : current,
             );
           }}
-          onDelete={async (pipelineId) => {
-            const res = await crmFetch<{ pipelines: CrmPipelineSummary[] }>(
-              `/api/crm/pipelines/${pipelineId}`,
-              { method: "DELETE" },
-            );
-            setPipelines(res.pipelines);
-            const next = res.pipelines[0];
-            if (next) await loadPipeline(next.id);
+          onDelete={async (pipelineId, opts) => {
+            setError(null);
+            try {
+              const res = await crmFetch<{ pipelines: CrmPipelineSummary[] }>(
+                `/api/crm/pipelines/${pipelineId}`,
+                {
+                  method: "DELETE",
+                  body: JSON.stringify({
+                    transferToPipelineId: opts?.transferToPipelineId,
+                  }),
+                },
+              );
+              setPipelines(res.pipelines);
+              const destId = opts?.transferToPipelineId;
+              const next =
+                (destId &&
+                  res.pipelines.find((row) => row.id === destId)) ||
+                res.pipelines[0];
+              if (next) await loadPipeline(next.id);
+            } catch (err) {
+              setError(
+                err instanceof Error
+                  ? err.message
+                  : "Não deu para excluir o nicho.",
+              );
+              throw err;
+            }
           }}
           onReorder={async (pipelineIds) => {
             const previous = pipelines;
@@ -768,6 +787,26 @@ export function CrmBoard({
             onChange={replaceDeal}
             onMoveStage={(stageId) => {
               moveDealToStage(openDeal.id, stageId);
+            }}
+            pipelines={pipelines}
+            onTransferred={({ fromDealId, fromPipelineId, deal, merged }) => {
+              bumpCount(fromPipelineId, -1);
+              if (!merged) bumpCount(deal.pipeline_id, 1);
+              cacheRef.current.delete(fromPipelineId);
+              cacheRef.current.delete(deal.pipeline_id);
+              fetchedAtRef.current.delete(fromPipelineId);
+              fetchedAtRef.current.delete(deal.pipeline_id);
+              setBoard((current) =>
+                current
+                  ? {
+                      ...current,
+                      deals: current.deals.filter(
+                        (row) => row.id !== fromDealId,
+                      ),
+                    }
+                  : current,
+              );
+              openDealCard(null);
             }}
             onDeleted={(dealId) => {
               const pipelineId = board.pipeline.id;

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
-import { pipelinePatchSchema } from "@/lib/crm/schema";
+import { pipelineDeleteSchema, pipelinePatchSchema } from "@/lib/crm/schema";
+import { executePipelineRemoval } from "@/lib/crm/pipeline-removal";
 
 export async function GET(
   req: Request,
@@ -41,10 +42,19 @@ export async function DELETE(
   const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
-  const ok = await getRepo().deleteCrmPipeline(gated.userId, pipelineId);
-  if (!ok) {
-    return jsonError("Não dá para excluir o último nicho.", 400);
+  const parsed = pipelineDeleteSchema.safeParse((await readJson(req)) ?? {});
+  if (!parsed.success) return jsonError("Payload inválido.");
+  const result = await executePipelineRemoval(
+    getRepo(),
+    gated.userId,
+    pipelineId,
+    parsed.data.transferToPipelineId,
+  );
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error, preview: result.preview },
+      { status: result.status },
+    );
   }
-  const pipelines = await getRepo().listCrmPipelines(gated.userId);
-  return NextResponse.json({ ok: true, pipelines });
+  return NextResponse.json({ ok: true, pipelines: result.pipelines });
 }

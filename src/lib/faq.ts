@@ -96,7 +96,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra no GRID?",
     answer:
-      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Os leads qualificados entram no CRM só depois que você salva a lista. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Na ficha você move o card até Reunião Agendada; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
+      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Os leads qualificados entram no CRM só depois que você salva a lista. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Excluir uma lista não apaga o CRM nem a qualificação; dá para tirar só quem ainda está em Entrada. Apagar o nicho só vale se ninguém avançou — senão você transfere os negócios. Import e formulário ficam no quadro: são seus. Na ficha você move o card até Reunião Agendada e pode mandar para outro nicho; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },

@@ -11,6 +11,15 @@ import {
 } from "@/lib/crm/briefing";
 import { searchHitsFromDeals } from "@/lib/crm/deal-search";
 import { uniquePhones } from "@/lib/crm/dial";
+import {
+  mapTransferStageId,
+  mergeDealNotes,
+  mergeDealPhones,
+  pickMergeSurvivor,
+  pickOpenActivityKeepId,
+  type CrmDealTransferResult,
+} from "@/lib/crm/transfer";
+import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
 import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
 import {
   INBOUND_EVENT_KEEP,
@@ -227,6 +236,25 @@ function summarize(
     deal_count: store.crm_deals.filter((row) => row.pipeline_id === pipeline.id)
       .length,
   };
+}
+
+function listEntradaDealsForSearch(
+  store: MockStore,
+  userId: string,
+  searchId: string,
+) {
+  const owned = new Set(pipelinesOf(store, userId).map((row) => row.id));
+  return store.crm_deals.filter((deal) => {
+    if (!owned.has(deal.pipeline_id)) return false;
+    const stage = store.crm_stages.find((row) => row.id === deal.stage_id);
+    return shouldRemoveEntradaDeal({
+      listSearchId: searchId,
+      searchId: deal.meta.searchId,
+      source: deal.meta.source,
+      outcome: deal.outcome,
+      canonicalKey: stage?.canonical_key ?? null,
+    });
+  });
 }
 
 function assembleBoard(
@@ -688,6 +716,122 @@ export const crmMockMethods = {
     moveDealInStore(store, deal, stageId, position);
     deal.updated_at = nowIso();
     return toCard(store, deal);
+  },
+
+  async transferCrmDeal(
+    userId: string,
+    dealId: string,
+    toPipelineId: string,
+  ): Promise<CrmDealTransferResult | null> {
+    const store = getMockStore();
+    const source = ownDeal(store, userId, dealId);
+    if (!source) return null;
+    const fromPipelineId = source.pipeline_id;
+    if (fromPipelineId === toPipelineId) {
+      return {
+        deal: toCard(store, source),
+        fromPipelineId,
+        fromDealId: source.id,
+        merged: false,
+      };
+    }
+    if (!ownPipeline(store, userId, toPipelineId)) return null;
+    const destStages = stagesOf(store, toPipelineId);
+    const sourceStage = store.crm_stages.find((row) => row.id === source.stage_id);
+    const mappedStageId = mapTransferStageId(sourceStage, destStages);
+    if (!mappedStageId) return null;
+
+    const collision =
+      source.cnpj == null
+        ? undefined
+        : store.crm_deals.find(
+            (row) =>
+              row.pipeline_id === toPipelineId &&
+              row.cnpj === source.cnpj &&
+              row.id !== source.id,
+          );
+
+    if (collision) {
+      const destStage = store.crm_stages.find(
+        (row) => row.id === collision.stage_id,
+      );
+      const survivor = pickMergeSurvivor(
+        source,
+        collision,
+        sourceStage,
+        destStage,
+      );
+      const other = survivor.id === source.id ? collision : source;
+      survivor.notes = mergeDealNotes(survivor.notes, other.notes);
+      survivor.phones = mergeDealPhones(survivor.phones, other.phones);
+      if (survivor.amount_cents == null) survivor.amount_cents = other.amount_cents;
+      const acts = store.crm_activities.filter(
+        (row) => row.deal_id === survivor.id || row.deal_id === other.id,
+      );
+      const keepId = pickOpenActivityKeepId(acts);
+      for (const act of acts) {
+        if (act.status === "open" && act.id !== keepId) act.status = "done";
+      }
+      for (const act of store.crm_activities) {
+        if (act.deal_id === other.id) act.deal_id = survivor.id;
+      }
+      for (const event of store.crm_events) {
+        if (event.deal_id === other.id) event.deal_id = survivor.id;
+      }
+      for (const event of store.crm_inbound_events) {
+        if (event.deal_id === other.id) event.deal_id = survivor.id;
+      }
+      const otherStageId = other.stage_id;
+      store.crm_deals = store.crm_deals.filter((row) => row.id !== other.id);
+      compactStage(store, otherStageId);
+      if (survivor.id === source.id) {
+        survivor.pipeline_id = toPipelineId;
+        moveDealInStore(store, survivor, mappedStageId, 0);
+      }
+      survivor.updated_at = nowIso();
+      return {
+        deal: toCard(store, survivor),
+        fromPipelineId,
+        fromDealId: source.id,
+        merged: true,
+      };
+    }
+
+    source.pipeline_id = toPipelineId;
+    moveDealInStore(store, source, mappedStageId, 0);
+    source.updated_at = nowIso();
+    return {
+      deal: toCard(store, source),
+      fromPipelineId,
+      fromDealId: source.id,
+      merged: false,
+    };
+  },
+
+  async countCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number> {
+    return listEntradaDealsForSearch(getMockStore(), userId, searchId).length;
+  },
+
+  async deleteCrmEntradaDealsForSearch(
+    userId: string,
+    searchId: string,
+  ): Promise<number> {
+    const store = getMockStore();
+    const deals = listEntradaDealsForSearch(store, userId, searchId);
+    for (const deal of deals) {
+      store.crm_activities = store.crm_activities.filter(
+        (row) => row.deal_id !== deal.id,
+      );
+      store.crm_events = store.crm_events.filter(
+        (row) => row.deal_id !== deal.id,
+      );
+      store.crm_deals = store.crm_deals.filter((row) => row.id !== deal.id);
+      compactStage(store, deal.stage_id);
+    }
+    return deals.length;
   },
 
   async deleteCrmDeal(userId: string, dealId: string): Promise<boolean> {

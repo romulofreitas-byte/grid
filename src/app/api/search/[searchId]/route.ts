@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSearchForUser } from "@/lib/auth/search-access";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { onSearchSaved } from "@/lib/catchup/saved-list";
+import { searchDeleteSchema } from "@/lib/crm/schema";
 import { getRepo } from "@/lib/data";
 
 const patchSchema = z.object({
@@ -63,6 +64,19 @@ export async function DELETE(
   const owned = await getSearchForUser(gated.userId, searchId);
   if (!owned) {
     return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
+  }
+  let body: unknown = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+  const parsed = searchDeleteSchema.safeParse(body ?? {});
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
+  }
+  if (parsed.data.removeEntrada) {
+    await getRepo().deleteCrmEntradaDealsForSearch(gated.userId, searchId);
   }
   const ok = await getRepo().deleteSearch(searchId);
   if (!ok) {
