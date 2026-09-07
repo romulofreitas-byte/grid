@@ -735,6 +735,10 @@ function useAuditBoard() {
   return ctx;
 }
 
+function hasLiveToolSignal(signals: AuditSignal[]): boolean {
+  return signals.some((signal) => signal.group === "ferramentas" && isAuditLive(signal));
+}
+
 export function LeadFichaAuditProvider({
   children,
   enrichment,
@@ -780,18 +784,27 @@ export function LeadFichaAuditProvider({
   const auditKey = enrichment
     ? `${enrichment.cnpj}:${enrichment.collected_at}`
     : "pending";
+  const hasLiveTool = useMemo(() => hasLiveToolSignal(signals), [signals]);
+  const autoOpenedForKey = useRef<string | null>(null);
   const [selectedId, setSelectedId] = useState(() =>
     defaultAuditSelection(signals),
   );
-  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(() => hasLiveTool);
   const [toolsMissingOpen, setToolsMissingOpen] = useState(false);
 
   useEffect(() => {
     setSelectedId(defaultAuditSelection(signals));
     setToolsMissingOpen(false);
-    setGroupsOpen(false);
+    setGroupsOpen(hasLiveTool);
+    autoOpenedForKey.current = hasLiveTool ? auditKey : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when auditKey changes
   }, [auditKey]);
+
+  useEffect(() => {
+    if (!hasLiveTool || autoOpenedForKey.current === auditKey) return;
+    setGroupsOpen(true);
+    autoOpenedForKey.current = auditKey;
+  }, [hasLiveTool, auditKey]);
 
   function pickSignal(id: string) {
     setSelectedId(id);
