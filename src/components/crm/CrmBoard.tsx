@@ -34,6 +34,7 @@ import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import { closedDealCount, visibleKanbanDeals } from "@/lib/crm/events";
+import { writeLastCrmPipelineCookie } from "@/lib/crm/last-pipeline";
 import {
   createLatestPrefetch,
   dedupeInflight,
@@ -199,8 +200,13 @@ export function CrmBoard({
     if (board) cacheRef.current.set(board.pipeline.id, board);
   }, [board]);
 
+  useEffect(() => {
+    if (selectedPipelineId) writeLastCrmPipelineCookie(selectedPipelineId);
+  }, [selectedPipelineId]);
+
   function writeUrl(pipelineId: string | null, dealId: string | null) {
     writeCrmUrl(pipelineId, dealId);
+    if (pipelineId) writeLastCrmPipelineCookie(pipelineId);
   }
 
   const openDealCard = useCallback(

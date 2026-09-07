@@ -6,9 +6,14 @@ import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
-import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
+import {
+  LAST_CRM_PIPELINE_COOKIE,
+  parseLastCrmPipelineId,
+  resolveCrmPipeline,
+} from "@/lib/crm/last-pipeline";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
+import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 export default function CrmPage({
@@ -51,10 +56,12 @@ async function CrmPageInner({
       await repo.createCrmPipeline(session.id, DEFAULT_PIPELINE_NAME);
       pipelines = await repo.listCrmPipelines(session.id);
     }
-    const requested = sp.pipeline
-      ? pipelines.find((pipeline) => pipeline.id === sp.pipeline)
-      : null;
-    const first = requested ?? pickDefaultCrmPipeline(pipelines) ?? null;
+    const cookieStore = await cookies();
+    const remembered = parseLastCrmPipelineId(
+      cookieStore.get(LAST_CRM_PIPELINE_COOKIE)?.value,
+    );
+    const first =
+      resolveCrmPipeline(pipelines, sp.pipeline, remembered) ?? null;
     const board = first
       ? await repo.getCrmBoard(session.id, first.id)
       : null;
