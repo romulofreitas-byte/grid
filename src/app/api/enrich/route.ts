@@ -39,6 +39,7 @@ const correctionsSchema = z.object({
   gmb: z.string().nullable().optional(),
   maps: z.string().nullable().optional(),
   confirmMaps: z.boolean().optional(),
+  confirmInstagram: z.string().nullable().optional(),
 });
 
 const schema = z

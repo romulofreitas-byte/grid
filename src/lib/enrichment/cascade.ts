@@ -1,3 +1,4 @@
+import { quotedAliasPlaceQueries } from "@/lib/enrichment/brand-aliases";
 import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
 import {
   domainSearchFallbackQueries,
@@ -407,6 +408,9 @@ export type EnrichOptions = {
   homepagePath?: string | null;
   /** Receita e-mail appears on many CNPJs — provider unless the host is the brand. */
   emailShared?: boolean;
+  extraNames?: string[];
+  seedDomain?: string | null;
+  seedInstagram?: string | null;
 };
 
 type SitePhone = NonNullable<ReturnType<typeof extractNormalizedPhones>>[number];
@@ -654,6 +658,7 @@ async function enrichCompanyTracked(
   let finalUrl = "";
   let gmb: GmbListing | null = null;
   let socialsFromSearch: LeadEnrichment["socials"] = {};
+  let presenceCandidates: LeadEnrichment["presence_candidates"] = null;
   const timings: Omit<EnrichTimings, "serper"> = {
     serper_ms: 0,
     crawl_ms: 0,
@@ -684,6 +689,23 @@ async function enrichCompanyTracked(
       coletado_em: collected_at,
       ...(homepage_path ? { path: homepage_path } : {}),
     };
+  }
+
+  if (!domain && options.seedDomain) {
+    const seedHost = normalizeHost(options.seedDomain);
+    if (seedHost && !discarded.has(seedHost) && !isDirectoryUrl(seedHost)) {
+      domain = seedHost;
+      fonte.domain = { fonte: "hint", coletado_em: collected_at };
+      noteDomainWave("hint");
+    }
+  }
+
+  if (options.seedInstagram) {
+    socialsFromSearch = {
+      ...socialsFromSearch,
+      instagram: `https://instagram.com/${options.seedInstagram}`,
+    };
+    fonte.instagram = { fonte: "hint", coletado_em: collected_at };
   }
 
   if (!domain) domain_status = "nao_encontrado";
@@ -746,6 +768,9 @@ async function enrichCompanyTracked(
       osm: null,
       gmb: extras.gmb ?? gmb,
       discarded_domains: [...discarded],
+      presence_candidates: mergedSocials.instagram
+        ? null
+        : presenceCandidates,
       dor_digital: 0,
       contexto: [],
       fonte,
@@ -795,6 +820,7 @@ async function enrichCompanyTracked(
     input.municipioNome,
     input.sharedVerdict,
   );
+  gmbInput.extraNames = options.extraNames;
   const presencePlace = {
     nomeFantasia: est.nome_fantasia,
     razaoSocial: input.company.razao_social,
@@ -812,7 +838,16 @@ async function enrichCompanyTracked(
       municipio: input.municipioNome,
       uf: est.uf,
     };
-    const queries = domainSearchQueries(queryInput);
+    const queries = [
+      ...domainSearchQueries(queryInput),
+      ...quotedAliasPlaceQueries({
+        nomeFantasia: est.nome_fantasia,
+        razaoSocial: input.company.razao_social,
+        extraNames: options.extraNames,
+        municipio: input.municipioNome,
+        uf: est.uf,
+      }),
+    ].filter((q, i, all) => q && all.indexOf(q) === i);
     const strongBrand =
       presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
         .length > 0;
@@ -1155,18 +1190,24 @@ async function enrichCompanyTracked(
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
 
-  if (domain_status === "confirmado" && domain) {
+  if (domain) {
     const host = domain.replace(/^www\./i, "").toLowerCase();
     const upgraded = upgradeGmbWithWebsite(gmb, host);
     if (upgraded && upgraded !== gmb) {
       gmb = upgraded;
       fonte.gmb = { fonte: "serper", coletado_em: collected_at };
     }
-    if (gmbListingStatus(gmb) !== "matched") {
-      const sitePhones = snap.sitePhones.map((p) => ({
-        ddd: p.ddd,
-        telefone: p.local,
-      }));
+  }
+
+  if (gmbListingStatus(gmb) !== "matched") {
+    const host = domain
+      ? domain.replace(/^www\./i, "").toLowerCase()
+      : undefined;
+    const sitePhones = snap.sitePhones.map((p) => ({
+      ddd: p.ddd,
+      telefone: p.local,
+    }));
+    if (host || sitePhones.length > 0) {
       const withSite = await withSerperStage("gmb_site", () =>
         searchGmb({
           ...gmbInput,
@@ -1224,12 +1265,18 @@ async function enrichCompanyTracked(
             cep: est.cep,
             logradouro: est.logradouro,
             numero: est.numero,
+            extraNames: options.extraNames,
           }),
         );
+        if (found.candidates.length > 0) {
+          presenceCandidates = { instagram: found.candidates };
+        }
         return {
           step,
-          kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
-          url: found ?? undefined,
+          kind: (found.url ? "serper" : "serper_miss") as
+            | "serper"
+            | "serper_miss",
+          url: found.url ?? undefined,
         };
       }
       if (!siteConfirmed && !canSearchSocialWithoutSite) {

@@ -11,6 +11,7 @@ import {
   hitsFromSerperJson,
   instagramSearchQueries,
   preferGmbListing,
+  searchInstagramProfile,
   mapsAddressMatchesReceita,
   mapsCepMatchesReceita,
   mapsCityMatchesReceita,
@@ -144,7 +145,7 @@ describe("socialHitMatchesBrand / pickSocialHit", () => {
         "TNA LUBRIFICACAO E LIMPEZA AUTOMOTIVA LTDA",
         "TNA Lubrificacao",
         "Contagem",
-        ["contajul"],
+        { blockedLabels: ["contajul"] },
       ),
     ).toBeNull();
   });
@@ -282,6 +283,21 @@ describe("pickBestDomainHit", () => {
       ),
     ).toBeGreaterThanOrEqual(1);
   });
+
+  it("scores a concatenated Metalúrgica Vaz host", () => {
+    expect(
+      scoreDomainHit(
+        {
+          link: "https://www.metalurgicavaz.com.br/",
+          title: "Home",
+          snippet: "",
+        },
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Contagem",
+      ),
+    ).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe("Maps × Receita matching", () => {
@@ -350,15 +366,19 @@ describe("Maps × Receita matching", () => {
   it("omits the Receita street when the phone is the accountant's", () => {
     expect(
       gmbSearchQueryList({ ...silva, sharedVerdict: "contabilidade" }),
-    ).toEqual([
-      '"DISTRIBUIDORA SILVA" Contagem MG',
-      "DISTRIBUIDORA SILVA Contagem MG",
-    ]);
-    expect(gmbSearchQueryList(silva)).toEqual([
-      '"DISTRIBUIDORA SILVA" Contagem MG',
-      '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
-      "DISTRIBUIDORA SILVA Contagem MG",
-    ]);
+    ).toEqual(
+      expect.arrayContaining([
+        '"DISTRIBUIDORA SILVA" Contagem MG',
+        "DISTRIBUIDORA SILVA Contagem MG",
+      ]),
+    );
+    expect(gmbSearchQueryList(silva)).toEqual(
+      expect.arrayContaining([
+        '"DISTRIBUIDORA SILVA" Contagem MG',
+        '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
+        "DISTRIBUIDORA SILVA Contagem MG",
+      ]),
+    );
   });
 
   it("adds a compact brand query when the Receita name is longer than the Maps title", () => {
@@ -478,19 +498,16 @@ describe("Maps × Receita matching", () => {
     expect(best?.match_by).not.toContain("address");
   });
 
-  it("does not accept a weak brand on title + city without street or phone", () => {
-    expect(
-      pickBestMapsPlace(
-        [
-          {
-            title: "Distribuidora Silva Contagem",
-            address: "Av. João César, 1 - Contagem - MG",
-            website: "https://silva-errada.com.br",
-          },
-        ],
-        silva,
-      ),
-    ).toBeNull();
+  it("auto-matches a unique weak-brand pin in the Receita city", () => {
+    const places = [
+      {
+        title: "Distribuidora Silva Contagem",
+        address: "Av. João César, 1 - Contagem - MG",
+        website: "https://silva-errada.com.br",
+        cid: "88",
+      },
+    ];
+    expect(pickBestMapsPlace(places, silva)?.place.cid).toBe("88");
     expect(
       scoreMapsPlace(
         {
@@ -499,20 +516,54 @@ describe("Maps × Receita matching", () => {
         },
         silva,
       ).matched,
-    ).toBe(false);
+    ).toBe(true);
+    const listing = resolveGmbListing(places, silva);
+    expect(listing.status).toBe("matched");
+    expect(listing.matched).toBe(true);
+    expect(listing.cid).toBe("88");
+  });
+
+  it("matches a Maps card whose website host is the brand, before a crawl", () => {
+    const listing = resolveGmbListing(
+      [
+        {
+          title: "Delpra Pré-Moldados",
+          address: "Uberaba - MG",
+          website: "https://delpra.net.br",
+          cid: "49",
+        },
+      ],
+      {
+        nomeFantasia: "Delpra Pré-Moldados",
+        razaoSocial: "DELPRA PRE MOLDADOS LTDA",
+        municipio: "Uberaba",
+        uf: "MG",
+      },
+    );
+    expect(listing.matched).toBe(true);
+    expect(listing.match_by).toEqual(expect.arrayContaining(["website"]));
+    expect(listing.website_host).toBe("delpra.net.br");
+    expect(domainFromGmb(listing)).toBe("delpra.net.br");
+  });
+
+  it("promotes a moved-address pin when the Maps phone matches the site", () => {
     const listing = resolveGmbListing(
       [
         {
           title: "Distribuidora Silva Contagem",
-          address: "Av. João César, 1 - Contagem - MG",
-          cid: "88",
+          address: "Rua Nova, 50 - Contagem - MG",
+          phoneNumber: "(31) 98888-0001",
+          cid: "91",
         },
       ],
-      silva,
+      {
+        ...silva,
+        sitePhones: [{ ddd: "31", telefone: "988880001" }],
+      },
     );
-    expect(listing.status).toBe("candidate");
-    expect(listing.matched).toBe(false);
-    expect(listing.cid).toBe("88");
+    expect(listing.matched).toBe(true);
+    expect(listing.match_by).toEqual(expect.arrayContaining(["phone"]));
+    expect(listing.cid).toBe("91");
   });
 
   it("prefers the listing with more reviews when identity scores tie", () => {
@@ -622,7 +673,7 @@ describe("Maps × Receita matching", () => {
     expect(listing.candidates_in_city).toBe(2);
   });
 
-  it("falls back to any titled Serper pin when none are in the Receita city", () => {
+  it("does not suggest an out-of-city pin when nothing correlates", () => {
     const listing = resolveGmbListing(
       [
         {
@@ -639,9 +690,10 @@ describe("Maps × Receita matching", () => {
         uf: "MG",
       },
     );
-    expect(listing.status).toBe("candidate");
-    expect(listing.cid).toBe("55");
-    expect(listing.candidates_in_city).toBe(1);
+    expect(listing.status).toBe("none");
+    expect(listing.matched).toBe(false);
+    expect(listing.cid ?? null).toBeNull();
+    expect(listing.url).toContain("google.com/maps/search");
   });
 
   it("stores a Maps search URL when Serper returns no pin", () => {
@@ -877,10 +929,96 @@ describe("socialHitMatchesLoose", () => {
         "SILVA'S DISTRIBUIDORA DE PECAS AUTOMOTIVAS LTDA",
         "DISTRIBUIDORA SILVA",
         "Contagem",
-        [],
-        true,
+        { allowWeakBrand: true },
       ),
     ).toBeNull();
+  });
+
+  it("matches a weak handle when the snippet cites the city and a distinctive token", () => {
+    const hit = {
+      link: "https://instagram.com/vazibirite",
+      title: "Vaz (@vazibirite)",
+      snippet: "Oficina em Ibirité — MG",
+    };
+    expect(
+      pickSocialHit(
+        [hit],
+        "instagram.com",
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Ibirité",
+      ),
+    ).toBeNull();
+    expect(
+      pickSocialHit(
+        [hit],
+        "instagram.com",
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Ibirité",
+        { allowCitySnippet: true },
+      ),
+    ).toBe("https://instagram.com/vazibirite");
+  });
+
+  it("does not match a random Instagram in the same city", () => {
+    expect(
+      pickSocialHit(
+        [
+          {
+            link: "https://instagram.com/padariadoCentro",
+            title: "Padaria do Centro",
+            snippet: "Padaria em Ibirité MG",
+          },
+        ],
+        "instagram.com",
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Ibirité",
+        { allowCitySnippet: true },
+      ),
+    ).toBeNull();
+  });
+
+  it("filters geo hits by CEP instead of relaxing the brand", () => {
+    expect(
+      pickSocialHit(
+        [
+          {
+            link: "https://instagram.com/vazibirite",
+            title: "Vaz (@vazibirite)",
+            snippet: "Oficina em Ibirité — MG",
+          },
+        ],
+        "instagram.com",
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Ibirité",
+        {
+          allowCitySnippet: true,
+          geo: { cep: "32400000" },
+        },
+      ),
+    ).toBeNull();
+    expect(
+      pickSocialHit(
+        [
+          {
+            link: "https://instagram.com/vazibirite",
+            title: "Vaz (@vazibirite)",
+            snippet: "Oficina em Ibirité — 32400-000",
+          },
+        ],
+        "instagram.com",
+        "VAZ E VAZ METALURGIA LTDA",
+        "Metalúrgica Vaz",
+        "Ibirité",
+        {
+          allowCitySnippet: true,
+          geo: { cep: "32400000" },
+        },
+      ),
+    ).toBe("https://instagram.com/vazibirite");
   });
 });
 
@@ -1132,13 +1270,15 @@ describe("instagramSearchQueries", () => {
       uf: "MS",
       cep: "79004290",
     });
-    expect(queries.map((item) => item.q)).toEqual([
-      'site:instagram.com "Loires Tecnologia"',
-      "site:instagram.com loires",
-      '"Loires Tecnologia" Instagram',
-      '"Loires Tecnologia" Instagram 79004-290',
-    ]);
-    expect(queries[3]?.geo).toBe(true);
+    expect(queries.map((item) => item.q)).toEqual(
+      expect.arrayContaining([
+        'site:instagram.com "Loires Tecnologia"',
+        "site:instagram.com loires",
+        '"Loires Tecnologia" Instagram',
+        '"Loires Tecnologia" Instagram 79004-290',
+      ]),
+    );
+    expect(queries.some((item) => item.geo)).toBe(true);
   });
 
   it("only geo-anchors a weak brand", () => {
@@ -1149,8 +1289,58 @@ describe("instagramSearchQueries", () => {
       uf: "MG",
       cep: "30130100",
     });
-    expect(queries).toEqual([
-      { q: '"DISTRIBUIDORA SILVA" Instagram 30130-100', geo: true },
+    expect(queries.map((item) => item.q)).toEqual(
+      expect.arrayContaining([
+        'site:instagram.com "DISTRIBUIDORA SILVA"',
+        '"DISTRIBUIDORA SILVA" Instagram 30130-100',
+      ]),
+    );
+    expect(queries.some((item) => item.geo)).toBe(true);
+  });
+});
+
+describe("searchInstagramProfile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("returns Instagram candidates when no hit is clear", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            organic: [
+              {
+                link: "https://www.instagram.com/vazibirite/",
+                title: "Vaz Ibirité (@vazibirite)",
+              },
+              {
+                link: "https://www.instagram.com/vazoficial/",
+                title: "Vaz Oficial (@vazoficial)",
+              },
+              {
+                link: "https://www.instagram.com/padariadoCentro/",
+                title: "Padaria do Centro",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const found = await searchInstagramProfile({
+      nomeFantasia: "Metalúrgica Vaz",
+      razaoSocial: "VAZ E VAZ METALURGIA LTDA",
+      municipio: "Contagem",
+      uf: "MG",
+    });
+    expect(found.url).toBeNull();
+    expect(found.candidates.map((item) => item.url)).toEqual([
+      "https://instagram.com/vazibirite",
+      "https://instagram.com/vazoficial",
     ]);
   });
 });

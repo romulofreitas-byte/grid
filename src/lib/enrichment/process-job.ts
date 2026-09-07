@@ -10,6 +10,11 @@ import {
 } from "@/lib/contact-confidence";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
+import {
+  mergeDiscoveryHints,
+  parseDiscoveryHints,
+} from "@/lib/enrichment/discovery-hints";
+import { mapsPlaceNameFromUrl } from "@/lib/enrichment/company-name";
 import { enrichCompany, type CascadeCompany } from "@/lib/enrichment/cascade";
 import {
   applyOsmFollowup,
@@ -200,6 +205,30 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
         municipio: dossier.municipioNome,
       },
     });
+    let hints = job.payload?.hints ?? {
+      names: [],
+      domain: null,
+      instagram: null,
+      mapsUrl: null,
+    };
+    if (job.requested_by) {
+      const deal = await repo.findCrmDealByCnpjForUser(
+        job.requested_by,
+        job.cnpj,
+      );
+      if (deal) {
+        hints = mergeDiscoveryHints(
+          hints,
+          parseDiscoveryHints({
+            notes: deal.notes,
+            companyName: deal.company_name,
+          }),
+        );
+      }
+    }
+    const extraNames = [...hints.names];
+    const mapsName = hints.mapsUrl ? mapsPlaceNameFromUrl(hints.mapsUrl) : null;
+    if (mapsName) extraNames.push(mapsName);
     const { row, timings } = await enrichCompany(
       company,
       cache,
@@ -225,6 +254,9 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
           existing?.fonte.domain?.path ??
           null,
         emailShared: dossier.emailSeal?.shared === true,
+        extraNames,
+        seedDomain: hints.domain,
+        seedInstagram: hints.instagram,
       },
     );
     const latest = await repo.getLatestEnrichmentJob(job.cnpj);

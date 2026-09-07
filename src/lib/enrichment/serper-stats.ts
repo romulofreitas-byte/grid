@@ -27,7 +27,8 @@ export type DomainWave =
   | "gmb"
   | "email"
   | "cache"
-  | "human";
+  | "human"
+  | "hint";
 
 /**
  * early — first wave / no extra spend.

@@ -253,6 +253,8 @@ export const COPY = {
   fichaMapsConfirmHint: "Confirme se é desta empresa.",
   fichaMapsConfirmThis: "É este",
   fichaMapsRejectThis: "Não é",
+  fichaIgConfirmThis: "É este",
+  fichaIgRejectThis: "Não é",
   fichaSealMapsLive: "No Maps",
   fichaSealUnverified: "A confirmar",
   fichaSealPending: "Ainda não vimos",

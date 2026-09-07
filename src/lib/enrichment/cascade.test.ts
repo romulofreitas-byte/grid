@@ -483,6 +483,57 @@ describe("enrichCompany crawl", () => {
     expect(row.domain_status).toBe("nao_encontrado");
     expect(row.socials.instagram).toBeUndefined();
     expect(row.fonte.instagram?.fonte).toBe("serper_miss");
+    expect(row.presence_candidates?.instagram).toBeFalsy();
+    delete process.env.SERPER_API_KEY;
+  });
+
+  it("stores Instagram candidates when search finds profiles but none auto-match", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const href = String(input);
+        if (href.includes("google.serper.dev/search")) {
+          return new Response(
+            JSON.stringify({
+              organic: [
+                {
+                  link: "https://www.instagram.com/vazibirite/",
+                  title: "Vaz Ibirité (@vazibirite)",
+                },
+                {
+                  link: "https://www.instagram.com/vazoficial/",
+                  title: "Vaz Oficial (@vazoficial)",
+                },
+              ],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        if (href.includes("google.serper.dev/maps")) {
+          return new Response(JSON.stringify({ places: [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return htmlResponse("not found", 404);
+      }),
+    );
+    const input = companyInput("unused.test");
+    input.establishment.email = null;
+    input.establishment.nome_fantasia = "Metalúrgica Vaz";
+    input.company.razao_social = "VAZ E VAZ METALURGIA LTDA";
+    input.municipioNome = "Contagem";
+
+    const { row } = await enrichCompany(input);
+    expect(row.socials.instagram).toBeUndefined();
+    expect(row.fonte.instagram?.fonte).toBe("serper_miss");
+    expect(row.presence_candidates?.instagram?.map((item) => item.url)).toEqual(
+      [
+        "https://instagram.com/vazibirite",
+        "https://instagram.com/vazoficial",
+      ],
+    );
     delete process.env.SERPER_API_KEY;
   });
 
@@ -669,6 +720,7 @@ describe("enrichCompany crawl", () => {
     expect(row.domain_status).toBe("nao_encontrado");
     expect(row.socials.instagram).toBe("https://www.instagram.com/colegiogenesis/");
     expect(row.fonte.instagram?.fonte).toBe("serper");
+    expect(row.presence_candidates).toBeNull();
     delete process.env.SERPER_API_KEY;
   });
 

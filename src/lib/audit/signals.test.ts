@@ -270,6 +270,47 @@ describe("buildAuditSignals", () => {
     expect(candidate.hint).toMatch(/a confirmar/i);
   });
 
+  it("marks stored Instagram candidates as unverified until the operator confirms", () => {
+    const candidate = byId(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        socials: {},
+        presence_candidates: {
+          instagram: [
+            {
+              url: "https://instagram.com/vazibirite",
+              title: "Vaz Ibirité",
+            },
+            {
+              url: "https://instagram.com/vazoficial",
+              title: "Vaz Oficial",
+            },
+          ],
+        },
+        fonte: {
+          instagram: {
+            fonte: "serper_miss",
+            coletado_em: "2026-09-07T12:00:00.000Z",
+          },
+        },
+      }),
+      "instagram",
+    );
+    expect(candidate.found).toBe(true);
+    expect(candidate.unverified).toBe(true);
+    expect(isAuditLive(candidate)).toBe(false);
+    expect(isAuditCandidate(candidate)).toBe(true);
+    expect(candidate.href).toBe("https://instagram.com/vazibirite");
+    expect(candidate.hint).toMatch(/2 perfis/i);
+    expect(candidate.links.map((link) => link.href)).toEqual(
+      expect.arrayContaining([
+        "https://instagram.com/vazibirite",
+        "https://instagram.com/vazoficial",
+      ]),
+    );
+  });
+
   it("promotes Serper Instagram to live when Maps matches Receita address or phone", () => {
     const live = byId(
       enrichment({

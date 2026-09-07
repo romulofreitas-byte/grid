@@ -786,25 +786,49 @@ export function buildAuditSignals(
       id: "instagram",
       group: "presenca",
       ...MARK.instagram,
-      found: Boolean(e.socials.instagram),
+      found:
+        Boolean(e.socials.instagram) ||
+        Boolean(e.presence_candidates?.instagram?.length),
       unverified: Boolean(e.socials.instagram)
         ? serperCandidate(e.fonte.instagram?.fonte, confirmed, corroborated)
-        : !presenceSearched(e, "instagram") && !confirmed,
-      href: absUrl(e.socials.instagram, "instagram.com"),
-      openLabel: e.socials.instagram ? "Abrir Instagram" : null,
-      value: instagramValue(e.socials.instagram),
-      hint: socialHint(
-        Boolean(e.socials.instagram),
-        presenceSearched(e, "instagram"),
-        confirmed,
-        socialLiveHint(e.fonte.instagram?.fonte, confirmed, corroborated),
-        "Não encontramos link de Instagram no site confirmado.",
-        "Não encontramos Instagram no site nem na busca com a marca.",
-        socialBlockedHint("Instagram"),
-      ),
-      links: igAds
-        ? [{ label: "Biblioteca de Anúncios", href: igAds }]
-        : [],
+        : Boolean(e.presence_candidates?.instagram?.length) ||
+          (!presenceSearched(e, "instagram") && !confirmed),
+      href:
+        absUrl(e.socials.instagram, "instagram.com") ??
+        e.presence_candidates?.instagram?.[0]?.url ??
+        null,
+      openLabel:
+        e.socials.instagram || e.presence_candidates?.instagram?.[0]
+          ? "Abrir Instagram"
+          : null,
+      value: e.socials.instagram
+        ? instagramValue(e.socials.instagram)
+        : e.presence_candidates?.instagram?.[0]
+          ? e.presence_candidates.instagram[0].title ||
+            instagramValue(e.presence_candidates.instagram[0].url)
+          : instagramValue(undefined),
+      hint: e.presence_candidates?.instagram?.length && !e.socials.instagram
+        ? e.presence_candidates.instagram.length > 1
+          ? `${e.presence_candidates.instagram.length} perfis nesta busca — confirme se é este.`
+          : "Confirme se é este perfil."
+        : socialHint(
+            Boolean(e.socials.instagram),
+            presenceSearched(e, "instagram"),
+            confirmed,
+            socialLiveHint(e.fonte.instagram?.fonte, confirmed, corroborated),
+            "Não encontramos link de Instagram no site confirmado.",
+            "Não encontramos Instagram no site nem na busca com a marca.",
+            socialBlockedHint("Instagram"),
+          ),
+      links: [
+        ...(igAds ? [{ label: "Biblioteca de Anúncios", href: igAds }] : []),
+        ...((!e.socials.instagram && e.presence_candidates?.instagram) || [])
+          .slice(0, 3)
+          .map((candidate, index) => ({
+            label: candidate.title || `Perfil ${index + 1}`,
+            href: candidate.url,
+          })),
+      ],
     }),
     signal({
       id: "facebook",

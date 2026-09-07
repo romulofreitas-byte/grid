@@ -257,6 +257,37 @@ describe("POST /api/enrich action=correct", () => {
     expect(enqueueEnrichment).not.toHaveBeenCalled();
   });
 
+  it("crava an Instagram candidate with confirmInstagram and does not recrawl", async () => {
+    getEnrichment.mockResolvedValue(
+      completeRow({
+        socials: {},
+        presence_candidates: {
+          instagram: [
+            {
+              url: "https://instagram.com/vazibirite",
+              title: "Vaz Ibirité",
+            },
+          ],
+        },
+      }),
+    );
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "correct",
+        corrections: { confirmInstagram: "https://instagram.com/vazibirite" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.recrawl).toBe(false);
+    expect(json.enrichment.socials.instagram).toBe(
+      "https://instagram.com/vazibirite",
+    );
+    expect(json.enrichment.presence_candidates).toBeNull();
+    expect(enqueueEnrichment).not.toHaveBeenCalled();
+  });
+
   it("rejects confirmMaps when the ficha only has a Maps search URL", async () => {
     getEnrichment.mockResolvedValue(
       completeRow({

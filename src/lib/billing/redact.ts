@@ -92,6 +92,7 @@ function stripEnrichmentFields(enrichment: LeadEnrichment | null): LeadEnrichmen
     domain_status: "nao_encontrado",
     gmb: null,
     discarded_domains: [],
+    presence_candidates: null,
     stage: "complete",
   };
 }

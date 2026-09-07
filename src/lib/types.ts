@@ -159,6 +159,13 @@ export type EnrichmentFonteRef = {
   path?: string;
 };
 
+export type EnrichmentDiscoveryHints = {
+  names: string[];
+  domain: string | null;
+  instagram: string | null;
+  mapsUrl: string | null;
+};
+
 export type EnrichmentJobPayload = {
   force?: boolean;
   refresh?: boolean;
@@ -166,6 +173,7 @@ export type EnrichmentJobPayload = {
   domain?: string;
   homepagePath?: string | null;
   discarded_domains?: string[];
+  hints?: EnrichmentDiscoveryHints;
 };
 
 export type DigitalSignalId =
@@ -226,6 +234,15 @@ export type SitePerson = {
   fonte: "schema" | "pagina";
 };
 
+export type PresenceSocialCandidate = {
+  url: string;
+  title?: string;
+};
+
+export type PresenceCandidates = {
+  instagram?: PresenceSocialCandidate[];
+};
+
 export type LeadEnrichment = {
   cnpj: string;
   domain: string | null;
@@ -250,6 +267,7 @@ export type LeadEnrichment = {
   osm: { matched: boolean; attribution?: string } | null;
   gmb?: GmbListing | null;
   discarded_domains?: string[];
+  presence_candidates?: PresenceCandidates | null;
   dor_digital: number;
   contexto: string[];
   fonte: Record<string, EnrichmentFonteRef>;

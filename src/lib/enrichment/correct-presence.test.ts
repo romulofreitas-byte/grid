@@ -254,4 +254,62 @@ describe("applyPresenceCorrection", () => {
     if (withIg.kind !== "patch" || cleared.kind !== "patch") return;
     expect(cleared.row.dor_digital - withIg.row.dor_digital).toBe(8);
   });
+
+  it("crava an Instagram candidate and clears the list", () => {
+    const row = enrichment({
+      socials: {},
+      presence_candidates: {
+        instagram: [
+          {
+            url: "https://instagram.com/vazibirite",
+            title: "Vaz Ibirité",
+          },
+          {
+            url: "https://instagram.com/vazoficial",
+            title: "Vaz Oficial",
+          },
+        ],
+      },
+    });
+    expect(hasPresenceFields({ confirmInstagram: "https://instagram.com/vazoficial" })).toBe(
+      true,
+    );
+    const result = applyPresenceCorrection(row, {
+      confirmInstagram: "https://www.instagram.com/vazoficial/",
+    });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.socials.instagram).toBe("https://instagram.com/vazoficial");
+    expect(result.row.presence_candidates).toBeNull();
+    expect(result.row.fonte.instagram?.fonte).toBe("human");
+  });
+
+  it("rejects an Instagram URL that is not a stored candidate", () => {
+    expect(() =>
+      applyPresenceCorrection(
+        enrichment({
+          presence_candidates: {
+            instagram: [{ url: "https://instagram.com/vazibirite" }],
+          },
+        }),
+        { confirmInstagram: "https://instagram.com/outra" },
+      ),
+    ).toThrow(PresenceCorrectionError);
+  });
+
+  it("drops Instagram candidates when the operator says it is not this profile", () => {
+    const result = applyPresenceCorrection(
+      enrichment({
+        presence_candidates: {
+          instagram: [{ url: "https://instagram.com/vazibirite" }],
+        },
+      }),
+      { confirmInstagram: null },
+    );
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.socials.instagram).toBeUndefined();
+    expect(result.row.presence_candidates).toBeNull();
+    expect(result.row.fonte.instagram?.fonte).toBe("human");
+  });
 });

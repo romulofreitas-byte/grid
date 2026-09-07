@@ -27,6 +27,8 @@ export type PresenceCorrection = {
   maps?: string | null;
   /** Human said the stored Maps candidate is this CNPJ — no URL paste. */
   confirmMaps?: boolean;
+  /** Human picked one Instagram candidate URL. */
+  confirmInstagram?: string | null;
 };
 
 export type PresenceCorrectionResult =
@@ -68,7 +70,8 @@ const PRESENCE_KEYS = [
 export function hasPresenceFields(correction: PresenceCorrection): boolean {
   return (
     PRESENCE_KEYS.some((key) => correction[key] !== undefined) ||
-    correction.confirmMaps === true
+    correction.confirmMaps === true ||
+    correction.confirmInstagram !== undefined
   );
 }
 
@@ -89,6 +92,55 @@ export function mapsPinConfirmable(
 }
 
 /** Human said this Maps candidate is the company pin. */
+export function instagramCandidateConfirmable(
+  row: LeadEnrichment | null | undefined,
+): boolean {
+  return Boolean(row?.presence_candidates?.instagram?.length);
+}
+
+function clearInstagramCandidates(
+  row: LeadEnrichment,
+): LeadEnrichment["presence_candidates"] {
+  if (!row.presence_candidates) return null;
+  const next = { ...row.presence_candidates };
+  delete next.instagram;
+  return Object.keys(next).length > 0 ? next : null;
+}
+
+export function applyInstagramCandidate(
+  row: LeadEnrichment,
+  raw: string | null,
+  options: { scoreProfile?: ScoreProfile; now?: Date } = {},
+): LeadEnrichment {
+  const collectedAt = (options.now ?? new Date()).toISOString();
+  const candidates = row.presence_candidates?.instagram ?? [];
+  const next: LeadEnrichment = {
+    ...row,
+    socials: { ...row.socials },
+    presence_candidates: clearInstagramCandidates(row),
+  };
+  if (raw == null || raw.trim() === "") {
+    next.socials = dropSocial(next.socials, "instagram");
+    next.fonte = stamp(next, "instagram", collectedAt);
+    return finishPatch(next, options.scoreProfile ?? "b2c_local");
+  }
+  const url = instagramUrl(raw);
+  const handle = parseInstagramHandle(url);
+  const allowed = new Set(
+    candidates
+      .map((candidate) => parseInstagramHandle(candidate.url)?.toLowerCase())
+      .filter((value): value is string => Boolean(value)),
+  );
+  if (candidates.length > 0 && (!handle || !allowed.has(handle.toLowerCase()))) {
+    throw new PresenceCorrectionError(
+      "Esse perfil não está na lista de candidatos.",
+    );
+  }
+  next.socials.instagram = url;
+  next.fonte = stamp(next, "instagram", collectedAt);
+  return finishPatch(next, options.scoreProfile ?? "b2c_local");
+}
+
 export function applyMapsConfirm(
   row: LeadEnrichment,
   options: { scoreProfile?: ScoreProfile; now?: Date } = {},
@@ -325,6 +377,14 @@ export function applyPresenceCorrection(
     };
   }
 
+  if (correction.confirmInstagram !== undefined) {
+    const next = applyInstagramCandidate(row, correction.confirmInstagram, {
+      scoreProfile,
+      now: options.now,
+    });
+    return { kind: "patch", row: next };
+  }
+
   if (correction.domain !== undefined) {
     if (correction.domain == null || correction.domain.trim() === "") {
       return {
@@ -353,6 +413,7 @@ export function applyPresenceCorrection(
       next.socials.instagram = instagramUrl(correction.instagram);
     }
     next.fonte = stamp(next, "instagram", collectedAt);
+    next.presence_candidates = clearInstagramCandidates(next);
   }
 
   if (correction.facebook !== undefined) {

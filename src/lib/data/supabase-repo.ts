@@ -433,6 +433,9 @@ function mapEnrichment(r: Record<string, unknown>): LeadEnrichment {
     discarded_domains: Array.isArray(r.discarded_domains)
       ? (r.discarded_domains as string[])
       : [],
+    presence_candidates: (r.presence_candidates ?? null) as
+      | LeadEnrichment["presence_candidates"]
+      | null,
     dor_digital: Number(r.dor_digital ?? 0),
     contexto: Array.isArray(r.contexto) ? (r.contexto as string[]) : [],
     fonte: (r.fonte ?? {}) as LeadEnrichment["fonte"],
@@ -3690,11 +3693,11 @@ export const supabaseRepo: GridRepo = {
     await query(
       `insert into lead_enrichment (
          cnpj, domain, domain_status, http_status, phones, emails, whatsapp,
-         socials, tech, freshness, osm, gmb, discarded_domains, dor_digital,
-         contexto, fonte, people, stage, collected_at, expires_at
+         socials, tech, freshness, osm, gmb, discarded_domains, presence_candidates,
+         dor_digital, contexto, fonte, people, stage, collected_at, expires_at
        ) values (
          $1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8::jsonb,$9::jsonb,$10::jsonb,
-         $11::jsonb,$12::jsonb,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19,$20
+         $11::jsonb,$12::jsonb,$13,$14::jsonb,$15,$16,$17::jsonb,$18::jsonb,$19,$20,$21
        )
        on conflict (cnpj) do update set
          domain = excluded.domain,
@@ -3709,6 +3712,7 @@ export const supabaseRepo: GridRepo = {
          osm = excluded.osm,
          gmb = excluded.gmb,
          discarded_domains = excluded.discarded_domains,
+         presence_candidates = excluded.presence_candidates,
          dor_digital = excluded.dor_digital,
          contexto = excluded.contexto,
          fonte = excluded.fonte,
@@ -3730,6 +3734,9 @@ export const supabaseRepo: GridRepo = {
         row.osm ? JSON.stringify(row.osm) : null,
         row.gmb ? JSON.stringify(row.gmb) : null,
         row.discarded_domains ?? [],
+        row.presence_candidates
+          ? JSON.stringify(row.presence_candidates)
+          : null,
         row.dor_digital,
         row.contexto,
         JSON.stringify(row.fonte),

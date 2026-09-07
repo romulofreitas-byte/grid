@@ -45,6 +45,7 @@ const FILES = [
   "supabase/migrations/20260917000000_crm_inbound_events.sql",
   "supabase/migrations/20260918000000_profile_cargo.sql",
   "supabase/migrations/20260919000000_crm_activities_many_open.sql",
+  "supabase/migrations/20260920000000_presence_candidates.sql",
 ] as const;
 
 async function main(): Promise<void> {
@@ -52,6 +53,9 @@ async function main(): Promise<void> {
   if (!url) {
     throw new Error("DATABASE_URL is not set (check .env.local).");
   }
+
+  const only = process.argv.slice(2).filter((arg) => arg.endsWith(".sql"));
+  const files = only.length > 0 ? only : FILES;
 
   const { Client } = await import("pg");
   const local = (() => {
@@ -74,7 +78,7 @@ async function main(): Promise<void> {
     );
     const hasEnrichment = Number(enrich.rows[0]?.n ?? 0) > 0;
 
-    for (const rel of FILES) {
+    for (const rel of files) {
       if (rel.includes("lead_enrichment") && !hasEnrichment) {
         console.log(`Skip ${rel} (lead_enrichment missing)`);
         continue;

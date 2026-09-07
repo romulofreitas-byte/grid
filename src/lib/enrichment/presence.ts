@@ -1,3 +1,4 @@
+import { extraDiscoveryAliases, hostLabelMatchesBrand } from "@/lib/enrichment/brand-aliases";
 import {
   brandTokenHits,
   distinctiveTokens,
@@ -24,6 +25,7 @@ import type {
   GmbListing,
   GmbMatchBy,
   GmbPhoneVsReceita,
+  PresenceSocialCandidate,
   SharedPhoneVerdict,
 } from "@/lib/types";
 import {
@@ -72,6 +74,8 @@ export type GmbSearchInput = {
   sharedVerdict?: SharedPhoneVerdict;
   /** Receita email — branded host (drimafer.com.br) is often the Maps trading name. */
   receitaEmail?: string | null;
+  /** Extra trading names from CRM notes / deal title. */
+  extraNames?: string[];
 };
 
 export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
@@ -328,11 +332,21 @@ export function scoreMapsPlace(
   const phone = mapsPhoneMatchesKnown(place.phoneNumber, input);
   const cep = mapsCepMatchesReceita(place.address, input.cep);
   const mapsHost = websiteHostFromMapsPlace(place);
-  const website = Boolean(
+  const websiteKnown = Boolean(
     input.websiteHost &&
       mapsHost &&
       mapsHost === input.websiteHost.replace(/^www\./i, "").toLowerCase(),
   );
+  const websiteBrand = Boolean(
+    mapsHost &&
+      hostBrandTokenHits(
+        `https://${mapsHost}`,
+        input.razaoSocial,
+        input.nomeFantasia,
+        input.municipio,
+      ) > 0,
+  );
+  const website = websiteKnown || websiteBrand;
 
   if (title) {
     match_by.push("title");
@@ -363,6 +377,7 @@ export function scoreMapsPlace(
       (title && address) ||
       (title && cep) ||
       (website && title && (address || cep || city)) ||
+      (title && city) ||
       (strongTitle && city),
   );
   return { score, match_by, matched };
@@ -434,8 +449,9 @@ function pickCandidateFromBucket(
 }
 
 /**
- * Best pin to confirm: title+city first, then any pin in the municipality,
- * then whatever Serper returned. Never auto-match a chain.
+ * Best pin to confirm: title+city first, then a pin in the municipality,
+ * then a card whose website host looks like the brand. Never a random
+ * out-of-city title — that forces the operator to paste the real URL.
  */
 export function pickBestCandidateMapsPlace(
   places: MapsPlace[],
@@ -465,7 +481,19 @@ export function pickBestCandidateMapsPlace(
   const cityOnly = titled.filter((item) => item.match_by.includes("city"));
   const fromCity = pickCandidateFromBucket(cityOnly);
   if (fromCity) return fromCity;
-  return pickCandidateFromBucket(titled);
+  const hostBrand = titled.filter((item) => {
+    const host = websiteHostFromMapsPlace(item.place);
+    if (!host) return false;
+    return (
+      hostBrandTokenHits(
+        `https://${host}`,
+        input.razaoSocial,
+        input.nomeFantasia,
+        input.municipio,
+      ) > 0
+    );
+  });
+  return pickCandidateFromBucket(hostBrand);
 }
 
 export function gmbListingFromPlace(
@@ -690,6 +718,17 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
     if (name) push(`"${name}" ${cep}`);
   }
+  let aliasExtra = 0;
+  for (const alias of extraDiscoveryAliases({
+    nomeFantasia: input.nomeFantasia,
+    razaoSocial: input.razaoSocial,
+    extraNames: input.extraNames,
+  })) {
+    if (aliasExtra >= 2) break;
+    const before = list.length;
+    pushCompactBrandQueries(push, input, alias);
+    if (list.length > before) aliasExtra += 1;
+  }
   return list;
 }
 
@@ -741,8 +780,7 @@ export function socialsFromHits(
       razaoSocial,
       nomeFantasia,
       municipio,
-      blockedLabels,
-      allowWeakBrand,
+      { blockedLabels, allowWeakBrand },
     );
     if (found) out[platform] = found;
   }
@@ -868,8 +906,6 @@ export function hostBrandTokenHits(
   nomeFantasia: string | null,
   municipio: string,
 ): number {
-  const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
-  if (strong.length === 0) return 0;
   let host = "";
   try {
     host = new URL(withHttp(link)).hostname.replace(/^www\./i, "").toLowerCase();
@@ -877,8 +913,7 @@ export function hostBrandTokenHits(
     return 0;
   }
   const label = stripAccents(host.split(".")[0] ?? "").replace(/[^a-z0-9]/g, "");
-  if (label.length < 4) return 0;
-  return strong.filter((t) => t.length >= 4 && label.includes(t)).length;
+  return hostLabelMatchesBrand(label, razaoSocial, nomeFantasia, municipio);
 }
 
 function homepageBonus(link: string): number {
@@ -1232,6 +1267,36 @@ export function gmbCardFromPlace(place: MapsPlace): GmbCard {
   };
 }
 
+export type PickSocialHitOptions = {
+  blockedLabels?: string[];
+  allowWeakBrand?: boolean;
+  geo?: { cep?: string | null; logradouro?: string | null };
+  allowCitySnippet?: boolean;
+};
+
+function socialHitMentionsCity(hit: OrganicHit, municipio: string): boolean {
+  return mapsCityMatchesReceita(`${hit.title} ${hit.snippet ?? ""}`, {
+    municipio,
+    uf: "",
+  });
+}
+
+function socialHitHasDistinctiveToken(
+  hit: OrganicHit,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  const tokens = distinctiveTokens(razaoSocial, nomeFantasia, municipio);
+  if (tokens.length === 0) return false;
+  const handle = socialHandleFromUrl(hit.link)?.toLowerCase() ?? "";
+  const handleCompact = handle.replace(/[^a-z0-9]/g, "");
+  const hay = stripAccents(`${hit.title} ${hit.snippet ?? ""} ${handle}`);
+  return tokens.some(
+    (token) => hay.includes(token) || handleCompact.includes(token),
+  );
+}
+
 /** Only accept a social hit when title/handle correlates with a strong brand token. */
 export function pickSocialHit(
   hits: OrganicHit[],
@@ -1239,10 +1304,11 @@ export function pickSocialHit(
   razaoSocial: string,
   nomeFantasia: string | null,
   municipio: string,
-  blockedLabels: string[] = [],
-  allowWeakBrand = false,
-  geo?: { cep?: string | null; logradouro?: string | null },
+  options: PickSocialHitOptions = {},
 ): string | null {
+  const blockedLabels = options.blockedLabels ?? [];
+  const allowWeakBrand = options.allowWeakBrand === true;
+  const geo = options.geo;
   const blocked = blockedLabels
     .map((l) => l.toLowerCase().replace(/[^a-z0-9]/g, ""))
     .filter((l) => l.length >= 4);
@@ -1272,6 +1338,13 @@ export function pickSocialHit(
     if (needCep && !hitMentionsCep(hit, geo?.cep)) continue;
     if (needStreet && !hitMentionsStreet(hit, geo?.logradouro)) continue;
     if (matches(hit, razaoSocial, nomeFantasia, municipio)) {
+      return hit.link;
+    }
+    if (
+      options.allowCitySnippet &&
+      socialHitMentionsCity(hit, municipio) &&
+      socialHitHasDistinctiveToken(hit, razaoSocial, nomeFantasia, municipio)
+    ) {
       return hit.link;
     }
   }
@@ -1318,6 +1391,7 @@ export type InstagramSearchInput = {
   cep?: string | null;
   logradouro?: string | null;
   numero?: string | null;
+  extraNames?: string[];
 };
 
 export function instagramSearchQueries(
@@ -1332,6 +1406,11 @@ export function instagramSearchQueries(
     input.municipio,
   );
   const compact = strong[0] ?? null;
+  const aliases = extraDiscoveryAliases({
+    nomeFantasia: input.brandOverride?.trim() || input.nomeFantasia,
+    razaoSocial: input.razaoSocial,
+    extraNames: input.extraNames,
+  });
   const cep = formatCepDigits(input.cep);
   const street = [input.logradouro, input.numero]
     .map((part) => part?.trim())
@@ -1343,28 +1422,34 @@ export function instagramSearchQueries(
     if (!trimmed || out.some((item) => item.q === trimmed)) return;
     out.push({ q: trimmed, geo });
   };
-  if (strong.length > 0 && name) {
+  if (name && (strong.length > 0 || aliases.length > 0)) {
     push(`site:instagram.com "${name}"`, false);
     if (compact && !sameSearchToken(compact, name)) {
       push(`site:instagram.com ${compact}`, false);
     }
     push(`"${name}" Instagram`, false);
+    for (const alias of aliases.slice(0, 2)) {
+      if (sameSearchToken(alias, name)) continue;
+      push(`site:instagram.com "${alias}"`, false);
+    }
   }
   if (name && cep) {
     push(`"${name}" Instagram ${cep}`, true);
   } else if (name && street) {
     push(`"${name}" Instagram "${street}" ${input.municipio}`, true);
   }
-  return out.slice(0, 4);
+  return out.slice(0, 6);
 }
 
 /** Instagram search that does not require a site or a Maps pin. */
 export async function searchInstagramProfile(
   input: InstagramSearchInput,
-): Promise<string | null> {
+): Promise<{ url: string | null; candidates: PresenceSocialCandidate[] }> {
   const queries = instagramSearchQueries(input);
-  if (queries.length === 0) return null;
+  if (queries.length === 0) return { url: null, candidates: [] };
   const fantasia = input.brandOverride?.trim() || input.nomeFantasia;
+  const candidates: PresenceSocialCandidate[] = [];
+  const seen = new Set<string>();
   for (const step of queries) {
     const hits = await serperOrganic(step.q);
     const found = pickSocialHit(
@@ -1373,12 +1458,69 @@ export async function searchInstagramProfile(
       input.razaoSocial,
       fantasia,
       input.municipio,
-      input.blockedLabels,
-      step.geo,
+      {
+        blockedLabels: input.blockedLabels,
+        geo: step.geo
+          ? { cep: input.cep, logradouro: input.logradouro }
+          : undefined,
+        allowCitySnippet: true,
+      },
     );
-    if (found) return found;
+    if (found) return { url: found, candidates: [] };
+    collectInstagramCandidates(
+      hits,
+      {
+        blockedLabels: input.blockedLabels ?? [],
+        razaoSocial: input.razaoSocial,
+        nomeFantasia: fantasia,
+        municipio: input.municipio,
+      },
+      seen,
+      candidates,
+    );
   }
-  return null;
+  return { url: null, candidates: candidates.slice(0, 3) };
+}
+
+function collectInstagramCandidates(
+  hits: OrganicHit[],
+  input: {
+    blockedLabels: string[];
+    razaoSocial: string;
+    nomeFantasia: string | null;
+    municipio: string;
+  },
+  seen: Set<string>,
+  bag: PresenceSocialCandidate[],
+): void {
+  const blocked = input.blockedLabels
+    .map((label) => label.toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .filter((label) => label.length >= 4);
+  for (const hit of hits) {
+    if (bag.length >= 3) return;
+    const handle = parseInstagramHandle(hit.link);
+    if (!handle) continue;
+    const compact = handle.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (blocked.some((label) => compact.includes(label))) continue;
+    if (
+      !socialHitHasDistinctiveToken(
+        hit,
+        input.razaoSocial,
+        input.nomeFantasia,
+        input.municipio,
+      )
+    ) {
+      continue;
+    }
+    const url = `https://instagram.com/${handle}`;
+    const key = url.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    bag.push({
+      url,
+      title: hit.title?.replace(/\s+/g, " ").trim().slice(0, 80) || handle,
+    });
+  }
 }
 
 export function upgradeGmbWithWebsite(
@@ -1480,8 +1622,10 @@ export async function searchSocialProfile(input: {
     input.razaoSocial,
     input.brandOverride?.trim() || input.nomeFantasia,
     input.municipio,
-    input.blockedLabels,
-    input.allowWeakBrand === true,
+    {
+      blockedLabels: input.blockedLabels,
+      allowWeakBrand: input.allowWeakBrand === true,
+    },
   );
 }
 

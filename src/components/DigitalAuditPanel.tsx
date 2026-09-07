@@ -32,7 +32,7 @@ import {
 import { GRID_PRESENCE_IDS } from "@/lib/audit/grid-presence";
 import { ENRICH_CREDIT_COST, creditsPhrase } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
-import { mapsPinConfirmable, type PresenceCorrection } from "@/lib/enrichment/correct-presence";
+import { instagramCandidateConfirmable, mapsPinConfirmable, type PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { companySiteLabel, homepagePathOf } from "@/lib/enrichment/company-site";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
 import { liveArrivalLine } from "@/lib/market/arrival";
@@ -236,6 +236,19 @@ function OpenLinks({
   );
 }
 
+function instagramCandidateHrefs(signal: AuditSignal): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const href of [signal.href, ...signal.links.map((link) => link.href)]) {
+    if (!href || !/instagram\.com/i.test(href)) continue;
+    const key = href.toLowerCase().replace(/\/+$/, "");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(href);
+  }
+  return out;
+}
+
 const EDITABLE_PRESENCE = new Set([
   "site",
   "instagram",
@@ -316,6 +329,7 @@ function SelectedSignalCard({
   onCorrect,
   canConfirmMapsPin,
   canRejectMaps,
+  canConfirmInstagram,
 }: {
   signal: AuditSignal;
   scanning: boolean;
@@ -332,6 +346,7 @@ function SelectedSignalCard({
   onCorrect?: (corrections: PresenceCorrection) => void;
   canConfirmMapsPin?: boolean;
   canRejectMaps?: boolean;
+  canConfirmInstagram?: boolean;
 }) {
   const field =
     canCorrect && onCorrect && isEditablePresence(signal.id) ? signal.id : null;
@@ -342,18 +357,24 @@ function SelectedSignalCard({
   const confirmMaps = Boolean(
     onCorrect && (canConfirmMapsPin || canRejectMaps),
   );
+  const confirmInstagram = Boolean(onCorrect && canConfirmInstagram);
   const busy = Boolean(confirmPending || correctPending);
   const hasOpenLinks =
     Boolean(signal.href && signal.openLabel) || signal.links.length > 0;
   const showActionRow =
-    hasOpenLinks || confirmSite || confirmMaps || Boolean(field);
+    hasOpenLinks ||
+    confirmSite ||
+    confirmMaps ||
+    confirmInstagram ||
+    Boolean(field);
   const needsActionHint =
     !scanning &&
     (isAuditCandidate(signal) ||
       isAuditGap(signal) ||
       Boolean(signal.unverified) ||
       confirmSite ||
-      confirmMaps);
+      confirmMaps ||
+      confirmInstagram);
 
   useEffect(() => {
     setEditing(false);
@@ -515,6 +536,35 @@ function SelectedSignalCard({
                       className={cn(actionChip, rejectChip)}
                     >
                       {COPY.fichaMapsRejectThis}
+                    </button>
+                  </>
+                ) : null}
+                {confirmInstagram ? (
+                  <>
+                    {instagramCandidateHrefs(signal).map((href, index, all) => (
+                      <button
+                        key={href}
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          onCorrect?.({ confirmInstagram: href })
+                        }
+                        className={cn(actionChip, confirmChip)}
+                      >
+                        {correctPending
+                          ? "Atualizando…"
+                          : all.length > 1
+                            ? `${COPY.fichaIgConfirmThis} · ${index + 1}`
+                            : COPY.fichaIgConfirmThis}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onCorrect?.({ confirmInstagram: null })}
+                      className={cn(actionChip, rejectChip)}
+                    >
+                      {COPY.fichaIgRejectThis}
                     </button>
                   </>
                 ) : null}
@@ -1077,6 +1127,11 @@ export function LeadFichaAuditDetail({ className }: { className?: string }) {
               canCorrect &&
               presenceConfirm(selected) &&
               !pinConfirmable
+            }
+            canConfirmInstagram={
+              selected.id === "instagram" &&
+              canCorrect &&
+              instagramCandidateConfirmable(enrichment)
             }
             correctPending={correctPending}
             correctError={correctError}
