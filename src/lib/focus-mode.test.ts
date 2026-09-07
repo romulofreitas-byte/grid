@@ -6,7 +6,6 @@ import {
   focusFullscreenDelayMs,
   focusSprintRemainingMs,
   formatFocusSprintClock,
-  isFocusSistemaPath,
   isFullscreen,
   leaveFullscreen,
   parseFocusOn,
@@ -87,37 +86,6 @@ describe("focus on flag", () => {
     expect(serializeFocusOn(false)).toBe("0");
     expect(parseFocusOn(serializeFocusOn(true))).toBe(true);
     expect(parseFocusOn(serializeFocusOn(false))).toBe(false);
-  });
-});
-
-describe("isFocusSistemaPath", () => {
-  it("exits Focus on Sistema and billing routes", () => {
-    expect(isFocusSistemaPath("/conta")).toBe(true);
-    expect(isFocusSistemaPath("/conta/perfil")).toBe(true);
-    expect(isFocusSistemaPath("/planos")).toBe(true);
-    expect(isFocusSistemaPath("/duvidas")).toBe(true);
-    expect(isFocusSistemaPath("/integracoes/voip")).toBe(true);
-    expect(isFocusSistemaPath("/importacoes")).toBe(true);
-    expect(isFocusSistemaPath("/automacoes")).toBe(true);
-    expect(isFocusSistemaPath("/pagar")).toBe(true);
-    expect(isFocusSistemaPath("/pagar/sucesso")).toBe(true);
-  });
-
-  it("keeps Trabalho surfaces in Focus", () => {
-    expect(isFocusSistemaPath("/painel")).toBe(false);
-    expect(isFocusSistemaPath("/box")).toBe(false);
-    expect(isFocusSistemaPath("/crm")).toBe(false);
-    expect(isFocusSistemaPath("/grid/abc")).toBe(false);
-    expect(isFocusSistemaPath("/lead/123")).toBe(false);
-    expect(isFocusSistemaPath("/largada")).toBe(false);
-    expect(isFocusSistemaPath("/listas")).toBe(false);
-    expect(isFocusSistemaPath("/empresas")).toBe(false);
-    expect(isFocusSistemaPath("/metas")).toBe(false);
-  });
-
-  it("does not treat a prefix sibling as Sistema", () => {
-    expect(isFocusSistemaPath("/contabilidade")).toBe(false);
-    expect(isFocusSistemaPath("/planos-x")).toBe(false);
   });
 });
 

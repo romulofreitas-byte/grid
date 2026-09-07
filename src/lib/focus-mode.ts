@@ -28,16 +28,6 @@ export function formatFocusSprintClock(remainingMs: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export const FOCUS_SISTEMA_PREFIXES = [
-  "/conta",
-  "/planos",
-  "/duvidas",
-  "/integracoes",
-  "/importacoes",
-  "/automacoes",
-  "/pagar",
-] as const;
-
 /** Focus is session-only; the flag is for tests and a stable on/off encoding. */
 export function parseFocusOn(raw: string | null): boolean {
   return raw === "1";
@@ -45,13 +35,6 @@ export function parseFocusOn(raw: string | null): boolean {
 
 export function serializeFocusOn(on: boolean): "0" | "1" {
   return on ? "1" : "0";
-}
-
-export function isFocusSistemaPath(pathname: string): boolean {
-  const path = pathname.split("?")[0] ?? pathname;
-  return FOCUS_SISTEMA_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  );
 }
 
 export type FullscreenHost = {

@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { BrandLogo } from "@/components/BrandLogo";
+import { PublicPageChrome } from "@/components/PublicPageChrome";
 import { RaceAtmosphere } from "@/components/RaceAtmosphere";
-import { BackLink } from "@/components/BackLink";
 import { BACK } from "@/lib/back";
 import { cn } from "@/lib/utils";
 
@@ -18,15 +16,7 @@ export function PublicPage({
     <div className="relative min-h-screen px-4 py-8">
       <RaceAtmosphere />
       <div className={cn("mx-auto max-w-3xl", className)}>
-        <Link href={back.href} className="inline-block">
-          <BrandLogo
-            variant="endorsed"
-            className="h-10 w-auto text-[2.5rem]"
-          />
-        </Link>
-        <div className="mt-4">
-          <BackLink href={back.href}>{back.label}</BackLink>
-        </div>
+        <PublicPageChrome back={back} />
         {children}
       </div>
     </div>

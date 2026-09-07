@@ -9,12 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
 import {
   exitAppFullscreen,
   FOCUS_MD_QUERY,
   focusFullscreenDelayMs,
-  isFocusSistemaPath,
   prefersFocusReduceMotion,
   readFullscreenElement,
   requestAppFullscreen,
@@ -41,9 +39,6 @@ export function useFocusMode() {
 export function FocusModeProvider({ children }: { children: React.ReactNode }) {
   const [on, setOn] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
   const onRef = useRef(false);
   const fsTimer = useRef<number | null>(null);
 
@@ -65,7 +60,6 @@ export function FocusModeProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined" && !window.matchMedia(FOCUS_MD_QUERY).matches) {
       return;
     }
-    if (isFocusSistemaPath(pathnameRef.current)) return;
     onRef.current = true;
     setStartedAt(Date.now());
     setOn(true);
@@ -82,11 +76,6 @@ export function FocusModeProvider({ children }: { children: React.ReactNode }) {
     if (on) exit();
     else enter();
   }, [on, enter, exit]);
-
-  useEffect(() => {
-    if (!on) return;
-    if (isFocusSistemaPath(pathname)) exit();
-  }, [pathname, on, exit]);
 
   useEffect(() => {
     function onFsChange() {
