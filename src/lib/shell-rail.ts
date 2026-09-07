@@ -56,3 +56,29 @@ export function writeShellRailExpanded(key: string | null) {
     /* quota / private mode */
   }
 }
+
+export type CrmRailsState = {
+  shellOpen: boolean;
+  nichoOpen: boolean;
+};
+
+export type CrmRailsChange = {
+  shellOpen?: boolean;
+  nichoOpen?: boolean;
+};
+
+/** On /crm, both rails cannot stay open. Closing either is always allowed. */
+export function exclusiveCrmRails(
+  current: CrmRailsState,
+  change: CrmRailsChange = {},
+): CrmRailsState {
+  const next: CrmRailsState = {
+    shellOpen: change.shellOpen ?? current.shellOpen,
+    nichoOpen: change.nichoOpen ?? current.nichoOpen,
+  };
+  if (!next.shellOpen || !next.nichoOpen) return next;
+  if (change.shellOpen === true && change.nichoOpen !== true) {
+    return { shellOpen: true, nichoOpen: false };
+  }
+  return { shellOpen: false, nichoOpen: true };
+}

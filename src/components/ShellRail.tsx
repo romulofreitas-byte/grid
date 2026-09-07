@@ -2,7 +2,15 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown, PanelLeft, PanelLeftClose } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { COPY } from "@/lib/copy";
@@ -88,16 +96,43 @@ function WorkFace({
   );
 }
 
-export function useShellRailOpen() {
-  const [open, setOpen] = useState(readShellRailOpen);
-  function toggle() {
-    setOpen((prev) => {
+type ShellRailOpenValue = {
+  open: boolean;
+  toggle: () => void;
+  setOpen: (open: boolean) => void;
+};
+
+const ShellRailOpenContext = createContext<ShellRailOpenValue | null>(null);
+
+function useLocalShellRailOpen(): ShellRailOpenValue {
+  const [open, setOpenState] = useState(readShellRailOpen);
+  const setOpen = useCallback((next: boolean) => {
+    setOpenState(next);
+    writeShellRailOpen(next);
+  }, []);
+  const toggle = useCallback(() => {
+    setOpenState((prev) => {
       const next = !prev;
       writeShellRailOpen(next);
       return next;
     });
-  }
-  return { open, toggle };
+  }, []);
+  return { open, toggle, setOpen };
+}
+
+export function ShellRailOpenProvider({ children }: { children: React.ReactNode }) {
+  const value = useLocalShellRailOpen();
+  return (
+    <ShellRailOpenContext.Provider value={value}>
+      {children}
+    </ShellRailOpenContext.Provider>
+  );
+}
+
+export function useShellRailOpen() {
+  const ctx = useContext(ShellRailOpenContext);
+  const local = useLocalShellRailOpen();
+  return ctx ?? local;
 }
 
 function WorkLink({

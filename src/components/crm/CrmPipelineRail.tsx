@@ -19,9 +19,14 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useShellRailOpen } from "@/components/ShellRail";
 import { COPY } from "@/lib/copy";
 import { CRM_FIELD } from "@/lib/crm/client";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
+import {
+  exclusiveCrmRails,
+  readShellRailOpen,
+} from "@/lib/shell-rail";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "grid-crm-nicho-rail";
@@ -69,6 +74,7 @@ export function CrmPipelineRail({
   onDelete: (pipelineId: string) => void;
   onReorder: (pipelineIds: string[]) => void;
 }) {
+  const { open: shellOpen, setOpen: setShellOpen } = useShellRailOpen();
   const [open, setOpen] = useState(false);
   const [width, setWidth] = useState(176);
   const [dragging, setDragging] = useState(false);
@@ -89,14 +95,38 @@ export function CrmPipelineRail({
 
   useEffect(() => {
     const pref = readPref();
-    setOpen(pref.open);
+    const resolved = exclusiveCrmRails({
+      shellOpen: readShellRailOpen(),
+      nichoOpen: pref.open,
+    });
+    setOpen(resolved.nichoOpen);
     setWidth(pref.width);
     setDndReady(true);
-  }, []);
+    setShellOpen(resolved.shellOpen);
+  }, [setShellOpen]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ open, width }));
   }, [open, width]);
+
+  useEffect(() => {
+    if (!open || !shellOpen) return;
+    setOpen(
+      exclusiveCrmRails(
+        { shellOpen, nichoOpen: open },
+        { shellOpen: true },
+      ).nichoOpen,
+    );
+  }, [open, shellOpen]);
+
+  function applyNichoOpen(next: boolean) {
+    const resolved = exclusiveCrmRails(
+      { shellOpen, nichoOpen: open },
+      { nichoOpen: next },
+    );
+    setOpen(resolved.nichoOpen);
+    setShellOpen(resolved.shellOpen);
+  }
 
   useEffect(() => {
     if (!dragging) return;
@@ -109,6 +139,7 @@ export function CrmPipelineRail({
         return;
       }
       setOpen(true);
+      setShellOpen(false);
       setWidth(clampWidth(next));
     }
     function onUp() {
@@ -121,7 +152,7 @@ export function CrmPipelineRail({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [dragging]);
+  }, [dragging, setShellOpen]);
 
   function submitCreate() {
     const nome = draft.trim();
@@ -190,14 +221,14 @@ export function CrmPipelineRail({
         const target = event.target;
         if (!(target instanceof Element)) return;
         if (target.closest("button, input, [role='separator'], [data-nicho-row]")) return;
-        setOpen(false);
+        applyNichoOpen(false);
       }}
     >
       <button
         type="button"
         aria-label={open ? "Encolher nichos" : "Abrir nichos"}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => applyNichoOpen(!open)}
         className={cn(
           "flex shrink-0 cursor-pointer items-center gap-1 px-1.5 py-2 text-podium-muted hover:text-podium-yellow",
           open ? "justify-between" : "h-full flex-col justify-start gap-3 pt-3",

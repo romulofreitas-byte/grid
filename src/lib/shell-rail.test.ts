@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  exclusiveCrmRails,
   parseShellRailExpanded,
   parseShellRailOpen,
   serializeShellRailOpen,
@@ -34,5 +35,46 @@ describe("shell rail accordion persistence", () => {
     expect(parseShellRailExpanded("")).toBeNull();
     expect(parseShellRailExpanded("  ")).toBeNull();
     expect(parseShellRailExpanded("Integrações")).toBe("Integrações");
+  });
+});
+
+describe("exclusiveCrmRails", () => {
+  it("opens the shell and closes the nicho", () => {
+    expect(
+      exclusiveCrmRails(
+        { shellOpen: false, nichoOpen: true },
+        { shellOpen: true },
+      ),
+    ).toEqual({ shellOpen: true, nichoOpen: false });
+  });
+
+  it("opens the nicho and collapses the shell", () => {
+    expect(
+      exclusiveCrmRails(
+        { shellOpen: true, nichoOpen: false },
+        { nichoOpen: true },
+      ),
+    ).toEqual({ shellOpen: false, nichoOpen: true });
+  });
+
+  it("allows both rails closed", () => {
+    expect(
+      exclusiveCrmRails(
+        { shellOpen: false, nichoOpen: true },
+        { nichoOpen: false },
+      ),
+    ).toEqual({ shellOpen: false, nichoOpen: false });
+    expect(
+      exclusiveCrmRails(
+        { shellOpen: true, nichoOpen: false },
+        { shellOpen: false },
+      ),
+    ).toEqual({ shellOpen: false, nichoOpen: false });
+  });
+
+  it("collapses the shell when hydrating with both already open", () => {
+    expect(
+      exclusiveCrmRails({ shellOpen: true, nichoOpen: true }),
+    ).toEqual({ shellOpen: false, nichoOpen: true });
   });
 });

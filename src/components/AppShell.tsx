@@ -12,7 +12,11 @@ import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { CatchUpRunner } from "@/components/CatchUpRunner";
 import { useFocusMode } from "@/components/FocusModeProvider";
-import { ShellRail, useShellRailOpen } from "@/components/ShellRail";
+import {
+  ShellRail,
+  ShellRailOpenProvider,
+  useShellRailOpen,
+} from "@/components/ShellRail";
 import { COPY } from "@/lib/copy";
 import { isShellNavActive, showsOpeningNav, SHELL_WORK_NAV } from "@/lib/shell-nav";
 import { shellRailWidthClass } from "@/lib/shell-rail";
@@ -95,21 +99,31 @@ function RailSlot(props: {
   );
 }
 
-export function AppShell({
-  children,
-  title,
-  back,
-  fill = false,
-  wide = false,
-  lockHeight = false,
-}: {
+type AppShellProps = {
   children: React.ReactNode;
   title?: string;
   back?: { href: string; label: string };
   fill?: boolean;
   wide?: boolean;
   lockHeight?: boolean;
-}) {
+};
+
+export function AppShell(props: AppShellProps) {
+  return (
+    <ShellRailOpenProvider>
+      <AppShellFrame {...props} />
+    </ShellRailOpenProvider>
+  );
+}
+
+function AppShellFrame({
+  children,
+  title,
+  back,
+  fill = false,
+  wide = false,
+  lockHeight = false,
+}: AppShellProps) {
   const { open, toggle } = useShellRailOpen();
   const { on: focusOn } = useFocusMode();
   const reduce = useReducedMotion();
