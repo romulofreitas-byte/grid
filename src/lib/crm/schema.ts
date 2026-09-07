@@ -93,10 +93,14 @@ function clippedOptional(max: number) {
 export const importLeadRowSchema = z.object({
   company: clippedOptional(120),
   name: clippedOptional(80),
-  phone: clippedOptional(40),
-  email: clippedOptional(120),
+  phone: clippedOptional(400),
+  email: clippedOptional(400),
   cnpj: clippedOptional(32),
   notes: clippedOptional(4000),
+  people: clippedOptional(2000),
+  website: clippedOptional(300),
+  instagram: clippedOptional(300),
+  address: clippedOptional(400),
   kind: z.enum(CRM_LEAD_KINDS).optional(),
 });
 

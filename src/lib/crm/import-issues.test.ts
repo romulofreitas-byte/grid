@@ -37,6 +37,9 @@ describe("import issue catalog", () => {
     expect(classifyImportIssue(parseImportCnpj("123456789012345").error ?? "").code).toBe(
       "invalid_cnpj",
     );
+    expect(classifyImportIssue("Anotação no lugar do nome da empresa").code).toBe(
+      "note_name",
+    );
     expect(classifyImportIssue(IMPORT_CREATE_FAILED_MESSAGE).code).toBe(
       "create_failed",
     );

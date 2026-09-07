@@ -17,6 +17,7 @@ import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { COPY } from "@/lib/copy";
 import {
   guessImportMapping,
+  hydrateImportRow,
   importRowsForSubmit,
   mapImportLead,
   parseImportCnpj,
@@ -25,7 +26,8 @@ import {
   type ImportColumnKey,
   type ImportLeadInput,
 } from "@/lib/crm/import";
-import { rowToRecord, type SpreadsheetTable } from "@/lib/crm/import-file";
+import { type SpreadsheetTable } from "@/lib/crm/import-file";
+import { joinPt } from "@/lib/crm/import-issues";
 import { IMPORT_EMPTY_ROW_MESSAGE } from "@/lib/crm/import-issues";
 import { IMPORT_MAX_ROWS } from "@/lib/crm/schema";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
@@ -44,6 +46,10 @@ const COLUMN_OPTIONS: Array<{ id: ImportColumnKey; label: string }> = [
   { id: "phone", label: "Telefone" },
   { id: "email", label: "E-mail" },
   { id: "cnpj", label: "CNPJ" },
+  { id: "people", label: "Sócios" },
+  { id: "website", label: "Site" },
+  { id: "instagram", label: "Instagram" },
+  { id: "address", label: "Endereço" },
   { id: "notes", label: "Notas" },
 ];
 
@@ -157,9 +163,7 @@ export function ImportacoesPanel({
 
   const mappedRows = useMemo((): ImportLeadInput[] => {
     if (!table) return [];
-    return table.rows.map((row) =>
-      rowToRecord(table.headers, row, mapping) as ImportLeadInput,
-    );
+    return table.rows.map((row) => hydrateImportRow(table.headers, row, mapping));
   }, [mapping, table]);
 
   const mappedPreview = useMemo(
@@ -193,6 +197,41 @@ export function ImportacoesPanel({
     }
     return found.size;
   }, [mappedRows]);
+  const droppedCnpjCount = useMemo(() => {
+    return mappedRows.filter((row, index) => {
+      const raw = (row.cnpj ?? "").replace(/\D/g, "");
+      if (!raw) return false;
+      const mapped = mappedPreview[index];
+      return Boolean(mapped?.ok && !mapped.lead.cnpj);
+    }).length;
+  }, [mappedPreview, mappedRows]);
+  const extrasBits = useMemo(() => {
+    const labels: string[] = [];
+    if (
+      mappedPreview.some(
+        (row) =>
+          row.ok &&
+          row.lead.people.filter((person) => person.name.trim()).length > 0 &&
+          mapping.includes("people"),
+      )
+    ) {
+      labels.push("sócios");
+    }
+    if (mappedPreview.some((row) => row.ok && row.lead.notes.includes("Site:"))) {
+      labels.push("site");
+    }
+    if (
+      mappedPreview.some((row) => row.ok && row.lead.notes.includes("Instagram:"))
+    ) {
+      labels.push("Instagram");
+    }
+    if (
+      mappedPreview.some((row) => row.ok && row.lead.notes.includes("Endereço:"))
+    ) {
+      labels.push("endereço");
+    }
+    return labels;
+  }, [mappedPreview, mapping]);
   const notesMapped = mapping.some((key) => key === "notes");
   const mappedIndexes = mapping
     .map((key, index) => ({ key, index }))
@@ -317,6 +356,21 @@ export function ImportacoesPanel({
         table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""
       } · ${readyCount} pronta${readyCount === 1 ? "" : "s"}`
     : "";
+  const salvageHints = [
+    table && table.foldedLines > 0
+      ? table.foldedLines === 1
+        ? COPY.importacoesFoldedLinesOne
+        : COPY.importacoesFoldedLinesMany.replace("{n}", String(table.foldedLines))
+      : null,
+    droppedCnpjCount > 0
+      ? droppedCnpjCount === 1
+        ? COPY.importacoesCnpjDroppedOne
+        : COPY.importacoesCnpjDroppedMany.replace("{n}", String(droppedCnpjCount))
+      : null,
+    extrasBits.length > 0
+      ? COPY.importacoesExtrasUsed.replace("{bits}", joinPt(extrasBits))
+      : null,
+  ].filter(Boolean) as string[];
   const step1: "todo" | "current" | "done" = table ? "done" : "current";
   const step2: "todo" | "current" | "done" = table
     ? readyCount > 0
@@ -408,6 +462,11 @@ export function ImportacoesPanel({
           {table ? (
             <div className="space-y-3">
               <p className="text-xs text-podium-muted">{`${lineSummary}.`}</p>
+              {salvageHints.map((hint) => (
+                <p key={hint} className="text-[11px] text-podium-muted">
+                  {hint}
+                </p>
+              ))}
               {emptyCount > 0 ? (
                 <p className="text-[11px] text-podium-muted">
                   {emptyCount === 1

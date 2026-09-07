@@ -4,7 +4,22 @@ export type SpreadsheetTable = {
   headers: string[];
   rows: string[][];
   truncated: boolean;
+  /** Newlines that lived inside quoted cells and were folded into one row. */
+  foldedLines: number;
 };
+
+export type ImportFileColumnKey =
+  | "company"
+  | "name"
+  | "phone"
+  | "email"
+  | "cnpj"
+  | "notes"
+  | "people"
+  | "website"
+  | "instagram"
+  | "address"
+  | "skip";
 
 function stripBom(text: string): string {
   return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
@@ -19,22 +34,17 @@ function detectDelimiter(headerLine: string): "," | ";" | "\t" {
   return ",";
 }
 
-function parseCsvLine(line: string, delimiter: string): string[] {
-  const out: string[] = [];
-  let current = "";
+function firstUnquotedLine(text: string): string {
   let quoted = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i]!;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
     if (quoted) {
       if (ch === '"') {
-        if (line[i + 1] === '"') {
-          current += '"';
+        if (text[i + 1] === '"') {
           i += 1;
-        } else {
-          quoted = false;
+          continue;
         }
-      } else {
-        current += ch;
+        quoted = false;
       }
       continue;
     }
@@ -42,33 +52,87 @@ function parseCsvLine(line: string, delimiter: string): string[] {
       quoted = true;
       continue;
     }
+    if (ch === "\n") return text.slice(0, i);
+  }
+  return text;
+}
+
+function padRow(cells: string[], width: number): string[] {
+  if (cells.length >= width) return cells.slice(0, width);
+  return [...cells, ...Array(width - cells.length).fill("")];
+}
+
+function parseCsvRecords(
+  text: string,
+  delimiter: string,
+): { records: string[][]; foldedLines: number } {
+  const records: string[][] = [];
+  let row: string[] = [];
+  let current = "";
+  let quoted = false;
+  let foldedLines = 0;
+
+  const pushCell = () => {
+    row.push(current.trim());
+    current = "";
+  };
+
+  const pushRow = () => {
+    pushCell();
+    if (row.some((cell) => cell.length > 0)) records.push(row);
+    row = [];
+  };
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          quoted = false;
+        }
+        continue;
+      }
+      if (ch === "\n") foldedLines += 1;
+      current += ch;
+      continue;
+    }
+    if (ch === '"') {
+      quoted = true;
+      continue;
+    }
     if (ch === delimiter) {
-      out.push(current.trim());
-      current = "";
+      pushCell();
+      continue;
+    }
+    if (ch === "\n") {
+      pushRow();
       continue;
     }
     current += ch;
   }
-  out.push(current.trim());
-  return out;
+  if (quoted || current.length > 0 || row.length > 0) pushRow();
+  return { records, foldedLines };
 }
 
 export function parseCsvText(text: string, maxRows = IMPORT_MAX_ROWS): SpreadsheetTable {
   const normalized = stripBom(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = normalized.split("\n").filter((line) => line.trim().length > 0);
-  if (lines.length === 0) {
-    return { headers: [], rows: [], truncated: false };
+  if (!normalized.trim()) {
+    return { headers: [], rows: [], truncated: false, foldedLines: 0 };
   }
-  const delimiter = detectDelimiter(lines[0]!);
-  const headers = parseCsvLine(lines[0]!, delimiter);
-  const body = lines.slice(1);
+  const delimiter = detectDelimiter(firstUnquotedLine(normalized));
+  const { records, foldedLines } = parseCsvRecords(normalized, delimiter);
+  if (records.length === 0) {
+    return { headers: [], rows: [], truncated: false, foldedLines };
+  }
+  const headers = records[0]!;
+  const body = records.slice(1);
   const truncated = body.length > maxRows;
-  const rows = body.slice(0, maxRows).map((line) => {
-    const cells = parseCsvLine(line, delimiter);
-    if (cells.length >= headers.length) return cells.slice(0, headers.length);
-    return [...cells, ...Array(headers.length - cells.length).fill("")];
-  });
-  return { headers, rows, truncated };
+  const width = headers.length;
+  const rows = body.slice(0, maxRows).map((row) => padRow(row, width));
+  return { headers, rows, truncated, foldedLines };
 }
 
 export function isSpreadsheetName(name: string): boolean {
@@ -85,17 +149,29 @@ export function isXlsxName(name: string): boolean {
   return lower.endsWith(".xlsx") || lower.endsWith(".xls");
 }
 
+const JOIN_SEP: Partial<Record<ImportFileColumnKey, string>> = {
+  notes: " · ",
+  phone: " · ",
+  people: " / ",
+};
+
 export function rowToRecord(
   headers: string[],
   row: string[],
-  mapping: Array<"company" | "name" | "phone" | "email" | "cnpj" | "notes" | "skip">,
+  mapping: ImportFileColumnKey[],
 ): Record<string, string> {
   const out: Record<string, string> = {};
   mapping.forEach((key, index) => {
     if (key === "skip") return;
     const value = (row[index] ?? "").trim();
     if (!value) return;
-    out[key] = out[key] ? `${out[key]} · ${value}` : value;
+    const sep = JOIN_SEP[key];
+    if (out[key] && sep) {
+      out[key] = `${out[key]}${sep}${value}`;
+      return;
+    }
+    if (out[key]) return;
+    out[key] = value;
   });
   void headers;
   return out;

@@ -3,6 +3,7 @@ import type { CrmImportRunIssue } from "@/lib/crm/types";
 
 export const IMPORT_EMPTY_ROW_MESSAGE = "Linha vazia";
 export const IMPORT_INVALID_CNPJ_MESSAGE = "CNPJ inválido";
+export const IMPORT_NOTE_NAME_MESSAGE = "Anotação no lugar do nome da empresa";
 export const IMPORT_CREATE_FAILED_MESSAGE = "Não foi possível criar o negócio.";
 
 export const IMPORT_ERROR_FIX_LIMIT = 50;
@@ -11,6 +12,7 @@ export const IMPORT_CORRECTION_PREFIX = "correção · ";
 export const IMPORT_ISSUE_CODES = [
   "empty_row",
   "invalid_cnpj",
+  "note_name",
   "create_failed",
   "unknown",
 ] as const;
@@ -55,6 +57,14 @@ export function classifyImportIssue(message: string): ImportIssueKind {
       title: COPY.importacoesIssueCnpjTitle,
       action: COPY.importacoesIssueCnpjAction,
       highlight: ["cnpj"],
+    };
+  }
+  if (message === IMPORT_NOTE_NAME_MESSAGE) {
+    return {
+      code: "note_name",
+      title: COPY.importacoesIssueNoteTitle,
+      action: COPY.importacoesIssueNoteAction,
+      highlight: ["company", "name"],
     };
   }
   if (message === IMPORT_CREATE_FAILED_MESSAGE) {

@@ -36,7 +36,7 @@ export async function parseSpreadsheetBuffer(
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(bytes as unknown as Parameters<typeof wb.xlsx.load>[0]);
   const sheet = wb.worksheets[0];
-  if (!sheet) return { headers: [], rows: [], truncated: false };
+  if (!sheet) return { headers: [], rows: [], truncated: false, foldedLines: 0 };
   const matrix: string[][] = [];
   sheet.eachRow({ includeEmpty: false }, (row) => {
     const cells: string[] = [];
@@ -46,7 +46,9 @@ export async function parseSpreadsheetBuffer(
     });
     if (cells.some((cell) => cell.length > 0)) matrix.push(cells);
   });
-  if (matrix.length === 0) return { headers: [], rows: [], truncated: false };
+  if (matrix.length === 0) {
+    return { headers: [], rows: [], truncated: false, foldedLines: 0 };
+  }
   const width = Math.max(...matrix.map((row) => row.length));
   const padded = matrix.map((row) => {
     if (row.length >= width) return row.slice(0, width);
@@ -58,5 +60,6 @@ export async function parseSpreadsheetBuffer(
     headers,
     rows: body.slice(0, maxRows),
     truncated: body.length > maxRows,
+    foldedLines: 0,
   };
 }

@@ -1,9 +1,25 @@
 import { uniquePhones } from "@/lib/crm/dial";
 import {
+  cleanImportEmails,
+  cleanImportPhones,
+  cleanInstagram,
+  cleanWebsite,
+  findFormattedCnpj,
+  labeledNoteLines,
+  looksLikeLiveNote,
+  parseSocioNames,
+  shortenMapsCompanyName,
+  websiteFromMisfiledSocial,
+} from "@/lib/crm/import-clean";
+import { rowToRecord, type ImportFileColumnKey } from "@/lib/crm/import-file";
+import {
   IMPORT_EMPTY_ROW_MESSAGE,
   IMPORT_INVALID_CNPJ_MESSAGE,
+  IMPORT_NOTE_NAME_MESSAGE,
 } from "@/lib/crm/import-issues";
+import { sanitizePeople } from "@/lib/crm/people";
 import type { CrmLeadKind, CrmPerson } from "@/lib/crm/types";
+import { cnpjValid } from "@/lib/billing/document";
 import { phonesMatch } from "@/lib/phone";
 
 export const IMPORT_FALLBACK_COMPANY = "Lead inbound";
@@ -18,6 +34,10 @@ export type ImportLeadInput = {
   email?: string;
   cnpj?: string;
   notes?: string;
+  people?: string;
+  website?: string;
+  instagram?: string;
+  address?: string;
   kind?: CrmLeadKind;
   answers?: Record<string, string>;
 };
@@ -37,14 +57,9 @@ export type MapLeadResult =
   | { ok: true; lead: MappedImportLead }
   | { ok: false; message: string };
 
-export type ImportColumnKey =
-  | "company"
-  | "name"
-  | "phone"
-  | "email"
-  | "cnpj"
-  | "notes"
-  | "skip";
+export type ImportColumnKey = ImportFileColumnKey;
+
+const MULTI_COLUMN = new Set<ImportColumnKey>(["notes", "phone", "people"]);
 
 const HEADER_ALIASES: Record<Exclude<ImportColumnKey, "skip">, string[]> = {
   company: [
@@ -69,6 +84,7 @@ const HEADER_ALIASES: Record<Exclude<ImportColumnKey, "skip">, string[]> = {
   ],
   phone: [
     "phone",
+    "phones",
     "telefone",
     "tel",
     "celular",
@@ -76,7 +92,7 @@ const HEADER_ALIASES: Record<Exclude<ImportColumnKey, "skip">, string[]> = {
     "mobile",
     "fone",
   ],
-  email: ["email", "e_mail", "mail", "e-mail"],
+  email: ["email", "emails", "e_mail", "mail", "e-mail"],
   cnpj: ["cnpj"],
   notes: [
     "notes",
@@ -98,7 +114,13 @@ const HEADER_ALIASES: Record<Exclude<ImportColumnKey, "skip">, string[]> = {
     "annotations",
     "follow_up",
     "followup",
+    "proxima_atividade",
+    "proxima",
   ],
+  people: ["socios", "socio", "partners", "partner", "socios_nomes"],
+  website: ["website", "site", "url", "www", "pagina"],
+  instagram: ["instagram", "insta", "ig"],
+  address: ["endereco", "address", "morada", "logradouro"],
 };
 
 export function foldImportHeader(value: string): string {
@@ -152,7 +174,7 @@ export function guessImportMapping(
       if (looksLikeCompanyName(sample)) guessed = "company";
     }
     if (guessed === "skip") return "skip";
-    if (guessed === "notes") return "notes";
+    if (MULTI_COLUMN.has(guessed)) return guessed;
     if (used.has(guessed)) return "skip";
     used.add(guessed);
     return guessed;
@@ -230,10 +252,14 @@ export function inboundPayloadToInput(raw: unknown): ImportLeadInput {
   return {
     company: pickAlias(folded, HEADER_ALIASES.company) || undefined,
     name: pickAlias(folded, HEADER_ALIASES.name) || undefined,
-    phone: pickAlias(folded, HEADER_ALIASES.phone) || undefined,
-    email: pickAlias(folded, HEADER_ALIASES.email) || undefined,
+    phone: pickJoinedAliases(folded, HEADER_ALIASES.phone) || undefined,
+    email: pickJoinedAliases(folded, HEADER_ALIASES.email) || undefined,
     cnpj: pickAlias(folded, HEADER_ALIASES.cnpj) || undefined,
     notes: pickJoinedAliases(folded, HEADER_ALIASES.notes) || undefined,
+    people: pickJoinedAliases(folded, HEADER_ALIASES.people) || undefined,
+    website: pickAlias(folded, HEADER_ALIASES.website) || undefined,
+    instagram: pickAlias(folded, HEADER_ALIASES.instagram) || undefined,
+    address: pickAlias(folded, HEADER_ALIASES.address) || undefined,
     kind: parseLeadKind(record.kind ?? folded.kind),
     answers: parseFormAnswers(record.answers ?? folded.answers),
   };
@@ -245,16 +271,28 @@ export function parseImportCnpj(raw: string | undefined): {
 } {
   const digits = (raw ?? "").replace(/\D/g, "");
   if (!digits) return {};
-  if (digits.length > 14) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
-  const padded = digits.padStart(14, "0");
-  if (!/^\d{14}$/.test(padded)) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
-  return { cnpj: padded };
+  if (digits.length !== 14) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
+  if (!cnpjValid(digits)) return { error: IMPORT_INVALID_CNPJ_MESSAGE };
+  return { cnpj: digits };
 }
 
 /** Drops a CNPJ that would block the row, so the card can enter without it. */
 export function withoutInvalidCnpj(input: ImportLeadInput): ImportLeadInput {
   if (!parseImportCnpj(input.cnpj).error) return input;
   return { ...input, cnpj: undefined };
+}
+
+export function hydrateImportRow(
+  headers: string[],
+  row: string[],
+  mapping: ImportColumnKey[],
+): ImportLeadInput {
+  const record = rowToRecord(headers, row, mapping) as ImportLeadInput;
+  if (!parseImportCnpj(record.cnpj).cnpj) {
+    const found = findFormattedCnpj(row);
+    if (found) record.cnpj = found;
+  }
+  return record;
 }
 
 function clip(value: string, max: number): string {
@@ -273,43 +311,87 @@ export function inferLeadKind(
   return "company";
 }
 
+function assembleNotes(input: ImportLeadInput, mapsOriginal?: string): string {
+  const instagram =
+    cleanInstagram(input.instagram) ?? cleanInstagram(input.website);
+  const website =
+    cleanWebsite(input.website) ?? websiteFromMisfiledSocial(input.instagram);
+  const extras = labeledNoteLines([
+    ["Site", website],
+    ["Instagram", instagram],
+    ["Endereço", input.address?.trim() ? clip(input.address, 400) : undefined],
+    ["Nome no Maps", mapsOriginal],
+  ]);
+  const notes = clip(input.notes ?? "", 4000);
+  return [notes, extras].filter(Boolean).join("\n").slice(0, 4000);
+}
+
+function buildPeople(opts: {
+  contactName: string;
+  phones: string[];
+  emails: string[];
+  socios: string[];
+}): CrmPerson[] {
+  const phone = opts.phones[0] ?? "";
+  const email = opts.emails[0] ?? "";
+  const extraEmails = opts.emails.slice(1);
+  const contactName = opts.contactName.trim() || opts.socios[0] || "";
+  const socioNames = opts.socios.filter(
+    (name) => name.toLowerCase() !== contactName.toLowerCase(),
+  );
+  const people: CrmPerson[] = [
+    { name: contactName, phone: phone.slice(0, 24), email },
+    ...socioNames.map((name) => ({ name, phone: "", email: "" })),
+    ...extraEmails.map((value) => ({ name: "", phone: "", email: value })),
+  ];
+  return sanitizePeople(people).slice(0, 12);
+}
+
 export function mapImportLead(
   input: ImportLeadInput,
   opts?: { kind?: CrmLeadKind },
 ): MapLeadResult {
   const kind = inferLeadKind(input, opts?.kind);
-  const company = clip(input.company ?? "", 120);
+  const shortened = shortenMapsCompanyName(clip(input.company ?? "", 200));
+  const company = clip(shortened.name, 120);
   const name = clip(input.name ?? "", 80);
-  const email = clip(input.email ?? "", 120);
-  const notes = clip(input.notes ?? "", 4000);
-  const phoneRaw = clip(input.phone ?? "", 40);
+  const emails = cleanImportEmails(input.email);
+  const email = emails[0] ?? "";
+  const mapsOriginal =
+    shortened.original && shortened.original !== company ? shortened.original : undefined;
+  const notes = assembleNotes(input, mapsOriginal);
+  const phones = uniquePhones(cleanImportPhones(input.phone)).slice(0, 8);
   const parsedCnpj = kind === "person" ? {} : parseImportCnpj(input.cnpj);
-  if (parsedCnpj.error) return { ok: false, message: parsedCnpj.error };
-  const cnpj = parsedCnpj.cnpj;
-  if (!company && !name && !email && !phoneRaw && !cnpj && !notes) {
+  const cnpj = parsedCnpj.error ? undefined : parsedCnpj.cnpj;
+  if (!company && !name && !email && phones.length === 0 && !cnpj && !notes && !input.people) {
     return { ok: false, message: IMPORT_EMPTY_ROW_MESSAGE };
   }
   const nameIsCompany = !company && Boolean(name) && looksLikeCompanyName(name);
-  const company_name =
+  const rawCompanyName =
     kind === "person"
       ? name || email || IMPORT_FALLBACK_COMPANY
       : company || (nameIsCompany ? name : "") || name || email || IMPORT_FALLBACK_COMPANY;
+  if (
+    rawCompanyName !== IMPORT_FALLBACK_COMPANY &&
+    looksLikeLiveNote(rawCompanyName, looksLikeCompanyName(rawCompanyName))
+  ) {
+    return { ok: false, message: IMPORT_NOTE_NAME_MESSAGE };
+  }
+  const company_name = clip(rawCompanyName, 120);
   const contact_name =
     kind === "person" ? name : nameIsCompany ? "" : name;
-  const phones = uniquePhones(phoneRaw ? [phoneRaw] : []).slice(0, 8);
-  const phone = phones[0] ?? "";
-  const people: CrmPerson[] = [
-    {
-      name: contact_name,
-      phone: phone.slice(0, 24),
-      email,
-    },
-  ];
+  const socios = parseSocioNames(input.people);
+  const people = buildPeople({
+    contactName: contact_name,
+    phones,
+    emails,
+    socios,
+  });
   return {
     ok: true,
     lead: {
-      company_name: company_name.slice(0, 120),
-      contact_name,
+      company_name,
+      contact_name: people[0]?.name ?? contact_name,
       phones,
       people,
       cnpj: kind === "person" ? undefined : cnpj,
@@ -322,13 +404,13 @@ export function mapImportLead(
 
 export function importRowsForSubmit(
   rows: ImportLeadInput[],
-  mode: "ready" | "anyway",
+  _mode: "ready" | "anyway",
   max: number,
 ): ImportLeadInput[] {
-  const prepared = rows
+  return rows
     .slice(0, max)
-    .map((row) => (mode === "anyway" ? withoutInvalidCnpj(row) : row));
-  return prepared.filter((row) => mapImportLead(row).ok);
+    .map(withoutInvalidCnpj)
+    .filter((row) => mapImportLead(row).ok);
 }
 
 export function dealMatchesImportLead(

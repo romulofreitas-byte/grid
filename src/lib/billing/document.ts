@@ -28,7 +28,7 @@ function cpfValid(digits: string): boolean {
   return rest === nums[10];
 }
 
-function cnpjValid(digits: string): boolean {
+export function cnpjValid(digits: string): boolean {
   if (digits.length !== 14 || allSameDigits(digits)) return false;
   const nums = digits.split("").map(Number);
   const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];

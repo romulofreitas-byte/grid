@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   dealMatchesImportLead,
   guessImportMapping,
+  hydrateImportRow,
   inboundPayloadToInput,
   importRowsForSubmit,
   IMPORT_FALLBACK_COMPANY,
   mapImportLead,
   withoutInvalidCnpj,
 } from "./import";
+import { IMPORT_NOTE_NAME_MESSAGE } from "./import-issues";
 
 describe("import mapping", () => {
   it("guesses Portuguese and English headers once", () => {
@@ -28,7 +30,16 @@ describe("import mapping", () => {
         ["NAME", "PHONE", "WEBSITE"],
         [["Roal Indústria Metalúrgica Ltda", "5432892400", "http://roal.com.br"]],
       ),
-    ).toEqual(["company", "phone", "skip"]);
+    ).toEqual(["company", "phone", "website"]);
+  });
+
+  it("keeps extra phone, sócios and notes columns", () => {
+    expect(
+      guessImportMapping(
+        ["nome", "Telefone", "Telefone 2", "socios", "Notas", "Próxima Atividade"],
+        [["Metalúrgica Vaz Ltda", "31 3434-3084", "31 99999-0000", "PAULO VAZ", "já fazem", "ligar"]],
+      ),
+    ).toEqual(["company", "phone", "phone", "people", "notes", "notes"]);
   });
 
   it("keeps a person NAME as contact", () => {
@@ -94,14 +105,12 @@ describe("import mapping", () => {
 
   it("drops an invalid CNPJ so the row can still enter", () => {
     const input = { company: "Padaria", cnpj: "123456789012345" };
-    expect(mapImportLead(input).ok).toBe(false);
-    const dropped = withoutInvalidCnpj(input);
-    expect(dropped.cnpj).toBeUndefined();
-    const mapped = mapImportLead(dropped);
+    const mapped = mapImportLead(input);
     expect(mapped.ok).toBe(true);
     if (!mapped.ok) return;
     expect(mapped.lead.cnpj).toBeUndefined();
     expect(mapped.lead.company_name).toBe("Padaria");
+    expect(withoutInvalidCnpj(input).cnpj).toBeUndefined();
   });
 
   it("keeps a valid CNPJ", () => {
@@ -194,5 +203,59 @@ describe("import mapping", () => {
         mapped.lead,
       ),
     ).toBe(true);
+  });
+
+  it("rejects a live note used as the company name", () => {
+    const mapped = mapImportLead({
+      company: "Isabela atendeu disse que contato só por email com o marcos",
+      notes: "live 22/05",
+    });
+    expect(mapped).toEqual({ ok: false, message: IMPORT_NOTE_NAME_MESSAGE });
+  });
+
+  it("keeps sócios, drops sentry mail and não encontrado Instagram", () => {
+    const mapped = mapImportLead({
+      company: "Metalúrgica Vaz",
+      phone: "31 3434-3084, 1746169634904",
+      email: "contato@metalurgicavaz.com.br, 8eb368@sentry.wixpress.com",
+      people: "PAULO AFONSO VAZ / MARIA VAZ",
+      instagram: "não encontrado",
+      website: "http://www.metalurgicavaz.com.br/",
+      address: "Rod. Anel Rodoviário, 24277",
+    });
+    expect(mapped.ok).toBe(true);
+    if (!mapped.ok) return;
+    expect(mapped.lead.phones).toEqual(["(31) 3434-3084"]);
+    expect(mapped.lead.people[0]?.email).toBe("contato@metalurgicavaz.com.br");
+    expect(mapped.lead.people.map((person) => person.name)).toEqual([
+      "PAULO AFONSO VAZ",
+      "MARIA VAZ",
+    ]);
+    expect(mapped.lead.notes).toMatch(/^Site: http:\/\/www\.metalurgicavaz\.com\.br$/m);
+    expect(mapped.lead.notes).toMatch(/Endereço: Rod\. Anel Rodoviário/);
+    expect(mapped.lead.notes).not.toMatch(/Instagram/);
+  });
+
+  it("shortens a Maps title and salvages a CNPJ from another cell", () => {
+    const mapped = mapImportLead({
+      company: "Aço Mais Betim - Ferragens, Treliças, Arames, Vergalhões",
+      cnpj: "20230728100708",
+    });
+    expect(mapped.ok).toBe(true);
+    if (!mapped.ok) return;
+    expect(mapped.lead.company_name).toBe("Aço Mais Betim");
+    expect(mapped.lead.notes).toMatch(/Nome no Maps:/);
+    expect(mapped.lead.cnpj).toBeUndefined();
+
+    const hydrated = hydrateImportRow(
+      ["nome", "cnpj", "Telefone 2"],
+      ["EP Blocos", "20230728100708", "11.222.333/0001-81"],
+      ["company", "cnpj", "phone"],
+    );
+    expect(hydrated.cnpj).toBe("11222333000181");
+    const salvaged = mapImportLead(hydrated);
+    expect(salvaged.ok).toBe(true);
+    if (!salvaged.ok) return;
+    expect(salvaged.lead.cnpj).toBe("11222333000181");
   });
 });
