@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Upload } from "lucide-react";
+import { Check, ChevronDown, Upload } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
@@ -16,6 +16,7 @@ import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import {
   guessImportMapping,
+  importRowsForSubmit,
   mapImportLead,
   parseImportCnpj,
   pipelineNomeFromFile,
@@ -24,9 +25,11 @@ import {
   type ImportLeadInput,
 } from "@/lib/crm/import";
 import { rowToRecord, type SpreadsheetTable } from "@/lib/crm/import-file";
+import { IMPORT_EMPTY_ROW_MESSAGE } from "@/lib/crm/import-issues";
 import { IMPORT_MAX_ROWS } from "@/lib/crm/schema";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import { useBillingMe } from "@/hooks/useBillingMe";
+import { cn } from "@/lib/utils";
 
 const NEW_PIPELINE = "__new__";
 
@@ -63,17 +66,31 @@ function Field({
 function Step({
   n,
   title,
+  status,
   children,
 }: {
   n: number;
   title: string;
+  status: "todo" | "current" | "done";
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
       <p className="flex items-center gap-2 text-sm font-semibold text-podium-white">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-podium-yellow/40 text-[10px] font-bold text-podium-yellow">
-          {n}
+        <span
+          className={cn(
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+            status === "done" && "bg-podium-yellow text-podium-navy",
+            status === "current" &&
+              "border border-podium-yellow/70 bg-podium-yellow/15 text-podium-yellow",
+            status === "todo" && "border border-white/15 text-podium-muted",
+          )}
+        >
+          {status === "done" ? (
+            <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+          ) : (
+            n
+          )}
         </span>
         {title}
       </p>
@@ -100,7 +117,6 @@ export function ImportacoesPanel({
   const queryClient = useQueryClient();
   const [dest, setDest] = useState(NEW_PIPELINE);
   const [pipelineNome, setPipelineNome] = useState("");
-  const [qualify, setQualify] = useState(false);
   const [table, setTable] = useState<SpreadsheetTable | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [mapping, setMapping] = useState<ImportColumnKey[]>([]);
@@ -148,11 +164,17 @@ export function ImportacoesPanel({
   );
   const readyCount = mappedPreview.filter((row) => row.ok).length;
   const anywayCount = anywayPreview.filter((row) => row.ok).length;
+  const emptyCount = mappedPreview.filter(
+    (row) => !row.ok && row.message === IMPORT_EMPTY_ROW_MESSAGE,
+  ).length;
   const problemRows = useMemo(
     () =>
       mappedPreview
         .map((result, index) => ({ result, index, input: mappedRows[index]! }))
-        .filter((item) => !item.result.ok),
+        .filter(
+          (item) =>
+            !item.result.ok && item.result.message !== IMPORT_EMPTY_ROW_MESSAGE,
+        ),
     [mappedPreview, mappedRows],
   );
   const mappedCnpjs = useMemo(() => {
@@ -178,11 +200,11 @@ export function ImportacoesPanel({
   const credits = billing.data?.balance.total ?? 0;
 
   const importRows = useMutation({
-    mutationFn: async (mode: "ready" | "anyway") => {
-      const rows =
-        mode === "anyway"
-          ? mappedRows.slice(0, IMPORT_MAX_ROWS).map(withoutInvalidCnpj)
-          : mappedRows.slice(0, IMPORT_MAX_ROWS);
+    mutationFn: async (opts: {
+      mode: "ready" | "anyway";
+      qualify: boolean;
+    }) => {
+      const rows = importRowsForSubmit(mappedRows, opts.mode, IMPORT_MAX_ROWS);
       const res = await fetch("/api/crm/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -191,7 +213,7 @@ export function ImportacoesPanel({
           pipeline_nome:
             dest === NEW_PIPELINE ? pipelineNome.trim() || undefined : undefined,
           file_name: fileName ?? undefined,
-          qualify,
+          qualify: opts.qualify,
           rows,
         }),
       });
@@ -263,6 +285,36 @@ export function ImportacoesPanel({
     dest !== NEW_PIPELINE ? Boolean(dest) : Boolean(pipelineNome.trim());
   const canImport = Boolean(table) && readyCount > 0 && destReady;
   const canImportAnyway = Boolean(table) && anywayCount > readyCount && destReady;
+  const blockReason = !table
+    ? COPY.importacoesNeedFile
+    : readyCount === 0
+      ? COPY.importacoesNeedRows
+      : !destReady
+        ? dest === NEW_PIPELINE
+          ? COPY.importacoesNeedNicheName
+          : COPY.importacoesNeedNiche
+        : null;
+  const lineSummary = table
+    ? `${table.rows.length} linha${table.rows.length === 1 ? "" : "s"}${
+        table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""
+      } · ${readyCount} pronta${readyCount === 1 ? "" : "s"}`
+    : "";
+  const step1: "todo" | "current" | "done" = table ? "done" : "current";
+  const step2: "todo" | "current" | "done" = table
+    ? readyCount > 0
+      ? "done"
+      : "current"
+    : "todo";
+  const step3: "todo" | "current" | "done" = table
+    ? destReady
+      ? "done"
+      : "current"
+    : "todo";
+  const step4: "todo" | "current" | "done" = importRows.data
+    ? "done"
+    : table
+      ? "current"
+      : "todo";
 
   return (
     <div className="mt-6 space-y-6">
@@ -277,17 +329,44 @@ export function ImportacoesPanel({
           <Hint className="mt-2">{COPY.importacoesFileHint}</Hint>
         </div>
 
-        <Step n={1} title="Escolher o arquivo">
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-white/15 px-3 py-4 text-center hover:border-podium-yellow/40">
-            <Upload className="h-5 w-5 text-podium-yellow" />
-            <span className="text-sm text-podium-gray">
-              {fileName ? "Trocar CSV ou Excel" : "CSV ou Excel, até 500 linhas"}
+        {table && fileName ? (
+          <p className="rounded-md border border-podium-yellow/25 bg-podium-yellow/10 px-3 py-2 text-xs text-podium-white">
+            <span className="font-medium">{fileName}</span>
+            <span className="text-podium-muted">
+              {` · ${readyCount} pronta${readyCount === 1 ? "" : "s"} · ${destName}`}
             </span>
-            {fileName ? (
-              <span className="max-w-full truncate text-[11px] text-podium-muted">
-                {fileName}
+          </p>
+        ) : null}
+
+        <Step n={1} title="Escolher o arquivo" status={step1}>
+          <label
+            className={cn(
+              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md px-3 py-4 text-center transition",
+              table
+                ? "border border-podium-yellow/50 bg-podium-yellow/10 hover:border-podium-yellow/70"
+                : "border border-dashed border-white/15 hover:border-podium-yellow/40",
+            )}
+          >
+            {table ? (
+              <Check className="h-5 w-5 text-podium-yellow" strokeWidth={2.5} />
+            ) : (
+              <Upload className="h-5 w-5 text-podium-yellow" />
+            )}
+            {table && fileName ? (
+              <>
+                <span className="max-w-full truncate text-sm font-semibold text-podium-white">
+                  {fileName}
+                </span>
+                <span className="text-xs text-podium-gray">{lineSummary}</span>
+                <span className="text-[11px] font-medium text-podium-yellow">
+                  {COPY.importacoesChangeFile}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-podium-gray">
+                {COPY.importacoesChooseFile}
               </span>
-            ) : null}
+            )}
             <input
               type="file"
               accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -307,12 +386,20 @@ export function ImportacoesPanel({
           ) : null}
         </Step>
 
-        <Step n={2} title="O que entra">
+        <Step n={2} title="O que entra" status={step2}>
           {table ? (
             <div className="space-y-3">
-              <p className="text-xs text-podium-muted">
-                {`${table.rows.length} linha${table.rows.length === 1 ? "" : "s"}${table.truncated ? ` · corte em ${IMPORT_MAX_ROWS}` : ""} · ${readyCount} pronta${readyCount === 1 ? "" : "s"}.`}
-              </p>
+              <p className="text-xs text-podium-muted">{`${lineSummary}.`}</p>
+              {emptyCount > 0 ? (
+                <p className="text-[11px] text-podium-muted">
+                  {emptyCount === 1
+                    ? COPY.importacoesEmptySkippedOne
+                    : COPY.importacoesEmptySkippedMany.replace(
+                        "{n}",
+                        String(emptyCount),
+                      )}
+                </p>
+              ) : null}
               {problemRows.length > 0 ? (
                 <div className="rounded-md border border-white/10 px-3 py-2.5">
                   <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
@@ -448,7 +535,7 @@ export function ImportacoesPanel({
           )}
         </Step>
 
-        <Step n={3} title="Destino desta subida">
+        <Step n={3} title="Destino desta subida" status={step3}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nicho">
               <Select
@@ -488,43 +575,28 @@ export function ImportacoesPanel({
           ) : null}
         </Step>
 
-        <Step n={4} title={`Importar para ${destName}`}>
-          <label className="flex items-start gap-3 rounded-md border border-white/10 px-3 py-3 text-sm text-podium-gray">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={qualify}
-              onChange={(event) => setQualify(event.target.checked)}
-            />
-            <span>
-              <span className="font-medium text-podium-white">
-                {COPY.crmQualifyNow}
-              </span>
-              <span className="mt-0.5 block text-[11px] text-podium-muted">
-                {creditsPhrase(ENRICH_CREDIT_COST)} por CNPJ · só quem tiver
-                CNPJ depois da busca na base
-                {mappedCnpjs > 0 ? ` · ${mappedCnpjs} já na planilha` : ""}.
-                Saldo: {creditsPhrase(credits)}.
-              </span>
-            </span>
-          </label>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Step n={4} title={`Importar para ${destName}`} status={step4}>
+          <div className="space-y-2">
             <Button
               variant="primary"
+              size="lg"
+              className="h-11 w-full px-5 text-sm font-semibold sm:w-auto"
               disabled={importRows.isPending || !canImport}
-              onClick={() => importRows.mutate("ready")}
+              onClick={() => importRows.mutate({ mode: "ready", qualify: false })}
             >
               {importRows.isPending
                 ? "Importando…"
                 : table
                   ? `Importar ${readyCount} ${readyCount === 1 ? "negócio" : "negócios"}`
-                  : "Escolha o arquivo antes"}
+                  : COPY.importacoesNeedFile}
             </Button>
             {anywayCount > readyCount ? (
               <Button
                 variant="secondary"
                 disabled={importRows.isPending || !canImportAnyway}
-                onClick={() => importRows.mutate("anyway")}
+                onClick={() =>
+                  importRows.mutate({ mode: "anyway", qualify: false })
+                }
               >
                 {COPY.importacoesSendAnyway}
               </Button>
@@ -532,6 +604,34 @@ export function ImportacoesPanel({
           </div>
           {anywayCount > readyCount ? (
             <Hint className="mt-2">{COPY.importacoesSendAnywayHint}</Hint>
+          ) : null}
+          {canImport ? (
+            <div className="mt-3 rounded-md border border-white/10 px-3 py-3">
+              <p className="text-sm font-medium text-podium-white">
+                {COPY.importacoesImportAndQualify}
+              </p>
+              <p className="mt-0.5 text-[11px] text-podium-muted">
+                {creditsPhrase(ENRICH_CREDIT_COST)} por CNPJ · só quem tiver
+                CNPJ depois da busca na base
+                {mappedCnpjs > 0 ? ` · ${mappedCnpjs} já na planilha` : ""}.
+                Saldo: {creditsPhrase(credits)}.
+              </p>
+              <Button
+                variant="secondary"
+                className="mt-2"
+                disabled={importRows.isPending}
+                onClick={() =>
+                  importRows.mutate({ mode: "ready", qualify: true })
+                }
+              >
+                {COPY.importacoesImportAndQualify}
+              </Button>
+            </div>
+          ) : null}
+          {blockReason &&
+          blockReason !== COPY.importacoesNeedFile &&
+          !importRows.isPending ? (
+            <p className="mt-2 text-[11px] text-podium-muted">{blockReason}</p>
           ) : null}
           {importRows.isError && !isBillingGateError(importRows.error) ? (
             <p className="mt-2 text-sm text-podium-alert">

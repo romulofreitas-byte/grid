@@ -46,10 +46,8 @@ describe("apply import leads", () => {
     if ("error" in result) return;
     expect(result.created).toBe(2);
     expect(result.skipped).toBe(0);
-    expect(result.errors).toEqual([{ row: 3, message: "Linha vazia" }]);
-    expect(result.issues).toEqual([
-      { row: 3, status: "error", message: "Linha vazia" },
-    ]);
+    expect(result.errors).toEqual([]);
+    expect(result.issues).toEqual([]);
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     const maria = board?.deals.find((deal) => deal.contact_name === "Maria");
     expect(maria?.company_name).toBe("Maria");

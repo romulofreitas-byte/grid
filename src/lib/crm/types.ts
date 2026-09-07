@@ -133,7 +133,7 @@ export type CrmInboundEventCreateInput = {
   payload?: Record<string, string> | null;
 };
 
-export const CRM_IMPORT_ISSUE_STATUSES = ["error", "skipped"] as const;
+export const CRM_IMPORT_ISSUE_STATUSES = ["error", "skipped", "ignored"] as const;
 export type CrmImportRunIssueStatus = (typeof CRM_IMPORT_ISSUE_STATUSES)[number];
 
 export type CrmImportRunIssue = {

@@ -29,8 +29,10 @@ import {
   mapInboundEventRow,
 } from "@/lib/crm/inbound-events";
 import {
+  IMPORT_ISSUE_CAP,
   IMPORT_RUN_KEEP,
   IMPORT_RUN_LIST_LIMIT,
+  ignoreImportRunErrors,
   parseImportRunIssues,
 } from "@/lib/crm/import-history";
 import { escapeIlike, sqlFoldAccent } from "@/lib/data/company-search";
@@ -1569,7 +1571,7 @@ export const crmPgMethods = {
           input.matchedCnpjs,
           input.listId ?? null,
           input.qualified,
-          JSON.stringify(input.issues.slice(0, 500)),
+          JSON.stringify(input.issues.slice(0, IMPORT_ISSUE_CAP)),
         ],
       );
       await query(
@@ -1623,6 +1625,33 @@ export const crmPgMethods = {
         [runId, userId],
       );
       return rows[0] ? mapImportRun(rows[0], true) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async ignoreCrmImportRunErrors(
+    userId: string,
+    runId: string,
+  ): Promise<CrmImportRun | null> {
+    const current = await crmPgMethods.getCrmImportRun(userId, runId);
+    if (!current) return null;
+    const next = ignoreImportRunErrors(current);
+    try {
+      const { rows } = await query(
+        `update crm_import_runs
+         set error_count = $3, issues = $4::jsonb
+         where id = $1 and user_id = $2
+         returning *`,
+        [
+          runId,
+          userId,
+          next.error_count,
+          JSON.stringify(next.issues.slice(0, IMPORT_ISSUE_CAP)),
+        ],
+      );
+      return rows[0] ? mapImportRun(rows[0], true) : next;
     } catch (err) {
       if (isUndefinedTableError(err)) return null;
       throw err;

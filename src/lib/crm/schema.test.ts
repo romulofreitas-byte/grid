@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { dealCnpjsQuerySchema, dealPatchSchema } from "./schema";
+import {
+  crmImportSchema,
+  dealCnpjsQuerySchema,
+  dealPatchSchema,
+  IMPORT_MAX_ROWS,
+  importSchemaError,
+} from "./schema";
 
 describe("dealPatchSchema amount_cents", () => {
   it("accepts cents, null, and omits when absent", () => {
@@ -31,5 +37,34 @@ describe("dealCnpjsQuerySchema", () => {
       String(i + 1).padStart(14, "0"),
     ).join(",");
     expect(dealCnpjsQuerySchema.parse(raw)).toHaveLength(50);
+  });
+});
+
+describe("crmImportSchema", () => {
+  it("clips long cells instead of rejecting the payload", () => {
+    const parsed = crmImportSchema.parse({
+      pipeline_nome: "Metal",
+      rows: [{ company: "A".repeat(200), notes: "B".repeat(5000) }],
+    });
+    expect(parsed.rows[0]?.company).toHaveLength(120);
+    expect(parsed.rows[0]?.notes).toHaveLength(4000);
+  });
+
+  it("caps at 1000 rows and names the niche error", () => {
+    expect(IMPORT_MAX_ROWS).toBe(1000);
+    const tooMany = crmImportSchema.safeParse({
+      pipeline_nome: "Metal",
+      rows: Array.from({ length: 1001 }, () => ({ name: "Maria" })),
+    });
+    expect(tooMany.success).toBe(false);
+    if (tooMany.success) return;
+    expect(importSchemaError(tooMany.error)).toBe("Envie até 1000 linhas.");
+
+    const noNiche = crmImportSchema.safeParse({
+      rows: [{ name: "Maria" }],
+    });
+    expect(noNiche.success).toBe(false);
+    if (noNiche.success) return;
+    expect(importSchemaError(noNiche.error)).toBe("Escolha ou crie o nicho.");
   });
 });

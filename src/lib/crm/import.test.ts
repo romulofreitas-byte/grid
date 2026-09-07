@@ -3,6 +3,7 @@ import {
   dealMatchesImportLead,
   guessImportMapping,
   inboundPayloadToInput,
+  importRowsForSubmit,
   IMPORT_FALLBACK_COMPANY,
   mapImportLead,
   withoutInvalidCnpj,
@@ -72,6 +73,23 @@ describe("import mapping", () => {
 
   it("rejects an empty row", () => {
     expect(mapImportLead({})).toEqual({ ok: false, message: "Linha vazia" });
+  });
+
+  it("drops empty rows before submit", () => {
+    expect(
+      importRowsForSubmit(
+        [{}, { company: "Padaria" }, { cnpj: "123456789012345" }],
+        "ready",
+        1000,
+      ),
+    ).toEqual([{ company: "Padaria" }]);
+    expect(
+      importRowsForSubmit(
+        [{ company: "Padaria", cnpj: "123456789012345" }],
+        "anyway",
+        1000,
+      ),
+    ).toEqual([{ company: "Padaria", cnpj: undefined }]);
   });
 
   it("drops an invalid CNPJ so the row can still enter", () => {

@@ -4,7 +4,10 @@ import {
   type ImportLeadInput,
 } from "@/lib/crm/import";
 import { IMPORT_SKIPPED_MESSAGE } from "@/lib/crm/import-history";
-import { IMPORT_CREATE_FAILED_MESSAGE } from "@/lib/crm/import-issues";
+import {
+  IMPORT_CREATE_FAILED_MESSAGE,
+  IMPORT_EMPTY_ROW_MESSAGE,
+} from "@/lib/crm/import-issues";
 import type {
   CrmDealCard,
   CrmDealCreateInput,
@@ -75,6 +78,7 @@ export async function applyImportLeads(opts: {
       kind: opts.defaultKind,
     });
     if (!mapped.ok) {
+      if (mapped.message === IMPORT_EMPTY_ROW_MESSAGE) continue;
       pushError(index + 1, mapped.message);
       continue;
     }

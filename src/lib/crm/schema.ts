@@ -9,7 +9,7 @@ import {
   CRM_OUTCOMES,
 } from "@/lib/crm/types";
 
-export const IMPORT_MAX_ROWS = 500;
+export const IMPORT_MAX_ROWS = 1000;
 
 export const crmPersonSchema = z.object({
   name: z.string().trim().max(80),
@@ -82,13 +82,21 @@ export const dealCreateSchema = z.object({
     .optional(),
 });
 
+function clippedOptional(max: number) {
+  return z.preprocess((value) => {
+    if (value == null || value === "") return undefined;
+    const text = String(value).trim().slice(0, max);
+    return text || undefined;
+  }, z.string().max(max).optional());
+}
+
 export const importLeadRowSchema = z.object({
-  company: z.string().trim().max(120).optional(),
-  name: z.string().trim().max(80).optional(),
-  phone: z.string().trim().max(40).optional(),
-  email: z.string().trim().max(120).optional(),
-  cnpj: z.string().trim().max(32).optional(),
-  notes: z.string().trim().max(4000).optional(),
+  company: clippedOptional(120),
+  name: clippedOptional(80),
+  phone: clippedOptional(40),
+  email: clippedOptional(120),
+  cnpj: clippedOptional(32),
+  notes: clippedOptional(4000),
   kind: z.enum(CRM_LEAD_KINDS).optional(),
 });
 
@@ -96,13 +104,34 @@ export const crmImportSchema = z
   .object({
     pipeline_id: z.string().uuid().optional(),
     pipeline_nome: pipelineNameSchema.optional(),
-    file_name: z.string().trim().max(200).optional(),
+    file_name: clippedOptional(200),
     qualify: z.boolean().optional(),
     rows: z.array(importLeadRowSchema).min(1).max(IMPORT_MAX_ROWS),
   })
   .refine((value) => Boolean(value.pipeline_id || value.pipeline_nome), {
     message: "Escolha ou crie o nicho.",
   });
+
+export function importSchemaError(error: z.ZodError): string {
+  const issues = error.issues;
+  if (issues.some((issue) => issue.path[0] === "rows" && issue.code === "too_big")) {
+    return `Envie até ${IMPORT_MAX_ROWS} linhas.`;
+  }
+  if (issues.some((issue) => issue.path[0] === "rows" && issue.code === "too_small")) {
+    return "Envie pelo menos uma linha.";
+  }
+  if (
+    issues.some(
+      (issue) =>
+        issue.message === "Escolha ou crie o nicho." ||
+        issue.path[0] === "pipeline_id" ||
+        issue.path[0] === "pipeline_nome",
+    )
+  ) {
+    return "Escolha ou crie o nicho.";
+  }
+  return issues[0]?.message ?? "Não foi possível importar.";
+}
 
 export const crmInboundCreateSchema = z.object({
   nome: pipelineNameSchema,

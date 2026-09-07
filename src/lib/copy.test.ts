@@ -116,6 +116,10 @@ describe("COPY importações", () => {
     expect(COPY.importacoesIssueCnpjAction.toLowerCase()).toMatch(/mesmo assim/);
     expect(COPY.importacoesSkippedHint.toLowerCase()).toMatch(/não é erro/);
     expect(COPY.importacoesBadgeCreatedMany.replace("{n}", "11")).toBe("11 no CRM");
+    expect(COPY.importacoesLead).toMatch(/quadro/);
+    expect(COPY.importacoesImportAndQualify.toLowerCase()).toMatch(/qualificar/);
+    expect(COPY.importacoesIgnoreErrors).toBe("Ignorar");
+    expect(COPY.importacoesNeedNicheName.toLowerCase()).toMatch(/nicho/);
   });
 });
 

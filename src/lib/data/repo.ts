@@ -451,6 +451,10 @@ export type GridRepo = {
   ): Promise<CrmImportRun | null>;
   listCrmImportRuns(userId: string, limit?: number): Promise<CrmImportRun[]>;
   getCrmImportRun(userId: string, runId: string): Promise<CrmImportRun | null>;
+  ignoreCrmImportRunErrors(
+    userId: string,
+    runId: string,
+  ): Promise<CrmImportRun | null>;
   listCatchUpQualifiedCnpjs(
     userId: string,
     opts?: { searchId?: string; limit?: number },

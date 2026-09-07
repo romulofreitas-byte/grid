@@ -12,6 +12,8 @@ import { crmHref, gridHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
   IMPORT_RUNS_QUERY_KEY,
+  actionableImportErrors,
+  displayImportErrorCount,
   importRunTone,
   type PublicImportRun,
   type PublicImportRunDetail,
@@ -57,23 +59,14 @@ function IssueList({
   issues: CrmImportRunIssue[];
   status: CrmImportRunIssue["status"];
 }) {
-  const rows = issues.filter((issue) => issue.status === status).slice(0, 12);
+  const rows = issues.filter((issue) => issue.status === status);
   if (rows.length === 0) return null;
   return (
-    <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
-      {rows.map((issue) => (
-        <li key={`${issue.status}-${issue.row}-${issue.message}`}>
-          <span>
-            Linha {issue.row}: {issue.message}
-          </span>
-          {issue.company || issue.name || issue.cnpj ? (
-            <span className="block truncate pl-0 text-podium-muted">
-              {[issue.company, issue.name, issue.cnpj].filter(Boolean).join(" · ")}
-            </span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
+    <p className="mt-2 text-[11px] text-podium-muted">
+      {rows.length === 1
+        ? COPY.importacoesBadgeSkippedOne
+        : COPY.importacoesBadgeSkippedMany.replace("{n}", String(rows.length))}
+    </p>
   );
 }
 
@@ -105,18 +98,26 @@ function RunLinks({ run }: { run: PublicImportRun }) {
   );
 }
 
-function RunBadges({ run }: { run: PublicImportRun }) {
+function RunBadges({
+  run,
+  issues,
+}: {
+  run: PublicImportRun;
+  issues?: CrmImportRunIssue[];
+}) {
+  const errorCount = displayImportErrorCount(run, issues);
+  const display = { ...run, error_count: errorCount };
   return (
     <div className="mt-3 flex flex-wrap gap-1.5">
-      <Badge variant={importRunTone(run)}>{statusLabel(run)}</Badge>
+      <Badge variant={importRunTone(display)}>{statusLabel(display)}</Badge>
       {run.created > 0 ? (
         <Badge variant="success">{createdBadge(run.created)}</Badge>
       ) : null}
       {run.skipped > 0 ? (
         <Badge variant="neutral">{skippedBadge(run.skipped)}</Badge>
       ) : null}
-      {run.error_count > 0 ? (
-        <Badge variant="warning">{errorBadge(run.error_count)}</Badge>
+      {errorCount > 0 ? (
+        <Badge variant="warning">{errorBadge(errorCount)}</Badge>
       ) : null}
     </div>
   );
@@ -180,7 +181,9 @@ export function ImportHistory() {
   if (!last) return null;
 
   const shown = lastDetail.data ?? last;
-  const errors = lastDetail.data?.issues.filter((issue) => issue.status === "error") ?? [];
+  const errors = lastDetail.data
+    ? actionableImportErrors(lastDetail.data.issues)
+    : [];
   const skipped =
     lastDetail.data?.issues.filter((issue) => issue.status === "skipped") ?? [];
 
@@ -200,7 +203,7 @@ export function ImportHistory() {
             {shown.pipeline_nome ? ` · ${shown.pipeline_nome}` : ""}
           </p>
         </div>
-        <RunBadges run={shown} />
+        <RunBadges run={shown} issues={lastDetail.data?.issues} />
         <RunLinks run={shown} />
         {lastDetail.isPending ? (
           <p className="text-sm text-podium-muted">Abrindo o detalhe…</p>
@@ -241,8 +244,9 @@ export function ImportHistory() {
             {visibleOlder.map((run) => {
               const open = openId === run.id;
               const extra = open && olderDetail.data?.id === run.id ? olderDetail.data : null;
-              const extraErrors =
-                extra?.issues.filter((issue) => issue.status === "error") ?? [];
+              const extraErrors = extra
+                ? actionableImportErrors(extra.issues)
+                : [];
               return (
                 <li key={run.id}>
                   <button
@@ -259,7 +263,7 @@ export function ImportHistory() {
                     <span className="text-[11px] text-podium-muted">
                       {new Date(run.created_at).toLocaleString("pt-BR")}
                     </span>
-                    <RunBadges run={run} />
+                    <RunBadges run={run} issues={extra?.issues} />
                   </button>
                   {extra ? (
                     <div className="border-t border-white/10 px-3 pb-3">

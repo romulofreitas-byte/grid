@@ -565,7 +565,7 @@ export const COPY = {
     "Aqui o GRID envia lista e ligação para fora. Para um formulário, anúncio ou o Make criarem negócio no CRM, use Automações.",
   importacoesTitle: "Importações",
   importacoesLead:
-    "Planilha de fora. Os negócios entram no quadro; quem tiver CNPJ também vai para Minhas listas.",
+    "Planilha entra no quadro. CNPJ também vai para Minhas listas.",
   importacoesFileHint:
     "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:
@@ -623,6 +623,17 @@ export const COPY = {
     "1 linha não entrou. Corrija na última importação abaixo.",
   importacoesPanelFixPointerMany:
     "{n} linhas não entraram. Corrija na última importação abaixo.",
+  importacoesChooseFile: "CSV ou Excel",
+  importacoesChangeFile: "Trocar arquivo",
+  importacoesNeedFile: "Escolha o arquivo antes.",
+  importacoesNeedRows: "Nenhuma linha pronta para entrar.",
+  importacoesNeedNicheName: "Falta o nome do nicho.",
+  importacoesNeedNiche: "Escolha o nicho.",
+  importacoesImportAndQualify: "Importar e qualificar",
+  importacoesIgnoreErrors: "Ignorar",
+  importacoesIgnoring: "Ignorando…",
+  importacoesEmptySkippedOne: "1 linha vazia fica de fora.",
+  importacoesEmptySkippedMany: "{n} linhas vazias ficam de fora.",
 
   automacoesTitle: "Automações",
   automacoesLead:

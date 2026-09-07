@@ -125,6 +125,23 @@ describe("POST /api/crm/import", () => {
     );
   });
 
+  it("names the real validation error", async () => {
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    assertCrmAccess.mockResolvedValue({ enrichAllowed: true });
+    const res = await POST(
+      new Request("http://localhost/api/crm/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows: [{ name: "Maria" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Escolha ou crie o nicho." });
+    expect(applyImportLeads).not.toHaveBeenCalled();
+  });
+
   it("lists recent import runs", async () => {
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     assertCrmAccess.mockResolvedValue({ enrichAllowed: true });

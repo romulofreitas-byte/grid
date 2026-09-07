@@ -14,7 +14,12 @@ import {
   INBOUND_EVENT_KEEP,
   INBOUND_EVENT_LIST_LIMIT,
 } from "@/lib/crm/inbound-events";
-import { IMPORT_RUN_KEEP, IMPORT_RUN_LIST_LIMIT } from "@/lib/crm/import-history";
+import {
+  IMPORT_ISSUE_CAP,
+  IMPORT_RUN_KEEP,
+  IMPORT_RUN_LIST_LIMIT,
+  ignoreImportRunErrors,
+} from "@/lib/crm/import-history";
 import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
 import { resolveDecisor } from "@/lib/decisor";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
@@ -1030,7 +1035,7 @@ export const crmMockMethods = {
       matched_cnpjs: input.matchedCnpjs,
       list_id: input.listId ?? null,
       qualified: input.qualified,
-      issues: input.issues.slice(0, 500),
+      issues: input.issues.slice(0, IMPORT_ISSUE_CAP),
       created_at: nowIso(),
     };
     store.crm_import_runs.push(row);
@@ -1066,5 +1071,19 @@ export const crmMockMethods = {
       (item) => item.id === runId && item.user_id === userId,
     );
     return row ? { ...row, issues: [...row.issues] } : null;
+  },
+
+  async ignoreCrmImportRunErrors(
+    userId: string,
+    runId: string,
+  ): Promise<CrmImportRun | null> {
+    const store = getMockStore();
+    const index = store.crm_import_runs.findIndex(
+      (item) => item.id === runId && item.user_id === userId,
+    );
+    if (index < 0) return null;
+    const next = ignoreImportRunErrors(store.crm_import_runs[index]!);
+    store.crm_import_runs[index] = next;
+    return { ...next, issues: [...next.issues] };
   },
 };

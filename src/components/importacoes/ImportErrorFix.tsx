@@ -14,6 +14,7 @@ import {
 } from "@/lib/crm/import";
 import {
   IMPORT_RUNS_QUERY_KEY,
+  actionableImportErrors,
   importErrorCsvFilename,
   importErrorRowsCsv,
   type PublicImportRunDetail,
@@ -78,7 +79,7 @@ function fieldNeedsAttention(
 }
 
 function downloadErrors(run: PublicImportRunDetail) {
-  const csv = importErrorRowsCsv(run.issues);
+  const csv = importErrorRowsCsv(actionableImportErrors(run.issues));
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -91,7 +92,7 @@ function downloadErrors(run: PublicImportRunDetail) {
 export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
   const queryClient = useQueryClient();
   const errors = useMemo(
-    () => run.issues.filter((issue) => issue.status === "error"),
+    () => actionableImportErrors(run.issues),
     [run.issues],
   );
   const editable = errors.slice(0, IMPORT_ERROR_FIX_LIMIT);
@@ -141,6 +142,22 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
     },
   });
 
+  const ignore = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/crm/import/${run.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ignore_errors: true }),
+      });
+      const json = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Não foi possível ignorar");
+      return json;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: IMPORT_RUNS_QUERY_KEY });
+    },
+  });
+
   function patchDraft(row: number, field: ImportIssueField, value: string) {
     setDrafts((current) => {
       const previous = current[row] ?? {
@@ -160,30 +177,14 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
 
   return (
     <div className="space-y-4">
-      {groups.map((group) => {
-        const visible = group.issues.filter((issue) => editableRows.has(issue.row));
-        return (
-          <div key={group.kind.code === "unknown" ? group.kind.title : group.kind.code}>
-            <p className="text-sm font-semibold text-podium-white">
-              {issueGroupLabel(group.kind, group.issues.length)}
-            </p>
-            <Hint className="mt-1">{group.kind.action}</Hint>
-            {visible.length > 0 ? (
-              <ul className="mt-2 space-y-1 text-[11px] text-podium-muted">
-                {visible.map((issue) => {
-                  const diagnosis = importIssueDiagnosis(issue);
-                  return (
-                    <li key={issue.row}>
-                      Linha {issue.row}
-                      {diagnosis ? ` · ${diagnosis}` : ""}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        );
-      })}
+      {groups.map((group) => (
+        <div key={group.kind.code === "unknown" ? group.kind.title : group.kind.code}>
+          <p className="text-sm font-semibold text-podium-white">
+            {issueGroupLabel(group.kind, group.issues.length)}
+          </p>
+          <Hint className="mt-1">{group.kind.action}</Hint>
+        </div>
+      ))}
       {errors.length > editable.length ? (
         <p className="text-[11px] text-podium-muted">
           {COPY.importacoesFixesShown
@@ -269,12 +270,41 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
                 {COPY.importacoesSendAnyway}
               </Button>
             ) : null}
+            <Button
+              variant="ghost"
+              disabled={ignore.isPending || send.isPending}
+              onClick={() => ignore.mutate()}
+            >
+              {ignore.isPending
+                ? COPY.importacoesIgnoring
+                : COPY.importacoesIgnoreErrors}
+            </Button>
           </div>
           {anywayRows.length > readyRows.length ? (
             <Hint>{COPY.importacoesSendAnywayHint}</Hint>
           ) : null}
           {send.isError ? (
             <p className="text-sm text-podium-alert">{(send.error as Error).message}</p>
+          ) : null}
+          {ignore.isError ? (
+            <p className="text-sm text-podium-alert">{(ignore.error as Error).message}</p>
+          ) : null}
+        </div>
+      ) : errors.length > 0 ? (
+        <div>
+          <Button
+            variant="ghost"
+            disabled={ignore.isPending}
+            onClick={() => ignore.mutate()}
+          >
+            {ignore.isPending
+              ? COPY.importacoesIgnoring
+              : COPY.importacoesIgnoreErrors}
+          </Button>
+          {ignore.isError ? (
+            <p className="mt-2 text-sm text-podium-alert">
+              {(ignore.error as Error).message}
+            </p>
           ) : null}
         </div>
       ) : null}

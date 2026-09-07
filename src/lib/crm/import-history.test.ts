@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { COPY } from "@/lib/copy";
 import {
+  actionableImportErrors,
+  displayImportErrorCount,
+  ignoreImportRunErrors,
   importErrorCsvFilename,
   importErrorRowsCsv,
   importRunTone,
@@ -100,5 +103,76 @@ describe("import history", () => {
     );
     expect(importRunTone({ created: 3, skipped: 0, error_count: 1 })).toBe("warning");
     expect(importRunTone({ created: 3, skipped: 1, error_count: 0 })).toBe("success");
+  });
+
+  it("marks remaining errors as ignored", () => {
+    const ignored = ignoreImportRunErrors({
+      id: "r1",
+      user_id: "u1",
+      pipeline_id: null,
+      pipeline_nome: "Metal",
+      file_name: "leads.csv",
+      created: 1,
+      skipped: 0,
+      error_count: 2,
+      matched_cnpjs: 0,
+      list_id: null,
+      qualified: 0,
+      created_at: "2026-09-05T12:00:00.000Z",
+      issues: [
+        {
+          row: 2,
+          status: "error",
+          message: "CNPJ inválido",
+          company: "Oficina",
+          name: "",
+          phone: "",
+          email: "",
+          cnpj: "123",
+        },
+        {
+          row: 3,
+          status: "skipped",
+          message: IMPORT_SKIPPED_MESSAGE,
+          company: "",
+          name: "",
+          phone: "",
+          email: "",
+          cnpj: "",
+        },
+      ],
+    });
+    expect(ignored.error_count).toBe(0);
+    expect(ignored.issues[0]?.status).toBe("ignored");
+    expect(ignored.issues[1]?.status).toBe("skipped");
+  });
+
+  it("hides empty-row errors from the visible count", () => {
+    const issues = [
+      {
+        row: 2,
+        status: "error" as const,
+        message: "Linha vazia",
+        company: "",
+        name: "",
+        phone: "",
+        email: "",
+        cnpj: "",
+      },
+      {
+        row: 3,
+        status: "error" as const,
+        message: "CNPJ inválido",
+        company: "Oficina",
+        name: "",
+        phone: "",
+        email: "",
+        cnpj: "123",
+      },
+    ];
+    expect(actionableImportErrors(issues)).toHaveLength(1);
+    expect(
+      displayImportErrorCount({ error_count: 5 }, issues),
+    ).toBe(1);
   });
 });

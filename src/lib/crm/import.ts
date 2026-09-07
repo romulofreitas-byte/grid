@@ -320,6 +320,17 @@ export function mapImportLead(
   };
 }
 
+export function importRowsForSubmit(
+  rows: ImportLeadInput[],
+  mode: "ready" | "anyway",
+  max: number,
+): ImportLeadInput[] {
+  const prepared = rows
+    .slice(0, max)
+    .map((row) => (mode === "anyway" ? withoutInvalidCnpj(row) : row));
+  return prepared.filter((row) => mapImportLead(row).ok);
+}
+
 export function dealMatchesImportLead(
   deal: {
     cnpj: string | null;

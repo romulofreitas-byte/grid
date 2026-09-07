@@ -22,7 +22,7 @@ import {
   toPublicImportRun,
 } from "@/lib/crm/import-history";
 import { mapPool, pickUniqueCompanyHit } from "@/lib/crm/import-match";
-import { crmImportSchema } from "@/lib/crm/schema";
+import { crmImportSchema, importSchemaError } from "@/lib/crm/schema";
 import { canSearchCompanies } from "@/lib/data/company-search";
 import { getDataSource, getRepo } from "@/lib/data";
 import { processOwnedEnrichmentJobs } from "@/lib/enrichment/process-job";
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   if (isGuardReject(gated)) return gated;
   const parsed = crmImportSchema.safeParse(await readJson(req));
   if (!parsed.success) {
-    return jsonError("Envie até 500 linhas e escolha o nicho.");
+    return jsonError(importSchemaError(parsed.error));
   }
 
   const repo = getRepo();

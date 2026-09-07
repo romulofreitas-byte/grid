@@ -9,6 +9,7 @@ import type {
 
 export const IMPORT_RUN_LIST_LIMIT = 20;
 export const IMPORT_RUN_KEEP = 50;
+export const IMPORT_ISSUE_CAP = 1000;
 export const IMPORT_SKIPPED_MESSAGE = "Já estava no quadro";
 export const IMPORT_RUNS_QUERY_KEY = ["crm-import-runs"] as const;
 
@@ -85,6 +86,35 @@ export function toPublicImportRunDetail(
   return { ...toPublicImportRun(run), issues: run.issues };
 }
 
+export function actionableImportErrors(
+  issues: CrmImportRunIssue[],
+): CrmImportRunIssue[] {
+  return issues.filter(
+    (issue) =>
+      issue.status === "error" &&
+      classifyImportIssue(issue.message).code !== "empty_row",
+  );
+}
+
+export function displayImportErrorCount(
+  run: Pick<PublicImportRun, "error_count">,
+  issues?: CrmImportRunIssue[] | null,
+): number {
+  if (!issues) return run.error_count;
+  return actionableImportErrors(issues).length;
+}
+
+export function ignoreImportRunErrors(run: CrmImportRun): CrmImportRun {
+  const issues = run.issues.map((issue) =>
+    issue.status === "error" ? { ...issue, status: "ignored" as const } : issue,
+  );
+  return {
+    ...run,
+    issues,
+    error_count: issues.filter((issue) => issue.status === "error").length,
+  };
+}
+
 export function importRunTone(
   run: Pick<PublicImportRun, "created" | "skipped" | "error_count">,
 ): "success" | "warning" | "neutral" {
@@ -94,7 +124,9 @@ export function importRunTone(
 }
 
 function parseIssueStatus(value: unknown): CrmImportRunIssueStatus | null {
-  return value === "error" || value === "skipped" ? value : null;
+  return value === "error" || value === "skipped" || value === "ignored"
+    ? value
+    : null;
 }
 
 export function parseImportRunIssues(raw: unknown): CrmImportRunIssue[] {
@@ -116,7 +148,7 @@ export function parseImportRunIssues(raw: unknown): CrmImportRunIssue[] {
       email: clipImportField(String(row.email ?? ""), 120),
       cnpj: clipImportField(String(row.cnpj ?? ""), 32),
     });
-    if (out.length >= 500) break;
+    if (out.length >= IMPORT_ISSUE_CAP) break;
   }
   return out;
 }
