@@ -10,6 +10,40 @@ export function displayCompanyName(
   return razaoSocial.trim();
 }
 
+const TITLE_PARTICLES = new Set(["da", "das", "de", "do", "dos", "e", "del"]);
+const TITLE_LEGAL = new Set(["ltda", "me", "epp", "eireli", "sa", "s/a", "s.a", "s.a."]);
+
+/** Scannable label for the grid — keeps LTDA/ME and 2–3 letter marks. */
+export function titleCaseCompanyName(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token, index) => {
+      if (token === "&") return token;
+      const folded = token
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLocaleLowerCase("pt-BR")
+        .replace(/\.+$/, "");
+      if (TITLE_LEGAL.has(folded) || TITLE_LEGAL.has(token.toLocaleLowerCase("pt-BR"))) {
+        return token.toLocaleUpperCase("pt-BR");
+      }
+      const mixed = token !== token.toLocaleUpperCase("pt-BR")
+        && token !== token.toLocaleLowerCase("pt-BR");
+      if (mixed) return token;
+      if (TITLE_PARTICLES.has(folded) && index > 0) {
+        return token.toLocaleLowerCase("pt-BR");
+      }
+      if (token.length <= 3 && token === token.toLocaleUpperCase("pt-BR")) {
+        return token;
+      }
+      const lower = token.toLocaleLowerCase("pt-BR");
+      return lower.charAt(0).toLocaleUpperCase("pt-BR") + lower.slice(1);
+    })
+    .join(" ");
+}
+
 export function searchableCompanyName(
   nomeFantasia: string | null | undefined,
   razaoSocial: string,

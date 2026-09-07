@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gridPresenceFromEnrichment } from "./grid-presence";
+import { gridPresenceFromEnrichment, GRID_PRESENCE_GRID_IDS } from "./grid-presence";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
 
 const emptyTech: TechSignals = {
@@ -39,6 +39,17 @@ function enrichment(partial: Partial<LeadEnrichment> = {}): LeadEnrichment {
     ...partial,
   };
 }
+
+describe("GRID_PRESENCE_GRID_IDS", () => {
+  it("keeps four scannable marks for the results grid", () => {
+    expect([...GRID_PRESENCE_GRID_IDS]).toEqual([
+      "site",
+      "instagram",
+      "maps",
+      "whatsapp",
+    ]);
+  });
+});
 
 describe("gridPresenceFromEnrichment", () => {
   it("returns nothing without enrichment", () => {

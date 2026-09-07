@@ -5,12 +5,17 @@ export function PositionBadge({
   position,
   score,
   hasAudit = true,
+  caption = true,
+  size = "md",
   className,
 }: {
   position: number;
   score: number;
   /** False = score is RF-only (fit + contactability), without dor digital. */
   hasAudit?: boolean;
+  /** False = only the P chip (grid inline next to the company name). */
+  caption?: boolean;
+  size?: "md" | "sm";
   className?: string;
 }) {
   const band = scoreBand(score);
@@ -41,7 +46,10 @@ export function PositionBadge({
     >
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-lg px-2.5 py-1 text-xs font-bold tracking-wide",
+          "inline-flex items-center justify-center font-bold tracking-wide",
+          size === "sm"
+            ? "rounded-md px-1.5 py-0.5 text-[10px]"
+            : "rounded-lg px-2.5 py-1 text-xs",
           styles,
         )}
         title={
@@ -52,7 +60,7 @@ export function PositionBadge({
       >
         P{position}
       </span>
-      {!hasAudit ? (
+      {caption && !hasAudit ? (
         <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-podium-muted">
           Score — só cadastro
         </span>

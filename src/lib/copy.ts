@@ -330,6 +330,14 @@ export const COPY = {
   gridEmptyAdjust:
     "Nenhum lead nesta busca. Ajuste nicho, região ou qualidade — as escolhas atuais já vêm\u00a0preenchidas.",
   gridLigarOrdem: "ligar nesta ordem",
+  gridFilterAll: "Todas",
+  gridFilterQualified: "Qualificadas",
+  gridFilterCadastro: "Só cadastro",
+  gridFilterEmpty:
+    "Nenhuma empresa neste recorte. Carregue mais ou mude o filtro.",
+  gridQualified: "Qualificado",
+  gridCruzando: "Cruzando",
+  gridAtivosVazio: "Sem site e redes",
   salvarLista: "Salvar lista",
   salvarNaPista: "Salvar no CRM",
   salvarEstaLista: "Salvar esta lista",

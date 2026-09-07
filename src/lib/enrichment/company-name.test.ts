@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   displayCompanyName,
+  titleCaseCompanyName,
   domainSearchQueries,
   domainSearchFallbackQueries,
   domainSearchNationalFallbackQueries,
@@ -23,6 +24,19 @@ describe("displayCompanyName", () => {
     expect(displayCompanyName(null, "MARMORARIA CARVALHO LTDA")).toBe(
       "MARMORARIA CARVALHO LTDA",
     );
+  });
+});
+
+describe("titleCaseCompanyName", () => {
+  it("title-cases RF uppercase and keeps legal suffixes", () => {
+    expect(titleCaseCompanyName("VIDROBOX DE MONTES CLAROS LTDA")).toBe(
+      "Vidrobox de Montes Claros LTDA",
+    );
+    expect(titleCaseCompanyName("ML VIDROS")).toBe("ML Vidros");
+  });
+
+  it("leaves an already mixed fantasia alone", () => {
+    expect(titleCaseCompanyName("Marmoraria Carvalho")).toBe("Marmoraria Carvalho");
   });
 });
 

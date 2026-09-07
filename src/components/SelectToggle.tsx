@@ -22,7 +22,7 @@ export function SelectToggle({
   idleLabel: string;
   pressedLabel: string;
   ariaLabel?: string;
-  variant?: "button" | "text";
+  variant?: "button" | "text" | "checkbox";
   className?: string;
 }) {
   if (disabled) return null;
@@ -43,19 +43,46 @@ export function SelectToggle({
             variant: pressed ? "primary" : "secondary",
             size: "sm",
           }),
+        variant === "checkbox" &&
+          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition",
+        variant === "checkbox" &&
+          (pressed
+            ? "border-podium-yellow bg-podium-yellow text-podium-navy"
+            : "border-white/25 bg-transparent hover:border-podium-yellow/50"),
         className,
       )}
     >
-      {variant === "button" && pressed ? (
+      {variant === "checkbox" ? (
+        pressed ? <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden /> : null
+      ) : variant === "button" && pressed ? (
         <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
       ) : null}
-      {label}
+      {variant === "checkbox" ? null : label}
     </button>
   );
 }
 
-export function QualifyPendingButton({ ariaLabel }: { ariaLabel: string }) {
+export function QualifyPendingButton({
+  ariaLabel,
+  compact = false,
+}: {
+  ariaLabel: string;
+  compact?: boolean;
+}) {
   const { litCount } = useHoldLights(true, true);
+
+  if (compact) {
+    return (
+      <span
+        aria-busy
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        className="inline-flex h-5 w-5 items-center justify-center"
+      >
+        <StartingLights size="micro" phase="hold" litCount={litCount} />
+      </span>
+    );
+  }
 
   return (
     <button

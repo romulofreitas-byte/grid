@@ -8,7 +8,6 @@ import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-rea
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { ContactSealBadge } from "@/components/ContactSeal";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
 import { ListSummaryBadges } from "@/components/ListSummaryBadges";
@@ -16,7 +15,7 @@ import { PositionBadge } from "@/components/PositionBadge";
 import { SaveListDialog } from "@/components/SaveListDialog";
 import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
-import { QualifyPendingButton, SelectToggle } from "@/components/SelectToggle";
+import { SelectToggle } from "@/components/SelectToggle";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -34,8 +33,9 @@ import {
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { useLgUp } from "@/hooks/useMinWidth";
 import { sealLabel } from "@/lib/seal-display";
-import { displayCompanyName } from "@/lib/enrichment/company-name";
+import { displayCompanyName, titleCaseCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
+import { shortPersonName } from "@/lib/person-name";
 import type { EnrichmentJob, GridRow, Profile, Search } from "@/lib/types";
 import {
   ENRICH_QUEUE_STUCK_MS,
@@ -51,13 +51,13 @@ import {
   leadQueryKey,
   normalizeLeadCnpj,
 } from "@/lib/lead-query";
-import { ExportMenu } from "@/components/ExportDownload";
 import {
   ExportConfirmDialog,
   useExportCostConfirm,
 } from "@/components/ExportConfirmDialog";
 import { GridMoreMenu } from "@/components/GridMoreMenu";
 import { GridPresenceIcons } from "@/components/GridPresenceIcons";
+import { GRID_PRESENCE_GRID_IDS } from "@/lib/audit/grid-presence";
 import { formatEventWhen } from "@/lib/crm/events";
 import { qualifyCrmHint, type PublicCrmBridge } from "@/lib/crm/bridge";
 import { pickCallConnection } from "@/lib/integrations/call-target";
@@ -86,19 +86,13 @@ type EnrichBody = {
 
 const QUALIFY_BATCH_SIZES = [10, 20, 50] as const;
 
+type GridRowFilter = "all" | "qualified" | "cadastro";
+
 function isInteractiveTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
     Boolean(target.closest("a, button, input"))
   );
-}
-
-function jobChip(status: GridRow["enrichmentStatus"]) {
-  if (status === "pending") return "na fila";
-  if (status === "running") return "cruzando";
-  if (status === "done" || status === "skipped") return "qualificado";
-  if (status === "failed") return "não deu";
-  return null;
 }
 
 function isRowQualifying(row: GridRow, pendingCnpjs: Set<string>) {
@@ -131,38 +125,8 @@ function rowCompanyMeta(row: GridRow): string {
     const porte = formatPorte(row.porte);
     if (porte !== "NÃO ENCONTRADO") parts.push(porte);
   }
+  if (row.email) parts.push(row.email);
   return parts.join(" · ");
-}
-
-function rowSourceLabel(row: GridRow, qualifying: boolean): string {
-  if (qualifying) {
-    return jobChip(row.enrichmentStatus) ?? "cruzando";
-  }
-  return jobChip(row.enrichmentStatus) ?? (row.hasAudit ? "Qualificado" : "Receita");
-}
-
-function RowSourceStatus({
-  row,
-  qualifying,
-  className,
-}: {
-  row: GridRow;
-  qualifying: boolean;
-  className?: string;
-}) {
-  const label = rowSourceLabel(row, qualifying);
-  const qualified = isGridRowQualified(row, qualifying);
-  if (qualified) return null;
-  return (
-    <p
-      className={cn(
-        "text-[10px] uppercase tracking-wide text-podium-muted",
-        className,
-      )}
-    >
-      {label}
-    </p>
-  );
 }
 
 function GridCompanyLink({
@@ -178,7 +142,9 @@ function GridCompanyLink({
   onWarm: () => void;
   className?: string;
 }) {
-  const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
+  const name = titleCaseCompanyName(
+    displayCompanyName(row.nomeFantasia, row.razaoSocial),
+  );
   return (
     <Link
       href={leadHref(row.cnpj, searchId, from)}
@@ -200,31 +166,175 @@ function GridCompanyLink({
   );
 }
 
-function GridRowActions({
+function GridCompanyCell({
+  row,
+  searchId,
+  from,
+  qualifying,
+  onWarm,
+}: {
+  row: GridRow;
+  searchId: string;
+  from: ReturnType<typeof parseGridFrom>;
+  qualifying: boolean;
+  onWarm: () => void;
+}) {
+  const qualified = isGridRowQualified(row, qualifying);
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <PositionBadge
+        position={row.gridPosition}
+        score={row.gridScore}
+        hasAudit={qualified}
+        caption={false}
+        size="sm"
+        className="shrink-0"
+      />
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <GridCompanyLink
+            row={row}
+            searchId={searchId}
+            from={from}
+            onWarm={onWarm}
+            className="block min-w-0 flex-1"
+          />
+          {row.inCrm ? (
+            <span
+              title={COPY.crmOnGrid}
+              aria-label={COPY.crmOnGrid}
+              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-podium-yellow"
+            />
+          ) : null}
+        </div>
+        <p
+          className="truncate text-xs text-podium-muted"
+          title={rowCompanyMeta(row)}
+        >
+          {titleCaseCompanyName(row.municipio)}/{row.uf}
+        </p>
+        {qualified ? (
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-podium-success">
+            <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+            {COPY.gridQualified}
+          </p>
+        ) : qualifying ? (
+          <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-podium-yellow">
+            {COPY.gridCruzando}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function GridContactCell({ row }: { row: GridRow }) {
+  const ddd = row.telefone?.slice(0, 2) ?? null;
+  const tel = row.telefone?.slice(2) ?? null;
+  const phone = formatPhone(ddd, tel);
+  const fullName = row.decisorNome?.trim() || null;
+  const shortName = shortPersonName(fullName);
+  const phoneTitle = phone
+    ? sealLabel(row.seal, row.sharedCount)
+    : undefined;
+  if (!phone && !shortName) return <EmptyValue />;
+  return (
+    <div className="min-w-0">
+      {phone ? (
+        <p className="font-medium tabular-nums" title={phoneTitle}>
+          {phone}
+        </p>
+      ) : (
+        <EmptyValue />
+      )}
+      {shortName && fullName ? (
+        <p
+          className="truncate text-sm text-podium-gray"
+          title={fullName}
+          aria-label={fullName}
+        >
+          {shortName}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function GridPresenceCell({
+  row,
+  qualified,
+  className,
+}: {
+  row: GridRow;
+  qualified: boolean;
+  className?: string;
+}) {
+  const found = (row.presence ?? []).length > 0;
+  if (qualified && !found) {
+    return (
+      <span className={cn("text-podium-muted", className)} title={COPY.gridAtivosVazio}>
+        —
+      </span>
+    );
+  }
+  return (
+    <GridPresenceIcons
+      presence={row.presence}
+      showMissing={!qualified}
+      ids={!qualified ? GRID_PRESENCE_GRID_IDS : undefined}
+      iconClassName="h-4 w-4"
+      className={className}
+    />
+  );
+}
+
+function GridRowSelect({
+  row,
+  selected,
+  qualifying,
+  onToggle,
+  compact = false,
+}: {
+  row: GridRow;
+  selected: boolean;
+  qualifying: boolean;
+  onToggle: () => void;
+  compact?: boolean;
+}) {
+  const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
+  const qualified = isGridRowQualified(row, qualifying);
+  if (qualified || qualifying) return null;
+  return (
+    <SelectToggle
+      variant={compact ? "checkbox" : "button"}
+      pressed={selected}
+      onToggle={onToggle}
+      idleLabel="Selecionar"
+      pressedLabel="Selecionada"
+      className={compact ? undefined : "px-2"}
+      ariaLabel={selected ? `Selecionada ${name}` : `Selecionar ${name}`}
+    />
+  );
+}
+
+function GridRowCallActions({
   row,
   searchId,
   callConnection,
-  selected,
-  qualifying,
   canRemove,
-  onToggle,
   onRemove,
   stacked = false,
 }: {
   row: GridRow;
   searchId: string;
   callConnection: ReturnType<typeof pickCallConnection>;
-  selected: boolean;
-  qualifying: boolean;
   canRemove: boolean;
-  onToggle: () => void;
   onRemove: () => void;
   stacked?: boolean;
 }) {
   const [dialed, setDialed] = useState(false);
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
   const name = displayCompanyName(row.nomeFantasia, row.razaoSocial);
-  const qualified = isGridRowQualified(row, qualifying);
   const phoneLabel = formatPhone(
     row.telefone?.slice(0, 2) ?? null,
     row.telefone?.slice(2) ?? null,
@@ -237,37 +347,6 @@ function GridRowActions({
         stacked ? "flex-wrap whitespace-normal" : "whitespace-nowrap",
       )}
     >
-      {qualified ? (
-        <div className="flex items-center gap-1">
-          <Badge
-            variant="success"
-            className="h-6 shrink-0 px-1.5 text-[10px] uppercase"
-          >
-            Qualificado
-          </Badge>
-          {row.inCrm ? (
-            <Badge
-              variant="accent"
-              className="h-6 shrink-0 px-1.5 text-[10px] uppercase"
-            >
-              {COPY.crmOnGrid}
-            </Badge>
-          ) : null}
-        </div>
-      ) : qualifying ? (
-        <QualifyPendingButton ariaLabel={`Qualificando ${name}`} />
-      ) : (
-        <SelectToggle
-          pressed={selected}
-          onToggle={onToggle}
-          idleLabel="Selecionar"
-          pressedLabel="Selecionada"
-          className="px-2"
-          ariaLabel={
-            selected ? `Selecionada ${name}` : `Selecionar ${name}`
-          }
-        />
-      )}
       <CallButton
         telHref={telHref}
         connection={callConnection}
@@ -275,7 +354,10 @@ function GridRowActions({
         searchId={searchId}
         to={row.telefone ? `+55${row.telefone}` : undefined}
         variant="grid"
-        className={cn("px-2", stacked && "min-h-11 flex-1 text-sm")}
+        iconOnly={!stacked}
+        className={cn(
+          stacked ? "min-h-11 flex-1 px-2 text-sm" : "h-8 w-8 px-0",
+        )}
         titleHint={COPY.callDialHint}
         companyName={name}
         phoneLabel={phoneLabel}
@@ -296,7 +378,12 @@ function GridRowActions({
           title={COPY.tirarDaLista}
           aria-label={`${COPY.tirarDaLista} ${name}`}
           onClick={onRemove}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-podium-muted hover:bg-white/5 hover:text-podium-yellow"
+          className={cn(
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-podium-muted hover:bg-white/5 hover:text-podium-yellow",
+            stacked
+              ? undefined
+              : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+          )}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -329,6 +416,7 @@ export default function GridPage() {
   const [confirmAll, setConfirmAll] = useState(false);
   const [connectionId, setConnectionId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [rowFilter, setRowFilter] = useState<GridRowFilter>("all");
   const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
   const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
@@ -634,9 +722,25 @@ export default function GridPage() {
   const unaudited = query.data?.pages[0]?.unaudited ?? 0;
   const canExport = total > 0 && unaudited < total;
 
+  const viewRows = useMemo(() => {
+    if (rowFilter === "qualified") {
+      return rows.filter((r) =>
+        isGridRowQualified(r, isRowQualifying(r, pendingCnpjs)),
+      );
+    }
+    if (rowFilter === "cadastro") {
+      return rows.filter(
+        (r) =>
+          !isGridRowQualified(r, isRowQualifying(r, pendingCnpjs)) &&
+          !isRowQualifying(r, pendingCnpjs),
+      );
+    }
+    return rows;
+  }, [rows, rowFilter, pendingCnpjs]);
+
   const visibleUnaudited = useMemo(
-    () => rows.filter((r) => !r.hasAudit && !isRowQualifying(r, pendingCnpjs)),
-    [rows, pendingCnpjs],
+    () => viewRows.filter((r) => !r.hasAudit && !isRowQualifying(r, pendingCnpjs)),
+    [viewRows, pendingCnpjs],
   );
   const selectedCount = selected.size;
   const allVisibleSelected =
@@ -888,6 +992,18 @@ export default function GridPage() {
               {COPY.gridLigarOrdem}
             </span>
           </span>
+          <Select
+            value={rowFilter}
+            onChange={(value) => setRowFilter(value as GridRowFilter)}
+            size="sm"
+            aria-label="Filtrar linhas"
+            className="w-[9.5rem]"
+            options={[
+              { value: "all", label: COPY.gridFilterAll },
+              { value: "qualified", label: COPY.gridFilterQualified },
+              { value: "cadastro", label: COPY.gridFilterCadastro },
+            ]}
+          />
           {search?.filtros ? (
             <ListSummaryBadges
               filters={search.filtros}
@@ -912,7 +1028,7 @@ export default function GridPage() {
           </p>
         ) : null}
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant="primary"
@@ -921,9 +1037,9 @@ export default function GridPage() {
             onClick={() =>
               requestQualify({ scope: "first_unaudited", limit: callGoal })
             }
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 lg:flex-none"
           >
-            {COPY.qualificar} ({callGoal})
+            {desktop ? COPY.qualificarMetaHoje : COPY.qualificar} ({callGoal})
           </Button>
           <GridMoreMenu
             qualifyPending={enrichMutation.isPending}
@@ -940,60 +1056,6 @@ export default function GridPage() {
             exportCostHint={exportCostHint}
             onPickFormat={exportCost.askExport}
             sendSection={renderSendControls()}
-          />
-        </div>
-        <div className="hidden flex-wrap gap-2 md:flex">
-          <Button
-            size="sm"
-            variant="primary"
-            title={creditsEach(ENRICH_CREDIT_COST)}
-            disabled={enrichMutation.isPending || unaudited === 0}
-            onClick={() =>
-              requestQualify({ scope: "first_unaudited", limit: callGoal })
-            }
-          >
-            {COPY.qualificarMetaHoje} ({callGoal})
-          </Button>
-          {extraBatchSizes.map((size) => (
-            <Button
-              key={size}
-              size="sm"
-              variant="secondary"
-              title={creditsEach(ENRICH_CREDIT_COST)}
-              disabled={enrichMutation.isPending || unaudited === 0}
-              onClick={() =>
-                requestQualify({ scope: "first_unaudited", limit: size })
-              }
-            >
-              Qualificar {size}
-            </Button>
-          ))}
-          {confirmAll ? (
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={enrichMutation.isPending || unaudited === 0}
-              onClick={() => requestQualify({ scope: "all_unaudited" })}
-            >
-              Confirmar {unaudited} · {allCost} créditos
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="secondary"
-              title={creditsEach(ENRICH_CREDIT_COST)}
-              disabled={unaudited === 0}
-              onClick={() => setConfirmAll(true)}
-            >
-              Qualificar a lista inteira ({unaudited})
-            </Button>
-          )}
-          {renderSendControls()}
-          <ExportMenu
-            disabled={!canExport}
-            disabledHint={COPY.exportNeedsQualify}
-            costHint={exportCostHint}
-            onPickFormat={exportCost.askExport}
           />
         </div>
       </div>
@@ -1098,43 +1160,42 @@ export default function GridPage() {
         </GlassCard>
       ) : (
         <>
-      {desktop ? (
+      {viewRows.length === 0 ? (
+        <GlassCard className="p-5 text-sm text-podium-muted">
+          <p>{COPY.gridFilterEmpty}</p>
+        </GlassCard>
+      ) : desktop ? (
       <GlassCard className="hover:translate-y-0">
         <table className="w-full table-fixed text-left text-sm">
           <colgroup>
-            <col className="w-[18rem]" />
-            <col className="w-[10rem]" />
-            <col />
-            <col className="w-[8rem]" />
-            <col className="w-[11.5rem]" />
-            <col className="w-[12rem]" />
+            <col className="w-10" />
+            <col className="w-[40%]" />
+            <col className="w-[22%]" />
+            <col className="w-[24%]" />
+            <col className="w-16" />
           </colgroup>
           <thead className="sticky top-14 z-20 border-b border-white/10 bg-podium-panel/95 text-xs uppercase tracking-wide text-podium-muted backdrop-blur-xl">
             <tr>
               <th className="px-2 py-2">
-                <div className="flex flex-col items-start gap-1">
-                  <span>Ações</span>
-                  <SelectToggle
-                    variant="text"
-                    pressed={allVisibleSelected}
-                    disabled={visibleUnaudited.length === 0}
-                    onToggle={toggleVisible}
-                    idleLabel="Selecionar visíveis"
-                    pressedLabel="Limpar visíveis"
-                  />
-                </div>
+                <SelectToggle
+                  variant="checkbox"
+                  pressed={allVisibleSelected}
+                  disabled={visibleUnaudited.length === 0}
+                  onToggle={toggleVisible}
+                  idleLabel="Selecionar visíveis"
+                  pressedLabel="Limpar visíveis"
+                />
               </th>
-              <th className="px-2 py-2">Pos.</th>
               <th className="px-3 py-2">Empresa</th>
               <th className="px-2 py-2">Ativos</th>
-              <th className="px-3 py-2">Telefone</th>
-              <th className="px-3 py-2">Decisor</th>
+              <th className="px-3 py-2">Contato</th>
+              <th className="px-2 py-2">
+                <span className="sr-only">Ligar</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
-              const ddd = row.telefone?.slice(0, 2) ?? null;
-              const tel = row.telefone?.slice(2) ?? null;
+            {viewRows.map((row) => {
               const qualifying = isRowQualifying(row, pendingCnpjs);
               const qualified = isGridRowQualified(row, qualifying);
               return (
@@ -1143,81 +1204,42 @@ export default function GridPage() {
                   onClick={(e) => onRowClick(e, row)}
                   onPointerEnter={() => warmLead(row)}
                   className={cn(
-                    "cursor-pointer border-b border-white/5 [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto] hover:bg-white/[0.03]",
+                    "group cursor-pointer border-b border-white/5 [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto] hover:bg-white/[0.03]",
                     selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
                   )}
                 >
-                  <td className="whitespace-nowrap px-2 py-2 align-middle">
-                    <GridRowActions
+                  <td className="px-2 py-2 align-middle">
+                    <GridRowSelect
                       row={row}
-                      searchId={searchId}
-                      callConnection={callConnection}
                       selected={selected.has(row.cnpj)}
                       qualifying={qualifying}
-                      canRemove={Boolean(search?.saved)}
                       onToggle={() => toggleRow(row)}
-                      onRemove={() => setAskRemoveCnpj(row.cnpj)}
-                    />
-                  </td>
-                  <td className="px-2 py-2 align-middle">
-                    <PositionBadge
-                      position={row.gridPosition}
-                      score={row.gridScore}
-                      hasAudit={qualified}
-                    />
-                    <RowSourceStatus
-                      row={row}
-                      qualifying={qualifying}
-                      className="mt-1"
+                      compact
                     />
                   </td>
                   <td className="min-w-0 px-3 py-2 align-middle">
-                    <GridCompanyLink
+                    <GridCompanyCell
                       row={row}
                       searchId={searchId}
                       from={from}
+                      qualifying={qualifying}
                       onWarm={() => warmLead(row)}
-                      className="block"
                     />
-                    <p
-                      className="truncate text-xs text-podium-muted"
-                      title={row.cnaeDescricao}
-                    >
-                      {rowCompanyMeta(row)}
-                    </p>
-                    {row.email ? (
-                      <p
-                        className="mt-0.5 truncate text-[11px] text-podium-muted/80"
-                        title={row.email}
-                      >
-                        {row.email}
-                      </p>
-                    ) : null}
                   </td>
                   <td className="px-2 py-2 align-middle">
-                    <GridPresenceIcons presence={row.presence} />
+                    <GridPresenceCell row={row} qualified={qualified} />
                   </td>
                   <td className="px-3 py-2 align-middle">
-                    {formatPhone(ddd, tel) ? (
-                      <div className="min-w-0">
-                        <p className="font-medium tabular-nums">
-                          {formatPhone(ddd, tel)}
-                        </p>
-                        <ContactSealBadge
-                          compact
-                          seal={row.seal}
-                          label={sealLabel(row.seal, row.sharedCount)}
-                          className="mt-0.5"
-                        />
-                      </div>
-                    ) : (
-                      <EmptyValue />
-                    )}
+                    <GridContactCell row={row} />
                   </td>
-                  <td className="px-3 py-2 align-middle">
-                    <p className="break-words leading-snug">
-                      {row.decisorNome ?? <EmptyValue />}
-                    </p>
+                  <td className="px-2 py-2 align-middle">
+                    <GridRowCallActions
+                      row={row}
+                      searchId={searchId}
+                      callConnection={callConnection}
+                      canRemove={Boolean(search?.saved)}
+                      onRemove={() => setAskRemoveCnpj(row.cnpj)}
+                    />
                   </td>
                 </tr>
               );
@@ -1227,9 +1249,7 @@ export default function GridPage() {
       </GlassCard>
       ) : (
       <div className="space-y-3">
-        {rows.map((row) => {
-          const ddd = row.telefone?.slice(0, 2) ?? null;
-          const tel = row.telefone?.slice(2) ?? null;
+        {viewRows.map((row) => {
           const qualifying = isRowQualifying(row, pendingCnpjs);
           const qualified = isGridRowQualified(row, qualifying);
           return (
@@ -1239,64 +1259,38 @@ export default function GridPage() {
               onClick={(e) => onRowClick(e, row)}
               onPointerEnter={() => warmLead(row)}
               className={cn(
-                "relative cursor-pointer p-4 hover:translate-y-0",
+                "group relative cursor-pointer p-4 hover:translate-y-0",
                 selected.has(row.cnpj) && "bg-podium-yellow/[0.04]",
               )}
             >
               <div className="min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <GridCompanyLink
-                    row={row}
-                    searchId={searchId}
-                    from={from}
-                    onWarm={() => warmLead(row)}
-                    className="min-w-0"
-                  />
-                  <PositionBadge
-                    position={row.gridPosition}
-                    score={row.gridScore}
-                    hasAudit={qualified}
-                  />
+                <GridCompanyCell
+                  row={row}
+                  searchId={searchId}
+                  from={from}
+                  qualifying={qualifying}
+                  onWarm={() => warmLead(row)}
+                />
+                <GridPresenceCell
+                  row={row}
+                  qualified={qualified}
+                  className="mt-2"
+                />
+                <div className="mt-2">
+                  <GridContactCell row={row} />
                 </div>
-                <RowSourceStatus row={row} qualifying={qualifying} />
-                <p
-                  className="mt-1 truncate text-xs text-podium-muted"
-                  title={row.cnaeDescricao}
-                >
-                  {rowCompanyMeta(row)}
-                </p>
-                {row.email ? (
-                  <p
-                    className="mt-0.5 truncate text-[11px] text-podium-muted/80"
-                    title={row.email}
-                  >
-                    {row.email}
-                  </p>
-                ) : null}
-                <GridPresenceIcons presence={row.presence} className="mt-1.5" />
-                <p className="mt-2 text-sm tabular-nums">
-                  {formatPhone(ddd, tel) ?? <EmptyValue />}
-                </p>
-                {formatPhone(ddd, tel) ? (
-                  <ContactSealBadge
-                    compact
-                    seal={row.seal}
-                    label={sealLabel(row.seal, row.sharedCount)}
-                    className="mt-0.5"
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <GridRowSelect
+                    row={row}
+                    selected={selected.has(row.cnpj)}
+                    qualifying={qualifying}
+                    onToggle={() => toggleRow(row)}
                   />
-                ) : null}
-                <p className="mt-1 break-words text-sm text-podium-gray">
-                  Decisor: {row.decisorNome ?? "NÃO ENCONTRADO"}
-                </p>
-                <div className="mt-3">
-                  <GridRowActions
+                  <GridRowCallActions
                     row={row}
                     searchId={searchId}
                     callConnection={callConnection}
-                    selected={selected.has(row.cnpj)}
-                    qualifying={qualifying}
                     canRemove={Boolean(search?.saved)}
-                    onToggle={() => toggleRow(row)}
                     onRemove={() => setAskRemoveCnpj(row.cnpj)}
                     stacked
                   />

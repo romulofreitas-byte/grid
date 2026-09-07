@@ -16,6 +16,14 @@ export const GRID_PRESENCE_IDS = [
   "whatsapp",
 ] as const satisfies readonly GridPresenceId[];
 
+/** Compact set for the results grid — enough to invite qualify without noise. */
+export const GRID_PRESENCE_GRID_IDS = [
+  "site",
+  "instagram",
+  "maps",
+  "whatsapp",
+] as const satisfies readonly GridPresenceId[];
+
 export const GRID_PRESENCE_MARK: Record<
   GridPresenceId,
   { name: string; logo: string; initials: string; accent: string }
