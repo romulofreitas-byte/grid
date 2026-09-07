@@ -157,6 +157,30 @@ describe("applyPresenceCorrection", () => {
     expect(result.row.whatsapp).toBe("5531999887766");
   });
 
+  it("stores a landline WhatsApp number", () => {
+    const result = applyPresenceCorrection(enrichment(), {
+      whatsapp: "+55 48 3344-0378",
+    });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.whatsapp).toBe("554833440378");
+  });
+
+  it("stores a landline WhatsApp from wa.me", () => {
+    const result = applyPresenceCorrection(enrichment(), {
+      whatsapp: "https://wa.me/554833440378",
+    });
+    expect(result.kind).toBe("patch");
+    if (result.kind !== "patch") return;
+    expect(result.row.whatsapp).toBe("554833440378");
+  });
+
+  it("rejects 0800 as WhatsApp", () => {
+    expect(() =>
+      applyPresenceCorrection(enrichment(), { whatsapp: "08001234567" }),
+    ).toThrow(PresenceCorrectionError);
+  });
+
   it("stores a Maps cid from a Google listing URL", () => {
     const result = applyPresenceCorrection(enrichment(), {
       gmb: "https://www.google.com/maps?cid=918273",

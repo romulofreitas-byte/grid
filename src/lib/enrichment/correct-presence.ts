@@ -222,7 +222,8 @@ function instagramUrl(raw: string): string {
 function whatsappDigits(raw: string): string {
   const fromHref = raw.match(WA_HREF)?.[1];
   const phone = normalizePhoneBR(fromHref ?? raw);
-  if (!phone || phone.tipo !== "movel") {
+  // WhatsApp Business accepts landlines; reject 0800/0300/etc.
+  if (!phone || phone.tipo === "especial") {
     throw new PresenceCorrectionError("WhatsApp inválido.");
   }
   return phone.e164.replace("+", "");
