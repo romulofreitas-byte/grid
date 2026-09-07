@@ -190,6 +190,8 @@ describe("COPY crm", () => {
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);
     expect(COPY.crmBridgePartial).toMatch(/não entraram no crm/i);
+    expect(COPY.lockedLightsReplay).toMatch(/luzes/i);
+    expect(COPY.lockedHighlightHint).toMatch(/pro/i);
     expect(COPY.salvarNaPista).toBe("Salvar no CRM");
     expect(COPY.listaDaVolta).toMatch(/lista/i);
   });

@@ -25,7 +25,7 @@ export function DemoModeBanner() {
   return (
     <div
       role="status"
-      className="border-b border-amber-400/30 bg-amber-400/15 px-4 py-2 text-center text-xs font-medium text-amber-100"
+      className="border-b border-podium-yellow/30 bg-podium-yellow/10 px-4 py-2 text-center text-xs font-medium text-podium-yellow"
     >
       Dados de demonstração — RF sintético (mock). Contagens, selos e CRM não
       refletem a Receita Federal.

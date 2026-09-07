@@ -41,6 +41,17 @@ describe("supportWhatsAppHref", () => {
     expect(href).toContain("(%2F)");
   });
 
+  it("builds wa.me with waitlist intent", () => {
+    const href = supportWhatsAppHref({
+      phone: "5531953491412",
+      name: "Rômulo",
+      pathname: "/automacoes",
+      intent: "piloto_pro_waitlist",
+    });
+    expect(href).toContain("Piloto%20Pro");
+    expect(href).toContain("automa");
+  });
+
   it("returns null without a number", () => {
     expect(supportWhatsAppHref({ phone: "" })).toBeNull();
   });

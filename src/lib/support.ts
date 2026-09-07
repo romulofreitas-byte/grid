@@ -1,7 +1,10 @@
+export type SupportWhatsAppIntent = "help" | "piloto_pro_waitlist" | "equipe";
+
 export type SupportWhatsAppOptions = {
   name?: string | null;
   pathname?: string | null;
   phone?: string | null;
+  intent?: SupportWhatsAppIntent;
 };
 
 /** Digits for wa.me (country code 55, no +). Null if the number is missing or invalid. */
@@ -27,6 +30,12 @@ export function supportWhatsAppHref(
   if (!digits) return null;
   const name = options.name?.trim() || "Piloto";
   const screen = options.pathname?.trim() || "/";
-  const text = `Olá, sou ${name} e estou no GRID (${screen}). Preciso de ajuda.`;
+  const intent = options.intent ?? "help";
+  const text =
+    intent === "piloto_pro_waitlist"
+      ? `Olá, sou ${name} e estou no GRID (${screen}). Quero entrar na lista do Piloto Pro (automações).`
+      : intent === "equipe"
+        ? `Olá, sou ${name} e estou no GRID (${screen}). Quero equipe na mesma conta.`
+        : `Olá, sou ${name} e estou no GRID (${screen}). Preciso de ajuda.`;
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }

@@ -98,6 +98,31 @@ describe("membro-plataforma FAQ", () => {
   });
 });
 
+describe("piloto-pro FAQ", () => {
+  it("says Automações wait for Piloto Pro waitlist", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "piloto-pro");
+    expect(item?.answer).toMatch(/Piloto Pro/);
+    expect(item?.answer).toMatch(/lista/);
+    expect(item?.links?.[0]?.href).toBe("/planos#piloto-pro");
+  });
+});
+
+describe("marcar-ganho FAQ", () => {
+  it("talks about the company as a new client", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "marcar-ganho");
+    expect(item?.answer).toMatch(/novo cliente/);
+    expect(item?.answer).toMatch(/onboarding/);
+  });
+});
+
+describe("trial-acabou FAQ", () => {
+  it("says packs do not reopen CRM", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "trial-acabou");
+    expect(item?.answer).toMatch(/não reabre/);
+    expect(item?.links).toEqual([{ href: "/planos", label: "Ver planos" }]);
+  });
+});
+
 describe("faqGrouped", () => {
   it("keeps category order and drops empty groups", () => {
     const selos = FAQ_ITEMS.filter((item) => item.id === "selos");

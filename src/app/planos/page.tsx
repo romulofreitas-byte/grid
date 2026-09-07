@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { PlanCard } from "@/components/billing/PlanCard";
+import { PilotoProWaitlistCta } from "@/components/billing/PilotoProWaitlistCta";
 import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -36,19 +37,24 @@ export default async function PlanosPage({
       <div className="mt-8 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         {billed.map((plan) => {
           const featured = plan.sku === "piloto";
+          const waitlist = plan.sku === "piloto_pro";
           const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
           const ctaClass = featured
             ? buttonClassName({ variant: "primary", size: "md", className: "w-full" })
             : onSale
               ? buttonClassName({ variant: "secondary", size: "md", className: "w-full" })
               : buttonClassName({
-                  variant: "secondary",
+                  variant: "primary",
                   size: "md",
-                  className: "w-full cursor-not-allowed opacity-50",
+                  className: "w-full",
                 });
           return (
-            <PlanCard
+            <div
               key={plan.sku}
+              id={plan.sku === "piloto_pro" ? "piloto-pro" : undefined}
+              className="scroll-mt-24 h-full"
+            >
+            <PlanCard
               plan={plan}
               featured={featured}
               eyebrow={
@@ -56,7 +62,9 @@ export default async function PlanosPage({
                   ? COPY.landingPlansFeatured
                   : plan.sku === "free"
                     ? "Começar"
-                    : "Assinatura"
+                    : waitlist
+                      ? COPY.landingPlansProEyebrow
+                      : "Assinatura"
               }
               cta={
                 onSale ? (
@@ -70,13 +78,20 @@ export default async function PlanosPage({
                       ? "Continuar no treino"
                       : "Pagar com Pix"}
                   </Link>
+                ) : waitlist ? (
+                  <PilotoProWaitlistCta pathname="/planos" />
                 ) : (
-                  <span aria-disabled="true" className={ctaClass}>
+                  <span aria-disabled="true" className={buttonClassName({
+                    variant: "secondary",
+                    size: "md",
+                    className: "w-full cursor-not-allowed opacity-50",
+                  })}>
                     {COPY.landingPlansCtaSoon}
                   </span>
                 )
               }
             />
+            </div>
           );
         })}
       </div>

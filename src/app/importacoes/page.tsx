@@ -1,12 +1,9 @@
-import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
 import { ImportacoesPanel } from "@/components/importacoes/ImportacoesPanel";
-import { buttonClassName } from "@/components/ui/Button";
 import { BACK } from "@/lib/back";
 import { requireSession } from "@/lib/auth/session";
-import { withFrom } from "@/lib/billing/href";
-import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
@@ -15,29 +12,13 @@ import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 function ImportLocked({ trialExpired }: { trialExpired: boolean }) {
-  const copy = paywallCopy({
-    kind: trialExpired ? "trial" : "plan",
-    feature: "crm",
-  });
   return (
     <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
-      <GlassCard className="p-3">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-          {copy.eyebrow}
-        </p>
-        <p className="mt-2 text-sm font-semibold">{copy.title}</p>
-        <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
-        <Link
-          href={withFrom(copy.primary.href, "/importacoes")}
-          className={buttonClassName({
-            variant: "primary",
-            size: "md",
-            className: "mt-3",
-          })}
-        >
-          {copy.primary.label}
-        </Link>
-      </GlassCard>
+      <FeatureLockedPage
+        feature="crm"
+        trialExpired={trialExpired}
+        from="/importacoes"
+      />
     </AppShell>
   );
 }

@@ -1,5 +1,8 @@
+import { supportWhatsAppHref } from "@/lib/support";
+
 export const PLANOS_URL = "/planos";
 export const RECARGA_URL = "/planos#recarga";
+export const PLANOS_PRO_URL = "/planos#piloto-pro";
 
 export type BillingGateCode = "plan_required" | "insufficient_credits" | "trial_expired";
 export type PaywallKind = "plan" | "credits" | "trial";
@@ -23,9 +26,9 @@ export type PaywallCopy = {
   eyebrow: string;
   title: string;
   body: string;
-  primary: { href: string; label: string };
+  primary: { href: string; label: string; external?: boolean };
   secondary:
-    | { href: string; label: string }
+    | { href: string; label: string; external?: boolean }
     | { action: "close"; label: string };
 };
 
@@ -176,12 +179,18 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
   }
   if (state.kind === "plan") {
     if (state.feature === "automations") {
+      const waitlist = supportWhatsAppHref({
+        pathname: "/automacoes",
+        intent: "piloto_pro_waitlist",
+      });
       return {
         eyebrow: "Piloto Pro",
         title: "Automações entra no Piloto Pro",
-        body: "Formulário, anúncio e Make alimentam o quadro no Pro. No Piloto você importa a planilha e liga pelo\u00a0CRM.",
-        primary: { href: PLANOS_URL, label: "Ver planos" },
-        secondary: { action: "close", label: "Fechar" },
+        body: "Formulário, anúncio e Make alimentam o quadro no Pro. Entre na lista — o Pro ainda não está à venda no checkout.",
+        primary: waitlist
+          ? { href: waitlist, label: "Quero o Piloto Pro", external: true }
+          : { href: PLANOS_PRO_URL, label: "Quero o Piloto Pro" },
+        secondary: { href: PLANOS_PRO_URL, label: "Ver o Pro" },
       };
     }
     if (state.feature === "crm") {

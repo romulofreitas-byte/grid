@@ -18,6 +18,7 @@ import {
   grantManualCredits,
   handleNormalizedEvent,
   opsGrantPlatformTrial,
+  opsGrantPlan,
   revokeManualCredits,
 } from "@/lib/billing/service";
 import {
@@ -640,5 +641,21 @@ describe("billing service", () => {
     });
     const again = await opsGrantPlatformTrial(profileId, { force: true });
     expect(again.status).toBe("paid");
+  });
+
+  it("lets ops grant Piloto Pro even when the sku is off sale", async () => {
+    const cache = globalThis as typeof globalThis & {
+      __crmAccessCache?: Map<string, unknown>;
+    };
+    cache.__crmAccessCache?.clear();
+    const order = await opsGrantPlan(profileId, "piloto_pro");
+    expect(order.status).toBe("paid");
+    expect(order.sku).toBe("piloto_pro");
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("piloto_pro");
+    expect(bal.enrichAllowed).toBe(true);
+    await expect(assertAutomationsAccess(profileId)).resolves.toMatchObject({
+      plano: "piloto_pro",
+    });
   });
 });

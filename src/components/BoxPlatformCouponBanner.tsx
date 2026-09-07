@@ -1,34 +1,13 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { pagarHref, planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
 import { buttonClassName } from "@/components/ui/Button";
 
 export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) {
-  const reduce = useReducedMotion();
-
   return (
-    <motion.div
-      className="relative overflow-hidden rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-2.5 md:p-3"
-      animate={
-        reduce
-          ? undefined
-          : {
-              boxShadow: [
-                "0 0 0 0 rgba(245, 179, 1, 0)",
-                "0 0 24px 2px rgba(245, 179, 1, 0.35)",
-                "0 0 0 0 rgba(245, 179, 1, 0)",
-              ],
-            }
-      }
-      transition={
-        reduce
-          ? undefined
-          : { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-      }
-    >
+    <div className="relative overflow-hidden rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-2.5 shadow-[0_0_0_1px_rgba(245,179,1,0.12)] md:p-3">
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
         Mundo Pódium
       </p>
@@ -58,6 +37,6 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
           Ativar com cupom
         </Link>
       )}
-    </motion.div>
+    </div>
   );
 }

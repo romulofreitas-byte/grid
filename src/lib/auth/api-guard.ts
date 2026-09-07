@@ -60,6 +60,30 @@ export async function guardPublicApi(
   return null;
 }
 
+export async function guardSessionOrOpsApi(
+  req: Request,
+  bucket: RateBucket,
+): Promise<{ userId: string; email: string | null } | NextResponse> {
+  const hit = await rateLimit(clientIp(req), bucket);
+  if (!hit.ok) return limitedResponse(hit.resetAt);
+  if (opsCredentialsConfigured() && isOpsRequestAuthenticated(req)) {
+    return { userId: "ops", email: opsEmail() };
+  }
+  return guardApi(req, bucket);
+}
+
+export async function guardAdminOrOpsApi(
+  req: Request,
+  bucket: RateBucket,
+): Promise<{ userId: string; email: string | null } | NextResponse> {
+  const hit = await rateLimit(clientIp(req), bucket);
+  if (!hit.ok) return limitedResponse(hit.resetAt);
+  if (opsCredentialsConfigured() && isOpsRequestAuthenticated(req)) {
+    return { userId: "ops", email: opsEmail() };
+  }
+  return guardAdminApi(req, bucket);
+}
+
 export async function guardOpsApi(
   req: Request,
   bucket: RateBucket,

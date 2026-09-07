@@ -99,6 +99,13 @@ import {
 import { crmPgMethods } from "@/lib/data/crm-pg";
 import { catchupPgMethods } from "@/lib/data/catchup-pg";
 import type { GridRepo } from "@/lib/data/repo";
+import {
+  emptyListPerformance,
+  GRID_RECORTES,
+  indexListPerformance,
+  type GridRecorte,
+  type ListPerformance,
+} from "@/lib/listas/performance";
 import { unsavedIdsToPrune } from "@/lib/searches";
 import type {
   IntegrationConnectionRecord,
@@ -1698,6 +1705,86 @@ async function fetchByCnpjs(
   };
 }
 
+function cnpjDigitsSql(column: string): string {
+  return `lpad(regexp_replace(coalesce(${column}, ''), '[^0-9]', '', 'g'), 14, '0')`;
+}
+
+function listWonExistsSql(userParam: string): string {
+  return `exists (
+    select 1 from crm_deals d
+    join crm_pipelines p on p.id = d.pipeline_id
+    where p.user_id = ${userParam}
+      and d.meta->>'searchId' = sl.search_id::text
+      and d.outcome = 'won'
+      and coalesce(d.cnpj, '') <> ''
+      and ${cnpjDigitsSql("d.cnpj")} = rtrim(sl.cnpj)
+  )`;
+}
+
+function listLostExistsSql(userParam: string): string {
+  return `exists (
+    select 1 from crm_deals d
+    join crm_pipelines p on p.id = d.pipeline_id
+    where p.user_id = ${userParam}
+      and d.meta->>'searchId' = sl.search_id::text
+      and d.outcome = 'lost'
+      and coalesce(d.cnpj, '') <> ''
+      and ${cnpjDigitsSql("d.cnpj")} = rtrim(sl.cnpj)
+  )`;
+}
+
+function listSliceSql(userParam: string, withCrm: boolean): string {
+  if (!withCrm) {
+    return `case
+      when sl.status = 'descartado' then 'perdidos'
+      when sl.status in ('ligando', 'reuniao') then 'em_acao'
+      else 'parados'
+    end`;
+  }
+  return `case
+    when ${listWonExistsSql(userParam)} then 'ganhos'
+    when sl.status = 'descartado' or ${listLostExistsSql(userParam)} then 'perdidos'
+    when sl.status in ('ligando', 'reuniao') then 'em_acao'
+    else 'parados'
+  end`;
+}
+
+function listQualifiedSql(userParam: string): string {
+  return `(
+    exists (
+      select 1 from billed_cnpjs b
+      where b.profile_id = ${userParam}
+        and b.kind = 'enrich'
+        and rtrim(b.cnpj) = rtrim(sl.cnpj)
+    )
+    or exists (
+      select 1 from enrichment_jobs j
+      where j.search_id = sl.search_id
+        and rtrim(j.cnpj) = rtrim(sl.cnpj)
+        and j.status in ('done', 'skipped')
+    )
+  )`;
+}
+
+function listCalledSql(userParam: string): string {
+  return `exists (
+    select 1 from call_events ce
+    where ce.user_id = ${userParam}
+      and (ce.saved_lead_id = sl.id or rtrim(ce.cnpj) = rtrim(sl.cnpj))
+  )`;
+}
+
+function gridRecortePredicate(
+  recorte: GridRecorte,
+  userParam: string,
+  withCrm: boolean,
+): string {
+  if (recorte === "qualificadas") return `and ${listQualifiedSql(userParam)}`;
+  if (recorte === "cadastro") return `and not ${listQualifiedSql(userParam)}`;
+  if (recorte === "ligacoes") return `and ${listCalledSql(userParam)}`;
+  return `and (${listSliceSql(userParam, withCrm)}) = '${recorte}'`;
+}
+
 async function countUnaudited(searchId: string, userId: string, fallback: number): Promise<number> {
   try {
     const { rows } = await query<{ n: number }>(
@@ -2951,6 +3038,66 @@ export const supabaseRepo: GridRepo = {
     }
   },
 
+  async listSearchPerformance(userId, searchIds) {
+    const ids = [...new Set(searchIds.filter(Boolean))];
+    if (ids.length === 0) return [];
+    const empty = ids.map((id) => emptyListPerformance(id));
+    const run = async (withCrm: boolean): Promise<Record<string, ListPerformance>> => {
+      const slice = listSliceSql("$1", withCrm);
+      const { rows } = await query<{
+        search_id: string;
+        total: number;
+        parados: number;
+        em_acao: number;
+        ganhos: number;
+        perdidos: number;
+        qualified: number;
+        called: number;
+      }>(
+        `select
+            sl.search_id::text as search_id,
+            count(*)::int as total,
+            count(*) filter (where (${slice}) = 'parados')::int as parados,
+            count(*) filter (where (${slice}) = 'em_acao')::int as em_acao,
+            count(*) filter (where (${slice}) = 'ganhos')::int as ganhos,
+            count(*) filter (where (${slice}) = 'perdidos')::int as perdidos,
+            count(*) filter (where ${listQualifiedSql("$1")})::int as qualified,
+            count(*) filter (where ${listCalledSql("$1")})::int as called
+           from saved_leads sl
+          where sl.user_id = $1
+            and sl.search_id = any($2::uuid[])
+          group by sl.search_id`,
+        [userId, ids],
+      );
+      return indexListPerformance(
+        rows.map((row) => ({
+          searchId: String(row.search_id),
+          total: Number(row.total ?? 0),
+          parados: Number(row.parados ?? 0),
+          em_acao: Number(row.em_acao ?? 0),
+          ganhos: Number(row.ganhos ?? 0),
+          perdidos: Number(row.perdidos ?? 0),
+          qualified: Number(row.qualified ?? 0),
+          called: Number(row.called ?? 0),
+        })),
+        ids,
+      );
+    };
+    try {
+      const byId = await run(true);
+      return ids.map((id) => byId[id] ?? emptyListPerformance(id));
+    } catch (err) {
+      if (!isUndefinedTableError(err)) throw err;
+      try {
+        const byId = await run(false);
+        return ids.map((id) => byId[id] ?? emptyListPerformance(id));
+      } catch (inner) {
+        if (isUndefinedTableError(inner)) return empty;
+        throw inner;
+      }
+    }
+  },
+
   async saveSearch(searchId, patch) {
     const current = await this.getSearch(searchId);
     if (!current) return undefined;
@@ -3142,25 +3289,62 @@ export const supabaseRepo: GridRepo = {
     });
   },
 
-  async listGridRows(searchId, cursor = 0, limit = 50) {
+  async listGridRows(searchId, cursor = 0, limit = 50, recorte) {
     const search = await this.getSearch(searchId);
-    if (!search) return { rows: [], nextCursor: null, total: 0, unaudited: 0 };
-    const [totalRes, pageRes] = await Promise.all([
-      query<{ n: number }>(
-        "select count(*)::int as n from saved_leads where search_id = $1",
-        [searchId],
-      ),
-      query(
-        `select cnpj, grid_score, grid_position, enrichment
-         from saved_leads
-         where search_id = $1
-         order by grid_position
-         limit $2 offset $3`,
-        [searchId, limit, cursor],
-      ),
-    ]);
-    const total = Number(totalRes.rows[0]?.n ?? 0);
-    const page = pageRes.rows;
+    if (!search) {
+      return { rows: [], nextCursor: null, total: 0, listTotal: 0, unaudited: 0 };
+    }
+    const safeRecorte =
+      recorte && (GRID_RECORTES as readonly string[]).includes(recorte)
+        ? recorte
+        : null;
+
+    const listTotalRes = await query<{ n: number }>(
+      "select count(*)::int as n from saved_leads where search_id = $1",
+      [searchId],
+    );
+    const listTotal = Number(listTotalRes.rows[0]?.n ?? 0);
+
+    const loadPage = async (withCrm: boolean) => {
+      const countPred = safeRecorte
+        ? ` ${gridRecortePredicate(safeRecorte, "$2", withCrm)}`
+        : "";
+      const pagePred = safeRecorte
+        ? ` ${gridRecortePredicate(safeRecorte, "$4", withCrm)}`
+        : "";
+      const countParams = safeRecorte ? [searchId, search.user_id] : [searchId];
+      const pageParams = safeRecorte
+        ? [searchId, limit, cursor, search.user_id]
+        : [searchId, limit, cursor];
+      const [totalRes, pageRes] = await Promise.all([
+        query<{ n: number }>(
+          `select count(*)::int as n from saved_leads sl where sl.search_id = $1${countPred}`,
+          countParams,
+        ),
+        query(
+          `select sl.cnpj, sl.grid_score, sl.grid_position, sl.enrichment
+             from saved_leads sl
+            where sl.search_id = $1${pagePred}
+            order by sl.grid_position
+            limit $2 offset $3`,
+          pageParams,
+        ),
+      ]);
+      return {
+        total: Number(totalRes.rows[0]?.n ?? 0),
+        page: pageRes.rows,
+      };
+    };
+
+    let pageResult: Awaited<ReturnType<typeof loadPage>>;
+    try {
+      pageResult = await loadPage(true);
+    } catch (err) {
+      if (!safeRecorte || !isUndefinedTableError(err)) throw err;
+      pageResult = await loadPage(false);
+    }
+    const total = pageResult.total;
+    const page = pageResult.page;
     const nextCursor = cursor + limit < total ? cursor + limit : null;
 
     const parsed = page.map((lead) => {
@@ -3183,7 +3367,7 @@ export const supabaseRepo: GridRepo = {
     );
 
     const [unaudited, rfRows] = await Promise.all([
-      countUnaudited(searchId, search.user_id, total),
+      countUnaudited(searchId, search.user_id, listTotal),
       missing.length
         ? rowsFromReceita(missing, leadByCnpj).catch(
             () => new Map<string, GridRow>(),
@@ -3205,7 +3389,7 @@ export const supabaseRepo: GridRepo = {
       /* snapshots / RF rows still render */
     }
 
-    return { rows, nextCursor, total, unaudited, discoveryRetryCnpjs };
+    return { rows, nextCursor, total, listTotal, unaudited, discoveryRetryCnpjs };
   },
 
   async listUnauditedCnpjs(searchId, opts) {

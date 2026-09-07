@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookmarkMinus, BookmarkPlus, Plus } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
+import { ListPerformanceBoard } from "@/components/ListPerformanceBoard";
 import { ListSearchMenu } from "@/components/ListSearchMenu";
 import { ListSummaryBadges } from "@/components/ListSummaryBadges";
 import { ListTile } from "@/components/ListTile";
@@ -12,6 +13,8 @@ import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
 import { formatRelativeShort } from "@/lib/format";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
+import type { ListPerformance } from "@/lib/listas/performance";
+import { emptyListPerformance } from "@/lib/listas/performance";
 import {
   applySearchSaved,
   partitionSearches,
@@ -32,9 +35,11 @@ type ListFilter = "salvas" | "rascunhos";
 export function ListsBoard({
   initial,
   pipelineNomes = [],
+  performanceById = {},
 }: {
   initial: Search[];
   pipelineNomes?: string[];
+  performanceById?: Record<string, ListPerformance>;
 }) {
   const [searches, setSearches] = useState(initial);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -213,6 +218,9 @@ export function ListsBoard({
                   unsaved={!item.saved}
                   selected={item.id === selectedId}
                   error={errors[item.id]}
+                  performance={
+                    item.saved ? performanceById[item.id] : undefined
+                  }
                   onSelect={() => setSelectedId(item.id)}
                 />
               ))}
@@ -228,6 +236,17 @@ export function ListsBoard({
                 ? pistaNomeForSearch(selected, pipelineNomes)
                 : null
             }
+            performance={
+              selected.saved
+                ? (performanceById[selected.id] ??
+                  emptyListPerformance(selected.id))
+                : null
+            }
+            otherHasWin={saved.some(
+              (row) =>
+                row.id !== selected.id &&
+                (performanceById[row.id]?.ganhos ?? 0) > 0,
+            )}
             error={errors[selected.id]}
             pending={pendingId === selected.id}
             onToggleSaved={(next) => void toggleSaved(selected, next)}
@@ -250,6 +269,8 @@ export function ListsBoard({
 function ListDetail({
   search,
   pistaNome,
+  performance,
+  otherHasWin,
   error,
   pending,
   onToggleSaved,
@@ -257,6 +278,8 @@ function ListDetail({
 }: {
   search: Search;
   pistaNome?: string | null;
+  performance?: ListPerformance | null;
+  otherHasWin?: boolean;
   error?: string | null;
   pending?: boolean;
   onToggleSaved: (saved: boolean) => void;
@@ -328,6 +351,17 @@ function ListDetail({
           />
         )}
       </div>
+      {unsaved ? (
+        <p className="mt-4 rounded-lg border border-dashed border-white/15 bg-white/[0.02] px-2.5 py-2 text-[12px] leading-snug text-podium-muted">
+          {COPY.listasDraftBoard}
+        </p>
+      ) : performance ? (
+        <ListPerformanceBoard
+          searchId={search.id}
+          stats={performance}
+          otherHasWin={otherHasWin}
+        />
+      ) : null}
     </GlassCard>
   );
 }

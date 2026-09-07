@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { OPS_LOGIN_HANDLE } from "./handle";
 import {
   credentialsMatch,
   DEFAULT_OPS_EMAIL,
   OPS_COOKIE,
   OPS_SESSION_MS,
+  normalizeOpsLoginIdentity,
   opsCredentialsConfigured,
   opsEmail,
   readOpsCookieFromHeader,
@@ -23,6 +25,13 @@ describe("ops auth", () => {
     expect(credentialsMatch(DEFAULT_OPS_EMAIL, "x")).toBe(false);
   });
 
+  it("maps @podiumadmin to the ops email", () => {
+    expect(OPS_LOGIN_HANDLE).toBe("@podiumadmin");
+    expect(normalizeOpsLoginIdentity("@podiumadmin")).toBe(DEFAULT_OPS_EMAIL);
+    expect(normalizeOpsLoginIdentity("PodiumAdmin")).toBe(DEFAULT_OPS_EMAIL);
+    expect(normalizeOpsLoginIdentity(DEFAULT_OPS_EMAIL)).toBe(DEFAULT_OPS_EMAIL);
+  });
+
   it("defaults the email and matches credentials", () => {
     vi.stubEnv("GRID_OPS_PASSWORD", "s3nha-ops");
     vi.stubEnv("GRID_OPS_SECRET", "signing-secret");
@@ -30,8 +39,14 @@ describe("ops auth", () => {
     expect(credentialsMatch("Administracao@Combustivelmv.com", "s3nha-ops")).toBe(
       true,
     );
+    expect(credentialsMatch("@podiumadmin", "s3nha-ops")).toBe(true);
+    expect(credentialsMatch("podiumadmin", "s3nha-ops")).toBe(true);
+    expect(credentialsMatch("PodiumAdmin@combustivelmv.com", "s3nha-ops")).toBe(
+      true,
+    );
     expect(credentialsMatch("other@x.com", "s3nha-ops")).toBe(false);
     expect(credentialsMatch(DEFAULT_OPS_EMAIL, "wrong")).toBe(false);
+    expect(credentialsMatch("@podiumadmin", "wrong")).toBe(false);
   });
 
   it("signs a cookie that expires after 12h", () => {

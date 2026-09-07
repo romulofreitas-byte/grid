@@ -5,6 +5,7 @@ import {
   opsFiltersQueryString,
   opsFiltersToSearchParams,
   parseOpsDashboardFilters,
+  parseOpsTab,
   parseOpsUserListParams,
   toggleOpsDimension,
   withOpsRange,
@@ -74,5 +75,20 @@ describe("ops dashboard filters", () => {
     expect(parsed.limit).toBe(100);
     expect(parsed.offset).toBe(0);
     expect(parsed.filters.range).toBe("7d");
+    expect(parsed.sort).toBe("created");
+  });
+
+  it("parses ranking sort", () => {
+    const parsed = parseOpsUserListParams(
+      new URLSearchParams("sort=calls&limit=25"),
+    );
+    expect(parsed.sort).toBe("calls");
+    expect(parsed.limit).toBe(25);
+  });
+
+  it("parses ops tabs", () => {
+    expect(parseOpsTab(new URLSearchParams("tab=ranking"))).toBe("ranking");
+    expect(parseOpsTab(new URLSearchParams())).toBe("visao");
+    expect(parseOpsTab(new URLSearchParams("tab=nope"))).toBe("visao");
   });
 });

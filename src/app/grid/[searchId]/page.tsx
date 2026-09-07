@@ -52,6 +52,10 @@ import {
   normalizeLeadCnpj,
 } from "@/lib/lead-query";
 import {
+  parseGridRowFilter,
+  type GridRowFilter,
+} from "@/lib/listas/performance";
+import {
   ExportConfirmDialog,
   useExportCostConfirm,
 } from "@/components/ExportConfirmDialog";
@@ -65,8 +69,17 @@ import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
 import { cn } from "@/lib/utils";
 
-async function fetchPage(searchId: string, cursor: number) {
-  const res = await fetch(`/api/grid/${searchId}?cursor=${cursor}&limit=50`, {
+async function fetchPage(
+  searchId: string,
+  cursor: number,
+  recorte: GridRowFilter,
+) {
+  const params = new URLSearchParams({
+    cursor: String(cursor),
+    limit: "50",
+  });
+  if (recorte !== "all") params.set("recorte", recorte);
+  const res = await fetch(`/api/grid/${searchId}?${params}`, {
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error("Não foi possível carregar a lista");
@@ -74,6 +87,7 @@ async function fetchPage(searchId: string, cursor: number) {
     rows: GridRow[];
     nextCursor: number | null;
     total: number;
+    listTotal?: number;
     unaudited: number;
   }>;
 }
@@ -85,8 +99,6 @@ type EnrichBody = {
 };
 
 const QUALIFY_BATCH_SIZES = [10, 20, 50] as const;
-
-type GridRowFilter = "all" | "qualified" | "cadastro";
 
 function isInteractiveTarget(target: EventTarget | null) {
   return (
@@ -416,7 +428,16 @@ export default function GridPage() {
   const [confirmAll, setConfirmAll] = useState(false);
   const [connectionId, setConnectionId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [rowFilter, setRowFilter] = useState<GridRowFilter>("all");
+  const rowFilter = parseGridRowFilter(searchParams.get("recorte"));
+  function applyRowFilter(value: GridRowFilter) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all") params.delete("recorte");
+    else params.set("recorte", value);
+    const query = params.toString();
+    router.replace(query ? `/grid/${searchId}?${query}` : `/grid/${searchId}`, {
+      scroll: false,
+    });
+  }
   const [pendingCnpjs, setPendingCnpjs] = useState<Set<string>>(new Set());
   const [markingAll, setMarkingAll] = useState(false);
   const [removingCnpj, setRemovingCnpj] = useState<string | null>(null);
@@ -661,8 +682,8 @@ export default function GridPage() {
   }
 
   const query = useInfiniteQuery({
-    queryKey: ["grid", searchId],
-    queryFn: ({ pageParam }) => fetchPage(searchId, pageParam),
+    queryKey: ["grid", searchId, rowFilter],
+    queryFn: ({ pageParam }) => fetchPage(searchId, pageParam, rowFilter),
     initialPageParam: 0,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
@@ -719,11 +740,12 @@ export default function GridPage() {
   rowsRef.current = rows;
 
   const total = query.data?.pages[0]?.total ?? 0;
+  const listTotal = query.data?.pages[0]?.listTotal ?? total;
   const unaudited = query.data?.pages[0]?.unaudited ?? 0;
-  const canExport = total > 0 && unaudited < total;
+  const canExport = listTotal > 0 && unaudited < listTotal;
 
   const viewRows = useMemo(() => {
-    if (rowFilter === "qualified") {
+    if (rowFilter === "qualificadas") {
       return rows.filter((r) =>
         isGridRowQualified(r, isRowQualifying(r, pendingCnpjs)),
       );
@@ -994,14 +1016,19 @@ export default function GridPage() {
           </span>
           <Select
             value={rowFilter}
-            onChange={(value) => setRowFilter(value as GridRowFilter)}
+            onChange={(value) => applyRowFilter(value as GridRowFilter)}
             size="sm"
             aria-label="Filtrar linhas"
-            className="w-[9.5rem]"
+            className="w-[11rem]"
             options={[
               { value: "all", label: COPY.gridFilterAll },
-              { value: "qualified", label: COPY.gridFilterQualified },
+              { value: "qualificadas", label: COPY.gridFilterQualified },
               { value: "cadastro", label: COPY.gridFilterCadastro },
+              { value: "ligacoes", label: COPY.gridFilterLigacoes },
+              { value: "parados", label: COPY.gridFilterParados },
+              { value: "em_acao", label: COPY.gridFilterEmAcao },
+              { value: "ganhos", label: COPY.gridFilterGanhos },
+              { value: "perdidos", label: COPY.gridFilterPerdidos },
             ]}
           />
           {search?.filtros ? (

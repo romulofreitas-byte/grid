@@ -5,6 +5,7 @@ import {
   conexoesLegacyRedirect,
   crmHref,
   gridBack,
+  gridHref,
   largadaEditHref,
   largadaIntentHref,
   largadaNovaHref,
@@ -61,6 +62,15 @@ describe("conexoesHref", () => {
     expect(conexoesLegacyRedirect("dialer")).toBe("/integracoes/discador");
     expect(conexoesLegacyRedirect("voip")).toBe("/integracoes/voip");
     expect(conexoesLegacyRedirect(null)).toBe("/integracoes/voip");
+  });
+});
+
+describe("gridHref", () => {
+  it("keeps the origin and optional recorte", () => {
+    expect(gridHref("abc", "listas")).toBe("/grid/abc?from=listas");
+    expect(gridHref("abc", "listas", { recorte: "ganhos" })).toBe(
+      "/grid/abc?from=listas&recorte=ganhos",
+    );
   });
 });
 

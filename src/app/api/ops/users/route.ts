@@ -6,12 +6,12 @@ import { listOpsUsers, OpsDataError } from "@/lib/ops/metrics";
 export async function GET(req: Request) {
   const gated = await guardOpsApi(req, "read");
   if (gated instanceof NextResponse) return gated;
-  const { filters, q, limit, offset } = parseOpsUserListParams(
+  const { filters, q, limit, offset, sort } = parseOpsUserListParams(
     new URL(req.url).searchParams,
   );
   try {
     return NextResponse.json(
-      await listOpsUsers({ q, filters, limit, offset }),
+      await listOpsUsers({ q, filters, limit, offset, sort }),
     );
   } catch (err) {
     if (err instanceof OpsDataError) {

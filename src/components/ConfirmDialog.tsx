@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
@@ -100,24 +101,26 @@ export function ConfirmDialog({
           <p className="mt-3 text-sm text-podium-muted">{body}</p>
         ) : null}
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="md"
             disabled={pending}
             onClick={onClose}
-            className="h-8 rounded-md px-3 text-xs font-medium text-podium-muted hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
           >
             {cancelLabel}
-          </button>
-          <button
+          </Button>
+          <Button
             ref={primaryRef}
             type="button"
+            variant="primary"
+            size="md"
             disabled={pending}
             onClick={onConfirm}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-gradient-to-b from-[#ffc933] to-podium-yellow px-3 text-xs font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
           >
             {confirmIcon}
             {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

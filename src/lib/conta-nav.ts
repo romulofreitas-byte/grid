@@ -23,7 +23,7 @@ export const CONTA_NAV: readonly ContaNavItem[] = [
   { href: "/conta/plano", label: "Plano", icon: Wallet },
   { href: "/conta/conexoes", label: "Conexões", icon: Cable },
   { href: "/conta/ajuda", label: "Ajuda", icon: CircleHelp },
-  { href: "/conta/equipe", label: "Equipe", icon: Users, soon: true },
+  { href: "/conta/equipe", label: "Equipe", icon: Users },
 ];
 
 export function isContaNavActive(href: string, pathname: string): boolean {

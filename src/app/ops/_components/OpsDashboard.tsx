@@ -12,6 +12,9 @@ import {
   OpsStackedArea,
 } from "@/app/ops/_components/OpsCharts";
 import { OpsFilterBar } from "@/app/ops/_components/OpsFilterBar";
+import { OpsNav, useOpsTab } from "@/app/ops/_components/OpsNav";
+import { OpsRanking } from "@/app/ops/_components/OpsRanking";
+import { OpsUsabilidade } from "@/app/ops/_components/OpsUsabilidade";
 import { OpsUsersTable } from "@/app/ops/_components/OpsUsersTable";
 import {
   OPS_CHART,
@@ -32,7 +35,9 @@ import {
 import type { OpsCohort } from "@/lib/ops/classify";
 import {
   opsFiltersQueryString,
+  opsFiltersToSearchParams,
   parseOpsDashboardFilters,
+  parseOpsTab,
   toggleOpsDimension,
   type OpsDashboardFilters,
   type OpsFilterDimension,
@@ -135,6 +140,7 @@ export function OpsDashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const tab = useOpsTab();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [offset, setOffset] = useState(0);
@@ -154,7 +160,10 @@ export function OpsDashboard() {
   }, [debounced, searchParams]);
 
   function setFilters(next: OpsDashboardFilters) {
-    const qs = opsFiltersQueryString(next);
+    const params = opsFiltersToSearchParams(next);
+    const currentTab = parseOpsTab(searchParams);
+    if (currentTab !== "visao") params.set("tab", currentTab);
+    const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
@@ -173,11 +182,16 @@ export function OpsDashboard() {
   });
 
   const usersQuery = useQuery({
-    queryKey: ["ops-users", qs, debounced, offset],
+    queryKey: ["ops-users", qs, debounced, offset, tab],
     queryFn: async () => {
       const params = new URLSearchParams(qs);
       if (debounced) params.set("q", debounced);
-      if (offset) params.set("offset", String(offset));
+      if (tab === "ranking") {
+        params.set("sort", "calls");
+        params.set("limit", "25");
+      } else if (offset) {
+        params.set("offset", String(offset));
+      }
       const url = params.toString()
         ? `/api/ops/users?${params}`
         : "/api/ops/users";
@@ -272,14 +286,31 @@ export function OpsDashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <SectionTitle>Uso e faturamento</SectionTitle>
+        <SectionTitle>
+          {tab === "ranking"
+            ? "Ranking"
+            : tab === "conta"
+              ? "Conta do piloto"
+              : tab === "usabilidade"
+                ? "Usabilidade"
+                : tab === "mercado"
+                  ? "Mercado"
+                  : "Uso e faturamento"}
+        </SectionTitle>
         <Hint className="mt-1">
-          Hoje = quem buscou, qualificou, ligou ou pagou neste dia. Nos outros
-          períodos, foto de pessoas = agora e eventos = recorte. Funil = quem
-          cadastrou no período. Testes internos ficam de fora. Clique cruza o
-          recorte.
+          {tab === "ranking"
+            ? "Top ligações, qualificações e ganhos no recorte, com a foto do piloto."
+            : tab === "conta"
+              ? "Busque o piloto e abra a ficha para créditos, trial e upgrade."
+              : tab === "usabilidade"
+                ? "Onde a pessoa parou depois do cadastro."
+                : tab === "mercado"
+                  ? "Onde estão procurando: nicho, UF e CNAE."
+                  : "Hoje = quem buscou, qualificou, ligou ou pagou neste dia. Nos outros períodos, foto de pessoas = agora e eventos = recorte. Funil = quem cadastrou no período. Testes internos ficam de fora. Clique cruza o recorte."}
         </Hint>
       </div>
+
+      <OpsNav tab={tab} />
 
       <OpsFilterBar
         filters={filters}
@@ -291,6 +322,14 @@ export function OpsDashboard() {
         <p className="text-sm text-podium-alert">{error}</p>
       ) : null}
 
+      {tab === "ranking" ? (
+        <OpsRanking users={users} loading={usersQuery.isLoading} />
+      ) : null}
+
+      {tab === "usabilidade" ? <OpsUsabilidade metrics={m} /> : null}
+
+      {tab === "visao" ? (
+      <>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Usuários" value={m ? formatInt(m.users) : "—"} />
         <Kpi
@@ -380,7 +419,10 @@ export function OpsDashboard() {
           </OpsChartCard>
         </div>
       </div>
+      </>
+      ) : null}
 
+      {tab === "mercado" ? (
       <div>
         <SectionTitle>Mercado</SectionTitle>
         <Hint className="mt-1">
@@ -492,7 +534,10 @@ export function OpsDashboard() {
           </OpsChartCard>
         </div>
       </div>
+      ) : null}
 
+      {tab === "visao" ? (
+      <>
       <div>
         <SectionTitle>Qualificação e recarga</SectionTitle>
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -647,7 +692,10 @@ export function OpsDashboard() {
           </OpsChartCard>
         </div>
       </div>
+      </>
+      ) : null}
 
+      {tab === "conta" ? (
       <OpsUsersTable
         users={users}
         total={totalUsers}
@@ -657,6 +705,7 @@ export function OpsDashboard() {
         onOffset={setOffset}
         loading={usersQuery.isLoading}
       />
+      ) : null}
     </div>
   );
 }

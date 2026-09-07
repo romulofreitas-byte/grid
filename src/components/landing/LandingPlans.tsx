@@ -4,6 +4,7 @@ import { COPY } from "@/lib/copy";
 import { isSkuOnSale, PLANS } from "@/lib/billing/catalog";
 import { pagarHref } from "@/lib/billing/href";
 import { PlanCard } from "@/components/billing/PlanCard";
+import { PilotoProWaitlistCta } from "@/components/billing/PilotoProWaitlistCta";
 import { buttonClassName } from "@/components/ui/Button";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
           {BILLED.map((plan, i) => {
             const featured = plan.sku === "piloto";
             const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
+            const waitlist = plan.sku === "piloto_pro";
             const href =
               plan.sku === "free"
                 ? signedIn
@@ -50,21 +52,24 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                   : COPY.landingPlansCtaFree
                 : onSale
                   ? COPY.landingPlansCtaPaid
-                  : COPY.landingPlansCtaSoon;
+                  : waitlist
+                    ? COPY.landingPlansCtaWaitlist
+                    : COPY.landingPlansCtaSoon;
             const ctaClass = featured
               ? buttonClassName({ variant: "primary", size: "md", className: "w-full" })
               : onSale
                 ? buttonClassName({ variant: "secondary", size: "md", className: "w-full" })
                 : buttonClassName({
-                    variant: "secondary",
+                    variant: "primary",
                     size: "md",
-                    className: "w-full cursor-not-allowed opacity-50",
+                    className: "w-full",
                   });
 
             return (
               <motion.div
                 key={plan.sku}
-                className="h-full"
+                id={plan.sku === "piloto_pro" ? "piloto-pro" : undefined}
+                className="h-full scroll-mt-24"
                 initial={reduce ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-40px" }}
@@ -83,15 +88,23 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
                       ? COPY.landingPlansFeatured
                       : plan.sku === "free"
                         ? COPY.landingCtaStart
-                        : "Assinatura"
+                        : waitlist
+                          ? COPY.landingPlansProEyebrow
+                          : "Assinatura"
                   }
                   cta={
                     onSale ? (
                       <Link href={href} className={ctaClass}>
                         {ctaLabel}
                       </Link>
+                    ) : waitlist ? (
+                      <PilotoProWaitlistCta pathname="/" />
                     ) : (
-                      <span aria-disabled="true" className={ctaClass}>
+                      <span aria-disabled="true" className={buttonClassName({
+                        variant: "secondary",
+                        size: "md",
+                        className: "w-full cursor-not-allowed opacity-50",
+                      })}>
                         {ctaLabel}
                       </span>
                     )

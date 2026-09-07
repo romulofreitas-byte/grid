@@ -59,10 +59,14 @@ export function PaywallProvider({ children }: { children: React.ReactNode }) {
 function withOrigin(copy: PaywallCopy, from: string): PaywallCopy {
   return {
     ...copy,
-    primary: { ...copy.primary, href: withFrom(copy.primary.href, from) },
+    primary: copy.primary.external
+      ? copy.primary
+      : { ...copy.primary, href: withFrom(copy.primary.href, from) },
     secondary:
       "href" in copy.secondary
-        ? { ...copy.secondary, href: withFrom(copy.secondary.href, from) }
+        ? copy.secondary.external
+          ? copy.secondary
+          : { ...copy.secondary, href: withFrom(copy.secondary.href, from) }
         : copy.secondary,
   };
 }
@@ -145,19 +149,47 @@ function PaywallDialog({
               {copy.body}
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Link
-                ref={primaryRef}
-                href={copy.primary.href}
-                onClick={onClose}
-                className={buttonClassName({
-                  variant: "primary",
-                  size: "md",
-                  className: "recommend-pulse-once",
-                })}
-              >
-                {copy.primary.label}
-              </Link>
+              {copy.primary.external ? (
+                <a
+                  ref={primaryRef}
+                  href={copy.primary.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onClose}
+                  className={buttonClassName({
+                    variant: "primary",
+                    size: "md",
+                    className: "recommend-pulse-once",
+                  })}
+                >
+                  {copy.primary.label}
+                </a>
+              ) : (
+                <Link
+                  ref={primaryRef}
+                  href={copy.primary.href}
+                  onClick={onClose}
+                  className={buttonClassName({
+                    variant: "primary",
+                    size: "md",
+                    className: "recommend-pulse-once",
+                  })}
+                >
+                  {copy.primary.label}
+                </Link>
+              )}
               {"href" in copy.secondary ? (
+                copy.secondary.external ? (
+                  <a
+                    href={copy.secondary.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onClose}
+                    className={buttonClassName({ variant: "secondary", size: "md" })}
+                  >
+                    {copy.secondary.label}
+                  </a>
+                ) : (
                 <Link
                   href={copy.secondary.href}
                   onClick={onClose}
@@ -165,6 +197,7 @@ function PaywallDialog({
                 >
                   {copy.secondary.label}
                 </Link>
+                )
               ) : (
                 <button
                   type="button"

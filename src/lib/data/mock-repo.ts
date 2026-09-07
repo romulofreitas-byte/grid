@@ -48,6 +48,13 @@ import {
 import { matchPresetForCnae } from "@/lib/crm/pipeline-from-cnae";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import type { GridRepo } from "@/lib/data/repo";
+import {
+  emptyListPerformance,
+  leadMatchesRecorte,
+  performanceFromLeads,
+  type GridRecorte,
+  type ListLeadFlags,
+} from "@/lib/listas/performance";
 import { unsavedIdsToPrune } from "@/lib/searches";
 import { callStreak, saoPauloDay } from "@/lib/call-stats";
 import { DEFAULT_CALL_GOAL, DEFAULT_MEETING_MINUTES } from "@/lib/pilot-profile";
@@ -65,6 +72,7 @@ import type {
   RefCnae,
   RefMunicipio,
   ScoreProfile,
+  SavedLead,
   Search,
   SearchFilters,
   SharedPhoneVerdict,
@@ -246,6 +254,55 @@ function userOwnsAudit(
         (j.requested_by === userId || (searchId != null && j.search_id === searchId)),
     );
   return job?.status === "done" || job?.status === "skipped";
+}
+
+function crmOutcomeForLead(
+  store: MockStore,
+  userId: string,
+  searchId: string,
+  cnpj: string,
+): ListLeadFlags["crmOutcome"] {
+  const digits = digitsCnpj(cnpj);
+  let sawOpen = false;
+  let sawLost = false;
+  for (const deal of store.crm_deals) {
+    if (!deal.cnpj || digitsCnpj(deal.cnpj) !== digits) continue;
+    if (deal.meta.searchId !== searchId) continue;
+    const pipeline = store.crm_pipelines.find((row) => row.id === deal.pipeline_id);
+    if (pipeline?.user_id !== userId) continue;
+    if (deal.outcome === "won") return "won";
+    if (deal.outcome === "lost") sawLost = true;
+    else sawOpen = true;
+  }
+  if (sawLost) return "lost";
+  if (sawOpen) return "open";
+  return null;
+}
+
+function leadCalledOnList(
+  store: MockStore,
+  userId: string,
+  lead: SavedLead,
+): boolean {
+  const digits = digitsCnpj(lead.cnpj);
+  return store.call_events.some(
+    (event) =>
+      event.user_id === userId &&
+      (event.saved_lead_id === lead.id || digitsCnpj(event.cnpj) === digits),
+  );
+}
+
+function flagsForLead(
+  store: MockStore,
+  search: Search,
+  lead: SavedLead,
+): ListLeadFlags {
+  return {
+    status: lead.status,
+    crmOutcome: crmOutcomeForLead(store, search.user_id, search.id, lead.cnpj),
+    qualified: userOwnsAudit(store, search.user_id, lead.cnpj, search.id),
+    called: leadCalledOnList(store, search.user_id, lead),
+  };
 }
 
 function phoneUsageCount(store: MockStore, ddd: string | null, tel: string | null): number {
@@ -1010,6 +1067,23 @@ export const mockRepo: GridRepo = {
     return opts?.limit != null ? rows.slice(0, opts.limit) : rows;
   },
 
+  async listSearchPerformance(userId, searchIds) {
+    const ids = [...new Set(searchIds.filter(Boolean))];
+    if (ids.length === 0) return [];
+    const store = getMockStore();
+    return ids.map((searchId) => {
+      const search = store.searches.find(
+        (row) => row.id === searchId && row.user_id === userId,
+      );
+      if (!search) return emptyListPerformance(searchId);
+      const leads = store.saved_leads.filter((lead) => lead.search_id === searchId);
+      return performanceFromLeads(
+        searchId,
+        leads.map((lead) => flagsForLead(store, search, lead)),
+      );
+    });
+  },
+
   async saveSearch(
     searchId: string,
     patch: { nome?: string; saved?: boolean },
@@ -1178,17 +1252,30 @@ export const mockRepo: GridRepo = {
     return out;
   },
 
-  async listGridRows(searchId: string, cursor = 0, limit = 50) {
+  async listGridRows(
+    searchId: string,
+    cursor = 0,
+    limit = 50,
+    recorte?: GridRecorte | null,
+  ) {
     const store = getMockStore();
     const search = store.searches.find((s) => s.id === searchId);
-    if (!search) return { rows: [], nextCursor: null, total: 0, unaudited: 0 };
+    if (!search) {
+      return { rows: [], nextCursor: null, total: 0, listTotal: 0, unaudited: 0 };
+    }
 
-    const leads = store.saved_leads
+    const allLeads = store.saved_leads
       .filter((l) => l.search_id === searchId)
       .sort((a, b) => a.grid_position - b.grid_position);
+    const listTotal = allLeads.length;
+    const leads = recorte
+      ? allLeads.filter((lead) =>
+          leadMatchesRecorte(recorte, flagsForLead(store, search, lead)),
+        )
+      : allLeads;
 
     const idx = getIndexes(store);
-    const unaudited = leads.filter(
+    const unaudited = allLeads.filter(
       (l) => !userOwnsAudit(store, search.user_id, l.cnpj, searchId),
     ).length;
     const page = leads.slice(cursor, cursor + limit);
@@ -1257,7 +1344,14 @@ export const mockRepo: GridRepo = {
     });
 
     const next = cursor + limit < leads.length ? cursor + limit : null;
-    return { rows, nextCursor: next, total: leads.length, unaudited, discoveryRetryCnpjs };
+    return {
+      rows,
+      nextCursor: next,
+      total: leads.length,
+      listTotal,
+      unaudited,
+      discoveryRetryCnpjs,
+    };
   },
 
   async listUnauditedCnpjs(searchId: string, opts?: { limit?: number }) {

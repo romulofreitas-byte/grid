@@ -162,6 +162,33 @@ export const FAQ_ITEMS: FaqItem[] = [
     links: [{ href: "/pagar?sku=membro_plataforma", label: "Ativar com cupom" }],
   },
   {
+    id: "piloto-pro",
+    category: "Créditos",
+    question: "O que é o Piloto Pro e as Automações?",
+    answer:
+      "Automações — formulário, anúncio e Make alimentando o quadro — entram no Piloto Pro. O Pro ainda não está à venda no checkout: entre na lista em Planos e a gente avisa. No Piloto você importa a planilha e liga pelo CRM.",
+    links: [
+      { href: "/planos#piloto-pro", label: "Quero o Piloto Pro" },
+      { href: "/automacoes", label: "Abrir Automações" },
+    ],
+  },
+  {
+    id: "marcar-ganho",
+    category: "Lista e contato",
+    question: "O que acontece quando marco um lead como ganho?",
+    answer:
+      "O negócio sai da fila em andamento e entra no faturado do Painel, se você informar o valor. A comemoração usa o nome da empresa — é o seu novo cliente: faça o onboarding, entregue o melhor projeto, retenha e tenha lucro.",
+    links: [{ href: "/crm", label: "Abrir CRM" }],
+  },
+  {
+    id: "trial-acabou",
+    category: "Créditos",
+    question: "Acabaram os 30 dias do Piloto. E agora?",
+    answer:
+      "O CRM e a qualificação fecham. Recarga só soma crédito — não reabre o acesso. Assine o Piloto para voltar a ligar pelo quadro.",
+    links: [{ href: "/planos", label: "Ver planos" }],
+  },
+  {
     id: "exportar",
     category: "Export e integrações",
     question: "Como exporto a lista?",

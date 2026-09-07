@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
+import { guardSessionOrOpsApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
 import { dbUnavailableResponse } from "@/lib/data/db-api";
 
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
-  const gated = await guardApi(req, "read");
+  const gated = await guardSessionOrOpsApi(req, "read");
   if (isGuardReject(gated)) return gated;
   const { searchParams } = new URL(req.url);
   const ufs = (searchParams.get("ufs") || "")

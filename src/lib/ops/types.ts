@@ -130,6 +130,9 @@ export type OpsUserListItem = {
   cancelAtPeriodEnd: boolean;
   recharged: boolean;
   enrichInPeriod: number;
+  fotoUrl: string | null;
+  callsInPeriod: number;
+  crmWonPeriod: number;
 };
 
 export type OpsUserListPage = {

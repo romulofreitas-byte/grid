@@ -1,19 +1,24 @@
 import { MessageCircle } from "lucide-react";
-import { supportWhatsAppHref } from "@/lib/support";
+import {
+  supportWhatsAppHref,
+  type SupportWhatsAppIntent,
+} from "@/lib/support";
 import { cn } from "@/lib/utils";
 
 export function SupportWhatsAppButton({
   name,
   pathname,
+  intent,
   className,
   children,
 }: {
   name?: string | null;
   pathname?: string | null;
+  intent?: SupportWhatsAppIntent;
   className?: string;
   children?: React.ReactNode;
 }) {
-  const href = supportWhatsAppHref({ name, pathname });
+  const href = supportWhatsAppHref({ name, pathname, intent });
   if (!href) return null;
 
   return (

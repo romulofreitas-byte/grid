@@ -86,8 +86,15 @@ export function leadBack(searchId: string | null | undefined, from: string | nul
   return BACK.painel;
 }
 
-export function gridHref(searchId: string, from: GridFrom) {
-  return `/grid/${searchId}?from=${from}`;
+export function gridHref(
+  searchId: string,
+  from: GridFrom,
+  opts?: { recorte?: string | null },
+) {
+  const params = new URLSearchParams({ from });
+  const recorte = opts?.recorte?.trim();
+  if (recorte) params.set("recorte", recorte);
+  return `/grid/${searchId}?${params}`;
 }
 
 export function leadHref(cnpj: string, searchId: string, from: GridFrom) {

@@ -1,11 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { OPS_LOGIN_HANDLE } from "@/lib/ops/handle";
 
 export const OPS_COOKIE = "grid_ops";
 export const OPS_SESSION_MS = 12 * 60 * 60 * 1000;
 export const DEFAULT_OPS_EMAIL = "administracao@combustivelmv.com";
+export { OPS_LOGIN_HANDLE };
 
 export function opsEmail(): string {
   return (process.env.GRID_OPS_EMAIL?.trim() || DEFAULT_OPS_EMAIL).toLowerCase();
+}
+
+export function normalizeOpsLoginIdentity(raw: string): string {
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return "";
+  const compact = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
+  const handle = OPS_LOGIN_HANDLE.replace(/^@/, "").toLowerCase();
+  if (compact === handle || compact.startsWith(`${handle}@`)) {
+    return opsEmail();
+  }
+  return trimmed;
 }
 
 export function opsPassword(): string {
@@ -47,7 +60,7 @@ export function safeEqualString(a: string, b: string): boolean {
 
 export function credentialsMatch(email: string, password: string): boolean {
   if (!opsCredentialsConfigured()) return false;
-  const emailOk = safeEqualString(email.trim().toLowerCase(), opsEmail());
+  const emailOk = safeEqualString(normalizeOpsLoginIdentity(email), opsEmail());
   const passwordOk = safeEqualString(password, opsPassword());
   return emailOk && passwordOk;
 }

@@ -6,7 +6,8 @@ import { createPortal } from "react-dom";
 import { StartingLights, type LightsPhase } from "@/components/StartingLights";
 import { COPY } from "@/lib/copy";
 
-const AUTO_DISMISS_MS = 1800;
+const AUTO_DISMISS_MS = 5200;
+const REDUCE_DISMISS_MS = 8000;
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const FLAG_PIECES = [
@@ -71,24 +72,16 @@ export function CrmWinCelebration({
     setReady(true);
   }, []);
 
-  useEffect(() => {
-    if (!companyName || !reduce) return;
-    onDoneRef.current();
-  }, [companyName, reduce]);
-
-  if (!ready) return null;
-
-  const show = Boolean(companyName) && !reduce;
+  if (!ready || !companyName) return null;
 
   return createPortal(
     <AnimatePresence>
-      {show && companyName ? (
-        <WinOverlay
-          key="crm-win"
-          companyName={companyName}
-          onDone={() => onDoneRef.current()}
-        />
-      ) : null}
+      <WinOverlay
+        key="crm-win"
+        companyName={companyName}
+        reduce={Boolean(reduce)}
+        onDone={() => onDoneRef.current()}
+      />
     </AnimatePresence>,
     document.body,
   );
@@ -96,14 +89,16 @@ export function CrmWinCelebration({
 
 function WinOverlay({
   companyName,
+  reduce,
   onDone,
 }: {
   companyName: string;
+  reduce: boolean;
   onDone: () => void;
 }) {
   const done = useRef(false);
-  const [litCount, setLitCount] = useState(0);
-  const [phase, setPhase] = useState<LightsPhase>("lighting");
+  const [litCount, setLitCount] = useState(reduce ? 5 : 0);
+  const [phase, setPhase] = useState<LightsPhase>(reduce ? "go" : "lighting");
 
   function finish() {
     if (done.current) return;
@@ -112,7 +107,13 @@ function WinOverlay({
   }
 
   useEffect(() => {
-    const auto = window.setTimeout(finish, AUTO_DISMISS_MS);
+    const auto = window.setTimeout(
+      finish,
+      reduce ? REDUCE_DISMISS_MS : AUTO_DISMISS_MS,
+    );
+    if (reduce) {
+      return () => window.clearTimeout(auto);
+    }
     const lights = [1, 2, 3, 4, 5].map((count) =>
       window.setTimeout(() => setLitCount(count), count * 70),
     );
@@ -125,7 +126,7 @@ function WinOverlay({
       window.clearTimeout(go);
       lights.forEach((id) => window.clearTimeout(id));
     };
-  }, []);
+  }, [reduce]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -141,12 +142,12 @@ function WinOverlay({
   return (
     <>
       <p className="sr-only" aria-live="polite">
-        {COPY.crmWinChegada}. {COPY.crmWinP1}. {companyName}
+        {COPY.crmWinEyebrow}. {companyName} {COPY.crmWinBody}
       </p>
       <motion.div
         aria-hidden
         className="fixed inset-0 z-[90] flex cursor-pointer flex-col overflow-hidden bg-podium-navy"
-        initial={{ opacity: 0 }}
+        initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.22, ease: EASE }}
@@ -157,31 +158,33 @@ function WinOverlay({
 
         <div className="podium-checkered relative z-[1] shrink-0" />
 
-        {FLAG_PIECES.map((piece) => (
-          <FlagPiece key={piece.left} {...piece} />
-        ))}
+        {reduce
+          ? null
+          : FLAG_PIECES.map((piece) => (
+              <FlagPiece key={piece.left} {...piece} />
+            ))}
 
         <div className="relative z-[1] flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
           <StartingLights litCount={litCount} phase={phase} />
           <p className="mt-6 text-balance text-xs font-bold uppercase tracking-[0.22em] text-podium-success">
-            {COPY.crmWinChegada}
+            {COPY.crmWinEyebrow}
           </p>
           <motion.p
-            className="mt-1 font-extrabold leading-none tracking-tight text-podium-yellow drop-shadow-[0_0_36px_rgba(34,197,94,0.45)]"
-            style={{ fontSize: "clamp(4.25rem, 18vw, 8.5rem)" }}
-            initial={{ scale: 0.72, opacity: 0 }}
+            className="mt-3 max-w-3xl text-balance font-extrabold leading-[1.05] tracking-tight text-podium-yellow drop-shadow-[0_0_36px_rgba(34,197,94,0.45)]"
+            style={{ fontSize: "clamp(1.85rem, 7vw, 3.75rem)" }}
+            initial={reduce ? false : { scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.42, duration: 0.45, ease: EASE }}
-          >
-            {COPY.crmWinP1}
-          </motion.p>
-          <motion.p
-            className="mt-4 max-w-lg truncate text-base font-medium text-podium-white md:text-lg"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.28, ease: EASE }}
+            transition={{ delay: reduce ? 0 : 0.28, duration: 0.4, ease: EASE }}
           >
             {companyName}
+          </motion.p>
+          <motion.p
+            className="mt-4 max-w-lg text-pretty text-base font-medium text-podium-white md:text-lg"
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: reduce ? 0 : 0.45, duration: 0.28, ease: EASE }}
+          >
+            {COPY.crmWinBody}
           </motion.p>
         </div>
 

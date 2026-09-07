@@ -76,7 +76,7 @@ export function CatchUpRunner() {
     <div
       role="status"
       className={cn(
-        "fixed right-4 bottom-20 z-50 max-w-sm rounded-xl border border-podium-yellow/30 bg-podium-navy/95 px-4 py-3 text-sm text-podium-white shadow-lg md:bottom-6",
+        "fixed right-4 bottom-20 z-50 max-w-sm rounded-md border border-white/15 bg-podium-navy/80 px-3 py-2.5 text-sm text-podium-white shadow-2xl backdrop-blur-2xl md:bottom-6",
         focusOn && "md:bottom-16",
       )}
     >

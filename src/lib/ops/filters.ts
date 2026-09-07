@@ -6,6 +6,18 @@ export type OpsRange = (typeof OPS_RANGES)[number];
 
 export const OPS_USERS_PAGE_SIZE = 50;
 
+export const OPS_TABS = [
+  "visao",
+  "ranking",
+  "conta",
+  "usabilidade",
+  "mercado",
+] as const;
+export type OpsTab = (typeof OPS_TABS)[number];
+
+export const OPS_USER_SORTS = ["created", "calls", "enrich", "won"] as const;
+export type OpsUserSort = (typeof OPS_USER_SORTS)[number];
+
 export const BRAZIL_UFS = [
   "AC",
   "AL",
@@ -102,6 +114,26 @@ export function parseOpsDashboardFilters(
   return filters;
 }
 
+export function parseOpsTab(
+  source: URLSearchParams | Record<string, string | string[] | undefined>,
+): OpsTab {
+  const raw = readParam(source, "tab");
+  if (raw && (OPS_TABS as readonly string[]).includes(raw)) {
+    return raw as OpsTab;
+  }
+  return "visao";
+}
+
+export function parseOpsUserSort(
+  source: URLSearchParams | Record<string, string | string[] | undefined>,
+): OpsUserSort {
+  const raw = readParam(source, "sort");
+  if (raw && (OPS_USER_SORTS as readonly string[]).includes(raw)) {
+    return raw as OpsUserSort;
+  }
+  return "created";
+}
+
 export function parseOpsUserListParams(
   source: URLSearchParams | Record<string, string | string[] | undefined>,
 ): {
@@ -109,6 +141,7 @@ export function parseOpsUserListParams(
   q: string;
   limit: number;
   offset: number;
+  sort: OpsUserSort;
 } {
   const filters = parseOpsDashboardFilters(source);
   const q = (readParam(source, "q") ?? "").slice(0, 120);
@@ -120,7 +153,7 @@ export function parseOpsUserListParams(
   const offset = Number.isFinite(offsetRaw)
     ? Math.min(100_000, Math.max(0, Math.floor(offsetRaw)))
     : 0;
-  return { filters, q, limit, offset };
+  return { filters, q, limit, offset, sort: parseOpsUserSort(source) };
 }
 
 export function opsFiltersToSearchParams(

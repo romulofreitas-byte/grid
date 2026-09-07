@@ -35,25 +35,23 @@ export default function ContaAjudaPage() {
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Dúvidas
         </p>
-        <p className="text-sm text-podium-gray">
-          Respostas rápidas sobre lista, créditos, exportação e privacidade.
-        </p>
+        <p className="text-sm text-podium-gray">{COPY.contaAjudaFaqHint}</p>
         <Link
           href="/duvidas"
           className="inline-flex rounded-md border border-white/15 px-3 py-1.5 text-xs font-semibold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
         >
-          Abrir dúvidas
+          {COPY.contaAjudaOpenFaq}
         </Link>
       </GlassCard>
 
       <GlassCard className="space-y-3 p-3" hover={false}>
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           Tour
         </p>
         <p className="text-sm text-podium-gray">{COPY.tourReplayHint}</p>
         <Link
           href="/painel?tour=1"
-          className="inline-flex rounded-md border border-white/15 px-3 py-1.5 text-xs font-semibold text-podium-gray hover:border-podium-yellow/40 hover:text-podium-white"
+          className="inline-flex rounded-md bg-gradient-to-b from-[#ffc933] to-podium-yellow px-3 py-1.5 text-xs font-semibold text-podium-navy hover:brightness-110"
         >
           {COPY.tourReplay}
         </Link>

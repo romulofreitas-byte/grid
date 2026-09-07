@@ -1,7 +1,9 @@
 "use client";
 
+import { ListHealthBar } from "@/components/ListPerformanceBoard";
 import { COPY } from "@/lib/copy";
 import { formatRelativeShort } from "@/lib/format";
+import type { ListPerformance } from "@/lib/listas/performance";
 import type { Search } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -10,12 +12,14 @@ export function ListTile({
   unsaved,
   selected,
   error,
+  performance,
   onSelect,
 }: {
   search: Search;
   unsaved?: boolean;
   selected?: boolean;
   error?: string | null;
+  performance?: ListPerformance | null;
   onSelect: () => void;
 }) {
   const leads = search.total_found ?? 0;
@@ -54,9 +58,12 @@ export function ListTile({
           {error ? <span className="text-red-400"> · {error}</span> : null}
         </span>
       </span>
-      <span className="shrink-0 text-right text-[11px] tabular-nums text-podium-gray">
-        {leads.toLocaleString("pt-BR")}
-        <span className="ml-1 font-medium text-podium-muted">{leadLabel}</span>
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        {unsaved || !performance ? null : <ListHealthBar stats={performance} />}
+        <span className="text-right text-[11px] tabular-nums text-podium-gray">
+          {leads.toLocaleString("pt-BR")}
+          <span className="ml-1 font-medium text-podium-muted">{leadLabel}</span>
+        </span>
       </span>
     </button>
   );

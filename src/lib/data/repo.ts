@@ -35,6 +35,7 @@ import type {
   CrmStage,
 } from "@/lib/crm/types";
 import type { SearchJob, SearchJobStatus } from "@/lib/search-jobs";
+import type { GridRecorte, ListPerformance } from "@/lib/listas/performance";
 import type {
   CallEventSource,
   CompanyBrief,
@@ -147,14 +148,20 @@ export type GridRepo = {
     nome: string,
     cnpjs: string[],
   ): Promise<Search | null>;
+  listSearchPerformance(
+    userId: string,
+    searchIds: string[],
+  ): Promise<ListPerformance[]>;
   listGridRows(
     searchId: string,
     cursor?: number,
     limit?: number,
+    recorte?: GridRecorte | null,
   ): Promise<{
     rows: GridRow[];
     nextCursor: number | null;
     total: number;
+    listTotal: number;
     unaudited: number;
     discoveryRetryCnpjs?: string[];
   }>;

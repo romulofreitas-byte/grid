@@ -131,12 +131,11 @@ export function TourOverlay({
     .replace("{total}", String(TOUR_STEP_COUNT));
 
   return (
-    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label={step.title}>
-      <div className="absolute inset-0 bg-transparent" />
+    <div className="fixed inset-0 z-[70] overflow-hidden" role="dialog" aria-modal="true" aria-label={step.title}>
       {highlight ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-xl ring-2 ring-podium-yellow shadow-[0_0_0_6px_rgba(245,179,1,0.16)]"
+          className="pointer-events-none absolute rounded-xl ring-2 ring-podium-yellow shadow-[0_0_0_6px_rgba(245,179,1,0.16),0_0_0_9999px_rgba(0,0,0,0.62)]"
           style={{
             top: highlight.top,
             left: highlight.left,
@@ -144,7 +143,9 @@ export function TourOverlay({
             height: highlight.height,
           }}
         />
-      ) : null}
+      ) : (
+        <div className="absolute inset-0 bg-black/50" />
+      )}
 
       <div
         ref={bubbleRef}

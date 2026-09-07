@@ -4,6 +4,7 @@ import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { filterQualifiedCnpjs, getBalance } from "@/lib/billing/service";
 import { redactGridRows } from "@/lib/billing/redact";
 import { getDataSource, getRepo } from "@/lib/data";
+import { parseGridRecorte } from "@/lib/listas/performance";
 import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
 import {
   drainJobsIfMock,
@@ -40,7 +41,8 @@ export async function GET(
     }
     const cursor = Number(searchParams.get("cursor") ?? "0");
     const limit = Number(searchParams.get("limit") ?? "50");
-    const result = await getRepo().listGridRows(searchId, cursor, limit);
+    const recorte = parseGridRecorte(searchParams.get("recorte"));
+    const result = await getRepo().listGridRows(searchId, cursor, limit, recorte);
     const { discoveryRetryCnpjs, ...grid } = result;
     const pageCnpjs = grid.rows.map((row) => row.cnpj);
     const repo = getRepo();

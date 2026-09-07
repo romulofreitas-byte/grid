@@ -1,12 +1,9 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { CrmBoard } from "@/components/crm/CrmBoard";
 import { CrmBoardSkeleton } from "@/components/crm/CrmBoardSkeleton";
+import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
-import { buttonClassName } from "@/components/ui/Button";
 import { requireSession } from "@/lib/auth/session";
-import { withFrom } from "@/lib/billing/href";
-import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
 import { pickDefaultCrmPipeline } from "@/lib/crm/bridge";
@@ -27,40 +24,8 @@ export default function CrmPage({
 }
 
 function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
-  const copy = paywallCopy({
-    kind: trialExpired ? "trial" : "plan",
-    feature: "crm",
-  });
   return (
-    <GlassCard className="p-3">
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-        {copy.eyebrow}
-      </p>
-      <p className="mt-2 text-sm font-semibold">{copy.title}</p>
-      <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
-      <Link
-        href={withFrom(copy.primary.href, "/crm")}
-        className={buttonClassName({
-          variant: "primary",
-          size: "md",
-          className: "mt-3",
-        })}
-      >
-        {copy.primary.label}
-      </Link>
-      {"href" in copy.secondary ? (
-        <Link
-          href={withFrom(copy.secondary.href, "/crm")}
-          className={buttonClassName({
-            variant: "secondary",
-            size: "md",
-            className: "mt-3 ml-3",
-          })}
-        >
-          {copy.secondary.label}
-        </Link>
-      ) : null}
-    </GlassCard>
+    <FeatureLockedPage feature="crm" trialExpired={trialExpired} from="/crm" />
   );
 }
 

@@ -1,13 +1,10 @@
-import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
 import { AutomacoesPanel } from "@/components/automacoes/AutomacoesPanel";
-import { buttonClassName } from "@/components/ui/Button";
 import { BACK } from "@/lib/back";
 import { requireSession } from "@/lib/auth/session";
-import { withFrom } from "@/lib/billing/href";
 import { planHasFeature } from "@/lib/billing/catalog";
-import { paywallCopy } from "@/lib/billing/paywall";
 import { getBalance } from "@/lib/billing/service";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
@@ -22,29 +19,13 @@ function AutomacoesLocked({
   feature: "crm" | "automations";
   trialExpired: boolean;
 }) {
-  const copy = paywallCopy({
-    kind: trialExpired && feature === "crm" ? "trial" : "plan",
-    feature,
-  });
   return (
     <AppShell fill wide lockHeight title={COPY.automacoesTitle} back={BACK.painel}>
-      <GlassCard className="p-3">
-        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-          {copy.eyebrow}
-        </p>
-        <p className="mt-2 text-sm font-semibold">{copy.title}</p>
-        <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
-        <Link
-          href={withFrom(copy.primary.href, "/automacoes")}
-          className={buttonClassName({
-            variant: "primary",
-            size: "md",
-            className: "mt-3",
-          })}
-        >
-          {copy.primary.label}
-        </Link>
-      </GlassCard>
+      <FeatureLockedPage
+        feature={feature}
+        trialExpired={trialExpired}
+        from="/automacoes"
+      />
     </AppShell>
   );
 }

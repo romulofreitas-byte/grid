@@ -5,6 +5,7 @@ import { BACK } from "@/lib/back";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
+import { indexListPerformance } from "@/lib/listas/performance";
 import { UNSAVED_LIST_CAP } from "@/lib/searches";
 import { redirect, unstable_rethrow } from "next/navigation";
 
@@ -47,12 +48,23 @@ async function ListasPageInner() {
         return [] as string[];
       }),
   ]);
+  const savedIds = saved.map((row) => row.id);
+  const performanceById = savedIds.length
+    ? await repo
+        .listSearchPerformance(profile.id, savedIds)
+        .then((rows) => indexListPerformance(rows, savedIds))
+        .catch((err) => {
+          console.error("listas_performance_error", err);
+          return indexListPerformance([], savedIds);
+        })
+    : {};
 
   return (
     <AppShell fill wide lockHeight title="Listas" back={BACK.painel}>
       <ListsBoard
         initial={[...saved, ...unsaved]}
         pipelineNomes={pipelineNomes}
+        performanceById={performanceById}
       />
     </AppShell>
   );

@@ -970,6 +970,42 @@ export async function opsGrantPlatformTrial(
   return paid;
 }
 
+export async function opsGrantPlan(
+  profileId: string,
+  sku: "piloto" | "piloto_pro",
+): Promise<BillingOrder> {
+  const item = getCatalogItem(sku);
+  if (!item || item.kind !== "plan" || !item.billed) {
+    throw new BillingError("Plano inválido", 400);
+  }
+  const store = await getBillingStore();
+  const order: BillingOrder = {
+    id: crypto.randomUUID(),
+    profileId,
+    sku: item.sku,
+    kind: "subscription_cycle",
+    provider: "platform",
+    method: "platform",
+    status: "pending",
+    amountCents: 0,
+    currency: "BRL",
+    providerPaymentId: `ops_plan_${item.sku}_${crypto.randomUUID()}`,
+    providerSubId: null,
+    pixQr: null,
+    pixCopy: null,
+    boletoUrl: null,
+    boletoLine: null,
+    checkoutUrl: null,
+    paidAt: null,
+    createdAt: nowIso(),
+  };
+  await store.insertOrder(order);
+  await applyPaymentPaid(order.id);
+  const paid = await store.getOrder(order.id);
+  if (!paid) throw new BillingError("Falha ao liberar o plano", 500);
+  return paid;
+}
+
 export async function getBillingMe(profileId: string) {
   const store = await getBillingStore();
   const balance = await getBalance(profileId);

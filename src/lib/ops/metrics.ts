@@ -17,6 +17,7 @@ import {
   DEFAULT_OPS_FILTERS,
   OPS_USERS_PAGE_SIZE,
   type OpsDashboardFilters,
+  type OpsUserSort,
 } from "@/lib/ops/filters";
 import { EMPTY_FUNNEL, funnelFromCounts } from "@/lib/ops/funnel";
 import {
@@ -186,6 +187,9 @@ type UserRow = {
   email: string | null;
   recharged?: boolean | null;
   enrich_period?: number | string | null;
+  foto_url?: string | null;
+  calls_period?: number | string | null;
+  won_period?: number | string | null;
 };
 
 function snapshotFromRow(row: UserRow): OpsUserSnapshot {
@@ -216,6 +220,9 @@ function listItemFromRow(row: UserRow): OpsUserListItem {
     cancelAtPeriodEnd: Boolean(row.cancel_at_period_end),
     recharged: Boolean(row.recharged),
     enrichInPeriod: num(row.enrich_period),
+    fotoUrl: row.foto_url ?? null,
+    callsInPeriod: num(row.calls_period),
+    crmWonPeriod: num(row.won_period),
   };
 }
 
@@ -1213,6 +1220,7 @@ type ListInput = {
   filters?: OpsDashboardFilters;
   limit?: number;
   offset?: number;
+  sort?: OpsUserSort;
 };
 
 async function loadProfileFallback(input: ListInput): Promise<OpsUserListPage> {
@@ -1287,6 +1295,7 @@ async function listOpsUsersOnce(
       ? `and (p.nome ilike ${like} or p.empresa_usuario ilike ${like} or au.email ilike ${like})`
       : `and (p.nome ilike ${like} or p.empresa_usuario ilike ${like})`
     : "";
+  const sort = input.sort ?? "created";
   const sql = `
     with ${cte}
     select
@@ -1295,6 +1304,7 @@ async function listOpsUsersOnce(
       p.empresa_usuario as empresa,
       p.especialidade,
       p.cidade_usuario as cidade,
+      p.foto_url,
       p.plano as cached_plan,
       p.creditos as cached_credits,
       p.onboarding_completed_at,
@@ -1313,6 +1323,20 @@ async function listOpsUsersOnce(
         where e.requested_by = p.id
           and ${periodSql("e.created_at", filters.range)}
       ) as enrich_period,
+      (
+        select count(*)::int
+        from call_events c
+        where c.user_id = p.id
+          and ${periodSql("c.created_at", filters.range)}
+      ) as calls_period,
+      (
+        select count(*)::int
+        from crm_deals d
+        join crm_pipelines pip on pip.id = d.pipeline_id
+        where pip.user_id = p.id
+          and d.outcome = 'won'
+          and ${periodSql("d.updated_at", filters.range)}
+      ) as won_period,
       count(*) over() as total
     from scoped_users su
     join profiles p on p.id = su.id
@@ -1331,7 +1355,11 @@ async function listOpsUsersOnce(
     ) lots on true
     where true
     ${searchWhere}
-    order by p.created_at desc
+    order by
+      ${sort === "calls" ? "calls_period desc nulls last," : ""}
+      ${sort === "enrich" ? "enrich_period desc nulls last," : ""}
+      ${sort === "won" ? "won_period desc nulls last," : ""}
+      p.created_at desc
     limit ${limitPh} offset ${offsetPh}
   `;
   const { rows } = await query<UserRow & { total: string | number }>(sql, params.values);
