@@ -132,6 +132,42 @@ function mapDeal(row: QueryResultRow): CrmDeal {
   };
 }
 
+function dealCardFromRow(row: QueryResultRow): CrmDealCard {
+  const deal = mapDeal(row);
+  return {
+    ...deal,
+    open_activities: [],
+    next_activity: null,
+  };
+}
+
+function normalizeDealCnpj(value: string | null | undefined): string | null {
+  if (value == null || value === "") return null;
+  return String(value).replace(/\D/g, "").padStart(14, "0");
+}
+
+function fieldsForDealInsert(input: CrmDealCreateInput) {
+  const secretaries = asStringList(input.secretaries);
+  const people = peopleFromDeal({
+    contact_name: input.contact_name?.trim() ?? "",
+    secretaries,
+    people: input.people,
+  });
+  return {
+    cnpj: normalizeDealCnpj(input.cnpj),
+    secretaries,
+    people,
+    contactName: input.contact_name?.trim() || snapshotContactName(people),
+    phones: uniquePhones([
+      ...asStringList(input.phones),
+      ...people.map((person) => person.phone),
+    ]).slice(0, 8),
+    notes: input.notes?.trim() ?? "",
+    meta: input.meta ?? {},
+    company_name: input.company_name.trim(),
+  };
+}
+
 function mapActivity(row: QueryResultRow): CrmActivity {
   return {
     id: String(row.id),
@@ -716,6 +752,141 @@ export const crmPgMethods = {
         await insertEvent(q, dealId, "nota", notes);
       }
       return loadCard(q, dealId);
+    });
+  },
+
+  async createCrmDeals(
+    userId: string,
+    inputs: CrmDealCreateInput[],
+  ): Promise<(CrmDealCard | null)[]> {
+    if (inputs.length === 0) return [];
+    if (inputs.length === 1) {
+      return [await crmPgMethods.createCrmDeal(userId, inputs[0]!)];
+    }
+    const pipelineId = inputs[0]!.pipelineId;
+    if (inputs.some((input) => input.pipelineId !== pipelineId)) {
+      const cards: Array<CrmDealCard | null> = [];
+      for (const input of inputs) {
+        cards.push(await crmPgMethods.createCrmDeal(userId, input));
+      }
+      return cards;
+    }
+    return withTransaction(async (q) => {
+      if (!(await ownedPipeline(q, userId, pipelineId))) {
+        return inputs.map(() => null);
+      }
+      const stages = await listStages(q, pipelineId);
+      const cnpjs = [
+        ...new Set(
+          inputs
+            .map((input) => normalizeDealCnpj(input.cnpj))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ];
+      const existingByCnpj = new Map<string, QueryResultRow>();
+      if (cnpjs.length) {
+        const found = await q(
+          `select * from crm_deals where pipeline_id = $1 and cnpj = any($2::text[])`,
+          [pipelineId, cnpjs],
+        );
+        for (const row of found.rows) {
+          existingByCnpj.set(String(row.cnpj), row);
+        }
+      }
+      const results: Array<CrmDealCard | null> = inputs.map(() => null);
+      const toInsert: Array<{
+        index: number;
+        stageId: string;
+        position: number;
+        fields: ReturnType<typeof fieldsForDealInsert>;
+      }> = [];
+      const pendingByCnpj = new Map<string, number>();
+      const aliases: Array<{ index: number; from: number }> = [];
+      const positionByStage = new Map<string, number>();
+      for (let index = 0; index < inputs.length; index += 1) {
+        const input = inputs[index]!;
+        const fields = fieldsForDealInsert(input);
+        if (fields.cnpj && existingByCnpj.has(fields.cnpj)) {
+          results[index] = dealCardFromRow(existingByCnpj.get(fields.cnpj)!);
+          continue;
+        }
+        if (fields.cnpj && pendingByCnpj.has(fields.cnpj)) {
+          aliases.push({ index, from: pendingByCnpj.get(fields.cnpj)! });
+          continue;
+        }
+        const stageId = pickCreateStage(stages, input.stage_id)?.id;
+        if (!stageId) continue;
+        if (!positionByStage.has(stageId)) {
+          const count = await q(
+            `select count(*)::int as n from crm_deals where stage_id = $1`,
+            [stageId],
+          );
+          positionByStage.set(stageId, Number(count.rows[0]?.n ?? 0));
+        }
+        const position = positionByStage.get(stageId)!;
+        positionByStage.set(stageId, position + 1);
+        toInsert.push({ index, stageId, position, fields });
+        if (fields.cnpj) pendingByCnpj.set(fields.cnpj, index);
+      }
+      if (toInsert.length === 0) return results;
+      const cols = 11;
+      const placeholders = toInsert
+        .map((_, offset) => {
+          const base = offset * cols;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}::jsonb, $${base + 6}::jsonb, $${base + 7}::jsonb, $${base + 8}, $${base + 9}, $${base + 10}::jsonb, $${base + 11})`;
+        })
+        .join(", ");
+      const params = toInsert.flatMap((item) => [
+        pipelineId,
+        item.stageId,
+        item.fields.company_name,
+        item.fields.contactName,
+        JSON.stringify(item.fields.secretaries),
+        JSON.stringify(item.fields.people),
+        JSON.stringify(item.fields.phones),
+        item.fields.notes,
+        item.fields.cnpj,
+        JSON.stringify(item.fields.meta),
+        item.position,
+      ]);
+      const inserted = await q(
+        `insert into crm_deals (
+           pipeline_id, stage_id, company_name, contact_name, secretaries, people, phones, notes, cnpj, meta, position
+         ) values ${placeholders}
+         returning *`,
+        params,
+      );
+      const bySlot = new Map<string, QueryResultRow>();
+      for (const row of inserted.rows) {
+        bySlot.set(`${row.stage_id}:${row.position}`, row);
+      }
+      const noteEvents: Array<{ dealId: string; body: string }> = [];
+      for (const item of toInsert) {
+        const row = bySlot.get(`${item.stageId}:${item.position}`);
+        if (!row) continue;
+        results[item.index] = dealCardFromRow(row);
+        if (item.fields.cnpj) existingByCnpj.set(item.fields.cnpj, row);
+        if (item.fields.notes) {
+          noteEvents.push({ dealId: String(row.id), body: item.fields.notes });
+        }
+      }
+      for (const alias of aliases) {
+        results[alias.index] = results[alias.from] ?? null;
+      }
+      if (noteEvents.length) {
+        const eventCols = 3;
+        const eventPlaceholders = noteEvents
+          .map((_, offset) => {
+            const base = offset * eventCols;
+            return `($${base + 1}, 'nota', $${base + 2}, $${base + 3}::jsonb)`;
+          })
+          .join(", ");
+        await q(
+          `insert into crm_events (deal_id, kind, body, meta) values ${eventPlaceholders}`,
+          noteEvents.flatMap((event) => [event.dealId, event.body, "{}"]),
+        );
+      }
+      return results;
     });
   },
 

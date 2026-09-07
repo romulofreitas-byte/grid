@@ -482,6 +482,14 @@ export const crmMockMethods = {
     return toCard(store, deal);
   },
 
+  async createCrmDeals(userId, inputs) {
+    const cards: Array<CrmDealCard | null> = [];
+    for (const input of inputs) {
+      cards.push(await crmMockMethods.createCrmDeal(userId, input));
+    }
+    return cards;
+  },
+
   async findCrmDealByCnpj(
     userId: string,
     pipelineId: string,

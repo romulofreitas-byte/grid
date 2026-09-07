@@ -16,14 +16,12 @@ import {
 } from "@/lib/billing/types";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { applyImportLeads } from "@/lib/crm/import-apply";
-import { mapImportLead, parseImportCnpj } from "@/lib/crm/import";
+import { parseImportCnpj } from "@/lib/crm/import";
 import {
   issuesFromApply,
   toPublicImportRun,
 } from "@/lib/crm/import-history";
-import { mapPool, pickUniqueCompanyHit } from "@/lib/crm/import-match";
 import { crmImportSchema, importSchemaError } from "@/lib/crm/schema";
-import { canSearchCompanies } from "@/lib/data/company-search";
 import { getDataSource, getRepo } from "@/lib/data";
 import { processOwnedEnrichmentJobs } from "@/lib/enrichment/process-job";
 
@@ -84,33 +82,6 @@ export async function POST(req: Request) {
   const stageId = pickEntradaStage(board.stages)?.id;
 
   const rows = parsed.data.rows.map((row) => ({ ...row }));
-  const needsMatch = rows.map((row, index) => {
-    const mapped = mapImportLead(row);
-    if (!mapped.ok || mapped.lead.kind !== "company" || mapped.lead.cnpj) {
-      return null;
-    }
-    const query = mapped.lead.company_name.trim();
-    if (!canSearchCompanies(query)) return null;
-    return { index, query };
-  });
-
-  await mapPool(
-    needsMatch.filter((item): item is { index: number; query: string } =>
-      Boolean(item),
-    ),
-    async (item) => {
-      try {
-        const hits = await repo.searchCompanies(item.query, { limit: 20 });
-        const picked = pickUniqueCompanyHit(item.query, hits);
-        if (!picked) return;
-        const { cnpj } = parseImportCnpj(picked.cnpj);
-        if (cnpj) rows[item.index]!.cnpj = cnpj;
-      } catch (err) {
-        console.error("import_match_error", err);
-      }
-    },
-  );
-
   const cnpjs = [
     ...new Set(
       rows
@@ -151,6 +122,7 @@ export async function POST(req: Request) {
     stageId,
     source: "import",
     rows,
+    existingDeals: board.deals,
   });
   if ("error" in result) return jsonError(result.error, result.status);
 

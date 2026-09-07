@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Hint } from "@/components/Hint";
 import { Button } from "@/components/ui/Button";
+import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { COPY } from "@/lib/copy";
 import {
   mapImportLead,
@@ -133,8 +134,18 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
           rows,
         }),
       });
-      const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível enviar as correções");
+      const json = await readResponseJson<{ error?: string }>(res);
+      if (!res.ok) {
+        throw new Error(
+          httpErrorMessage(
+            res.status,
+            json,
+            "Não foi possível enviar as correções",
+            COPY.importacoesTimeout,
+          ),
+        );
+      }
+      if (!json) throw new Error("Não foi possível enviar as correções");
       return json;
     },
     onSuccess: () => {
@@ -149,8 +160,18 @@ export function ImportErrorFix({ run }: { run: PublicImportRunDetail }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ignore_errors: true }),
       });
-      const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível ignorar");
+      const json = await readResponseJson<{ error?: string }>(res);
+      if (!res.ok) {
+        throw new Error(
+          httpErrorMessage(
+            res.status,
+            json,
+            "Não foi possível ignorar",
+            COPY.importacoesTimeout,
+          ),
+        );
+      }
+      if (!json) throw new Error("Não foi possível ignorar");
       return json;
     },
     onSuccess: () => {

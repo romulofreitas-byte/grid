@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyImportLeads, applyOneImportLead } from "./import-apply";
 import { mockRepo } from "@/lib/data/mock-repo";
 import { getMockStore } from "@/lib/data/mock-store";
@@ -56,6 +56,28 @@ describe("apply import leads", () => {
     expect(board?.deals.find((deal) => deal.cnpj === "00000000000191")?.company_name).toBe(
       "Padaria",
     );
+  });
+
+  it("creates the file in one repo call", async () => {
+    const { pipeline, stageId } = await setupPipeline();
+    const spy = vi.spyOn(mockRepo, "createCrmDeals");
+    const result = await applyImportLeads({
+      repo: mockRepo,
+      userId: USER,
+      pipelineId: pipeline.id,
+      stageId,
+      source: "import",
+      rows: [
+        { company: "Oficina Norte", name: "Ana" },
+        { company: "Oficina Sul", name: "Bia" },
+      ],
+    });
+    expect("error" in result).toBe(false);
+    if ("error" in result) return;
+    expect(result.created).toBe(2);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0]?.[1]).toHaveLength(2);
+    spy.mockRestore();
   });
 
   it("skips duplicates by CNPJ, email and phone", async () => {

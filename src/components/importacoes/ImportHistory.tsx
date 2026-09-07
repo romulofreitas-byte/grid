@@ -8,6 +8,7 @@ import { ImportErrorFix } from "@/components/importacoes/ImportErrorFix";
 import { Badge } from "@/components/ui/Badge";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
+import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { crmHref, gridHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
@@ -50,6 +51,26 @@ function errorBadge(n: number) {
   return n === 1
     ? COPY.importacoesBadgeErrorOne
     : COPY.importacoesBadgeErrorMany.replace("{n}", String(n));
+}
+
+function importWhen(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
+async function readImportJson<T extends { error?: string }>(
+  res: Response,
+  fallback: string,
+): Promise<T> {
+  const json = await readResponseJson<T>(res);
+  if (!res.ok) {
+    throw new Error(
+      httpErrorMessage(res.status, json, fallback, COPY.importacoesTimeout),
+    );
+  }
+  if (!json) throw new Error(fallback);
+  return json;
 }
 
 function IssueList({
@@ -131,11 +152,10 @@ export function ImportHistory() {
     queryKey: IMPORT_RUNS_QUERY_KEY,
     queryFn: async () => {
       const res = await fetch("/api/crm/import");
-      const json = (await res.json()) as {
+      const json = await readImportJson<{
         runs?: PublicImportRun[];
         error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível ler o histórico");
+      }>(res, "Não foi possível ler o histórico");
       return json.runs ?? [];
     },
   });
@@ -155,11 +175,10 @@ export function ImportHistory() {
     enabled: Boolean(last?.id),
     queryFn: async () => {
       const res = await fetch(`/api/crm/import/${last!.id}`);
-      const json = (await res.json()) as {
+      const json = await readImportJson<{
         run?: PublicImportRunDetail;
         error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível abrir a importação");
+      }>(res, "Não foi possível abrir a importação");
       return json.run!;
     },
   });
@@ -169,11 +188,10 @@ export function ImportHistory() {
     enabled: Boolean(openId),
     queryFn: async () => {
       const res = await fetch(`/api/crm/import/${openId}`);
-      const json = (await res.json()) as {
+      const json = await readImportJson<{
         run?: PublicImportRunDetail;
         error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível abrir a importação");
+      }>(res, "Não foi possível abrir a importação");
       return json.run!;
     },
   });
@@ -199,7 +217,7 @@ export function ImportHistory() {
           </h3>
           <p className="mt-1 text-[11px] text-podium-muted">
             {shown.file_name ? `${shown.file_name} · ` : ""}
-            {new Date(shown.created_at).toLocaleString("pt-BR")}
+            <span suppressHydrationWarning>{importWhen(shown.created_at)}</span>
             {shown.pipeline_nome ? ` · ${shown.pipeline_nome}` : ""}
           </p>
         </div>
@@ -261,7 +279,9 @@ export function ImportHistory() {
                       {run.file_name || run.pipeline_nome}
                     </span>
                     <span className="text-[11px] text-podium-muted">
-                      {new Date(run.created_at).toLocaleString("pt-BR")}
+                      <span suppressHydrationWarning>
+                        {importWhen(run.created_at)}
+                      </span>
                     </span>
                     <RunBadges run={run} issues={extra?.issues} />
                   </button>

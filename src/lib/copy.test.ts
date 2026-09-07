@@ -120,6 +120,7 @@ describe("COPY importações", () => {
     expect(COPY.importacoesImportAndQualify.toLowerCase()).toMatch(/qualificar/);
     expect(COPY.importacoesIgnoreErrors).toBe("Ignorar");
     expect(COPY.importacoesNeedNicheName.toLowerCase()).toMatch(/nicho/);
+    expect(COPY.importacoesTimeout.toLowerCase()).toMatch(/demorou/);
   });
 });
 

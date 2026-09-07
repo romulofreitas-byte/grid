@@ -629,6 +629,8 @@ export const COPY = {
   importacoesNeedRows: "Nenhuma linha pronta para entrar.",
   importacoesNeedNicheName: "Falta o nome do nicho.",
   importacoesNeedNiche: "Escolha o nicho.",
+  importacoesTimeout: "A importação demorou demais. Tente de novo.",
+  apiTimeout: "O servidor demorou demais. Tente de novo.",
   importacoesImportAndQualify: "Importar e qualificar",
   importacoesIgnoreErrors: "Ignorar",
   importacoesIgnoring: "Ignorando…",

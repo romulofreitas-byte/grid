@@ -108,6 +108,7 @@ describe("POST /api/crm/import", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ created: 1, skipped: 0 });
+    expect(searchCompanies).not.toHaveBeenCalled();
     expect(applyImportLeads).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "u1",
@@ -140,6 +141,35 @@ describe("POST /api/crm/import", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Escolha ou crie o nicho." });
     expect(applyImportLeads).not.toHaveBeenCalled();
+  });
+
+  it("does not look up CNPJ by company name", async () => {
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    assertCrmAccess.mockResolvedValue({ enrichAllowed: true });
+    applyImportLeads.mockResolvedValue({
+      created: 1,
+      skipped: 0,
+      errors: [],
+      issues: [],
+      deals: [{ id: "d1", created: true }],
+    });
+    const res = await POST(
+      new Request("http://localhost/api/crm/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pipeline_id: PIPELINE,
+          rows: [{ company: "Padaria do João", name: "Maria" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(searchCompanies).not.toHaveBeenCalled();
+    expect(applyImportLeads).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ company: "Padaria do João" })],
+      }),
+    );
   });
 
   it("lists recent import runs", async () => {

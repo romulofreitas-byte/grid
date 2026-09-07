@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { crmHref, gridHref } from "@/lib/back";
 import { ENRICH_CREDIT_COST, creditsPhrase, planHasFeature } from "@/lib/billing/catalog";
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
+import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { COPY } from "@/lib/copy";
 import {
   guessImportMapping,
@@ -131,8 +132,15 @@ export function ImportacoesPanel({
         method: "POST",
         body,
       });
-      const json = (await res.json()) as SpreadsheetTable & { error?: string };
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível ler o arquivo");
+      const json = await readResponseJson<SpreadsheetTable & { error?: string }>(
+        res,
+      );
+      if (!res.ok) {
+        throw new Error(
+          httpErrorMessage(res.status, json, "Não foi possível ler o arquivo"),
+        );
+      }
+      if (!json) throw new Error("Não foi possível ler o arquivo");
       return { table: json, name: file.name };
     },
     onSuccess: ({ table: data, name }) => {
@@ -217,7 +225,7 @@ export function ImportacoesPanel({
           rows,
         }),
       });
-      const json = (await res.json()) as {
+      const json = await readResponseJson<{
         created?: number;
         skipped?: number;
         errors?: Array<{ row: number; message: string }>;
@@ -226,9 +234,19 @@ export function ImportacoesPanel({
         list_id?: string | null;
         qualified?: number;
         error?: string;
-      };
-      throwIfBillingGate(res.status, json, openPaywall, "qualify");
-      if (!res.ok) throw new Error(json.error ?? "Não foi possível importar");
+      }>(res);
+      throwIfBillingGate(res.status, json ?? {}, openPaywall, "qualify");
+      if (!res.ok) {
+        throw new Error(
+          httpErrorMessage(
+            res.status,
+            json,
+            "Não foi possível importar",
+            COPY.importacoesTimeout,
+          ),
+        );
+      }
+      if (!json) throw new Error("Não foi possível importar");
       return json;
     },
     onSuccess: () => {
@@ -611,9 +629,9 @@ export function ImportacoesPanel({
                 {COPY.importacoesImportAndQualify}
               </p>
               <p className="mt-0.5 text-[11px] text-podium-muted">
-                {creditsPhrase(ENRICH_CREDIT_COST)} por CNPJ · só quem tiver
-                CNPJ depois da busca na base
-                {mappedCnpjs > 0 ? ` · ${mappedCnpjs} já na planilha` : ""}.
+                {creditsPhrase(ENRICH_CREDIT_COST)} por CNPJ · só quem já tiver
+                CNPJ na planilha
+                {mappedCnpjs > 0 ? ` · ${mappedCnpjs} na planilha` : ""}.
                 Saldo: {creditsPhrase(credits)}.
               </p>
               <Button

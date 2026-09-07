@@ -329,6 +329,10 @@ export type GridRepo = {
     userId: string,
     input: CrmDealCreateInput,
   ): Promise<CrmDealCard | null>;
+  createCrmDeals(
+    userId: string,
+    inputs: CrmDealCreateInput[],
+  ): Promise<(CrmDealCard | null)[]>;
   findCrmDealByCnpj(
     userId: string,
     pipelineId: string,

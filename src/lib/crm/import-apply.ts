@@ -22,10 +22,10 @@ export type ImportApplyRepo = {
     userId: string,
     pipelineId: string,
   ): Promise<{ deals: CrmDealCard[] } | null>;
-  createCrmDeal(
+  createCrmDeals(
     userId: string,
-    input: CrmDealCreateInput,
-  ): Promise<CrmDealCard | null>;
+    inputs: CrmDealCreateInput[],
+  ): Promise<(CrmDealCard | null)[]>;
 };
 
 export type ImportRowError = {
@@ -55,11 +55,17 @@ export async function applyImportLeads(opts: {
   defaultKind?: CrmLeadKind;
   formChannel?: CrmFormChannel;
   searchId?: string;
+  existingDeals?: CrmDealCard[];
 }): Promise<ImportApplyResult | { error: string; status: number }> {
-  const board = await opts.repo.getCrmBoard(opts.userId, opts.pipelineId);
-  if (!board) return { error: "Pista não encontrada.", status: 404 };
+  let known: CrmDealCard[];
+  if (opts.existingDeals) {
+    known = [...opts.existingDeals];
+  } else {
+    const board = await opts.repo.getCrmBoard(opts.userId, opts.pipelineId);
+    if (!board) return { error: "Pista não encontrada.", status: 404 };
+    known = [...board.deals];
+  }
 
-  const known: CrmDealCard[] = [...board.deals];
   const result: ImportApplyResult = {
     created: 0,
     skipped: 0,
@@ -72,6 +78,12 @@ export async function applyImportLeads(opts: {
     result.errors.push({ row, message });
     result.issues.push({ row, status: "error", message });
   }
+
+  const pending: Array<{
+    row: number;
+    input: CrmDealCreateInput;
+    stub: Pick<CrmDealCard, "id" | "cnpj" | "phones" | "people">;
+  }> = [];
 
   for (let index = 0; index < opts.rows.length; index += 1) {
     const mapped = mapImportLead(opts.rows[index]!, {
@@ -95,30 +107,53 @@ export async function applyImportLeads(opts: {
       });
       continue;
     }
-    const created = await opts.repo.createCrmDeal(opts.userId, {
-      pipelineId: opts.pipelineId,
-      stage_id: opts.stageId,
-      company_name: mapped.lead.company_name,
-      contact_name: mapped.lead.contact_name,
-      people: mapped.lead.people,
+    const stub = {
+      id: `pending-${index}`,
+      cnpj: mapped.lead.cnpj ?? null,
       phones: mapped.lead.phones,
-      notes: mapped.lead.notes || undefined,
-      cnpj: mapped.lead.cnpj,
-      meta: {
-        source: opts.source,
-        lead_kind: mapped.lead.kind,
-        form_answers: mapped.lead.answers,
-        form_channel: opts.formChannel,
-        searchId: opts.searchId,
+      people: mapped.lead.people,
+    };
+    known.push(stub as CrmDealCard);
+    pending.push({
+      row: index + 1,
+      stub,
+      input: {
+        pipelineId: opts.pipelineId,
+        stage_id: opts.stageId,
+        company_name: mapped.lead.company_name,
+        contact_name: mapped.lead.contact_name,
+        people: mapped.lead.people,
+        phones: mapped.lead.phones,
+        notes: mapped.lead.notes || undefined,
+        cnpj: mapped.lead.cnpj,
+        meta: {
+          source: opts.source,
+          lead_kind: mapped.lead.kind,
+          form_answers: mapped.lead.answers,
+          form_channel: opts.formChannel,
+          searchId: opts.searchId,
+        },
       },
     });
-    if (!created) {
-      pushError(index + 1, IMPORT_CREATE_FAILED_MESSAGE);
+  }
+
+  const created =
+    pending.length === 0
+      ? []
+      : await opts.repo.createCrmDeals(
+          opts.userId,
+          pending.map((item) => item.input),
+        );
+
+  for (let index = 0; index < pending.length; index += 1) {
+    const item = pending[index]!;
+    const card = created[index] ?? null;
+    if (!card) {
+      pushError(item.row, IMPORT_CREATE_FAILED_MESSAGE);
       continue;
     }
-    known.push(created);
     result.created += 1;
-    result.deals.push({ id: created.id, created: true });
+    result.deals.push({ id: card.id, created: true });
   }
 
   return result;
