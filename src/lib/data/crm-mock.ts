@@ -482,7 +482,10 @@ export const crmMockMethods = {
     return toCard(store, deal);
   },
 
-  async createCrmDeals(userId, inputs) {
+  async createCrmDeals(
+    userId: string,
+    inputs: CrmDealCreateInput[],
+  ): Promise<(CrmDealCard | null)[]> {
     const cards: Array<CrmDealCard | null> = [];
     for (const input of inputs) {
       cards.push(await crmMockMethods.createCrmDeal(userId, input));
