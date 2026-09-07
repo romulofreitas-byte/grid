@@ -16,7 +16,9 @@ import {
   companyHostsEqual,
   hasPresenceFields,
   PresenceCorrectionError,
+  type PresenceCorrectionResult,
 } from "@/lib/enrichment/correct-presence";
+import type { ScoreProfile } from "@/lib/types";
 import { parseCompanySite } from "@/lib/enrichment/company-site";
 import {
   domainFromGmb,
@@ -222,8 +224,8 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    let decided;
-    let scoreProfile;
+    let decided: PresenceCorrectionResult;
+    let scoreProfile: ScoreProfile;
     try {
       scoreProfile = await resolveJobScoreProfile(repo, searchId);
       decided = applyPresenceCorrection(enrichment, parsed.data.corrections, {
@@ -244,14 +246,16 @@ export async function POST(req: Request) {
       const row = { ...decided.row, gmb };
       const host = domainFromGmb(gmb);
       const site = host && !row.domain ? parseCompanySite(host) : null;
-      decided = site
-        ? {
-            kind: "recrawl",
-            domain: site.host,
-            homepagePath: site.homepagePath,
-            row: applySiteConfirm(row, site.host, { scoreProfile }),
-          }
-        : { kind: "patch", row };
+      if (site) {
+        decided = {
+          kind: "recrawl",
+          domain: site.host,
+          homepagePath: site.homepagePath,
+          row: applySiteConfirm(row, site.host, { scoreProfile }),
+        };
+      } else {
+        decided = { kind: "patch", row };
+      }
     }
     if (decided.kind === "recrawl") {
       await repo.skipActiveEnrichmentJobs(cnpj);
