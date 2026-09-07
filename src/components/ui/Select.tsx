@@ -20,8 +20,8 @@ export type SelectSize = "sm" | "md";
 export type SelectTone = "dark" | "light";
 
 const SIZE: Record<SelectSize, string> = {
-  sm: "h-7 rounded-md px-2.5 text-[11px]",
-  md: "h-9 rounded-lg px-3 text-xs",
+  sm: "h-11 rounded-md px-2.5 text-base md:h-7 md:text-[11px]",
+  md: "h-11 rounded-lg px-3 text-base md:h-9 md:text-xs",
 };
 
 const TONE: Record<

@@ -84,7 +84,7 @@ export function BoxRhythmStrip({
         aria-hidden="true"
         data-active={pulse ? "1" : "0"}
       />
-      <div className="flex min-w-0 items-center gap-4 px-3 py-1.5">
+      <div className="flex min-w-0 items-center gap-3 px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxRhythmCalls}
@@ -92,18 +92,26 @@ export function BoxRhythmStrip({
           <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
             {`${rhythm.callsToday} / ${rhythm.callGoal}`}
           </p>
-          <Spark values={rhythm.habit.map((point) => point.calls)} />
+          <span className="hidden md:inline">
+            <Spark values={rhythm.habit.map((point) => point.calls)} />
+          </span>
         </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
-            {COPY.boxRhythmDone}
+        {overdueCount > 0 ? (
+          <p className="shrink-0 tabular-nums text-xs font-medium text-podium-alert">
+            {overdueCount === 1 ? "1 atrasado" : `${overdueCount} atrasados`}
           </p>
-          <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
-            {done}
-          </p>
-          <Split ligar={rhythm.crmCallsToday} whatsapp={rhythm.crmWhatsappToday} />
-        </div>
-        <div className="ml-auto flex min-w-0 items-center gap-2">
+        ) : (
+          <div className="hidden min-w-0 items-center gap-2 md:flex">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+              {COPY.boxRhythmDone}
+            </p>
+            <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
+              {done}
+            </p>
+            <Split ligar={rhythm.crmCallsToday} whatsapp={rhythm.crmWhatsappToday} />
+          </div>
+        )}
+        <div className="ml-auto hidden min-w-0 items-center gap-2 md:flex">
           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxRhythmAdvance}
           </p>

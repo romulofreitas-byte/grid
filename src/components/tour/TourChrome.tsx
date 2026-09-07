@@ -6,8 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AngularBackground } from "@/components/AngularBackground";
 import { BrandLogo } from "@/components/BrandLogo";
 import { ShellRail, useShellRailOpen } from "@/components/ShellRail";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { COPY } from "@/lib/copy";
-import { SHELL_WORK_NAV } from "@/lib/shell-nav";
 import { shellRailWidthClass } from "@/lib/shell-rail";
 import type { Profile } from "@/lib/types";
 import type { TourScene } from "@/lib/tour";
@@ -78,32 +78,13 @@ export function TourChrome({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-5 md:pb-8">
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] pt-5 md:pb-8">
             {children}
           </main>
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-podium-navy/95 backdrop-blur-xl md:hidden">
-        <div className="mx-auto flex max-w-lg items-stretch justify-around px-2 py-2">
-          {SHELL_WORK_NAV.map((item) => {
-            const active = item.href === "/painel" && scene === "painel";
-            return (
-              <span
-                key={item.href}
-                data-tour={item.tour}
-                className={cn(
-                  "relative flex flex-1 flex-col items-center gap-1 rounded-md px-2 py-1 text-[11px]",
-                  active ? "text-podium-yellow" : "text-podium-muted",
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="whitespace-nowrap">{item.label}</span>
-              </span>
-            );
-          })}
-        </div>
-      </nav>
+      <MobileTabBar staticNav moreActive={scene === "painel"} />
     </div>
   );
 }

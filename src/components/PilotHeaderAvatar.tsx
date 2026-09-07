@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { AnchorPopover } from "@/components/AnchorPopover";
 import { useFocusMode } from "@/components/FocusModeProvider";
 import { FocusSwitch } from "@/components/FocusSwitch";
+import { PilotAvatar } from "@/components/PilotAvatar";
 import { PilotGlassChip } from "@/components/PilotGlassChip";
 import { logoutPilot } from "@/lib/auth/logout-client";
 import { pathWithSearch, planosHref } from "@/lib/billing/href";
@@ -99,21 +100,9 @@ export function PilotHeaderAvatar() {
           aria-haspopup="menu"
           aria-label={`Abrir menu · ${fullName}`}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex max-w-full rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-podium-yellow ring-offset-2 ring-offset-podium-navy"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-podium-yellow ring-offset-2 ring-offset-podium-navy"
         >
-          <PilotGlassChip
-            profile={p}
-            shortName={shortName}
-            fullName={fullName}
-            chevron={
-              <ChevronDown
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 text-podium-muted transition-transform",
-                  open && "rotate-180 text-podium-white",
-                )}
-              />
-            }
-          />
+          <PilotAvatar profile={p} size="header" shape="squircle" />
         </button>
         <AnchorPopover
           open={open}

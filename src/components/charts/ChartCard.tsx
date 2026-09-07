@@ -23,7 +23,7 @@ export function ChartCard({
   return (
     <GlassCard
       className={cn(
-        "flex h-full flex-col p-4",
+        "flex h-full flex-col p-3 md:p-4",
         active && "border-podium-yellow/35",
         className,
       )}
@@ -40,7 +40,7 @@ export function ChartCard({
           </span>
         ) : null}
       </div>
-      {hint ? <Hint className="mt-1">{hint}</Hint> : null}
+      {hint ? <Hint className="mt-1 hidden md:block">{hint}</Hint> : null}
       <div className="mt-3 flex-1">{children}</div>
     </GlassCard>
   );

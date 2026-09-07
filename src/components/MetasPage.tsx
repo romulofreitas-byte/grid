@@ -34,7 +34,7 @@ import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const fieldClass =
-  "mt-1 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-sm outline-none focus:border-podium-yellow/40";
+  "mt-1 min-h-11 w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-base outline-none focus:border-podium-yellow/40 md:min-h-0 md:text-sm";
 
 const METAS_QUERY = ["metas"] as const;
 

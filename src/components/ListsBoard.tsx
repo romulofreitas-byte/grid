@@ -97,7 +97,7 @@ export function ListsBoard({
         <div className="flex items-start justify-between gap-3">
           <div>
             <SectionTitle>Minhas listas · {saved.length}</SectionTitle>
-            <Hint className="mt-1.5 max-w-xl">
+            <Hint className="mt-1.5 hidden max-w-xl md:block">
               {COPY.listasSalvasHint}
             </Hint>
           </div>
@@ -123,7 +123,12 @@ export function ListsBoard({
             ) : null}
             <Link
               href={largadaNovaHref}
-              className={buttonClassName({ variant: "accent", size: "sm" })}
+              data-tour="nova-lista"
+              className={buttonClassName({
+                variant: "primary",
+                size: "md",
+                className: "min-h-11 md:min-h-0 md:h-7 md:px-2 md:text-[11px]",
+              })}
             >
               <Plus className="h-3.5 w-3.5" />
               {COPY.novaLista}
@@ -185,7 +190,7 @@ export function ListsBoard({
         <SectionTitle>
           {COPY.listasNaoSalvas} · {unsaved.length} de {UNSAVED_LIST_CAP}
         </SectionTitle>
-        <Hint className="mt-1.5 max-w-xl">
+        <Hint className="mt-1.5 hidden max-w-xl md:block">
           {COPY.listasNaoSalvasHint}
         </Hint>
         <SearchGrid

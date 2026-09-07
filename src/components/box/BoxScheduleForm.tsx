@@ -60,7 +60,7 @@ export function BoxScheduleForm({
             type="datetime-local"
             value={dueAt}
             onChange={(event) => setDueAt(event.target.value)}
-            className="mt-1 h-7 w-full rounded-md border border-white/15 bg-white/[0.04] px-2 text-[11px] text-podium-white outline-none [color-scheme:dark] focus:border-podium-yellow/35"
+            className="mt-1 h-11 w-full rounded-md border border-white/15 bg-white/[0.04] px-2 text-base text-podium-white outline-none [color-scheme:dark] focus:border-podium-yellow/35 md:h-7 md:text-[11px]"
           />
         </label>
       </div>

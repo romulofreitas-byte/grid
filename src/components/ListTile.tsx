@@ -68,17 +68,17 @@ export function ListTile({
               {search.nome}
             </p>
           </div>
-          <p
+          <span
             className={cn(
-              "shrink-0 text-right font-semibold tracking-tight",
-              unsaved ? "text-lg text-podium-muted" : "text-xl text-podium-yellow",
+              "shrink-0 rounded-md border px-2 py-1 text-right text-xs font-semibold tabular-nums",
+              unsaved
+                ? "border-white/10 text-podium-muted"
+                : "border-white/10 text-podium-gray",
             )}
           >
-            {leads.toLocaleString("pt-BR")}
-            <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-              {leadLabel}
-            </span>
-          </p>
+            {leads.toLocaleString("pt-BR")}{" "}
+            <span className="font-medium text-podium-muted">{leadLabel}</span>
+          </span>
         </div>
         <ListSummaryBadges filters={search.filtros} className="mt-2" />
         {pistaNome ? (

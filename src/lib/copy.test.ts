@@ -142,7 +142,7 @@ describe("COPY listas", () => {
     expect(COPY.listasMostrarMais.replace("{n}", "8")).toBe("Mostrar mais · 8");
     expect(COPY.listasVolumeLabel).toBe("pra ligar");
     expect(COPY.listasVolumeAria.replace("{n}", "1.234")).toBe(
-      "1.234 leads salvos para ligar. Escolha uma lista.",
+      "1.234 empresas salvas para ligar. Escolha uma lista.",
     );
   });
 });

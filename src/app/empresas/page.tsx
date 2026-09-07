@@ -77,7 +77,7 @@ function CompanyRow({
     });
   }
   return (
-    <GlassCard className="flex items-center gap-3 px-3 py-2 hover:translate-y-0 hover:bg-white/[0.03]">
+    <GlassCard className="flex flex-col gap-3 px-3 py-3 hover:translate-y-0 hover:bg-white/[0.03] sm:flex-row sm:items-center">
       <Link
         href={`/lead/${hit.cnpj}?from=empresas`}
         onClick={() => {
@@ -115,7 +115,7 @@ function CompanyRow({
         variant="secondary"
         disabled={saving}
         onClick={() => onSaveToPista(hit)}
-        className="shrink-0"
+        className="min-h-11 w-full shrink-0 sm:min-h-0 sm:w-auto"
       >
         <Flag className="h-3 w-3" />
         {saving ? "Salvando…" : COPY.salvarNaPista}
@@ -217,7 +217,7 @@ export default function EmpresasPage() {
             inputMode="text"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-9 pr-3 text-sm outline-none focus:border-podium-yellow/40"
+            className="h-11 w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-9 pr-3 text-base outline-none focus:border-podium-yellow/40 md:h-auto md:py-1.5 md:text-sm"
             aria-label="Buscar empresas"
           />
         </div>
@@ -262,7 +262,8 @@ export default function EmpresasPage() {
         </button>
       </div>
       {ufOpen ? (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-white/10 p-2 md:max-h-none md:overflow-visible md:border-0 md:p-0">
+          <div className="flex flex-wrap gap-1">
           {ALL_UFS.map((uf) => {
             const on = ufs.includes(uf);
             return (
@@ -283,6 +284,7 @@ export default function EmpresasPage() {
               </button>
             );
           })}
+          </div>
         </div>
       ) : null}
 

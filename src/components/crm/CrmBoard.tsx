@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AnimatePresence } from "framer-motion";
-import { Plus, SlidersHorizontal, Upload } from "lucide-react";
+import { Plus, SlidersHorizontal, Upload, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CrmAddDealDialog } from "@/components/crm/CrmAddDealDialog";
@@ -25,8 +25,11 @@ import { CrmDealSearch } from "@/components/crm/CrmDealSearch";
 import { CrmLane } from "@/components/crm/CrmLane";
 import { CrmLanesSkeleton } from "@/components/crm/CrmBoardSkeleton";
 import { CrmPipelineRail } from "@/components/crm/CrmPipelineRail";
+import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { Button, buttonClassName } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import { useConnections } from "@/hooks/useConnections";
+import { useMdUp } from "@/hooks/useMinWidth";
 import { COPY } from "@/lib/copy";
 import { crmFetch } from "@/lib/crm/client";
 import { pickCallConnection } from "@/lib/integrations/call-target";
@@ -43,6 +46,7 @@ import type {
   CrmPipelineSummary,
   CrmStage,
 } from "@/lib/crm/types";
+import { cn } from "@/lib/utils";
 
 type Columns = Record<string, string[]>;
 
@@ -133,6 +137,9 @@ export function CrmBoard({
   );
   const dndId = useId();
   const [dndReady, setDndReady] = useState(false);
+  const [mobileStageId, setMobileStageId] = useState<string | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const mdUp = useMdUp();
   const connectionsQuery = useConnections();
   const callConnection = pickCallConnection(connectionsQuery.data ?? []);
   const cacheRef = useRef(
@@ -466,18 +473,32 @@ export function CrmBoard({
   }, [board?.stages, columns, kanbanById, dealsById]);
 
   const activeDeal = activeId ? dealsById.get(activeId) : null;
+  const stageList = board?.stages ?? EMPTY_STAGES;
+  const focusedStageId =
+    mobileStageId && stageList.some((stage) => stage.id === mobileStageId)
+      ? mobileStageId
+      : (stageList[0]?.id ?? null);
+  const shownStages = mdUp
+    ? stageList
+    : stageList.filter((stage) => stage.id === focusedStageId);
 
   const lanes = (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden pb-2">
+    <div
+      className={cn(
+        "flex h-full min-h-0 min-w-0 flex-1 gap-3 overflow-y-hidden pb-2",
+        mdUp ? "overflow-x-auto" : "overflow-x-hidden",
+      )}
+    >
       {loadingPipelineId && !board ? (
         <CrmLanesSkeleton />
       ) : (
-        board?.stages.map((stage, index) => (
+        shownStages.map((stage, index) => (
           <CrmLane
             key={stage.id}
             stage={stage}
-            index={index}
-            dnd={dndReady}
+            index={mdUp ? index : stageList.findIndex((row) => row.id === stage.id)}
+            dnd={dndReady && mdUp}
+            fill={!mdUp}
             deals={dealsByStage.get(stage.id) ?? EMPTY_DEALS}
             onOpenDeal={openDealCard}
             onDealChange={replaceDeal}
@@ -491,16 +512,36 @@ export function CrmBoard({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-3">
-        <div>
+      <div className="mb-2 flex shrink-0 flex-col gap-2 md:mb-3 md:flex-row md:flex-wrap md:items-end md:justify-between">
+        <div className="hidden md:block">
           <p className="text-sm font-semibold">
             {board?.pipeline.nome ??
               pipelines.find((row) => row.id === selectedPipelineId)?.nome ??
               COPY.crmTitle}
           </p>
-          <p className="mt-1 max-w-xl text-pretty text-xs text-podium-muted">{COPY.crmHint}</p>
+          <p className="mt-1 max-w-xl text-pretty text-xs text-podium-muted">
+            {COPY.crmHint}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {pipelines.length > 0 ? (
+            <label className="min-w-0 flex-1 md:hidden">
+              <span className="sr-only">{COPY.crmPipelineSelectLabel}</span>
+              <Select
+                value={selectedPipelineId ?? ""}
+                onChange={(value) => void loadPipeline(value)}
+                aria-label={COPY.crmPipelineSelectLabel}
+                className="w-full"
+                options={pipelines.map((pipeline) => ({
+                  value: pipeline.id,
+                  label:
+                    pipeline.deal_count > 0
+                      ? `${pipeline.nome} · ${pipeline.deal_count}`
+                      : pipeline.nome,
+                }))}
+              />
+            </label>
+          ) : null}
           <CrmDealSearch
             pipelineId={selectedPipelineId}
             localDeals={board?.deals ?? EMPTY_DEALS}
@@ -511,50 +552,109 @@ export function CrmBoard({
           <Button
             type="button"
             size="sm"
-            variant={showClosed ? "accent" : "secondary"}
-            onClick={() => setShowClosed((current) => !current)}
-          >
-            {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
-            {closedCount > 0 ? (
-              <span className="ml-1.5 font-mono text-[10px] text-podium-muted">
-                {closedCount}
-              </span>
-            ) : null}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => setCadenceOpen(true)}
-            disabled={!board}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            {COPY.crmAdjustCadence}
-          </Button>
-          <Link
-            href="/importacoes"
-            className={buttonClassName({ variant: "secondary", size: "sm" })}
-          >
-            <Upload className="h-3.5 w-3.5" />
-            {COPY.crmImport}
-          </Link>
-          <Button
-            type="button"
-            size="sm"
             variant="primary"
             onClick={() => setAddOpen(true)}
             disabled={!board}
+            className="min-h-11 md:min-h-0"
           >
             <Plus className="h-3.5 w-3.5" />
-            {COPY.crmAddDeal}
+            <span className="hidden md:inline">{COPY.crmAddDeal}</span>
           </Button>
+          <div className="relative md:hidden">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              aria-expanded={toolsOpen}
+              aria-label="Mais ações"
+              onClick={() => setToolsOpen((open) => !open)}
+              className="min-h-11 w-11 px-0"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            {toolsOpen ? (
+              <div className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-white/10 bg-podium-navy py-1 shadow-xl">
+                <button
+                  type="button"
+                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
+                  onClick={() => {
+                    setShowClosed((current) => !current);
+                    setToolsOpen(false);
+                  }}
+                >
+                  {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
+                  {closedCount > 0 ? ` · ${closedCount}` : ""}
+                </button>
+                <button
+                  type="button"
+                  disabled={!board}
+                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
+                  onClick={() => {
+                    setCadenceOpen(true);
+                    setToolsOpen(false);
+                  }}
+                >
+                  {COPY.crmAdjustCadence}
+                </button>
+                <Link
+                  href="/importacoes"
+                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
+                  onClick={() => setToolsOpen(false)}
+                >
+                  {COPY.crmImport}
+                </Link>
+              </div>
+            ) : null}
+          </div>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            <Button
+              type="button"
+              size="sm"
+              variant={showClosed ? "accent" : "secondary"}
+              onClick={() => setShowClosed((current) => !current)}
+            >
+              {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
+              {closedCount > 0 ? (
+                <span className="ml-1.5 font-mono text-[10px] text-podium-muted">
+                  {closedCount}
+                </span>
+              ) : null}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => setCadenceOpen(true)}
+              disabled={!board}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {COPY.crmAdjustCadence}
+            </Button>
+            <Link
+              href="/importacoes"
+              className={buttonClassName({ variant: "secondary", size: "sm" })}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {COPY.crmImport}
+            </Link>
+          </div>
         </div>
       </div>
       {error ? (
         <p className="mb-3 shrink-0 text-sm text-red-400">{error}</p>
       ) : null}
+      {!mdUp && stageList.length > 0 ? (
+        <div className="mb-2 shrink-0">
+          <CrmStageChevronBar
+            stages={stageList}
+            activeId={focusedStageId ?? stageList[0]!.id}
+            onSelect={setMobileStageId}
+          />
+        </div>
+      ) : null}
       <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
-        <CrmPipelineRail
+        <div className="hidden h-full md:block">
+          <CrmPipelineRail
           pipelines={pipelines}
           activeId={selectedPipelineId}
           onSelect={(pipelineId) => void loadPipeline(pipelineId)}
@@ -627,8 +727,9 @@ export function CrmBoard({
             }
           }}
         />
+        </div>
         <div className="flex min-h-0 min-w-0 flex-1">
-          {dndReady ? (
+          {dndReady && mdUp ? (
             <DndContext
               id={dndId}
               sensors={sensors}

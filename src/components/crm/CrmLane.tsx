@@ -18,6 +18,7 @@ export const CrmLane = memo(function CrmLane({
   onRename,
   connection = null,
   dnd = true,
+  fill = false,
 }: {
   stage: CrmStage;
   index: number;
@@ -27,6 +28,7 @@ export const CrmLane = memo(function CrmLane({
   onRename: (stageId: string, nome: string) => void;
   connection?: CallConnectionPick | null;
   dnd?: boolean;
+  fill?: boolean;
 }) {
   if (dnd) {
     return (
@@ -38,6 +40,7 @@ export const CrmLane = memo(function CrmLane({
         onDealChange={onDealChange}
         onRename={onRename}
         connection={connection}
+        fill={fill}
       />
     );
   }
@@ -51,6 +54,7 @@ export const CrmLane = memo(function CrmLane({
       onRename={onRename}
       connection={connection}
       dnd={false}
+      fill={fill}
     />
   );
 });
@@ -63,6 +67,7 @@ function DroppableCrmLane({
   onDealChange,
   onRename,
   connection,
+  fill = false,
 }: {
   stage: CrmStage;
   index: number;
@@ -71,6 +76,7 @@ function DroppableCrmLane({
   onDealChange?: (deal: Deal) => void;
   onRename: (stageId: string, nome: string) => void;
   connection: CallConnectionPick | null;
+  fill?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane:${stage.id}`,
@@ -86,6 +92,7 @@ function DroppableCrmLane({
       onRename={onRename}
       connection={connection}
       dnd
+      fill={fill}
       setNodeRef={setNodeRef}
       isOver={isOver}
     />
@@ -101,6 +108,7 @@ function CrmLaneShell({
   onRename,
   connection,
   dnd,
+  fill = false,
   setNodeRef,
   isOver = false,
 }: {
@@ -112,6 +120,7 @@ function CrmLaneShell({
   onRename: (stageId: string, nome: string) => void;
   connection: CallConnectionPick | null;
   dnd: boolean;
+  fill?: boolean;
   setNodeRef?: (node: HTMLElement | null) => void;
   isOver?: boolean;
 }) {
@@ -140,7 +149,8 @@ function CrmLaneShell({
     <section
       ref={setNodeRef}
       className={cn(
-        "flex h-full min-h-0 w-[17.5rem] shrink-0 flex-col rounded-lg border border-white/[0.07] bg-podium-navy/40",
+        "flex h-full min-h-0 shrink-0 flex-col rounded-lg border border-white/[0.07] bg-podium-navy/40",
+        fill ? "w-full min-w-0" : "w-[17.5rem]",
         isOver && "border-podium-yellow/35 bg-podium-yellow/[0.04]",
       )}
     >

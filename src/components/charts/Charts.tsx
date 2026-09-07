@@ -56,8 +56,8 @@ export function ChartDonut({
       return { ...row, start, end: Math.min(end, start + 359.99) };
     });
   return (
-    <div className="flex items-center gap-4">
-      <svg viewBox="0 0 120 120" className="h-44 w-44 shrink-0">
+    <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-center">
+      <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0 sm:h-44 sm:w-44">
         {slices.map((row) => (
           <path
             key={row.id}
@@ -92,7 +92,7 @@ export function ChartDonut({
           total
         </text>
       </svg>
-      <ul className="min-w-0 space-y-1.5 text-xs text-podium-gray">
+      <ul className="w-full min-w-0 space-y-1.5 text-xs text-podium-gray">
         {data.map((row) => (
           <li key={row.id}>
             <button
@@ -341,7 +341,7 @@ export function ChartFunnel({
         return (
           <li
             key={step.id}
-            className="grid grid-cols-[5.75rem_minmax(0,1fr)_2.25rem_2.5rem] items-center gap-x-2"
+            className="grid grid-cols-[minmax(0,4.25rem)_minmax(0,1fr)_2rem] items-center gap-x-1.5 md:grid-cols-[5.75rem_minmax(0,1fr)_2.25rem_2.5rem] md:gap-x-2"
           >
             <span className="truncate text-xs font-bold text-podium-white">
               {step.label}
@@ -360,7 +360,7 @@ export function ChartFunnel({
               {formatInt(step.count)}
             </span>
             <span
-              className="text-right text-[10px] font-semibold tabular-nums text-podium-muted"
+              className="hidden text-right text-[10px] font-semibold tabular-nums text-podium-muted md:block"
               title={
                 conv != null && prev != null
                   ? `${formatInt(step.count)} de ${formatInt(prev)} na etapa de cima`

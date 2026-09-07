@@ -21,6 +21,7 @@ import type { BoxQueueItem, BoxQueueKind } from "@/lib/box/queue";
 import { COPY } from "@/lib/copy";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import { cn } from "@/lib/utils";
 
 const textLink =
   "text-[11px] text-podium-muted hover:text-podium-yellow hover:underline disabled:opacity-40";
@@ -93,18 +94,18 @@ export function BoxFocusCard({
 
   return (
     <article className="shrink-0 border-b border-white/10 px-4 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <CrmTelemetryPip signal={item.signal} />
-            <p className="truncate text-sm font-medium tracking-tight text-podium-white">
+            <p className="truncate text-base font-medium tracking-tight text-podium-white md:text-sm">
               {item.companyName}
             </p>
           </div>
-          <p className="mt-1 truncate font-mono text-[12px] text-podium-gray">
+          <p className="mt-1 truncate font-mono text-sm text-podium-gray md:text-[12px]">
             {phoneLabel}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-podium-muted">
+          <p className="mt-0.5 truncate text-xs text-podium-muted md:text-[11px]">
             {[
               item.contactName,
               item.stageNome,
@@ -115,16 +116,19 @@ export function BoxFocusCard({
               .join(" · ")}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex w-full shrink-0 flex-col gap-2 md:w-auto md:items-end">
           {item.kind === "whatsapp" ? (
             waHref ? (
               <a
                 href={waHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={waCall}
+                className={cn(
+                  waCall,
+                  "h-11 w-full justify-center text-sm md:h-7 md:w-auto md:text-[11px]",
+                )}
               >
-                <MessageCircle className="h-3.5 w-3.5" />
+                <MessageCircle className="h-4 w-4 md:h-3.5 md:w-3.5" />
                 WhatsApp
               </a>
             ) : null
@@ -139,9 +143,10 @@ export function BoxFocusCard({
               titleHint="Ligar"
               companyName={item.companyName}
               phoneLabel={tel ? formatBoxPhoneDisplay(tel.phone) : null}
+              className="h-11 w-full text-sm md:h-7 md:w-auto md:text-[11px]"
             />
           ) : null}
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-3 md:justify-end md:gap-2">
             <button
               type="button"
               disabled={locked}

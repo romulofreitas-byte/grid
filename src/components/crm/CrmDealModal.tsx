@@ -696,7 +696,7 @@ export function CrmDealModal({
         onDone={() => setCelebrateCompany(null)}
       />
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-5"
+        className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-5"
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -712,7 +712,7 @@ export function CrmDealModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="crm-deal-title"
-        className="relative flex h-[min(92vh,56rem)] w-[min(96vw,88rem)] flex-col overflow-hidden rounded-lg border border-white/10 bg-podium-navy text-podium-white shadow-2xl"
+        className="relative flex h-[100dvh] w-full flex-col overflow-hidden rounded-none border-0 border-white/10 bg-podium-navy text-podium-white shadow-2xl md:h-[min(92vh,56rem)] md:w-[min(96vw,88rem)] md:rounded-lg md:border"
         initial={reduce ? false : { scale: 0.98 }}
         animate={{ scale: 1 }}
         exit={reduce ? undefined : { scale: 0.98 }}
@@ -800,16 +800,16 @@ export function CrmDealModal({
               type="button"
               disabled={saving || !headerPhone}
               onClick={() => askCall(headerPhone ?? undefined)}
-              className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md bg-podium-yellow px-3 text-sm font-medium text-podium-navy hover:brightness-110 disabled:opacity-50 md:min-h-0 md:px-2.5 md:py-1 md:text-[11px]"
             >
-              <Phone className="h-3.5 w-3.5" />
+              <Phone className="h-4 w-4 md:h-3.5 md:w-3.5" />
               {COPY.crmCallNow}
             </button>
             <button
               type="button"
               disabled={saving || !headerPhone}
               onClick={() => startWhatsapp()}
-              className="inline-flex items-center gap-1 rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md border border-white/15 bg-white/[0.04] px-3 text-sm font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50 md:min-h-0 md:px-2.5 md:py-1 md:text-[11px]"
             >
               <MessageCircle className="h-3.5 w-3.5" />
               {COPY.crmWhatsappNow}

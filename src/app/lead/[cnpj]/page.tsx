@@ -69,7 +69,7 @@ const iconActionClass =
 
 /** h-0 + flex-1 gives the split a definite height so column overflow-y-auto can scroll. */
 const fichaSplitClass =
-  "flex h-0 min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden";
+  "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain lg:h-0 lg:flex-row lg:overflow-hidden";
 const fichaLeftClass =
   "w-full space-y-3 lg:h-full lg:w-[26rem] lg:shrink-0 lg:overflow-y-scroll lg:overscroll-contain lg:[scrollbar-gutter:stable]";
 const fichaRightClass =
@@ -769,7 +769,7 @@ export default function LeadPage() {
 
             {primary ? (
               <div className="mt-3">
-                <div className="flex items-start gap-2">
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                       {callConnection &&
@@ -802,7 +802,33 @@ export default function LeadPage() {
                       </p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="mt-3 flex gap-2 lg:hidden">
+                    <CallButton
+                      telHref={`tel:+55${primary.ddd}${primary.telefone}`}
+                      connection={callConnection}
+                      cnpj={params.cnpj}
+                      searchId={searchId}
+                      to={primaryE164 ? `+${primaryE164}` : undefined}
+                      label="Ligar"
+                      className="min-h-11 flex-1 text-sm"
+                      titleHint={COPY.callDialHint}
+                      companyName={companyTitle}
+                      phoneLabel={formatPhone(primary.ddd, primary.telefone)}
+                      onCalled={markLigando}
+                    />
+                    {wa ? (
+                      <a
+                        href={wa}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-white/15 bg-white/[0.04] px-3 text-sm font-medium text-podium-gray"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        WhatsApp
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="hidden shrink-0 items-center gap-1 lg:flex">
                     <CallButton
                       telHref={`tel:+55${primary.ddd}${primary.telefone}`}
                       connection={callConnection}

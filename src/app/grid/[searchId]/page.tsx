@@ -32,7 +32,7 @@ import {
   throwIfBillingGate,
 } from "@/lib/billing/paywall";
 import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
-import { useMinWidth } from "@/hooks/useMinWidth";
+import { useLgUp } from "@/hooks/useMinWidth";
 import { sealLabel } from "@/lib/seal-display";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnae, formatPhone, formatPorte } from "@/lib/format";
@@ -209,6 +209,7 @@ function GridRowActions({
   canRemove,
   onToggle,
   onRemove,
+  stacked = false,
 }: {
   row: GridRow;
   searchId: string;
@@ -218,6 +219,7 @@ function GridRowActions({
   canRemove: boolean;
   onToggle: () => void;
   onRemove: () => void;
+  stacked?: boolean;
 }) {
   const [dialed, setDialed] = useState(false);
   const telHref = row.telefone ? `tel:+55${row.telefone}` : null;
@@ -229,7 +231,12 @@ function GridRowActions({
   );
   const calledToday = row.calledToday || dialed;
   return (
-    <div className="flex items-center gap-1 whitespace-nowrap">
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        stacked ? "flex-wrap whitespace-normal" : "whitespace-nowrap",
+      )}
+    >
       {qualified ? (
         <div className="flex items-center gap-1">
           <Badge
@@ -268,7 +275,7 @@ function GridRowActions({
         searchId={searchId}
         to={row.telefone ? `+55${row.telefone}` : undefined}
         variant="grid"
-        className="px-2"
+        className={cn("px-2", stacked && "min-h-11 flex-1 text-sm")}
         titleHint={COPY.callDialHint}
         companyName={name}
         phoneLabel={phoneLabel}
@@ -332,7 +339,7 @@ export default function GridPage() {
   const [crmPipelineId, setCrmPipelineId] = useState<string | null>(null);
   const rowsRef = useRef<GridRow[]>([]);
   const pendingOnlySinceRef = useRef<number | null>(null);
-  const desktop = useMinWidth(1024);
+  const desktop = useLgUp();
 
   const searchQuery = useQuery({
     queryKey: ["search", searchId],
@@ -871,7 +878,7 @@ export default function GridPage() {
             <span className="text-sm font-semibold tabular-nums leading-none">
               {total}
             </span>
-            <span className="text-[11px] font-medium text-podium-muted">leads</span>
+            <span className="text-[11px] font-medium text-podium-muted">empresas</span>
           </span>
           <span className="inline-flex items-center gap-2 rounded-md bg-white/5 px-2.5 py-1">
             <span className="inline-flex items-center justify-center rounded-md bg-podium-yellow px-1.5 py-0.5 text-[10px] font-medium text-podium-navy">
@@ -1291,6 +1298,7 @@ export default function GridPage() {
                     canRemove={Boolean(search?.saved)}
                     onToggle={() => toggleRow(row)}
                     onRemove={() => setAskRemoveCnpj(row.cnpj)}
+                    stacked
                   />
                 </div>
               </div>
@@ -1318,7 +1326,7 @@ export default function GridPage() {
       {unaudited > 0 ? <div className="h-24" aria-hidden /> : null}
 
       {unaudited > 0 ? (
-        <div className="fixed inset-x-0 bottom-16 z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-2 backdrop-blur-xl lg:bottom-0">
+        <div className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-xl lg:bottom-0 lg:pb-2">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-podium-gray">
               {selectedCount > 0 ? (

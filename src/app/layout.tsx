@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { COPY } from "@/lib/copy";
@@ -24,6 +24,15 @@ export const metadata: Metadata = {
     title: COPY.landingMetaTitle,
     description: COPY.landingHeadline,
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#0b1a2e",
 };
 
 export default function RootLayout({

@@ -96,11 +96,11 @@ export function BoxSprint({
       <BoxRhythmStrip rhythm={queue.rhythm} overdueCount={queue.counts.overdue} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-white/10 px-2 py-1.5 md:flex-wrap md:justify-end md:px-3 md:py-2">
+          <p className="hidden shrink-0 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted md:block">
             {COPY.boxNow}
           </p>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex min-w-0 flex-1 gap-1 md:flex-none md:justify-end">
             {TABS.map((item) => {
               const count = queue.counts[item.id];
               const active = tab === item.id;
@@ -110,15 +110,16 @@ export function BoxSprint({
                   type="button"
                   onClick={() => selectTab(item.id)}
                   className={cn(
-                    "rounded-md px-2 py-0.5 text-[11px] font-medium",
+                    "min-h-11 shrink-0 rounded-md px-2.5 text-xs font-medium md:min-h-0 md:px-2 md:py-0.5 md:text-[11px]",
                     active && item.alert && count > 0
-                      ? "text-podium-alert"
+                      ? "bg-podium-alert/10 text-podium-alert"
                       : active
-                        ? "text-podium-yellow"
+                        ? "bg-podium-yellow/10 text-podium-yellow"
                         : "text-podium-muted hover:text-podium-white",
                   )}
                 >
-                  {item.label} {count}
+                  {item.label}{" "}
+                  <span className="tabular-nums">{count}</span>
                 </button>
               );
             })}

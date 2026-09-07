@@ -4,6 +4,7 @@ import {
   Cable,
   CircleHelp,
   Columns3,
+  Ellipsis,
   Flag,
   List,
   LogOut,
@@ -47,6 +48,25 @@ export const SHELL_WORK_NAV: readonly ShellNavItem[] = [
   { href: "/metas", label: "Meta", icon: Target },
 ];
 
+/** Phone tab bar: primary work. The rest lives in SHELL_MORE_NAV. */
+export const SHELL_MOBILE_NAV: readonly ShellNavItem[] = [
+  { href: "/box", label: "Ligar", icon: Phone },
+  { href: "/crm", label: "CRM", icon: Columns3 },
+  { href: "/listas", label: "Listas", icon: List },
+];
+
+export const SHELL_MORE_NAV: readonly ShellNavItem[] = [
+  { href: "/painel", label: "Painel", icon: BarChart3 },
+  { href: "/largada", label: "Nova lista", icon: Flag, tour: "nova-lista" },
+  { href: "/empresas", label: "Empresas", icon: Search },
+  { href: "/metas", label: "Meta", icon: Target },
+];
+
+export const SHELL_MORE_TAB = {
+  label: "Mais",
+  icon: Ellipsis,
+} as const;
+
 export const SHELL_FOOTER_NAV: readonly ShellFooterItem[] = [
   { href: "/conta", label: "Conta", icon: UserRound },
   {
@@ -70,6 +90,10 @@ export function isShellNavActive(href: string, pathname: string): boolean {
 
 export function showsOpeningNav(href: string): boolean {
   return href === "/crm" || href === "/box";
+}
+
+export function isShellMoreActive(pathname: string): boolean {
+  return SHELL_MORE_NAV.some((item) => isShellNavActive(item.href, pathname));
 }
 
 export function isShellChildActive(

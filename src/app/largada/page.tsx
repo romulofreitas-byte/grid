@@ -1577,7 +1577,7 @@ function LargadaWizard() {
             />
           ) : null}
           <GlassCard
-            className="fixed inset-x-0 bottom-16 z-30 mx-4 overflow-hidden p-0 md:static md:mx-0 md:p-3"
+            className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 mx-3 overflow-hidden p-0 md:static md:mx-0 md:p-3"
             highlight
           >
             <div className="md:hidden">

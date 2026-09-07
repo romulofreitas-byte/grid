@@ -354,10 +354,10 @@ export const COPY = {
   listasNaoSalvasHint:
     "Até 3 rascunhos: você só abre de novo. Para guardar de verdade ou excluir, salve a lista.",
   listasMostrarMais: "Mostrar mais · {n}",
-  listasLeadOne: "lead",
-  listasLeadMany: "leads",
+  listasLeadOne: "empresa",
+  listasLeadMany: "empresas",
   listasVolumeLabel: "pra ligar",
-  listasVolumeAria: "{n} leads salvos para ligar. Escolha uma lista.",
+  listasVolumeAria: "{n} empresas salvas para ligar. Escolha uma lista.",
   crmNav: "CRM",
   crmTitle: "CRM",
   crmHint:

@@ -217,7 +217,7 @@ export function PainelDashboard() {
     <div className="space-y-5" data-tour="painel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <Hint className="max-w-xl">{COPY.painelHint}</Hint>
+          <Hint className="hidden max-w-xl md:block">{COPY.painelHint}</Hint>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">
@@ -238,7 +238,7 @@ export function PainelDashboard() {
             ))}
           </div>
           {(m?.pipelines.length ?? 0) > 1 ? (
-            <label className="block min-w-[220px]">
+            <label className="block min-w-0 sm:min-w-[220px]">
               <span className="sr-only">Nicho</span>
               <Select
                 value={filters.pipelineId ?? PAINEL_PIPELINE_ALL}
@@ -311,7 +311,7 @@ export function PainelDashboard() {
                 className={buttonClassName({
                   variant: "primary",
                   size: "md",
-                  className: "mt-3",
+                  className: "mt-3 min-h-11 w-full sm:w-auto md:min-h-0",
                 })}
               >
                 <Phone className="h-4 w-4" />
@@ -481,7 +481,7 @@ export function PainelDashboard() {
           <GlassCard className="flex h-full flex-col justify-between p-3" hover={false}>
             <div>
               <p className="text-sm font-semibold">Listas</p>
-              <Hint className="mt-1">Geradas no recorte · mix atual das salvas.</Hint>
+              <Hint className="mt-1 hidden md:block">Geradas no recorte · mix atual das salvas.</Hint>
             </div>
             <dl className="mt-4 space-y-3">
               <div className="flex items-baseline justify-between gap-2">

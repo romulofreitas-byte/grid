@@ -11,7 +11,7 @@ export function ContaNav() {
   return (
     <nav
       aria-label="Conta"
-      className="flex shrink-0 gap-1 overflow-x-auto lg:w-52 lg:flex-col lg:overflow-visible"
+      className="grid shrink-0 grid-cols-2 gap-1 sm:grid-cols-3 lg:flex lg:w-52 lg:flex-col lg:overflow-visible"
     >
       {CONTA_NAV.map((item) => {
         const Icon = item.icon;
@@ -19,7 +19,7 @@ export function ContaNav() {
           return (
             <span
               key={item.href}
-              className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-podium-muted/70"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 py-1.5 text-xs text-podium-muted/70 lg:min-h-0"
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span>{item.label}</span>
@@ -35,7 +35,7 @@ export function ContaNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs transition",
+              "inline-flex min-h-11 items-center gap-2 rounded-md px-3 py-1.5 text-xs transition lg:min-h-0",
               active
                 ? "bg-podium-yellow/15 text-podium-yellow"
                 : "text-podium-gray hover:bg-white/5 hover:text-podium-white",

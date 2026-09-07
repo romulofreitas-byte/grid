@@ -11,7 +11,7 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-3"
+      className="relative overflow-hidden rounded-md border border-podium-yellow/40 bg-podium-yellow/10 p-2.5 md:p-3"
       animate={
         reduce
           ? undefined
@@ -32,7 +32,7 @@ export function BoxPlatformCouponBanner({ ended = false }: { ended?: boolean }) 
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
         Mundo Pódium
       </p>
-      <p className="mt-2 text-pretty text-sm font-semibold leading-snug text-podium-white">
+      <p className="mt-1 text-pretty text-sm font-semibold leading-snug text-podium-white md:mt-2">
         {ended ? COPY.boxPlatformTrialEnded : COPY.boxPlatformCoupon}
       </p>
       {ended ? (

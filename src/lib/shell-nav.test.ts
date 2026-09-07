@@ -5,9 +5,12 @@ import {
   isShellChildActive,
   isShellFooterActive,
   isShellFooterGroupActive,
+  isShellMoreActive,
   isShellNavActive,
   showsOpeningNav,
   SHELL_FOOTER_NAV,
+  SHELL_MOBILE_NAV,
+  SHELL_MORE_NAV,
   SHELL_WORK_NAV,
 } from "./shell-nav";
 
@@ -25,6 +28,35 @@ describe("shell work nav", () => {
     expect(SHELL_WORK_NAV.find((item) => item.href === "/largada")?.tour).toBe(
       "nova-lista",
     );
+  });
+});
+
+describe("shell mobile nav", () => {
+  it("keeps four phone destinations: Ligar, CRM, Listas, and Mais", () => {
+    expect(SHELL_MOBILE_NAV.map((item) => item.href)).toEqual([
+      "/box",
+      "/crm",
+      "/listas",
+    ]);
+    expect(SHELL_MORE_NAV.map((item) => item.href)).toEqual([
+      "/painel",
+      "/largada",
+      "/empresas",
+      "/metas",
+    ]);
+    expect(SHELL_MORE_NAV.find((item) => item.href === "/largada")?.tour).toBe(
+      "nova-lista",
+    );
+  });
+
+  it("lights Mais on Painel, Nova lista, Empresas, and Meta", () => {
+    expect(isShellMoreActive("/painel")).toBe(true);
+    expect(isShellMoreActive("/largada")).toBe(true);
+    expect(isShellMoreActive("/empresas")).toBe(true);
+    expect(isShellMoreActive("/metas")).toBe(true);
+    expect(isShellMoreActive("/box")).toBe(false);
+    expect(isShellMoreActive("/crm")).toBe(false);
+    expect(isShellMoreActive("/listas")).toBe(false);
   });
 });
 
