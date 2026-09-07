@@ -67,6 +67,23 @@ describe("extractContacts socials", () => {
     </head><body></body></html>`;
     expect(extractSiteBrand(html)).toBe("Colégio Genesis");
   });
+
+  it("reads Instagram buried in Elementor JSON without an anchor", () => {
+    const html = `<html><body>
+      <script>{"instagram_url":"https://www.instagram.com/liveinfortalezahotel/"}</script>
+    </body></html>`;
+    const { socials } = extractContacts(html);
+    expect(socials.instagram).toBe("https://instagram.com/liveinfortalezahotel");
+  });
+
+  it("prefers H1 over an SEO title", () => {
+    const html = `<html><head>
+      <title>Melhores Hotéis em Fortaleza</title>
+    </head><body>
+      <h1>Live In Fortaleza Hotel</h1>
+    </body></html>`;
+    expect(extractSiteBrand(html)).toBe("Live In Fortaleza Hotel");
+  });
 });
 
 describe("normalizeSocialUrl", () => {

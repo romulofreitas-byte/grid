@@ -26,6 +26,15 @@ describe("discoveryAliases", () => {
       }),
     ).toContain("Metalurgica Vaz Contagem");
   });
+
+  it("turns IDOS@ into IDOSO for search", () => {
+    expect(
+      discoveryAliases({
+        nomeFantasia: "LIVE IN A CASA DE IDOS@ FELIZ",
+        razaoSocial: "LIVE IN A CASA DE IDOS@ FELIZ LTDA",
+      }),
+    ).toContain("LIVE IN A CASA DE IDOSO FELIZ");
+  });
 });
 
 describe("extraDiscoveryAliases", () => {

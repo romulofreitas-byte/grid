@@ -8,6 +8,7 @@ import {
   gmbEmailBrandLabel,
   gmbSearchQuery,
   gmbSearchQueryList,
+  mapsStructuredQueries,
   hitsFromSerperJson,
   instagramSearchQueries,
   preferGmbListing,
@@ -374,11 +375,15 @@ describe("Maps × Receita matching", () => {
     );
     expect(gmbSearchQueryList(silva)).toEqual(
       expect.arrayContaining([
+        "3133331111 Contagem MG",
+        "Rua das Palmeiras, 100 Contagem MG",
         '"DISTRIBUIDORA SILVA" Contagem MG',
         '"DISTRIBUIDORA SILVA" Rua das Palmeiras, 100 Contagem MG',
         "DISTRIBUIDORA SILVA Contagem MG",
       ]),
     );
+    expect(mapsStructuredQueries(silva)[0]).toBe("3133331111 Contagem MG");
+    expect(gmbSearchQueryList(silva)[0]).toBe("3133331111 Contagem MG");
   });
 
   it("adds a compact brand query when the Receita name is longer than the Maps title", () => {
@@ -410,8 +415,9 @@ describe("Maps × Receita matching", () => {
     expect(gmbCompactSearchName(drimafer)).toBe("drimafer");
     expect(gmbEmailBrandLabel(drimafer)).toBe("drimafer");
     const queries = gmbSearchQueryList(drimafer);
-    expect(queries[0]).toBe("drimafer Diadema SP");
-    expect(queries[1]).toBe('"drimafer" Diadema SP');
+    expect(queries[0]).toBe("Rua Tupinambas, 1267 Diadema SP");
+    expect(queries).toContain("drimafer Diadema SP");
+    expect(queries).toContain('"drimafer" Diadema SP');
     expect(queries.some((q) => /MAQUINAS E EQUIPAMENTOS/i.test(q))).toBe(true);
   });
 
@@ -1085,6 +1091,54 @@ describe("searchGmb", () => {
     expect(queries[0]).toBe('"Pizza Hut" Goiania GO');
   });
 
+  it("does not quote a Receita name with OCR junk", () => {
+    const liveIn = {
+      nomeFantasia: "LIVE IN A CASA DE IDOS@ FELIZ",
+      razaoSocial: "LIVE IN A CASA DE IDOS@ FELIZ LTDA",
+      municipio: "Fortaleza",
+      uf: "CE",
+      logradouro: "Rua Doutor Gilberto Studart",
+      numero: "2300",
+      phones: [{ ddd: "85", telefone: "89902400" }],
+    };
+    expect(mapsStructuredQueries(liveIn)[0]).toMatch(/^85\d+ Fortaleza CE$/);
+    expect(gmbSearchQueryList(liveIn)[0]).toMatch(/^85\d+ Fortaleza CE$/);
+    expect(gmbSearchQueryList(liveIn)).toContain(
+      "Rua Doutor Gilberto Studart, 2300 Fortaleza CE",
+    );
+    expect(gmbSearchQuery(liveIn)).not.toMatch(/IDOS@/);
+    expect(gmbSearchQuery(liveIn)).toMatch(/IDOS/);
+  });
+
+  it("crava a Maps pin found by phone even when the title is a trading name", async () => {
+    const queries = mapsFetch([
+      [
+        {
+          title: "Live In Fortaleza Hotel",
+          address: "R. Dr. Gilberto Studart, 2300 - Cocó, Fortaleza - CE",
+          phoneNumber: "(85) 98990-2400",
+          website: "https://liveinhotel.com.br",
+          cid: "99",
+          ratingCount: 158,
+        },
+      ],
+    ]);
+    const listing = await searchGmb({
+      nomeFantasia: "LIVE IN A CASA DE IDOS@ FELIZ",
+      razaoSocial: "LIVE IN A CASA DE IDOS@ FELIZ LTDA",
+      municipio: "Fortaleza",
+      uf: "CE",
+      logradouro: "Rua Doutor Gilberto Studart",
+      numero: "2300",
+      phones: [{ ddd: "85", telefone: "89902400" }],
+    });
+    expect(queries[0]).toMatch(/^85\d+ Fortaleza CE$/);
+    expect(listing.matched).toBe(true);
+    expect(listing.status).toBe("matched");
+    expect(listing.name).toBe("Live In Fortaleza Hotel");
+    expect(listing.match_by).toEqual(expect.arrayContaining(["phone"]));
+  });
+
   it("still tries the street query when the city page is only a candidate", async () => {
     const queries = mapsFetch([
       [
@@ -1162,7 +1216,7 @@ describe("searchGmb", () => {
       cep: "09991090",
       receitaEmail: "marcia@drimafer.com.br",
     });
-    expect(queries[0]).toBe("drimafer Diadema SP");
+    expect(queries).toContain("drimafer Diadema SP");
     expect(listing.matched).toBe(true);
     expect(listing.name).toBe("Drimafer Máquinas e Equipamentos");
     expect(listing.website_host).toBeNull();
@@ -1296,6 +1350,19 @@ describe("instagramSearchQueries", () => {
       ]),
     );
     expect(queries.some((item) => item.geo)).toBe(true);
+  });
+
+  it("searches Instagram by the confirmed site host before the Receita name", () => {
+    const queries = instagramSearchQueries({
+      nomeFantasia: "LIVE IN A CASA DE IDOS@ FELIZ",
+      razaoSocial: "LIVE IN A CASA DE IDOS@ FELIZ LTDA",
+      municipio: "Fortaleza",
+      uf: "CE",
+      websiteHost: "liveinhotel.com.br",
+      brandOverride: "Live In Fortaleza Hotel",
+    });
+    expect(queries[0]?.q).toBe("site:instagram.com liveinhotel");
+    expect(queries.map((item) => item.q).join(" ")).not.toMatch(/IDOS@/);
   });
 });
 

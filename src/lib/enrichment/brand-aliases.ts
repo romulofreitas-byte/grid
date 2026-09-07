@@ -38,6 +38,9 @@ export function discoveryAliases(input: {
   push(input.nomeFantasia);
   push(searchableCompanyName(null, input.razaoSocial));
   for (const extra of input.extraNames ?? []) push(extra);
+  for (const seed of [...out]) {
+    if (seed.includes("@")) push(seed.replace(/@/g, "O"));
+  }
 
   const tokens = distinctiveTokens(
     input.razaoSocial,

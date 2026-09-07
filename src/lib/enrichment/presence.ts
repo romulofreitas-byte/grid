@@ -632,13 +632,32 @@ export function gmbEmailBrandLabel(input: GmbSearchInput): string | null {
 
 const COMPACT_FIRST_MIN_LEN = 6;
 
+function placeOfGmb(input: { municipio: string; uf: string }): string {
+  return [input.municipio, input.uf].filter(Boolean).join(" ").trim();
+}
+
+function sanitizeSearchName(name: string): string {
+  return name.replace(/[@#]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function quoteSearchName(name: string): string {
+  const cleaned = sanitizeSearchName(name);
+  if (!cleaned) return "";
+  if (/[^A-Za-z0-9À-ÿ\s.&'/-]/.test(cleaned)) return cleaned;
+  return `"${cleaned}"`;
+}
+
 export function gmbSearchQuery(
   input: GmbSearchInput,
   opts?: { quoted?: boolean; includeStreet?: boolean },
 ): string {
   const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
   const quoted = opts?.quoted !== false;
-  const namePart = name ? (quoted ? `"${name}"` : name) : "";
+  const namePart = name
+    ? quoted
+      ? quoteSearchName(name)
+      : sanitizeSearchName(name)
+    : "";
   const street =
     opts?.includeStreet === true
       ? [input.logradouro, input.numero]
@@ -646,8 +665,65 @@ export function gmbSearchQuery(
           .filter(Boolean)
           .join(", ")
       : "";
-  const place = [input.municipio, input.uf].filter(Boolean).join(" ");
+  const place = placeOfGmb(input);
   return [namePart, street, place].filter(Boolean).join(" ").trim();
+}
+
+function mapsPhoneSearchDigits(
+  phone: { ddd?: string | null; telefone?: string | null },
+): string | null {
+  const n = normalizePhoneBR(
+    `${phone.ddd ?? ""}${phone.telefone ?? ""}`,
+    phone.ddd,
+  );
+  if (!n) return null;
+  const digits = n.e164.replace(/^\+55/, "");
+  return digits.length >= 10 ? digits : null;
+}
+
+function hostSearchLabel(host: string | null | undefined): string | null {
+  const label =
+    host
+      ?.replace(/^www\./i, "")
+      .split(".")[0]
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "") ?? "";
+  return label.length >= 4 ? label : null;
+}
+
+/** Phone, street, then site host — before the Receita trade name. */
+export function mapsStructuredQueries(input: GmbSearchInput): string[] {
+  const place = placeOfGmb(input);
+  const out: string[] = [];
+  const push = (q: string) => {
+    const trimmed = q.replace(/\s+/g, " ").trim();
+    if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+  };
+  const skipAccountant = input.sharedVerdict === "contabilidade";
+  if (!skipAccountant) {
+    let phones = 0;
+    for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
+      const digits = mapsPhoneSearchDigits(phone);
+      if (!digits) continue;
+      push(`${digits} ${place}`.trim());
+      phones += 1;
+      if (phones >= 2) break;
+    }
+    const street = [input.logradouro, input.numero]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ");
+    if (street.replace(/\s/g, "").length >= 6) {
+      push(`${street} ${place}`.trim());
+    }
+  }
+  if (input.websiteHost) {
+    const host = input.websiteHost.replace(/^www\./i, "").toLowerCase();
+    if (host && !host.includes("google.")) {
+      push(`${host} ${place}`.trim());
+    }
+  }
+  return out.slice(0, 4);
 }
 
 function pushCompactBrandQueries(
@@ -669,13 +745,14 @@ function pushCompactBrandQueries(
   );
 }
 
-/** City first; street only when the Receita phone is not the accountant's. */
+/** Structured keys first; Receita name last. Street skipped for accountant phones. */
 export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   const skipStreet = input.sharedVerdict === "contabilidade";
   const list: string[] = [];
   const push = (q: string) => {
     if (q && !list.includes(q)) list.push(q);
   };
+  for (const q of mapsStructuredQueries(input)) push(q);
   const compact = gmbCompactSearchName(input);
   const emailBrand = gmbEmailBrandLabel(input);
   const shortFirst =
@@ -716,7 +793,7 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
       push(`${compact} ${cep}`);
     }
     const name = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
-    if (name) push(`"${name}" ${cep}`);
+    if (name) push(`${quoteSearchName(name)} ${cep}`);
   }
   let aliasExtra = 0;
   for (const alias of extraDiscoveryAliases({
@@ -729,7 +806,7 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     pushCompactBrandQueries(push, input, alias);
     if (list.length > before) aliasExtra += 1;
   }
-  return list;
+  return list.slice(0, 10);
 }
 
 function pushHit(
@@ -1392,6 +1469,7 @@ export type InstagramSearchInput = {
   logradouro?: string | null;
   numero?: string | null;
   extraNames?: string[];
+  websiteHost?: string | null;
 };
 
 export function instagramSearchQueries(
@@ -1406,10 +1484,14 @@ export function instagramSearchQueries(
     input.municipio,
   );
   const compact = strong[0] ?? null;
+  const hostLabel = hostSearchLabel(input.websiteHost);
   const aliases = extraDiscoveryAliases({
     nomeFantasia: input.brandOverride?.trim() || input.nomeFantasia,
     razaoSocial: input.razaoSocial,
-    extraNames: input.extraNames,
+    extraNames: [
+      ...(input.extraNames ?? []),
+      ...(hostLabel ? [hostLabel] : []),
+    ],
   });
   const cep = formatCepDigits(input.cep);
   const street = [input.logradouro, input.numero]
@@ -1422,21 +1504,26 @@ export function instagramSearchQueries(
     if (!trimmed || out.some((item) => item.q === trimmed)) return;
     out.push({ q: trimmed, geo });
   };
-  if (name && (strong.length > 0 || aliases.length > 0)) {
-    push(`site:instagram.com "${name}"`, false);
+  if (hostLabel) {
+    push(`site:instagram.com ${hostLabel}`, false);
+  }
+  if (name && (strong.length > 0 || aliases.length > 0 || hostLabel)) {
+    const quoted = quoteSearchName(name);
+    push(`site:instagram.com ${quoted}`, false);
     if (compact && !sameSearchToken(compact, name)) {
       push(`site:instagram.com ${compact}`, false);
     }
-    push(`"${name}" Instagram`, false);
+    push(`${quoted} Instagram`, false);
     for (const alias of aliases.slice(0, 2)) {
       if (sameSearchToken(alias, name)) continue;
-      push(`site:instagram.com "${alias}"`, false);
+      push(`site:instagram.com ${quoteSearchName(alias)}`, false);
     }
   }
+  if (street) {
+    push(`"${street}" Instagram ${input.municipio}`, true);
+  }
   if (name && cep) {
-    push(`"${name}" Instagram ${cep}`, true);
-  } else if (name && street) {
-    push(`"${name}" Instagram "${street}" ${input.municipio}`, true);
+    push(`${quoteSearchName(name)} Instagram ${cep}`, true);
   }
   return out.slice(0, 6);
 }

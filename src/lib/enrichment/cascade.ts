@@ -1265,7 +1265,11 @@ async function enrichCompanyTracked(
             cep: est.cep,
             logradouro: est.logradouro,
             numero: est.numero,
-            extraNames: options.extraNames,
+            extraNames: [
+              ...(options.extraNames ?? []),
+              ...(siteBrand ? [siteBrand] : []),
+            ],
+            websiteHost: siteConfirmed && domain ? domain : undefined,
           }),
         );
         if (found.candidates.length > 0) {

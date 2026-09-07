@@ -135,17 +135,25 @@ function walkJsonLd(node: unknown, socials: ExtractedContact["socials"]): void {
   }
 }
 
-/** Brand label from og:site_name or <title> for presence queries. */
+function usableSiteBrand(raw: string | null | undefined): string | null {
+  const value = raw?.replace(/\s+/g, " ").trim();
+  if (!value || value.length < 4 || value.length > 80) return null;
+  return value;
+}
+
+/** Brand label from og:site_name, H1, or <title> for presence queries. */
 export function extractSiteBrand(html: string): string | null {
   const $ = cheerio.load(html);
-  const og =
-    $('meta[property="og:site_name"]').attr("content")?.trim() ||
-    $('meta[name="og:site_name"]').attr("content")?.trim();
+  const og = usableSiteBrand(
+    $('meta[property="og:site_name"]').attr("content") ||
+      $('meta[name="og:site_name"]').attr("content"),
+  );
   if (og) return og;
+  const h1 = usableSiteBrand($("h1").first().text());
+  if (h1 && h1.split(/\s+/).length >= 2) return h1;
   const title = $("title").first().text().trim();
   if (!title) return null;
-  const cleaned = title.split(/[|\-–—]/)[0]?.trim() ?? title;
-  return cleaned || null;
+  return usableSiteBrand(title.split(/[|\-–—]/)[0]?.trim() ?? title);
 }
 
 /** Unique WhatsApp phone strings found in arbitrary text (HTML, JS, attrs). */
@@ -370,6 +378,14 @@ export function extractContacts(
       }
     },
   );
+
+  const socialRe =
+    /https?:\/\/(?:www\.)?(?:instagram\.com|facebook\.com|fb\.com|linkedin\.com|youtube\.com|youtu\.be)\/[^\s"'<>)\\]+/gi;
+  for (const match of html.matchAll(socialRe)) {
+    const url = match[0].replace(/[.,;]+$/, "");
+    if ([...blocked].some((block) => block.includes(url))) continue;
+    assignSocial(socials, url);
+  }
 
   // Inline scripts / escaped strings in the raw HTML (and SPA harvest markup).
   pushWhatsAppPhones(phones, extractWhatsAppPhonesFromText(html));
