@@ -31,6 +31,7 @@ import {
   reaisFromBrlMask,
 } from "@/lib/calculadora/money";
 import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
+import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 import {
   workSplitClass,
@@ -370,6 +371,7 @@ export function MetasPage() {
     onSuccess: (data, vars) => {
       if (!data) return;
       setCache(data);
+      if (vars.apply) void invalidateLiveStats(qc);
       const currentId = selectedIdRef.current;
       const selected = data.metas.find((row) => row.id === currentId);
       if (selected) {

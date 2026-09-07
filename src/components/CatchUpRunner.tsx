@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFocusMode } from "@/components/FocusModeProvider";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
 import { COPY } from "@/lib/copy";
+import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 function toastCopy(created: number): string {
@@ -52,6 +53,7 @@ export function CatchUpRunner() {
       if (cancelled) return;
       sessionStorage.setItem(CATCHUP_SESSION_KEY, "done");
       if (created > 0) {
+        void invalidateLiveStats(qc);
         void qc.invalidateQueries({ queryKey: ["grid"] });
         void qc.invalidateQueries({ queryKey: ["lead"] });
         router.refresh();

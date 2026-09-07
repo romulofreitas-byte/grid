@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   memo,
   type KeyboardEvent,
@@ -23,6 +24,7 @@ import { displayCrmName } from "@/lib/crm/display-name";
 import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import type { CrmDealCard as Deal } from "@/lib/crm/types";
 import type { CallConnectionPick } from "@/lib/integrations/call-target";
+import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 const CARD_SHELL =
@@ -206,6 +208,7 @@ function DealCardFace({
   connection: CallConnectionPick | null;
   onChange?: (deal: Deal) => void;
 }) {
+  const qc = useQueryClient();
   const phone = firstDialablePhone(dealDialPhones(deal));
   const telHref = phone ? telHrefFromPhone(phone) : null;
 
@@ -228,7 +231,10 @@ function DealCardFace({
             phoneLabel={formatPhoneDisplay(phone)}
             onCalled={() => {
               void recordCrmDialAfterCall(deal)
-                .then((result) => onChange?.(result.deal))
+                .then((result) => {
+                  onChange?.(result.deal);
+                  void invalidateLiveStats(qc);
+                })
                 .catch(() => undefined);
             }}
           />

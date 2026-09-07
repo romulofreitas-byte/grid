@@ -22,6 +22,7 @@ import { formatBrl } from "@/lib/billing/catalog";
 import { withFrom } from "@/lib/billing/href";
 import { paywallCopy } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
+import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
 import {
   PAINEL_PIPELINE_ALL,
   PAINEL_RANGES,
@@ -159,6 +160,7 @@ export function PainelDashboard() {
       if (!res.ok) throw new Error(data.error ?? "Falha ao carregar");
       return data as PainelMetrics;
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
 
   const m = query.data;

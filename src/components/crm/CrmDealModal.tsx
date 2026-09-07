@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
@@ -80,6 +81,7 @@ import type {
 import { formatCentsInput, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
+import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
@@ -145,6 +147,7 @@ export function CrmDealModal({
   onDeleted: (dealId: string) => void;
   onMoveStage: (stageId: string) => void;
 }) {
+  const qc = useQueryClient();
   const [people, setPeople] = useState(() => peopleFromDeal(deal));
   const [secretaries, setSecretaries] = useState(() =>
     deal.secretaries.length > 0 ? deal.secretaries : [""],
@@ -460,6 +463,7 @@ export function CrmDealModal({
     try {
       const result = await recordCrmDialAfterCall(deal);
       onChange(result.deal);
+      void invalidateLiveStats(qc);
       if (result.event) prependEvent(result.event);
       if (result.events) {
         setCachedDealEvents(deal.id, result.events);

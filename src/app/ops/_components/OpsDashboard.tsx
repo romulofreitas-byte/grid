@@ -42,6 +42,7 @@ import {
   type OpsDashboardFilters,
   type OpsFilterDimension,
 } from "@/lib/ops/filters";
+import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
 import type { OpsMetrics, OpsUserListPage } from "@/lib/ops/types";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -179,6 +180,7 @@ export function OpsDashboard() {
       const res = await fetch(qs ? `/api/ops/metrics?${qs}` : "/api/ops/metrics");
       return readJson<OpsMetrics>(res);
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
 
   const usersQuery = useQuery({
@@ -198,6 +200,7 @@ export function OpsDashboard() {
       const res = await fetch(url);
       return readJson<OpsUserListPage>(res);
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
 
   useEffect(() => {

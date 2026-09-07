@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BoxFocusCard } from "@/components/box/BoxFocusCard";
 import { BoxRhythmStrip } from "@/components/box/BoxRhythmStrip";
 import { BoxTaskList } from "@/components/box/BoxTaskList";
@@ -11,7 +12,17 @@ import type { BoxQueueBucket, BoxQueuePayload } from "@/lib/box/queue";
 import { gridHref, largadaNovaHref } from "@/lib/back";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
-import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import type {
+  IntegrationConnectionPublic,
+  IntegrationJobRecord,
+} from "@/lib/integrations/records";
+import {
+  BOX_QUEUE_QUERY_KEY,
+  invalidateLiveStats,
+  LIVE_STATS_QUERY_OPTIONS,
+  originateCallJobsActive,
+  originateCallJobsPollInterval,
+} from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 const TABS: Array<{
@@ -44,27 +55,55 @@ export function BoxSprint({
   gap: BoxSlot | null;
 }) {
   const router = useRouter();
-  const [queue, setQueue] = useState(initialQueue);
+  const qc = useQueryClient();
+  const queueQuery = useQuery({
+    queryKey: BOX_QUEUE_QUERY_KEY,
+    queryFn: async () => {
+      const res = await fetch("/api/box/queue");
+      const body = (await res.json()) as BoxQueuePayload & { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Não foi possível atualizar a fila");
+      return body as BoxQueuePayload;
+    },
+    initialData: initialQueue,
+    ...LIVE_STATS_QUERY_OPTIONS,
+  });
+  const jobsQuery = useQuery({
+    queryKey: ["integration-jobs"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/jobs");
+      return (await res.json()) as { jobs: IntegrationJobRecord[] };
+    },
+    refetchInterval: (q) =>
+      originateCallJobsPollInterval(q.state.data?.jobs ?? []),
+  });
+  const hadOriginateJob = useRef(false);
   const [tab, setTab] = useState<BoxQueueBucket>(() => pickTab(initialQueue));
   const [focusId, setFocusId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const queue = queueQuery.data ?? initialQueue;
   const rows = queue[tab];
   const tabMeta = TABS.find((item) => item.id === tab) ?? TABS[0]!;
   const focus = rows.find((row) => row.id === focusId) ?? rows[0] ?? null;
   const rest = rows.filter((row) => row.id !== focus?.id);
 
-  async function reloadQueue() {
-    const res = await fetch("/api/box/queue");
-    const body = (await res.json()) as BoxQueuePayload & { error?: string };
-    if (!res.ok) throw new Error(body.error ?? "Não foi possível atualizar a fila");
-    setQueue(body);
-    router.refresh();
-  }
+  useEffect(() => {
+    const jobs = jobsQuery.data?.jobs ?? [];
+    const active = originateCallJobsActive(jobs);
+    if (active) {
+      hadOriginateJob.current = true;
+      return;
+    }
+    if (!hadOriginateJob.current) return;
+    hadOriginateJob.current = false;
+    void invalidateLiveStats(qc);
+  }, [jobsQuery.data, qc]);
 
   async function reloadAfter(id: string) {
     setBusyId(id);
     try {
-      await reloadQueue();
+      await invalidateLiveStats(qc);
+      await queueQuery.refetch();
+      router.refresh();
       setFocusId(null);
     } finally {
       setBusyId(null);
@@ -136,6 +175,9 @@ export function BoxSprint({
                 item={focus}
                 connections={connections}
                 busy={busyId === focus.id}
+                onCalled={() => {
+                  void invalidateLiveStats(qc);
+                }}
                 onDone={() => reloadAfter(focus.id)}
               />
               {rest.length > 0 ? (

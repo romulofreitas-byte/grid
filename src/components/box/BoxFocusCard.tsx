@@ -33,11 +33,13 @@ export function BoxFocusCard({
   item,
   connections,
   busy,
+  onCalled,
   onDone,
 }: {
   item: BoxQueueItem;
   connections: IntegrationConnectionPublic[];
   busy: boolean;
+  onCalled?: () => void;
   onDone: () => Promise<void>;
 }) {
   const [mode, setMode] = useState<"idle" | "complete" | "snooze">("idle");
@@ -144,6 +146,7 @@ export function BoxFocusCard({
               companyName={item.companyName}
               phoneLabel={tel ? formatBoxPhoneDisplay(tel.phone) : null}
               className="h-11 w-full text-sm md:h-7 md:w-auto md:text-[11px]"
+              onCalled={onCalled}
             />
           ) : null}
           <div className="flex flex-wrap items-center gap-3 md:justify-end md:gap-2">

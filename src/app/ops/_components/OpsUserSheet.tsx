@@ -20,6 +20,7 @@ import {
   orderStatusLabel,
 } from "@/lib/billing/labels";
 import type { OpsUserDetail } from "@/lib/ops/types";
+import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -101,6 +102,7 @@ export function OpsUserSheet({ id }: { id: string }) {
       const res = await fetch(`/api/ops/users/${id}`);
       return readJson<OpsUserDetail>(res);
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
 
   useEffect(() => {

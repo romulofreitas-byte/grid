@@ -14,6 +14,7 @@ import {
   type CallConnectionPick,
 } from "@/lib/integrations/call-target";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
+import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 async function recordManualCall(input: {
@@ -79,13 +80,13 @@ export function CallButton({
     if (dialCnpj) {
       qc.invalidateQueries({ queryKey: ["lead", dialCnpj] });
     }
-    qc.invalidateQueries({ queryKey: ["pilot-stats"] });
     qc.invalidateQueries(
       searchId
         ? { queryKey: ["grid", searchId] }
         : { queryKey: ["grid"] },
     );
     qc.invalidateQueries({ queryKey: ["integration-jobs"] });
+    void invalidateLiveStats(qc);
   }
 
   const callMutation = useMutation({
@@ -108,14 +109,12 @@ export function CallButton({
       if (!telHref) throw new Error("Sem telefone");
       window.location.href = telHref;
       if (skipRecord || !dialCnpj) return;
-      void recordManualCall({ cnpj: dialCnpj, searchId })
-        .then(() => invalidateAfterCall())
-        .catch(() => undefined);
+      await recordManualCall({ cnpj: dialCnpj, searchId });
     },
     onSuccess: () => {
       setOpen(false);
       onCalled?.();
-      if (originate) invalidateAfterCall();
+      if (originate || !skipRecord) invalidateAfterCall();
     },
   });
 

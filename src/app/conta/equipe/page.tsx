@@ -9,6 +9,7 @@ import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { buttonClassName } from "@/components/ui/Button";
 import { useAccountProfile } from "@/hooks/useAccountProfile";
 import { COPY } from "@/lib/copy";
+import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
 import { displayName } from "@/lib/pilot-profile";
 import { supportWhatsAppHref } from "@/lib/support";
 import type { PainelMetrics } from "@/lib/painel/types";
@@ -23,6 +24,7 @@ export default function ContaEquipePage() {
       if (!res.ok) throw new Error("metrics");
       return (await res.json()) as PainelMetrics;
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
   const m = metricsQuery.data;
   const hasWaitlist = Boolean(

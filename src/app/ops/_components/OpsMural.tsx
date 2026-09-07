@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { PilotAvatar } from "@/components/PilotAvatar";
 import { formatInt, planLabel } from "@/app/ops/_components/format";
+import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
 import type { OpsUserListPage } from "@/lib/ops/types";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ export function OpsMural() {
       if (!res.ok) throw new Error("Falha ao carregar o mural");
       return (await res.json()) as OpsUserListPage;
     },
+    ...LIVE_STATS_QUERY_OPTIONS,
   });
 
   useEffect(() => {
