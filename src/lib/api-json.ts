@@ -16,7 +16,7 @@ export function httpErrorMessage(
   status: number,
   body: { error?: string } | null,
   fallback: string,
-  timeoutMessage = COPY.apiTimeout,
+  timeoutMessage: string = COPY.apiTimeout,
 ): string {
   const fromBody = body?.error?.trim();
   if (fromBody) return fromBody;
