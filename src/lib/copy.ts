@@ -427,12 +427,14 @@ export const COPY = {
   crmAdjustCadence: "Ajustar cadência",
   crmImport: "Importar",
   crmNoActivity: "Sem próxima ação",
-  crmLogCall: "Registrar",
-  crmLogCallHint:
-    "Grava no histórico. Não mexe na próxima ação e não conta na meta.",
   crmSchedule: "Agendar",
+  crmScheduleDesktop: "Agendar próxima ação",
   crmScheduleHint:
     "Cria uma próxima ação. Não substitui as que já existem.",
+  crmLogCall: "Registrar",
+  crmLogCallDesktop: "Registrar no histórico",
+  crmLogCallHint:
+    "Grava no histórico. Não mexe na próxima ação e não conta na meta.",
   crmRegisterNeedBody: "Escreva o que aconteceu.",
   crmComposerPlaceholder: "O que considerar nesta ação?",
   crmHistoryTitle: "Histórico",
@@ -459,6 +461,10 @@ export const COPY = {
   crmPersonEmail: "E-mail",
   crmPersonPhone: "Telefone",
   crmCompanyPhone: "Telefone da empresa",
+  crmPhoneSourceSite: "Site",
+  crmPhoneSourceReceita: "Receita",
+  crmPhoneSourceMaps: "Maps",
+  crmPhoneSourceCrm: "CRM",
   crmActions: "Ações",
   crmCallNow: "Ligar",
   crmWhatsappNow: "WhatsApp",
@@ -473,7 +479,7 @@ export const COPY = {
   crmDealAmountHintWon: "Entra no faturado do painel.",
   crmDealAmountHintLost: "Não entra no faturado.",
   crmDealAmountNeeded: "Informe o valor para contar no faturado.",
-  crmDealAmountPlaceholder: "0,00",
+  crmDealAmountPlaceholder: "R$ 0,00",
   crmWinEyebrow: "Parabéns",
   crmWinBody:
     "é o seu novo cliente. Faça o onboarding, entregue o melhor projeto, retenha e tenha lucro.",

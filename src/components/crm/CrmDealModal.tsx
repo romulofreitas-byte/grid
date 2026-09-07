@@ -37,7 +37,9 @@ import {
 import {
   buildCrmBriefing,
   CRM_CARD_PRESENCE_IDS,
+  mergeSourcedPhones,
   type CrmBriefing,
+  type CrmPhoneSourceKind,
 } from "@/lib/crm/briefing";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
 import {
@@ -78,7 +80,7 @@ import type {
   CrmPerson,
   CrmStage,
 } from "@/lib/crm/types";
-import { formatCentsInput, parseBrlToCents } from "@/lib/crm/money";
+import { formatCentsInput, maskDealAmountTyping, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import { invalidateLiveStats } from "@/lib/live-stats";
@@ -115,6 +117,13 @@ function formatPhoneDisplay(raw: string): string {
 function cleanedPhones(values: string[]): string[] {
   return values.map((value) => value.trim()).filter(Boolean);
 }
+
+const PHONE_SOURCE_HINT: Record<CrmPhoneSourceKind, string> = {
+  site: COPY.crmPhoneSourceSite,
+  receita: COPY.crmPhoneSourceReceita,
+  maps: COPY.crmPhoneSourceMaps,
+  crm: COPY.crmPhoneSourceCrm,
+};
 
 function launchHref(href: string) {
   if (href.startsWith("tel:")) {
@@ -656,11 +665,11 @@ export function CrmDealModal({
   }
 
   const outcomes: CrmOutcome[] = ["lost", "open", "won"];
-  const phoneOptions = uniquePhones([
-    ...cleanedPhones(phones),
-    ...briefing.phones,
+  const phoneOptions = mergeSourcedPhones([
+    ...cleanedPhones(phones).map((phone) => ({ phone, source: "crm" as const })),
+    ...(briefing.phoneSources ?? []),
   ]);
-  const companyPhone = phones[0]?.trim() || phoneOptions[0] || "";
+  const companyPhone = phones[0]?.trim() || phoneOptions[0]?.phone || "";
   const headerPhone =
     firstDialablePhone([companyPhone, ...dialTargets()]) ??
     briefing.phone ??
@@ -891,7 +900,10 @@ export function CrmDealModal({
                           onClick={() => void saveSchedule()}
                           className="rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
                         >
-                          {COPY.crmSchedule}
+                          <span className="md:hidden">{COPY.crmSchedule}</span>
+                          <span className="hidden md:inline">
+                            {COPY.crmScheduleDesktop}
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -900,7 +912,10 @@ export function CrmDealModal({
                           onClick={() => void saveRegister()}
                           className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
                         >
-                          {COPY.crmLogCall}
+                          <span className="md:hidden">{COPY.crmLogCall}</span>
+                          <span className="hidden md:inline">
+                            {COPY.crmLogCallDesktop}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -1079,7 +1094,9 @@ export function CrmDealModal({
                 autoComplete="off"
                 name="crm-deal-amount"
                 placeholder={COPY.crmDealAmountPlaceholder}
-                onChange={(event) => setAmountDraft(event.target.value)}
+                onChange={(event) =>
+                  setAmountDraft(maskDealAmountTyping(event.target.value))
+                }
                 onBlur={() => void persistAmount(amountDraft)}
               />
             </label>
@@ -1097,36 +1114,21 @@ export function CrmDealModal({
                 ) : null}
               </div>
             ) : null}
-            {attachSurface === "aside" ? attach : null}
-            {deal.meta.form_answers &&
-            Object.keys(deal.meta.form_answers).length > 0 ? (
-              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
-                <p className={CRM_LABEL}>
-                  {formAnswersTitle(deal.meta.form_channel)}
-                </p>
-                <dl className="mt-1.5 space-y-1">
-                  {Object.entries(deal.meta.form_answers).map(([key, value]) => (
-                    <div key={key} className="flex gap-2 text-[11px]">
-                      <dt className="shrink-0 text-podium-muted">{key}</dt>
-                      <dd className="min-w-0 break-words text-podium-gray">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ) : null}
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmCompanyPhone}</p>
               <div className="mt-1.5">
-                {phoneOptions.length > 1 ? (
+                {phoneOptions.length > 0 ? (
                   <Select
                     size="sm"
                     className="w-full"
                     value={companyPhone}
                     name="crm-company-phone"
+                    aria-label={COPY.crmCompanyPhone}
                     onChange={selectCompanyPhone}
-                    options={phoneOptions.map((phone) => ({
-                      value: phone,
-                      label: formatPhoneDisplay(phone),
+                    options={phoneOptions.map((row) => ({
+                      value: row.phone,
+                      label: formatPhoneDisplay(row.phone),
+                      hint: PHONE_SOURCE_HINT[row.source],
                     }))}
                   />
                 ) : (
@@ -1254,6 +1256,24 @@ export function CrmDealModal({
                 </button>
               </div>
             </div>
+
+            {attachSurface === "aside" ? attach : null}
+            {deal.meta.form_answers &&
+            Object.keys(deal.meta.form_answers).length > 0 ? (
+              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+                <p className={CRM_LABEL}>
+                  {formAnswersTitle(deal.meta.form_channel)}
+                </p>
+                <dl className="mt-1.5 space-y-1">
+                  {Object.entries(deal.meta.form_answers).map(([key, value]) => (
+                    <div key={key} className="flex gap-2 text-[11px]">
+                      <dt className="shrink-0 text-podium-muted">{key}</dt>
+                      <dd className="min-w-0 break-words text-podium-gray">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
 
             <button
               type="button"

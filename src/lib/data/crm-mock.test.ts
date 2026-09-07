@@ -577,6 +577,7 @@ describe("seeded telemetry mix", () => {
     expect(lookup).toBeTruthy();
     expect(lookup?.municipioNome).toBeTruthy();
     expect(Array.isArray(lookup?.extraPhones)).toBe(true);
+    expect(Array.isArray(lookup?.sourcedPhones)).toBe(true);
     expect(lookup?.presence === null || typeof lookup?.presence?.site === "boolean").toBe(
       true,
     );

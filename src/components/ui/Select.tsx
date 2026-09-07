@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 export type SelectOption = {
   value: string;
   label: string;
+  hint?: string;
 };
 
 export type SelectSize = "sm" | "md";
@@ -192,7 +193,23 @@ export function Select({
         >
           {label}
         </span>
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden />
+        {selected?.hint && !isPlaceholder ? (
+          <span
+            className={cn(
+              "shrink-0 text-[10px] font-medium",
+              tone === "light" ? "text-zinc-400" : "text-podium-muted",
+            )}
+          >
+            {selected.hint}
+          </span>
+        ) : null}
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 opacity-50 transition-transform duration-200 ease-out",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
       </button>
       <AnchorPopover
         open={open}
@@ -219,13 +236,23 @@ export function Select({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => pick(option.value)}
                 className={cn(
-                  "flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-[11px] font-medium leading-snug",
+                  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] font-medium leading-snug transition-colors duration-150 ease-out",
                   skin.option,
                   isActive && skin.active,
                   isSelected && skin.selected,
                 )}
               >
-                {option.label}
+                <span className="min-w-0 truncate">{option.label}</span>
+                {option.hint ? (
+                  <span
+                    className={cn(
+                      "ml-auto shrink-0 text-[10px] font-medium",
+                      tone === "light" ? "text-zinc-400" : "text-podium-muted",
+                    )}
+                  >
+                    {option.hint}
+                  </span>
+                ) : null}
               </button>
             );
           })}

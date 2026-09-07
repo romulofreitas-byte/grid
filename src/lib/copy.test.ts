@@ -167,6 +167,8 @@ describe("COPY crm", () => {
     expect(COPY.crmCadenceHint).toMatch(/outras pipelines/i);
     expect(COPY.crmScheduleHint).toMatch(/não substitui/i);
     expect(COPY.crmLogCallHint).toMatch(/não mexe/i);
+    expect(COPY.crmScheduleDesktop).toBe("Agendar próxima ação");
+    expect(COPY.crmLogCallDesktop).toBe("Registrar no histórico");
     expect(COPY.confirmEyebrow).toBe("Confirmar");
     expect(COPY.confirmCancel).toBe("Cancelar");
     expect(COPY.callAskConfirm).toBe("Ligar");

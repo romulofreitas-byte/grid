@@ -65,19 +65,14 @@ export const CrmDealCardView = memo(function CrmDealCardView({
       <div className="flex items-start gap-1.5">
         <div className="min-w-0 flex-1">
           <p
-            className={cn(
-              "truncate leading-snug",
-              contact
-                ? "text-[11px] text-podium-muted"
-                : "text-xs font-semibold text-podium-white",
-            )}
+            className="truncate text-xs font-semibold leading-snug text-podium-white"
             title={deal.company_name}
           >
             {company}
           </p>
           {contact ? (
             <p
-              className="mt-0.5 truncate text-xs font-semibold text-podium-white"
+              className="mt-0.5 truncate text-[11px] text-podium-muted"
               title={deal.contact_name}
             >
               {contact}

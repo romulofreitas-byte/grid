@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatCentsInput, parseBrlToCents } from "./money";
+import {
+  formatCentsInput,
+  maskDealAmountTyping,
+  parseBrlToCents,
+} from "./money";
 
 describe("parseBrlToCents", () => {
   it("parses Brazilian grouping and decimal comma", () => {
@@ -23,8 +27,31 @@ describe("parseBrlToCents", () => {
 });
 
 describe("formatCentsInput", () => {
-  it("formats cents for the deal field", () => {
+  it("formats cents for the deal field with R$", () => {
     expect(formatCentsInput(null)).toBe("");
-    expect(formatCentsInput(123456)).toBe("1.234,56");
+    expect(formatCentsInput(123456)).toBe("R$ 1.234,56");
+    expect(formatCentsInput(0)).toBe("R$ 0,00");
+  });
+});
+
+describe("maskDealAmountTyping", () => {
+  it("pads reais with R$ and ,00 as digits arrive", () => {
+    expect(maskDealAmountTyping("")).toBe("");
+    expect(maskDealAmountTyping("2")).toBe("R$ 2,00");
+    expect(maskDealAmountTyping("20")).toBe("R$ 20,00");
+    expect(maskDealAmountTyping("20000")).toBe("R$ 20.000,00");
+  });
+
+  it("folds extra digits after a padded ,00 into the reais", () => {
+    expect(maskDealAmountTyping("R$ 2,00")).toBe("R$ 2,00");
+    expect(maskDealAmountTyping("R$ 2,000")).toBe("R$ 20,00");
+    expect(maskDealAmountTyping("R$ 20.000,000")).toBe("R$ 200.000,00");
+  });
+
+  it("keeps a typed comma so cents can follow", () => {
+    expect(maskDealAmountTyping("20000,")).toBe("R$ 20.000,");
+    expect(maskDealAmountTyping("R$ 20.000,5")).toBe("R$ 20.000,5");
+    expect(maskDealAmountTyping("R$ 20.000,50")).toBe("R$ 20.000,50");
+    expect(maskDealAmountTyping("R$ 20.000,500")).toBe("R$ 20.000,50");
   });
 });

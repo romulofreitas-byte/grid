@@ -4,6 +4,8 @@ import {
   briefingAssetsFromFields,
   briefingPresenceFromFields,
   formatReceitaAddress,
+  mergeSourcedPhones,
+  sourcedPhonesFromUnknown,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
 import {
@@ -1075,6 +1077,7 @@ export const crmPgMethods = {
               le.socials,
               le.whatsapp,
               le.gmb,
+              le.phones,
               le.expires_at
          from establishments e
          left join ref_municipio m on m.id = e.municipio_id
@@ -1111,6 +1114,10 @@ export const crmPgMethods = {
       ? new Date(String(row.expires_at)).getTime()
       : 0;
     const enrichmentVisible = expiresAt > Date.now();
+    const sourcedPhones = mergeSourcedPhones([
+      ...(enrichmentVisible ? sourcedPhonesFromUnknown(row.phones) : []),
+      ...extraPhones.map((phone) => ({ phone, source: "receita" as const })),
+    ]);
     const socials =
       row.socials && typeof row.socials === "object" && !Array.isArray(row.socials)
         ? (row.socials as Record<string, unknown>)
@@ -1176,6 +1183,7 @@ export const crmPgMethods = {
     return {
       municipioNome,
       extraPhones,
+      sourcedPhones,
       presence,
       address,
       cnae: row.cnae_descricao == null ? null : String(row.cnae_descricao),

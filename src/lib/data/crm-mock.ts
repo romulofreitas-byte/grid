@@ -5,6 +5,8 @@ import {
   briefingAssetsFromFields,
   briefingPresenceFromFields,
   formatReceitaAddress,
+  mergeSourcedPhones,
+  sourcedPhonesFromEvidence,
   type CrmBriefingLookup,
 } from "@/lib/crm/briefing";
 import { searchHitsFromDeals } from "@/lib/crm/deal-search";
@@ -601,14 +603,19 @@ export const crmMockMethods = {
       razaoSocial: company?.razao_social ?? "",
       naturezaId: company?.natureza_id ?? null,
     });
+    const extraPhones = uniquePhones(
+      [
+        formatPhone(est.ddd1, est.telefone1),
+        formatPhone(est.ddd2, est.telefone2),
+      ].filter((value): value is string => Boolean(value)),
+    );
     return {
       municipioNome,
-      extraPhones: uniquePhones(
-        [
-          formatPhone(est.ddd1, est.telefone1),
-          formatPhone(est.ddd2, est.telefone2),
-        ].filter((value): value is string => Boolean(value)),
-      ),
+      extraPhones,
+      sourcedPhones: mergeSourcedPhones([
+        ...(enrichment ? sourcedPhonesFromEvidence(enrichment.phones) : []),
+        ...extraPhones.map((phone) => ({ phone, source: "receita" as const })),
+      ]),
       presence: enrichment
         ? briefingPresenceFromFields({
             domainStatus: enrichment.domain_status,

@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  briefingAssetsFromFields,
+  briefingWhatsappHref,
   buildCrmBriefing,
   loadCrmBriefing,
+  mergeSourcedPhones,
   shouldFetchDossier,
+  sourcedPhonesFromEvidence,
 } from "./briefing";
 import type { CrmDeal } from "./types";
 import type { LeadDossier, LeadEnrichment, TechSignals } from "@/lib/types";
@@ -229,5 +233,67 @@ describe("crm briefing", () => {
       "(31) 3333-5555",
       "(34) 3333-1010",
     ]);
+    expect(row.phoneSources).toEqual([
+      { phone: "(31) 3333-4444", source: "receita" },
+      { phone: "(31) 3333-5555", source: "receita" },
+      { phone: "(34) 3333-1010", source: "site" },
+    ]);
+  });
+
+  it("turns Ativos WhatsApp digits into a wa.me href", () => {
+    expect(briefingWhatsappHref("5534999990000")).toBe(
+      "https://wa.me/5534999990000",
+    );
+    expect(briefingWhatsappHref("https://wa.me/5534999990000")).toBe(
+      "https://wa.me/5534999990000",
+    );
+    const assets = briefingAssetsFromFields({
+      domain: null,
+      domainStatus: "nao_encontrado",
+      instagram: null,
+      whatsapp: "34999990000",
+      gmb: null,
+    });
+    expect(assets?.find((asset) => asset.id === "whatsapp")).toEqual({
+      id: "whatsapp",
+      found: true,
+      href: "https://wa.me/5534999990000",
+    });
+  });
+
+  it("keeps the stronger source when the same phone appears twice", () => {
+    expect(
+      mergeSourcedPhones([
+        { phone: "(34) 3333-1010", source: "crm" },
+        { phone: "(34) 3333-1010", source: "site" },
+        { phone: "(34) 3333-2020", source: "receita" },
+      ]),
+    ).toEqual([
+      { phone: "(34) 3333-1010", source: "site" },
+      { phone: "(34) 3333-2020", source: "receita" },
+    ]);
+  });
+
+  it("drops osm-only evidence from sourced phones", () => {
+    expect(
+      sourcedPhonesFromEvidence([
+        {
+          e164: "+553133331010",
+          display: "(31) 3333-1010",
+          tipo: "fixo",
+          sources: ["osm"],
+          isWhatsApp: false,
+          seal: "CONFIRMADO",
+        },
+        {
+          e164: "+5531999887766",
+          display: "(31) 99988-7766",
+          tipo: "movel",
+          sources: ["site_tel", "osm"],
+          isWhatsApp: false,
+          seal: "ATUALIZADO",
+        },
+      ]),
+    ).toEqual([{ phone: "(31) 99988-7766", source: "site" }]);
   });
 });

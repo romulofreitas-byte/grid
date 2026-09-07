@@ -36,10 +36,58 @@ export function parseBrlToCents(raw: string): number | null {
   return n;
 }
 
+const MAX_INT_DIGITS = 8;
+
+function formatIntDigits(intDigits: string): string {
+  return Number(intDigits || "0").toLocaleString("pt-BR");
+}
+
+/**
+ * Live mask: digits grow the reais; `,00` is always visible unless the user
+ * is typing cents after a comma. Extra digits after a padded `,00` fold into
+ * the integer part (`R$ 2,00` + `0` → `R$ 20,00`).
+ */
+export function maskDealAmountTyping(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  let commaSeen = false;
+  let intDigits = "";
+  let centDigits = "";
+  for (const ch of trimmed) {
+    if (ch >= "0" && ch <= "9") {
+      if (commaSeen) {
+        centDigits += ch;
+      } else if (intDigits.length < MAX_INT_DIGITS) {
+        intDigits += ch;
+      }
+    } else if (ch === "," && !commaSeen && intDigits.length > 0) {
+      commaSeen = true;
+    }
+  }
+
+  if (centDigits.length > 2) {
+    if (centDigits.slice(0, 2) === "00") {
+      intDigits = (intDigits + centDigits.slice(2)).slice(0, MAX_INT_DIGITS);
+      commaSeen = false;
+      centDigits = "";
+    } else {
+      centDigits = centDigits.slice(0, 2);
+    }
+  }
+
+  intDigits = intDigits.replace(/^0+(?=\d)/, "");
+  if (!intDigits && !centDigits && !commaSeen) return "";
+  const intFormatted = formatIntDigits(intDigits);
+  if (!commaSeen) return `R$ ${intFormatted},00`;
+  if (centDigits.length === 0) return `R$ ${intFormatted},`;
+  return `R$ ${intFormatted},${centDigits}`;
+}
+
 export function formatCentsInput(cents: number | null | undefined): string {
   if (cents == null) return "";
-  return new Intl.NumberFormat("pt-BR", {
+  return `R$ ${new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(cents / 100);
+  }).format(cents / 100)}`;
 }

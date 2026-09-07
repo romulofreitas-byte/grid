@@ -25,6 +25,7 @@ const briefing: CrmBriefing = {
   company: "Padaria",
   phone: null,
   phones: [],
+  phoneSources: [],
   contact: null,
   municipio: "Uberlândia",
   address: null,
