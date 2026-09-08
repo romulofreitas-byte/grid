@@ -236,7 +236,9 @@ export function AutomacoesPanel({
     queryKey: ["crm-meta-pages"],
     queryFn: async () => {
       const res = await fetch("/api/automacoes/meta/pages");
-      if (!res.ok) return { pages: [] as CrmMetaConnection[] };
+      if (!res.ok) {
+        return { pages: [] as CrmMetaConnection[], configured: false };
+      }
       return (await res.json()) as {
         pages: CrmMetaConnection[];
         configured: boolean;
