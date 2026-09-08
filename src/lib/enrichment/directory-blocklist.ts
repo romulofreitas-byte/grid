@@ -4,6 +4,8 @@ export const DIRECTORY_BLOCKLIST = [
   "cnpj.biz",
   "cnpjcheck.com.br",
   "cnpja.com",
+  "serasaexperian.com.br",
+  "serasa.com.br",
   "casadosdados.com.br",
   "casadosdados",
   "econodata.com.br",

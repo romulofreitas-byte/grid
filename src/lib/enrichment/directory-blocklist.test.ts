@@ -9,6 +9,10 @@ describe("isDirectoryUrl", () => {
     expect(isDirectoryUrl("https://www.escolas.com.br/colegio-x")).toBe(true);
     expect(isDirectoryUrl("https://cnpjcheck.com.br/empresa/foo")).toBe(true);
     expect(isDirectoryUrl("https://qedu.org.br/escola/1")).toBe(true);
+    expect(
+      isDirectoryUrl("https://empresas.serasaexperian.com.br/consulta/foo"),
+    ).toBe(true);
+    expect(isDirectoryUrl("https://www.serasa.com.br/empresa/foo")).toBe(true);
   });
 
   it("does not treat a branded school host as a directory", () => {

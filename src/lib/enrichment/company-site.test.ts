@@ -30,6 +30,9 @@ describe("parseCompanySite", () => {
   it("returns null for directories and junk", () => {
     expect(parseCompanySite("")).toBeNull();
     expect(parseCompanySite("localhost")).toBeNull();
+    expect(
+      parseCompanySite("empresas.serasaexperian.com.br"),
+    ).toBeNull();
   });
 });
 

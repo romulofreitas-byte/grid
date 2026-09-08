@@ -40,9 +40,9 @@ export function needsDiscoveryRetry(
 ): boolean {
   if (!row || !isEnrichmentComplete(row)) return false;
   if (humanClearedDomain(row)) return false;
+  if (row.domain && isDirectoryUrl(row.domain)) return true;
   if (discoveryVersionOf(row) === DOMAIN_DISCOVERY_VERSION) return false;
   if (row.domain_status === "nao_encontrado") return true;
-  if (row.domain && isDirectoryUrl(row.domain)) return true;
   if (mapsNeedsDiscoveryRetry(row)) return true;
   return false;
 }

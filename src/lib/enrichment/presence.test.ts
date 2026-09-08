@@ -244,6 +244,23 @@ describe("pickBestDomainHit", () => {
     expect(best?.link).toBe("https://colegiogenesis.com.br/");
   });
 
+  it("skips a Serasa Experian listing even when the title matches the brand", () => {
+    expect(
+      pickBestDomainHit(
+        [
+          {
+            link: "https://empresas.serasaexperian.com.br/consulta/ls-estetica",
+            title: "LS ESTETICA AUTOMOTIVA LTDA - Consulta CNPJ | Serasa",
+            snippet: "CNPJ e dados cadastrais de LS ESTETICA AUTOMOTIVA",
+          },
+        ],
+        "LS ESTETICA AUTOMOTIVA LTDA",
+        "LS ESTETICA AUTOMOTIVA",
+        "Belo Horizonte",
+      ),
+    ).toBeNull();
+  });
+
   it("prefers a branded host over a school directory with the same title tokens", () => {
     const best = pickBestDomainHit(
       [

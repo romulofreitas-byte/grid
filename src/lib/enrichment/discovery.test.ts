@@ -89,6 +89,27 @@ describe("needsDiscoveryRetry", () => {
     ).toBe(true);
   });
 
+  it("retries a Serasa host even after the current discovery version ran", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "empresas.serasaexperian.com.br",
+          domain_status: "nao_confirmado",
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-07T00:00:00.000Z",
+            },
+            domain: {
+              fonte: "serper",
+              coletado_em: "2026-09-07T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("does not override a site the human removed", () => {
     const cleared = row({
       fonte: {
