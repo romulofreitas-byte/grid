@@ -33,6 +33,7 @@ import {
   formatPlannedActivity,
   fromDatetimeLocal,
   openActivitiesOf,
+  toDatetimeLocal,
 } from "@/lib/crm/activity";
 import {
   buildCrmBriefing,
@@ -375,8 +376,13 @@ export function CrmDealModal({
     () => getCachedDealEvents(deal.id) ?? [],
   );
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [actionDueDrafts, setActionDueDrafts] = useState<Record<string, string>>(
+    {},
+  );
   const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callPrompt, setCallPrompt] = useState<{ phone: string } | null>(null);
@@ -441,8 +447,11 @@ export function CrmDealModal({
     setComposerKind("ligar");
     setComposerOpen(true);
     setDueLocal(defaultNextDueLocal());
+    setScheduleEnabled(false);
     setExpandedEventId(null);
+    setExpandedActionId(null);
     setDrafts({});
+    setActionDueDrafts({});
     setAmountDraft(formatCentsInput(deal.amount_cents));
     setNeedAmount(false);
   }, [deal.id]);
@@ -739,39 +748,57 @@ export function CrmDealModal({
     setBriefingReady(true);
   }
 
-  async function saveRegister() {
+  async function saveComposer() {
     const note = body.trim();
-    if (!note) {
-      setError(COPY.crmRegisterNeedBody);
+    const next = scheduleEnabled ? nextPayload() : null;
+    if (scheduleEnabled && !next) {
+      setError("Escolha a ação e o horário.");
+      return;
+    }
+    if (!note && !next) {
+      setError(COPY.crmComposerNeedOne);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
-        `/api/crm/deals/${deal.id}/events`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            kind: composerKind,
-            body: note,
-          }),
-        },
-      );
-      onChange(res.deal);
-      prependEvent(res.event);
+      if (note) {
+        const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+          `/api/crm/deals/${deal.id}/events`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              kind: composerKind,
+              body: note,
+              ...(next ? { next } : {}),
+            }),
+          },
+        );
+        onChange(res.deal);
+        prependEvent(res.event);
+      } else {
+        const scheduled = await crmFetch<{ deal: CrmDealCard }>(
+          `/api/crm/deals/${deal.id}/schedule`,
+          { method: "POST", body: JSON.stringify(next) },
+        );
+        onChange(scheduled.deal);
+      }
       setBody("");
+      setScheduleEnabled(false);
+      setDueLocal(defaultNextDueLocal());
       void invalidateLiveStats(qc);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não registrou.");
+      setError(err instanceof Error ? err.message : "Não salvou.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function saveSchedule() {
-    const next = nextPayload();
-    if (!next) {
+  async function saveReschedule(activityId: string, kind: CrmActivityKind) {
+    const dueAt = fromDatetimeLocal(
+      actionDueDrafts[activityId] || defaultNextDueLocal(),
+    );
+    if (!dueAt) {
       setError("Escolha a ação e o horário.");
       return;
     }
@@ -780,12 +807,16 @@ export function CrmDealModal({
     try {
       const scheduled = await crmFetch<{ deal: CrmDealCard }>(
         `/api/crm/deals/${deal.id}/schedule`,
-        { method: "POST", body: JSON.stringify(next) },
+        {
+          method: "POST",
+          body: JSON.stringify({ kind, dueAt, activityId }),
+        },
       );
       onChange(scheduled.deal);
+      setExpandedActionId(null);
       void invalidateLiveStats(qc);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não agendou.");
+      setError(err instanceof Error ? err.message : "Não reagendou.");
     } finally {
       setSaving(false);
     }
@@ -1140,41 +1171,48 @@ export function CrmDealModal({
                       placeholder={COPY.crmComposerPlaceholder}
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <CrmDateTimePicker
-                        value={dueLocal || defaultNextDueLocal()}
-                        onChange={setDueLocal}
-                      />
-                      <div className="ml-auto flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-podium-muted hover:text-podium-gray">
+                        <input
+                          type="checkbox"
+                          checked={scheduleEnabled}
                           disabled={saving}
-                          title={
-                            composerKind === "followup"
-                              ? COPY.crmScheduleHintFollowup
-                              : COPY.crmScheduleHint
+                          onChange={(event) =>
+                            setScheduleEnabled(event.target.checked)
                           }
-                          onClick={() => void saveSchedule()}
-                          className="rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
-                        >
-                          <span className="md:hidden">{COPY.crmSchedule}</span>
-                          <span className="hidden md:inline">
-                            {COPY.crmScheduleDesktop}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          disabled={saving}
-                          title={COPY.crmLogCallHint}
-                          onClick={() => void saveRegister()}
-                          className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-                        >
-                          <span className="md:hidden">{COPY.crmLogCall}</span>
-                          <span className="hidden md:inline">
-                            {COPY.crmLogCallDesktop}
-                          </span>
-                        </button>
-                      </div>
+                          className="h-3 w-3 rounded-sm border-white/20 text-podium-yellow accent-podium-yellow disabled:opacity-50"
+                        />
+                        <span className="md:hidden">{COPY.crmSchedule}</span>
+                        <span className="hidden md:inline">
+                          {COPY.crmScheduleDesktop}
+                        </span>
+                      </label>
+                      {scheduleEnabled ? (
+                        <CrmDateTimePicker
+                          value={dueLocal || defaultNextDueLocal()}
+                          onChange={setDueLocal}
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={saving}
+                        title={
+                          composerKind === "followup" && scheduleEnabled
+                            ? COPY.crmScheduleHintFollowup
+                            : scheduleEnabled
+                              ? COPY.crmScheduleHint
+                              : COPY.crmComposerHint
+                        }
+                        onClick={() => void saveComposer()}
+                        className="ml-auto rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                      >
+                        {COPY.crmSaveHistory}
+                      </button>
                     </div>
+                    {composerKind === "followup" && scheduleEnabled ? (
+                      <p className="mt-1.5 text-[10px] text-podium-muted">
+                        {COPY.crmScheduleHintFollowup}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -1188,6 +1226,7 @@ export function CrmDealModal({
                   const Icon = COMPOSER_ICONS[activity.kind] ?? StickyNote;
                   const signal = activitySignal(activity);
                   const when = formatDueLabel(activity.due_at);
+                  const expanded = expandedActionId === activity.id;
                   return (
                     <article
                       key={activity.id}
@@ -1201,26 +1240,48 @@ export function CrmDealModal({
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className="h-3.5 w-3.5 shrink-0 text-podium-yellow" />
-                        <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-podium-white">
-                          {formatPlannedActivity(activity)}
-                        </p>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                            signal === "overdue"
-                              ? "bg-red-500/15 text-red-300"
-                              : signal === "today"
-                                ? "bg-podium-yellow/15 text-podium-yellow"
-                                : "bg-white/5 text-podium-muted",
-                          )}
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          title={COPY.crmRescheduleHint}
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                          onClick={() => {
+                            setExpandedActionId(expanded ? null : activity.id);
+                            setActionDueDrafts((current) => ({
+                              ...current,
+                              [activity.id]:
+                                current[activity.id] ??
+                                toDatetimeLocal(activity.due_at),
+                            }));
+                          }}
                         >
-                          {signal === "overdue"
-                            ? COPY.crmHistoryTodoOverdue
-                            : signal === "today"
-                              ? COPY.crmHistoryTodoToday
-                              : when}
-                        </span>
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-podium-yellow" />
+                          <p className="min-w-0 flex-1 truncate text-[11px] font-medium text-podium-white">
+                            {formatPlannedActivity(activity)}
+                          </p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                              signal === "overdue"
+                                ? "bg-red-500/15 text-red-300"
+                                : signal === "today"
+                                  ? "bg-podium-yellow/15 text-podium-yellow"
+                                  : "bg-white/5 text-podium-muted",
+                            )}
+                          >
+                            {signal === "overdue"
+                              ? COPY.crmHistoryTodoOverdue
+                              : signal === "today"
+                                ? COPY.crmHistoryTodoToday
+                                : when}
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              "h-3 w-3 shrink-0 text-podium-muted transition",
+                              expanded && "rotate-180",
+                            )}
+                          />
+                        </button>
                         {activity.kind === "ligar" ? (
                           <button
                             type="button"
@@ -1256,6 +1317,33 @@ export function CrmDealModal({
                           {COPY.crmMarkDone}
                         </label>
                       </div>
+                      {expanded ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <CrmDateTimePicker
+                            value={
+                              actionDueDrafts[activity.id] ??
+                              toDatetimeLocal(activity.due_at)
+                            }
+                            onChange={(value) =>
+                              setActionDueDrafts((current) => ({
+                                ...current,
+                                [activity.id]: value,
+                              }))
+                            }
+                          />
+                          <button
+                            type="button"
+                            disabled={saving}
+                            title={COPY.crmRescheduleHint}
+                            onClick={() =>
+                              void saveReschedule(activity.id, activity.kind)
+                            }
+                            className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                          >
+                            {COPY.crmSaveHistory}
+                          </button>
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}

@@ -108,7 +108,7 @@ export function BoxFocusCard({
       setMode("idle");
       await onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não adiou.");
+      setError(err instanceof Error ? err.message : "Não reagendou.");
     } finally {
       setSubmitting(false);
     }
@@ -179,16 +179,27 @@ export function BoxFocusCard({
         <div className="flex w-full shrink-0 flex-col gap-2 md:w-auto md:items-end">
           <div className="flex w-full items-stretch gap-2 md:w-auto md:justify-end">
             {planned ? (
-              <span
+              <button
+                type="button"
+                disabled={locked}
+                title={COPY.boxSnooze}
+                aria-expanded={mode === "snooze"}
+                onClick={() => {
+                  setError(null);
+                  setMode((current) =>
+                    current === "snooze" ? "idle" : "snooze",
+                  );
+                }}
                 className={cn(
                   "inline-flex h-11 shrink-0 items-center rounded-md px-2.5 text-sm font-medium md:h-7 md:text-[11px]",
                   item.signal === "overdue"
-                    ? "bg-podium-alert/10 text-podium-alert"
-                    : "border border-white/15 bg-white/[0.04] text-podium-gray",
+                    ? "bg-podium-alert/10 text-podium-alert hover:bg-podium-alert/20"
+                    : "border border-white/15 bg-white/[0.04] text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white",
+                  mode === "snooze" && "ring-1 ring-podium-yellow/50",
                 )}
               >
                 {planned}
-              </span>
+              </button>
             ) : null}
             {callAction}
           </div>
@@ -244,6 +255,7 @@ export function BoxFocusCard({
           defaultDue={toDatetimeLocal(item.dueAt)}
           submitting={locked}
           error={error}
+          submitLabel={COPY.crmSaveHistory}
           onCancel={() => setMode("idle")}
           onSubmit={snooze}
         />

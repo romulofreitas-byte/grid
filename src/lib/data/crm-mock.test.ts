@@ -443,6 +443,7 @@ describe("crm mock board", () => {
     expect(done?.deal.next_activity?.kind).toBe("reuniao");
     expect(done?.deal.open_activities).toHaveLength(1);
     const reuniao = done!.deal.open_activities[0]!;
+    const beforeEvents = await mockRepo.listCrmEvents(USER, created!.id);
     const snoozed = await mockRepo.rescheduleCrmActivity(
       USER,
       created!.id,
@@ -455,6 +456,8 @@ describe("crm mock board", () => {
     expect(snoozed?.next_activity?.due_at).toBe(
       new Date("2026-09-22T15:00:00.000Z").toISOString(),
     );
+    const afterEvents = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(afterEvents).toHaveLength(beforeEvents!.length);
   });
 
   it("reorders pipelines and lists them in the new order", async () => {

@@ -18,6 +18,7 @@ export function BoxScheduleForm({
   defaultDue,
   submitting,
   error,
+  submitLabel,
   onCancel,
   onSubmit,
 }: {
@@ -25,6 +26,7 @@ export function BoxScheduleForm({
   defaultDue: string;
   submitting: boolean;
   error: string | null;
+  submitLabel?: string;
   onCancel: () => void;
   onSubmit: (kind: BoxQueueKind, dueAt: string) => void;
 }) {
@@ -67,7 +69,7 @@ export function BoxScheduleForm({
       {error ? <p className="text-[11px] text-podium-alert">{error}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" size="sm" disabled={submitting}>
-          {submitting ? "Salvando…" : COPY.boxSaveNext}
+          {submitting ? "Salvando…" : submitLabel ?? COPY.boxSaveNext}
         </Button>
         <Button
           type="button"

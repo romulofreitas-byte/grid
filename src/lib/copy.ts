@@ -315,7 +315,7 @@ export const COPY = {
   boxFollowupChip: "Follow-up",
   boxColdChip: "Fria",
   boxComplete: "Concluir",
-  boxSnooze: "Adiar",
+  boxSnooze: "Reagendar",
   boxQualify: "Qualificação",
   boxNoPhone: "Sem telefone",
   boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
@@ -470,11 +470,11 @@ export const COPY = {
     "Cria uma próxima ação. Não substitui as que já existem.",
   crmScheduleHintFollowup:
     "Follow-up no CRM não entra no Box. Agende Ligar ou WhatsApp para cair na fila.",
-  crmLogCall: "Registrar",
-  crmLogCallDesktop: "Registrar no histórico",
-  crmLogCallHint:
-    "Grava no histórico. Não mexe na próxima ação e não conta na meta.",
-  crmRegisterNeedBody: "Escreva o que aconteceu.",
+  crmComposerHint:
+    "Salvar grava a nota no histórico. Marque Agendar para criar uma próxima ação. Não conta na meta.",
+  crmComposerNeedOne: "Escreva o que aconteceu ou marque Agendar.",
+  crmRescheduleHint:
+    "Muda a data desta ação. Não conta como feita e não entra no histórico.",
   crmComposerPlaceholder: "O que considerar nesta ação?",
   crmHistoryTitle: "Histórico",
   crmOpenActionsTitle: "Próximas ações",
