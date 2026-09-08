@@ -7,7 +7,6 @@ import {
   Mail,
   MessageCircle,
   Phone,
-  ChevronDown,
   Plus,
   Repeat,
   StickyNote,
@@ -16,7 +15,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FocusEvent } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
 import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
@@ -187,82 +186,129 @@ function secretariesFromDeal(deal: { secretaries: CrmPerson[] }): CrmPerson[] {
 type PeopleCardKey = `secretary:${number}` | `person:${number}`;
 
 function PersonContactCard({
-  label,
   person,
   namePlaceholder,
   expanded,
+  nameAlwaysEditable,
   canRemove,
   fieldPrefix,
   onExpand,
-  onToggle,
+  onCollapse,
   onChange,
-  onBlur,
+  onSave,
   onRemove,
 }: {
-  label: string;
   person: CrmPerson;
   namePlaceholder: string;
   expanded: boolean;
+  nameAlwaysEditable: boolean;
   canRemove: boolean;
   fieldPrefix: string;
   onExpand: () => void;
-  onToggle: () => void;
+  onCollapse: () => void;
   onChange: (field: keyof CrmPerson, value: string) => void;
-  onBlur: () => void;
+  onSave: () => void;
   onRemove?: () => void;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const onSaveRef = useRef(onSave);
+  const onCollapseRef = useRef(onCollapse);
+  onSaveRef.current = onSave;
+  onCollapseRef.current = onCollapse;
+
+  useEffect(() => {
+    if (!expanded) return;
+    function onPointerDown(event: PointerEvent) {
+      const root = cardRef.current;
+      if (!root || root.contains(event.target as Node)) return;
+      onSaveRef.current();
+      onCollapseRef.current();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!expanded || nameAlwaysEditable) return;
+    const id = window.requestAnimationFrame(() => {
+      if (nameRef.current?.value.trim()) {
+        phoneRef.current?.focus();
+      } else {
+        nameRef.current?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [expanded, nameAlwaysEditable]);
+
+  function handleCardBlur(event: FocusEvent<HTMLDivElement>) {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node)) return;
+    if (event.currentTarget.contains(next)) return;
+    onSave();
+    if (expanded) onCollapse();
+  }
+
+  const nameInput = (
+    <input
+      ref={nameRef}
+      className={cn(CRM_FIELD, "min-w-0 truncate font-medium")}
+      value={person.name}
+      autoComplete="off"
+      name={`${fieldPrefix}-name`}
+      placeholder={namePlaceholder}
+      onPointerDown={onExpand}
+      onFocus={onExpand}
+      onChange={(event) => onChange("name", event.target.value)}
+      onBlur={onSave}
+    />
+  );
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-podium-muted">
-          {label}
-        </span>
-        {canRemove && onRemove ? (
-          <button
-            type="button"
-            aria-label="Remover"
-            onClick={onRemove}
-            className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
-      </div>
-      <div className="flex gap-1">
-        <input
-          className={cn(CRM_FIELD, "min-w-0 truncate font-medium")}
-          value={person.name}
-          autoComplete="off"
-          name={`${fieldPrefix}-name`}
-          placeholder={namePlaceholder}
-          onFocus={onExpand}
-          onChange={(event) => onChange("name", event.target.value)}
-          onBlur={onBlur}
-        />
+    <div
+      ref={cardRef}
+      className="flex flex-col gap-1.5"
+      onBlur={handleCardBlur}
+    >
+      {nameAlwaysEditable || expanded ? (
+        <div className="flex gap-1">
+          {nameInput}
+          {canRemove && onRemove && expanded ? (
+            <button
+              type="button"
+              aria-label="Remover"
+              onClick={onRemove}
+              className="shrink-0 rounded-md p-1.5 text-podium-muted hover:text-red-400"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
+        </div>
+      ) : (
         <button
           type="button"
-          aria-expanded={expanded}
-          aria-label={
-            expanded ? "Ocultar telefone e e-mail" : "Mostrar telefone e e-mail"
-          }
-          onClick={onToggle}
-          className="shrink-0 rounded-md p-1.5 text-podium-muted hover:text-podium-white"
+          aria-expanded={false}
+          onClick={onExpand}
+          className={cn(
+            "w-full truncate rounded-md px-2.5 py-1.5 text-left text-xs font-medium hover:bg-white/[0.04]",
+            person.name.trim() ? "text-podium-white" : "text-podium-muted",
+          )}
         >
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
-          />
+          {person.name.trim() || namePlaceholder}
         </button>
-      </div>
+      )}
       {expanded ? (
         <>
           <input
+            ref={phoneRef}
             className={CRM_FIELD}
             value={person.phone}
             autoComplete="off"
             name={`${fieldPrefix}-phone`}
             placeholder={personPlaceholder("phone")}
             onChange={(event) => onChange("phone", event.target.value)}
-            onBlur={onBlur}
+            onBlur={onSave}
           />
           <input
             className={CRM_FIELD}
@@ -271,7 +317,7 @@ function PersonContactCard({
             name={`${fieldPrefix}-email`}
             placeholder={personPlaceholder("email")}
             onChange={(event) => onChange("email", event.target.value)}
-            onBlur={onBlur}
+            onBlur={onSave}
           />
         </>
       ) : null}
@@ -864,10 +910,6 @@ export function CrmDealModal({
     queuePeople(next);
   }
 
-  function toggleCard(key: PeopleCardKey) {
-    setOpenCard((current) => (current === key ? null : key));
-  }
-
   function selectCompanyPhone(value: string) {
     const rest = cleanedPhones(phonesRef.current).filter(
       (row) => row !== value && !phonesMatch(row, value),
@@ -1369,98 +1411,110 @@ export function CrmDealModal({
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>
               <div className="mt-1.5 flex flex-col gap-3">
-                {secretaries.map((person, index) => {
-                  const key: PeopleCardKey = `secretary:${index}`;
-                  return (
-                    <PersonContactCard
-                      key={key}
-                      label={
-                        index === 0
-                          ? COPY.crmSecretaryLabel
-                          : `${COPY.crmSecretaryLabel} ${index + 1}`
-                      }
-                      person={person}
-                      namePlaceholder={COPY.crmSecretaryName}
-                      expanded={openCard === key}
-                      canRemove={secretaries.length > 1}
-                      fieldPrefix={`crm-secretary-${index}`}
-                      onExpand={() => setOpenCard(key)}
-                      onToggle={() => toggleCard(key)}
-                      onChange={(field, value) =>
-                        updateSecretary(index, field, value)
-                      }
-                      onBlur={() => flushSecretaries()}
-                      onRemove={() => {
-                        const next = secretariesRef.current.filter(
-                          (_, i) => i !== index,
-                        );
-                        queueSecretaries(next);
-                        void persistSecretaries(next);
-                      }}
-                    />
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = [...secretariesRef.current, emptyPerson()];
-                    queueSecretaries(next);
-                    setOpenCard(`secretary:${next.length - 1}`);
-                  }}
-                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {COPY.crmAddSecretary}
-                </button>
-                {people.map((person, index) => {
-                  const key: PeopleCardKey = `person:${index}`;
-                  return (
-                    <PersonContactCard
-                      key={key}
-                      label={
-                        index === 0
-                          ? COPY.crmContactLabel
-                          : `Pessoa ${index + 1}`
-                      }
-                      person={person}
-                      namePlaceholder={
-                        index === 0
-                          ? briefing.decisor || personPlaceholder("name")
-                          : personPlaceholder("name")
-                      }
-                      expanded={openCard === key}
-                      canRemove={index > 0}
-                      fieldPrefix={`crm-person-${index}`}
-                      onExpand={() => setOpenCard(key)}
-                      onToggle={() => toggleCard(key)}
-                      onChange={(field, value) =>
-                        updatePerson(index, field, value)
-                      }
-                      onBlur={() => flushPeople()}
-                      onRemove={() => {
-                        const next = peopleRef.current.filter(
-                          (_, i) => i !== index,
-                        );
-                        peopleRef.current = next;
-                        setPeople(next);
-                        void persistPeople(next);
-                      }}
-                    />
-                  );
-                })}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = [...peopleRef.current, emptyPerson()];
-                    peopleRef.current = next;
-                    setPeople(next);
-                    setOpenCard(`person:${next.length - 1}`);
-                  }}
-                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {COPY.crmAddPerson}
-                </button>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-podium-muted">
+                    {COPY.crmSecretaryLabel}
+                  </span>
+                  {secretaries.map((person, index) => {
+                    const key: PeopleCardKey = `secretary:${index}`;
+                    return (
+                      <PersonContactCard
+                        key={key}
+                        person={person}
+                        namePlaceholder={COPY.crmSecretaryName}
+                        expanded={openCard === key}
+                        nameAlwaysEditable
+                        canRemove={secretaries.length > 1}
+                        fieldPrefix={`crm-secretary-${index}`}
+                        onExpand={() => setOpenCard(key)}
+                        onCollapse={() =>
+                          setOpenCard((current) =>
+                            current === key ? null : current,
+                          )
+                        }
+                        onChange={(field, value) =>
+                          updateSecretary(index, field, value)
+                        }
+                        onSave={() => flushSecretaries()}
+                        onRemove={() => {
+                          const next = secretariesRef.current.filter(
+                            (_, i) => i !== index,
+                          );
+                          queueSecretaries(next);
+                          void persistSecretaries(next);
+                          setOpenCard(null);
+                        }}
+                      />
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...secretariesRef.current, emptyPerson()];
+                      queueSecretaries(next);
+                      setOpenCard(`secretary:${next.length - 1}`);
+                    }}
+                    className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {COPY.crmAddSecretary}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-semibold text-podium-muted">
+                    {COPY.crmContactLabel}
+                  </span>
+                  {people.map((person, index) => {
+                    const key: PeopleCardKey = `person:${index}`;
+                    return (
+                      <PersonContactCard
+                        key={key}
+                        person={person}
+                        namePlaceholder={
+                          index === 0
+                            ? briefing.decisor || personPlaceholder("name")
+                            : personPlaceholder("name")
+                        }
+                        expanded={openCard === key}
+                        nameAlwaysEditable={false}
+                        canRemove={false}
+                        fieldPrefix={`crm-person-${index}`}
+                        onExpand={() => setOpenCard(key)}
+                        onCollapse={() =>
+                          setOpenCard((current) =>
+                            current === key ? null : current,
+                          )
+                        }
+                        onChange={(field, value) =>
+                          updatePerson(index, field, value)
+                        }
+                        onSave={() => flushPeople()}
+                        onRemove={() => {
+                          const next = peopleRef.current.filter(
+                            (_, i) => i !== index,
+                          );
+                          peopleRef.current = next;
+                          setPeople(next);
+                          void persistPeople(next);
+                          setOpenCard(null);
+                        }}
+                      />
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...peopleRef.current, emptyPerson()];
+                      peopleRef.current = next;
+                      setPeople(next);
+                      setOpenCard(`person:${next.length - 1}`);
+                    }}
+                    className="inline-flex items-center gap-1 self-start pt-1 text-[10px] font-medium text-podium-muted hover:text-podium-white"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {COPY.crmAddPerson}
+                  </button>
+                </div>
               </div>
             </div>
 
