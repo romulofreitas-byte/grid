@@ -23,6 +23,7 @@ import {
 } from "@/lib/enrichment/osm";
 import type { GridRepo } from "@/lib/data/repo";
 import { isEnrichmentComplete } from "@/lib/enrichment/fresh";
+import { isSerperPaused } from "@/lib/enrichment/serper-stats";
 import {
   ENRICH_OWNED_BUDGET_MS,
   ENRICH_OWNED_MAX_JOBS,
@@ -131,6 +132,17 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
   };
 
   log({ event: "enrich_start", attempts: job.attempts });
+
+  if (isSerperPaused()) {
+    await repo.updateJob(job.id, {
+      status: "skipped",
+      last_error: "serper_paused",
+      finished_at: new Date().toISOString(),
+      locked_at: null,
+    });
+    log({ status: "skipped", reason: "serper_paused" });
+    return;
+  }
 
   if (await repo.isOptedOut(job.cnpj)) {
     await repo.updateJob(job.id, {
@@ -354,6 +366,7 @@ export async function runJobPool<T>(options: {
 export async function drainJobs(
   concurrency = DEFAULT_ENRICH_CONCURRENCY,
 ): Promise<number> {
+  if (isSerperPaused()) return 0;
   const repo = getRepo();
   return runJobPool({
     concurrency,
@@ -491,6 +504,10 @@ export async function runEnrichmentWorker(
   async function slot(slotId: number): Promise<void> {
     while (!options.signal?.aborted) {
       try {
+        if (isSerperPaused()) {
+          await sleep(idleMs, options.signal);
+          continue;
+        }
         const job = await repo.claimEnrichmentJob();
         if (!job) {
           await sleep(idleMs, options.signal);
@@ -519,6 +536,7 @@ export async function processOwnedEnrichmentJobs(
   userId: string,
   options: { budgetMs?: number; maxJobs?: number } = {},
 ): Promise<number> {
+  if (isSerperPaused()) return 0;
   const repo = getRepo();
   const budgetMs = options.budgetMs ?? ENRICH_OWNED_BUDGET_MS;
   const maxJobs = options.maxJobs ?? ENRICH_OWNED_MAX_JOBS;

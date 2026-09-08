@@ -117,7 +117,8 @@ describe("COPY importações", () => {
     expect(COPY.importacoesSkippedHint.toLowerCase()).toMatch(/não é erro/);
     expect(COPY.importacoesBadgeCreatedMany.replace("{n}", "11")).toBe("11 no CRM");
     expect(COPY.importacoesLead).toMatch(/quadro/);
-    expect(COPY.importacoesImportAndQualify.toLowerCase()).toMatch(/qualificar/);
+    expect(COPY.importacoesImportAndQualify).toMatch(/\{max\}/);
+    expect(COPY.importacoesImportAndQualifyHint).toMatch(/\{max\}/);
     expect(COPY.importacoesIgnoreErrors).toBe("Ignorar");
     expect(COPY.importacoesNeedNicheName.toLowerCase()).toMatch(/nicho/);
     expect(COPY.importacoesTimeout.toLowerCase()).toMatch(/demorou/);

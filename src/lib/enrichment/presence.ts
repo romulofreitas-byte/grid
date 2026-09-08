@@ -5,7 +5,14 @@ import {
   distinctiveTokens,
   presenceBrandTokens,
 } from "@/lib/enrichment/confirm-domain";
-import { recordSerperCall } from "@/lib/enrichment/serper-stats";
+import {
+  isSerperPaused,
+  isSerperQuotaBlocked,
+  markSerperQuotaExhausted,
+  recordSerperCall,
+  serperBudgetAllows,
+} from "@/lib/enrichment/serper-stats";
+import { isUsableSocialProfileUrl } from "@/lib/enrichment/social-profile";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import {
   cidFromMapsUrl,
@@ -99,6 +106,8 @@ export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
 export const DOMAIN_SCORE_MIN = 1;
 /** Organic window — school/CNPJ directories often occupy the first handful. */
 export const SERPER_ORGANIC_NUM = 10;
+/** Maps queries per GMB search — phone/street first, then stop. */
+export const GMB_SEARCH_MAX_QUERIES = 2;
 
 const SOCIAL_HOST: Record<SocialPlatform, string> = {
   instagram: "instagram.com",
@@ -108,7 +117,9 @@ const SOCIAL_HOST: Record<SocialPlatform, string> = {
 };
 
 function serperKey(): string | null {
-  return process.env.SERPER_API_KEY ?? null;
+  if (isSerperPaused()) return null;
+  const key = process.env.SERPER_API_KEY?.trim();
+  return key || null;
 }
 
 const STREET_PREFIX =
@@ -862,6 +873,11 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   return list.slice(0, 12);
 }
 
+/** Phone, street, then brand — at most two paid Maps queries. */
+export function pickGmbSearchQueries(input: GmbSearchInput): string[] {
+  return gmbSearchQueryList(input).slice(0, GMB_SEARCH_MAX_QUERIES);
+}
+
 function pushHit(
   hits: OrganicHit[],
   seen: Set<string>,
@@ -901,6 +917,7 @@ export function socialsFromHits(
   municipio: string,
   blockedLabels: string[] = [],
   allowWeakBrand = false,
+  qsaNomes: string[] = [],
 ): Partial<Record<SocialPlatform, string>> {
   const out: Partial<Record<SocialPlatform, string>> = {};
   for (const platform of Object.keys(SOCIAL_HOST) as SocialPlatform[]) {
@@ -910,7 +927,7 @@ export function socialsFromHits(
       razaoSocial,
       nomeFantasia,
       municipio,
-      { blockedLabels, allowWeakBrand },
+      { blockedLabels, allowWeakBrand, qsaNomes },
     );
     if (found) out[platform] = found;
   }
@@ -1167,12 +1184,17 @@ export function hitsFromSerperJson(json: {
   return hits;
 }
 
+function serperQuotaStatus(status: number): boolean {
+  return status === 401 || status === 402 || status === 403;
+}
+
 export async function serperOrganic(
   query: string,
   num = SERPER_ORGANIC_NUM,
 ): Promise<OrganicHit[]> {
   const key = serperKey();
   if (!key) return [];
+  if (!serperBudgetAllows() || isSerperQuotaBlocked()) return [];
   const started = Date.now();
   let res: Response;
   try {
@@ -1198,13 +1220,24 @@ export async function serperOrganic(
       hits: 0,
       ms: Date.now() - started,
     });
-    console.warn(
-      JSON.stringify({
-        event: "serper_error",
-        kind: "search",
-        status: res.status,
-      }),
-    );
+    if (serperQuotaStatus(res.status)) {
+      markSerperQuotaExhausted();
+      console.warn(
+        JSON.stringify({
+          event: "serper_quota",
+          kind: "search",
+          status: res.status,
+        }),
+      );
+    } else {
+      console.warn(
+        JSON.stringify({
+          event: "serper_error",
+          kind: "search",
+          status: res.status,
+        }),
+      );
+    }
     return [];
   }
   const json = (await res.json()) as Parameters<typeof hitsFromSerperJson>[0];
@@ -1221,6 +1254,7 @@ export async function serperOrganic(
 export async function serperMaps(query: string): Promise<MapsPlace[]> {
   const key = serperKey();
   if (!key) return [];
+  if (!serperBudgetAllows() || isSerperQuotaBlocked()) return [];
   const started = Date.now();
   let res: Response;
   try {
@@ -1246,13 +1280,24 @@ export async function serperMaps(query: string): Promise<MapsPlace[]> {
       hits: 0,
       ms: Date.now() - started,
     });
-    console.warn(
-      JSON.stringify({
-        event: "serper_error",
-        kind: "maps",
-        status: res.status,
-      }),
-    );
+    if (serperQuotaStatus(res.status)) {
+      markSerperQuotaExhausted();
+      console.warn(
+        JSON.stringify({
+          event: "serper_quota",
+          kind: "maps",
+          status: res.status,
+        }),
+      );
+    } else {
+      console.warn(
+        JSON.stringify({
+          event: "serper_error",
+          kind: "maps",
+          status: res.status,
+        }),
+      );
+    }
     return [];
   }
   const json = (await res.json()) as {
@@ -1564,6 +1609,7 @@ export type PickSocialHitOptions = {
   allowWeakBrand?: boolean;
   geo?: { cep?: string | null; logradouro?: string | null };
   allowCitySnippet?: boolean;
+  qsaNomes?: string[];
 };
 
 function socialHitMentionsCity(hit: OrganicHit, municipio: string): boolean {
@@ -1610,10 +1656,22 @@ export function pickSocialHit(
   const needCep = Boolean(geo?.cep && formatCepDigits(geo.cep));
   const needStreet = Boolean(!needCep && geo?.logradouro?.trim());
   for (const hit of hits) {
+    let hostname: string;
     try {
-      const hostname = new URL(hit.link).hostname.toLowerCase();
-      if (!hostname.includes(host)) continue;
+      hostname = new URL(hit.link).hostname.toLowerCase();
     } catch {
+      continue;
+    }
+    if (!hostname.includes(host)) continue;
+    const platform = Object.entries(SOCIAL_HOST).find(([, hostName]) =>
+      hostname.includes(hostName),
+    )?.[0] as SocialPlatform | undefined;
+    if (
+      platform &&
+      !isUsableSocialProfileUrl(hit.link, platform, {
+        qsaNomes: options.qsaNomes,
+      })
+    ) {
       continue;
     }
     const handle = socialHandleFromUrl(hit.link)?.toLowerCase() ?? "";
@@ -1740,7 +1798,18 @@ export function instagramSearchQueries(
   if (name && cep) {
     push(`${quoteSearchName(name)} Instagram ${cep}`, true);
   }
-  return out.slice(0, 6);
+  const picked: Array<{ q: string; geo: boolean }> = [];
+  const take = (item: { q: string; geo: boolean } | undefined) => {
+    if (!item || picked.some((row) => row.q === item.q) || picked.length >= 1) {
+      return;
+    }
+    picked.push(item);
+  };
+  take(out.find((item) => item.q.startsWith("site:instagram.com") && hostLabel && item.q.includes(hostLabel)));
+  take(out.find((item) => item.q.startsWith("site:instagram.com") && item.q.includes('"')));
+  if (strong.length === 0) take(out.find((item) => item.geo));
+  for (const item of out) take(item);
+  return picked;
 }
 
 /** Instagram search that does not require a site or a Maps pin. */
@@ -1859,30 +1928,6 @@ function mapsSearchUrlFromInput(input: GmbSearchInput): string {
   });
 }
 
-function firstReceitaPhoneDigits(input: GmbSearchInput): string | null {
-  if (input.sharedVerdict === "contabilidade") return null;
-  for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
-    const digits = mapsPhoneSearchDigits(phone);
-    if (digits) return digits;
-  }
-  return null;
-}
-
-async function searchGmbFromPhoneOrganic(
-  input: GmbSearchInput,
-): Promise<GmbListing | null> {
-  const digits = firstReceitaPhoneDigits(input);
-  if (!digits) return null;
-  const hits = await serperOrganic(digits, 5);
-  let cid: string | null = null;
-  for (const hit of hits) {
-    cid = cidFromMapsUrl(hit.link);
-    if (cid) break;
-  }
-  if (!cid) return null;
-  return resolveGmbListing(await serperMaps(mapsCidUrl(cid)), input);
-}
-
 export function mergeMapsPlaceOntoListing(
   listing: GmbListing,
   place: MapsPlace,
@@ -1984,11 +2029,15 @@ export async function hydrateMatchedGmbListing(
   }
   const queries = gmbHydrationQueries(listing, geo);
   let place: MapsPlace | null = null;
+  let calls = 0;
   for (let i = 0; i < queries.length; i++) {
+    if (calls >= GMB_SEARCH_MAX_QUERIES) break;
     const query = queries[i];
     place = await firstMapsPlace(query);
-    if (!place && i === 0 && listing.cid?.trim()) {
+    calls += 1;
+    if (!place && i === 0 && listing.cid?.trim() && calls < GMB_SEARCH_MAX_QUERIES) {
       place = await firstMapsPlace(query);
+      calls += 1;
     }
     if (place) break;
   }
@@ -1998,7 +2047,7 @@ export async function hydrateMatchedGmbListing(
 
 export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
   const searchUrl = mapsSearchUrlFromInput(input);
-  const queries = gmbSearchQueryList(input);
+  const queries = pickGmbSearchQueries(input);
   if (queries.length === 0) return gmbNoneListing(searchUrl);
 
   const take = async (query: string): Promise<GmbListing> =>
@@ -2011,19 +2060,6 @@ export async function searchGmb(input: GmbSearchInput): Promise<GmbListing> {
     if (listing.status === "candidate") {
       if (!best || listingCardBetter(listing, best)) best = listing;
     }
-  }
-  const digits = firstReceitaPhoneDigits(input);
-  if (!best && digits && !queries.includes(digits)) {
-    const listing = await take(digits);
-    if (listing.matched || listing.status === "matched") return listing;
-    if (listing.status === "candidate") best = listing;
-  }
-  if (!best) {
-    const fromOrganic = await searchGmbFromPhoneOrganic(input);
-    if (fromOrganic?.matched || fromOrganic?.status === "matched") {
-      return fromOrganic;
-    }
-    if (fromOrganic?.status === "candidate") best = fromOrganic;
   }
   return best ?? gmbNoneListing(searchUrl);
 }

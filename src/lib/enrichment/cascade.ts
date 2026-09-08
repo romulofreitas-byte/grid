@@ -1,11 +1,6 @@
 import { quotedAliasPlaceQueries } from "@/lib/enrichment/brand-aliases";
 import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
-import {
-  domainSearchFallbackQueries,
-  domainSearchNationalFallbackQueries,
-  domainSearchQueries,
-  searchableCompanyName,
-} from "@/lib/enrichment/company-name";
+import { domainSearchQueries } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import { stampDiscoveryFonte } from "@/lib/enrichment/discovery";
 import { extractPeople } from "@/lib/enrichment/extract-people";
@@ -23,10 +18,8 @@ import {
   domainFromGmb,
   mapsWebsiteAssets,
   pickBestDomainHit,
-  preferGmbListing,
   searchGmb,
   searchInstagramProfile,
-  searchSocialProfile,
   upgradeGmbWithWebsite,
   serperOrganic,
   socialFonteFromHit,
@@ -72,7 +65,7 @@ import type {
   SitePerson,
   TechSignals,
 } from "@/lib/types";
-import { gmbListingCorroborated, gmbListingStatus } from "@/lib/types";
+import { gmbListingCorroborated } from "@/lib/types";
 
 export const GRID_USER_AGENT =
   "Mozilla/5.0 (compatible; GridBot/1.0; +https://grid.mundopodium.com.br/bot)";
@@ -332,33 +325,6 @@ function receitaGmbInput(
     receitaEmail: est.email,
     cnaeDescricao,
   };
-}
-
-function sameGmbSearchName(a: string, b: string): boolean {
-  const norm = (value: string) =>
-    value
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "");
-  return Boolean(norm(a)) && norm(a) === norm(b);
-}
-
-/** Receita name missed; the live site often has the Maps trading name. */
-async function retryGmbWithSiteBrand(
-  listing: GmbListing | null,
-  input: GmbSearchInput,
-  siteBrand: string | null,
-  siteConfirmed: boolean,
-): Promise<GmbListing | null> {
-  if (!siteConfirmed) return listing;
-  const brand = siteBrand?.trim();
-  if (!brand) return listing;
-  if (gmbListingStatus(listing) === "matched") return listing;
-  const currentName = searchableCompanyName(input.nomeFantasia, input.razaoSocial);
-  if (sameGmbSearchName(brand, currentName)) return listing;
-  const retried = await searchGmb({ ...input, nomeFantasia: brand });
-  return preferGmbListing(listing, retried);
 }
 
 function absorbSearchSocials(
@@ -853,7 +819,9 @@ async function enrichCompanyTracked(
         municipio: input.municipioNome,
         uf: est.uf,
       }),
-    ].filter((q, i, all) => q && all.indexOf(q) === i);
+    ]
+      .filter((q, i, all) => q && all.indexOf(q) === i)
+      .slice(0, 2);
     const strongBrand =
       presenceBrandTokens(brand.razaoSocial, brand.nomeFantasia, brand.municipio)
         .length > 0;
@@ -868,60 +836,30 @@ async function enrichCompanyTracked(
         collected_at,
       );
     };
-    const [hitSets, gmbSeed] = await Promise.all([
-      withSerperStage("domain", () =>
-        Promise.all(queries.map((q) => serperOrganic(q))),
-      ),
-      withSerperStage("gmb", () => searchGmb(gmbInput)),
-    ]);
-    for (const hits of hitSets) absorbHits(hits);
-    let pooledHits = hitSets.flat();
-    let best = pickBestDomainHit(
-      pooledHits,
-      brand.razaoSocial,
-      brand.nomeFantasia,
-      brand.municipio,
-      exclude,
-    );
-    let domainWave: "primary" | "fallback" | "national" | null = best
-      ? "primary"
-      : null;
-    if (!best) {
-      const extraSets = await withSerperStage("domain_fallback", () =>
-        Promise.all(
-          domainSearchFallbackQueries(queryInput).map((q) => serperOrganic(q)),
-        ),
-      );
-      for (const hits of extraSets) absorbHits(hits);
-      pooledHits = [...pooledHits, ...extraSets.flat()];
-      best = pickBestDomainHit(
-        pooledHits,
-        brand.razaoSocial,
-        brand.nomeFantasia,
-        brand.municipio,
-        exclude,
-      );
-      if (best) domainWave = "fallback";
-    }
-    if (!best) {
-      const nationalSets = await withSerperStage("domain_national", () =>
-        Promise.all(
-          domainSearchNationalFallbackQueries(queryInput).map((q) =>
-            serperOrganic(q),
-          ),
-        ),
-      );
-      for (const hits of nationalSets) absorbHits(hits);
-      pooledHits = [...pooledHits, ...nationalSets.flat()];
-      best = pickBestDomainHit(
-        pooledHits,
-        brand.razaoSocial,
-        brand.nomeFantasia,
-        brand.municipio,
-        exclude,
-      );
-      if (best) domainWave = "national";
-    }
+    const hitSets: OrganicHit[][] = [];
+    let pooledHits: OrganicHit[] = [];
+    let best = null as ReturnType<typeof pickBestDomainHit>;
+    let domainWave: "primary" | "fallback" | "national" | null = null;
+    await withSerperStage("domain", async () => {
+      for (const q of queries) {
+        const hits = await serperOrganic(q);
+        hitSets.push(hits);
+        absorbHits(hits);
+        pooledHits = hitSets.flat();
+        best = pickBestDomainHit(
+          pooledHits,
+          brand.razaoSocial,
+          brand.nomeFantasia,
+          brand.municipio,
+          exclude,
+        );
+        if (best) {
+          domainWave = "primary";
+          break;
+        }
+      }
+    });
+    const gmbSeed = await withSerperStage("gmb", () => searchGmb(gmbInput));
     if (best) {
       try {
         const host = normalizeHost(new URL(best.link).host);
@@ -1164,35 +1102,11 @@ async function enrichCompanyTracked(
   });
 
   const presenceStarted = Date.now();
-  const socialPlatforms = [
-    "instagram",
-    "facebook",
-    "linkedin",
-    "youtube",
-  ] as const;
   const siteConfirmed = domain_status === "confirmado";
   const brandOverride = siteConfirmed ? siteBrand : null;
-  const strongBrandTokens = presenceBrandTokens(
-    presencePlace.razaoSocial,
-    presencePlace.nomeFantasia,
-    presencePlace.municipio,
-  );
 
   if (!gmb) {
     gmb = await withSerperStage("gmb", () => searchGmb(gmbInput));
-    fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-  }
-
-  const retriedGmb = await withSerperStage("gmb_retry_brand", () =>
-    retryGmbWithSiteBrand(
-      gmb,
-      gmbInput,
-      siteBrand,
-      domain_status === "confirmado",
-    ),
-  );
-  if (retriedGmb !== gmb) {
-    gmb = retriedGmb;
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
 
@@ -1202,31 +1116,6 @@ async function enrichCompanyTracked(
     if (upgraded && upgraded !== gmb) {
       gmb = upgraded;
       fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-    }
-  }
-
-  if (gmbListingStatus(gmb) !== "matched") {
-    const host = domain
-      ? domain.replace(/^www\./i, "").toLowerCase()
-      : undefined;
-    const sitePhones = snap.sitePhones.map((p) => ({
-      ddd: p.ddd,
-      telefone: p.local,
-    }));
-    if (host || sitePhones.length > 0) {
-      const withSite = await withSerperStage("gmb_site", () =>
-        searchGmb({
-          ...gmbInput,
-          websiteHost: host,
-          sitePhones,
-          nomeFantasia: brandOverride || gmbInput.nomeFantasia,
-        }),
-      );
-      const preferred = preferGmbListing(gmb, withSite);
-      if (preferred !== gmb) {
-        gmb = preferred;
-        fonte.gmb = { fonte: "serper", coletado_em: collected_at };
-      }
     }
   }
 
@@ -1260,75 +1149,37 @@ async function enrichCompanyTracked(
     });
   }
 
-  const gmbCorroborated = gmbListingCorroborated(gmb);
-  const canSearchSocialWithoutSite =
-    strongBrandTokens.length > 0 || gmbCorroborated;
-
   fonte.presence_scan = { fonte: "presence", coletado_em: collected_at };
   await emit(assemble("presence", snapExtras()));
 
-  const foundSocials = await Promise.all(
-    socialPlatforms.map(async (step) => {
-      if (snap.socials[step]) {
-        return { step, kind: "site" as const, url: undefined };
-      }
-      if (socialsFromSearch[step]) {
-        return { step, kind: null, url: undefined };
-      }
-      if (step === "instagram") {
-        const found = await withSerperStage("instagram", () =>
-          searchInstagramProfile({
-            ...presencePlace,
-            brandOverride,
-            blockedLabels: blockedSocialLabels,
-            cep: est.cep,
-            logradouro: est.logradouro,
-            numero: est.numero,
-            extraNames: [
-              ...(options.extraNames ?? []),
-              ...(siteBrand ? [siteBrand] : []),
-            ],
-            websiteHost: siteConfirmed && domain ? domain : undefined,
-          }),
-        );
-        if (found.candidates.length > 0) {
-          presenceCandidates = { instagram: found.candidates };
-        }
-        return {
-          step,
-          kind: (found.url ? "serper" : "serper_miss") as
-            | "serper"
-            | "serper_miss",
-          url: found.url ?? undefined,
-        };
-      }
-      if (!siteConfirmed && !canSearchSocialWithoutSite) {
-        return { step, kind: "skipped_weak_brand" as const, url: undefined };
-      }
-      const found = await withSerperStage(step, () =>
-        searchSocialProfile({
-          platform: step,
-          ...presencePlace,
-          brandOverride,
-          blockedLabels: blockedSocialLabels,
-          allowWeakBrand: gmbCorroborated,
-        }),
-      );
-      return {
-        step,
-        kind: (found ? "serper" : "serper_miss") as "serper" | "serper_miss",
-        url: found ?? undefined,
-      };
-    }),
-  );
-
-  for (const item of foundSocials) {
-    if (item.url) {
-      socialsFromSearch = { ...socialsFromSearch, [item.step]: item.url };
+  if (snap.socials.instagram && !fonte.instagram) {
+    fonte.instagram = { fonte: "site", coletado_em: collected_at };
+  } else if (!snap.socials.instagram && !socialsFromSearch.instagram) {
+    const found = await withSerperStage("instagram", () =>
+      searchInstagramProfile({
+        ...presencePlace,
+        brandOverride,
+        blockedLabels: blockedSocialLabels,
+        cep: est.cep,
+        logradouro: est.logradouro,
+        numero: est.numero,
+        extraNames: [
+          ...(options.extraNames ?? []),
+          ...(siteBrand ? [siteBrand] : []),
+        ],
+        websiteHost: siteConfirmed && domain ? domain : undefined,
+      }),
+    );
+    if (found.candidates.length > 0) {
+      presenceCandidates = { instagram: found.candidates };
     }
-    if (item.kind) {
-      fonte[item.step] = { fonte: item.kind, coletado_em: collected_at };
+    if (found.url) {
+      socialsFromSearch = { ...socialsFromSearch, instagram: found.url };
     }
+    fonte.instagram = {
+      fonte: found.url ? "serper" : "serper_miss",
+      coletado_em: collected_at,
+    };
   }
   timings.serper_ms += elapsed(presenceStarted);
   delete fonte.presence_scan;

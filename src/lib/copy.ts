@@ -731,7 +731,9 @@ export const COPY = {
   importacoesNeedNiche: "Escolha o nicho.",
   importacoesTimeout: "A importação demorou demais. Tente de novo.",
   apiTimeout: "O servidor demorou demais. Tente de novo.",
-  importacoesImportAndQualify: "Importar e qualificar",
+  importacoesImportAndQualify: "Importar e qualificar até {max}",
+  importacoesImportAndQualifyHint:
+    "{cost} por CNPJ · só quem já tiver CNPJ na planilha · no máximo {max} agora. O resto fica na lista para Qualificar a meta de hoje.",
   importacoesIgnoreErrors: "Ignorar",
   importacoesIgnoring: "Ignorando…",
   importacoesEmptySkippedOne: "1 linha vazia fica de fora.",

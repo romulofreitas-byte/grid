@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   domainDensityVerdict,
   gmbDensityVerdict,
   instagramDensityVerdict,
+  isSerperPaused,
   summarizeSerperDensity,
   withSerperStage,
   withSerperStats,
@@ -158,6 +159,24 @@ describe("summarizeSerperDensity", () => {
     expect(summary.instagram).toBe("exhausted");
     expect(summary.by_stage.domain).toBe(2);
     expect(summary.by_stage.domain_fallback).toBe(1);
+  });
+});
+
+describe("isSerperPaused", () => {
+  afterEach(() => {
+    delete process.env.SERPER_PAUSED;
+  });
+
+  it("honors an explicit on/off flag", () => {
+    process.env.SERPER_PAUSED = "1";
+    expect(isSerperPaused()).toBe(true);
+    process.env.SERPER_PAUSED = "0";
+    expect(isSerperPaused()).toBe(false);
+  });
+
+  it("stays off in unit tests unless the flag is set", () => {
+    delete process.env.SERPER_PAUSED;
+    expect(isSerperPaused()).toBe(false);
   });
 });
 

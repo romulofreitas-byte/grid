@@ -6,22 +6,26 @@ import {
   enrichConcurrency,
   runGridWorker,
 } from "../src/lib/enrichment/process-job";
+import { isSerperPaused } from "../src/lib/enrichment/serper-stats";
 import { searchJobConcurrency } from "../src/lib/search-jobs";
 
 async function main() {
   assertWorkerEnv();
   const searchConcurrency = searchJobConcurrency();
   const concurrency = enrichConcurrency();
-  const serper = Boolean(process.env.SERPER_API_KEY?.trim());
+  const serper =
+    Boolean(process.env.SERPER_API_KEY?.trim()) && !isSerperPaused();
   console.log(
     JSON.stringify({
       event: "worker_start",
       searchConcurrency,
       concurrency,
       serper,
-      warning: serper
-        ? undefined
-        : "SERPER_API_KEY ausente — domínio só via e-mail da RF",
+      warning: isSerperPaused()
+        ? "SERPER_PAUSED — Google search desligado"
+        : serper
+          ? undefined
+          : "SERPER_API_KEY ausente — domínio só via e-mail da RF",
     }),
   );
   await runGridWorker({ searchConcurrency, enrichConcurrency: concurrency });

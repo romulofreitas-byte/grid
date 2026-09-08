@@ -44,6 +44,26 @@ export type DensityVerdict =
   | "skipped"
   | "candidate";
 
+/** Hard cap of paid Google calls per enrichment job. */
+export const SERPER_JOB_BUDGET = 6;
+
+const QUOTA_COOLDOWN_MS = 5 * 60 * 1000;
+
+export const SERPER_PAUSED_MESSAGE =
+  "Busca no Google pausada para não gastar mais créditos Serper.";
+
+/**
+ * Kill switch for paid Google search (Serper).
+ * On by default outside unit tests after the Sept 2026 overspend.
+ * Resume with SERPER_PAUSED=0.
+ */
+export function isSerperPaused(): boolean {
+  const raw = process.env.SERPER_PAUSED?.trim().toLowerCase();
+  if (raw === "0" || raw === "false" || raw === "off") return false;
+  if (raw === "1" || raw === "true" || raw === "yes") return true;
+  return !process.env.VITEST;
+}
+
 export type SerperCallRecord = {
   kind: SerperKind;
   stage: SerperStage;
@@ -66,15 +86,50 @@ export type SerperDensitySummary = {
 type SerperStatsStore = {
   calls: SerperCallRecord[];
   stage: SerperStage;
+  flags: { quota: boolean };
   meta: { domainWave: DomainWave | null };
 };
 
 const als = new AsyncLocalStorage<SerperStatsStore>();
 
+/** Process-wide pause after 401/402/403 so the next jobs do not empty the pack. */
+let quotaBlockedUntil = 0;
+
+export function resetSerperRuntimeState(): void {
+  quotaBlockedUntil = 0;
+}
+
+export function markSerperQuotaExhausted(): void {
+  const store = als.getStore();
+  if (store) store.flags.quota = true;
+  quotaBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS;
+}
+
+export function isSerperQuotaBlocked(): boolean {
+  if (isSerperPaused()) return true;
+  const store = als.getStore();
+  if (store?.flags.quota) return true;
+  return Date.now() < quotaBlockedUntil;
+}
+
+export function serperJobApiCalls(): number {
+  return als.getStore()?.calls.length ?? 0;
+}
+
+/** Isolated helpers (no job store) stay uncapped so unit tests can drive Maps. */
+export function serperBudgetAllows(): boolean {
+  if (isSerperPaused()) return false;
+  const store = als.getStore();
+  if (!store) return true;
+  if (store.flags.quota || Date.now() < quotaBlockedUntil) return false;
+  return store.calls.length < SERPER_JOB_BUDGET;
+}
+
 export function withSerperStats<T>(fn: () => Promise<T>): Promise<T> {
   const store: SerperStatsStore = {
     calls: [],
     stage: "domain",
+    flags: { quota: false },
     meta: { domainWave: null },
   };
   return als.run(store, fn);
@@ -87,7 +142,7 @@ export async function withSerperStage<T>(
   const parent = als.getStore();
   if (!parent) return fn();
   return als.run(
-    { calls: parent.calls, stage, meta: parent.meta },
+    { calls: parent.calls, stage, flags: parent.flags, meta: parent.meta },
     fn,
   );
 }

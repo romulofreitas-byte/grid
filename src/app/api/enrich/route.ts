@@ -27,12 +27,16 @@ import {
   hydrateMatchedGmbListing,
 } from "@/lib/enrichment/presence";
 import { isEnrichmentEverComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
-import { isInteractiveEnrichScope } from "@/lib/enrichment/jobs";
+import { isInteractiveEnrichScope, QUALIFY_LIST_MAX } from "@/lib/enrichment/jobs";
 import {
   drainJobsIfMock,
   processOwnedEnrichmentJobs,
   resolveJobScoreProfile,
 } from "@/lib/enrichment/process-job";
+import {
+  isSerperPaused,
+  SERPER_PAUSED_MESSAGE,
+} from "@/lib/enrichment/serper-stats";
 import { z } from "zod";
 
 export const maxDuration = 60;
@@ -130,6 +134,10 @@ export async function POST(req: Request) {
   const userId = gated.userId;
   const repo = getRepo();
   const searchId = parsed.data.searchId ?? null;
+
+  if (isSerperPaused()) {
+    return NextResponse.json({ error: SERPER_PAUSED_MESSAGE }, { status: 503 });
+  }
   const search =
     searchId != null ? await repo.getSearch(searchId) : undefined;
   if (searchId) {
@@ -350,12 +358,14 @@ export async function POST(req: Request) {
 
   let cnpjs = parsed.data.cnpjs ?? [];
   if (parsed.data.scope && searchId) {
-    cnpjs = await repo.listUnauditedCnpjs(
-      searchId,
+    const limit =
       parsed.data.scope === "first_unaudited"
-        ? { limit: parsed.data.limit ?? 50 }
-        : undefined,
-    );
+        ? Math.min(parsed.data.limit ?? 50, QUALIFY_LIST_MAX)
+        : QUALIFY_LIST_MAX;
+    cnpjs = await repo.listUnauditedCnpjs(searchId, { limit });
+  }
+  if (cnpjs.length > QUALIFY_LIST_MAX) {
+    cnpjs = cnpjs.slice(0, QUALIFY_LIST_MAX);
   }
   if (!cnpjs.length) {
     return NextResponse.json({ queued: 0, skippedOptOut: 0 });
@@ -433,7 +443,8 @@ export async function GET(req: Request) {
       job &&
       (job.status === "pending" || job.status === "running") &&
       job.search_id &&
-      (job.requested_by == null || job.requested_by === gated.userId)
+      (job.requested_by == null || job.requested_by === gated.userId) &&
+      !isSerperPaused()
     ) {
       kickOwnedEnrichment(job.search_id, gated.userId);
     }
@@ -451,7 +462,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Busca não encontrada" }, { status: 404 });
   }
   const jobs = await repo.listEnrichmentJobs(searchId);
-  if (jobs.some((j) => j.status === "pending" || j.status === "running")) {
+  if (
+    jobs.some((j) => j.status === "pending" || j.status === "running") &&
+    !isSerperPaused()
+  ) {
     kickOwnedEnrichment(searchId, gated.userId);
   }
   return NextResponse.json({ jobs });

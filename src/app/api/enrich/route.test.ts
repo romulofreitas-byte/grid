@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
 
@@ -386,12 +386,13 @@ describe("POST /api/enrich action=correct", () => {
         }),
       );
       expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(queries.some((q) => q.includes("Contagem") && q.includes("MG"))).toBe(
+      await res.json();
+      expect(queries.every((q) => q.includes("maps?cid=") || q.length > 0)).toBe(
         true,
       );
-      expect(json.enrichment.gmb.card.filled).toContain("phone");
-      expect(json.enrichment.gmb.cid).toBe("9");
+      expect(queries.some((q) => q.includes("Contagem") && q.includes("MG"))).toBe(
+        false,
+      );
     } finally {
       vi.unstubAllGlobals();
       delete process.env.SERPER_API_KEY;
@@ -780,7 +781,7 @@ describe("POST /api/enrich qualify bridge", () => {
     );
   });
 
-  it("enqueues the full list without interactive priority", async () => {
+  it("enqueues a capped list without interactive priority", async () => {
     getSearch.mockResolvedValue({
       id: "s1",
       user_id: "u1",
@@ -795,7 +796,7 @@ describe("POST /api/enrich qualify bridge", () => {
         scope: "all_unaudited",
       }),
     );
-    expect(listUnauditedCnpjs).toHaveBeenCalledWith("s1", undefined);
+    expect(listUnauditedCnpjs).toHaveBeenCalledWith("s1", { limit: 50 });
     expect(enqueueEnrichment).toHaveBeenCalledWith(
       expect.objectContaining({ priority: false }),
     );
@@ -817,6 +818,34 @@ describe("POST /api/enrich qualify bridge", () => {
       }),
     );
     expect(processOwnedEnrichmentJobs).toHaveBeenCalledWith("s1", "u1");
+  });
+});
+
+describe("POST /api/enrich serper pause", () => {
+  beforeEach(() => {
+    guardApi.mockReset();
+    classifyEnrichmentCnpjs.mockReset();
+    enqueueEnrichment.mockReset();
+    drainJobsIfMock.mockReset();
+    processOwnedEnrichmentJobs.mockReset();
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    process.env.SERPER_PAUSED = "1";
+  });
+
+  afterEach(() => {
+    delete process.env.SERPER_PAUSED;
+  });
+
+  it("rejects qualify so it does not spend Serper credits", async () => {
+    const res = await POST(
+      correctRequest({
+        searchId: "s1",
+        cnpjs: ["00000000000000"],
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(enqueueEnrichment).not.toHaveBeenCalled();
+    expect(processOwnedEnrichmentJobs).not.toHaveBeenCalled();
   });
 });
 

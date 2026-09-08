@@ -23,7 +23,9 @@ import {
 } from "@/lib/crm/import-history";
 import { crmImportSchema, importSchemaError } from "@/lib/crm/schema";
 import { getDataSource, getRepo } from "@/lib/data";
+import { QUALIFY_LIST_MAX } from "@/lib/enrichment/jobs";
 import { processOwnedEnrichmentJobs } from "@/lib/enrichment/process-job";
+import { isSerperPaused } from "@/lib/enrichment/serper-stats";
 
 export const maxDuration = 60;
 
@@ -91,9 +93,10 @@ export async function POST(req: Request) {
   ];
 
   let chargeable: string[] = [];
-  if (parsed.data.qualify && cnpjs.length) {
-    chargeable = (await repo.classifyEnrichmentCnpjs(cnpjs, gated.userId))
-      .chargeable;
+  if (parsed.data.qualify && cnpjs.length && !isSerperPaused()) {
+    chargeable = (
+      await repo.classifyEnrichmentCnpjs(cnpjs, gated.userId)
+    ).chargeable.slice(0, QUALIFY_LIST_MAX);
     if (chargeable.length) {
       const balance = await getBalance(gated.userId);
       const needed = chargeable.length * ENRICH_CREDIT_COST;
@@ -136,7 +139,7 @@ export async function POST(req: Request) {
       : null;
 
   let qualified = 0;
-  if (parsed.data.qualify && chargeable.length && list) {
+  if (parsed.data.qualify && chargeable.length && list && !isSerperPaused()) {
     try {
       await debitEnrich(gated.userId, chargeable, list.id);
     } catch (err) {

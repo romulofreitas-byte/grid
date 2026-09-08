@@ -29,6 +29,10 @@ vi.mock("@/lib/crm/import-apply", () => ({
   applyImportLeads: (...args: unknown[]) => applyImportLeads(...args),
 }));
 
+vi.mock("@/lib/enrichment/process-job", () => ({
+  processOwnedEnrichmentJobs: vi.fn(),
+}));
+
 vi.mock("@/lib/data", () => ({
   getDataSource: () => "mock",
   getRepo: () => ({
@@ -44,6 +48,8 @@ vi.mock("@/lib/data", () => ({
 }));
 
 import { GET, POST } from "./route";
+import { debitEnrich, getBalance } from "@/lib/billing/service";
+import { QUALIFY_LIST_MAX } from "@/lib/enrichment/jobs";
 
 const PIPELINE = "11111111-1111-4111-8111-111111111111";
 
@@ -204,5 +210,58 @@ describe("POST /api/crm/import", () => {
         }),
       ],
     });
+  });
+
+  it("caps import+qualify at QUALIFY_LIST_MAX", async () => {
+    guardApi.mockResolvedValue({ userId: "u1", email: null });
+    assertCrmAccess.mockResolvedValue({ enrichAllowed: true });
+    applyImportLeads.mockResolvedValue({
+      created: 1,
+      skipped: 0,
+      errors: [],
+      issues: [],
+      deals: [{ id: "d1", created: true }],
+    });
+    createSavedCnpjList.mockResolvedValue({ id: "list-1" });
+    vi.mocked(getBalance).mockResolvedValue({
+      total: 500,
+      enrichAllowed: true,
+      trialExpired: false,
+    } as Awaited<ReturnType<typeof getBalance>>);
+    vi.mocked(debitEnrich).mockResolvedValue(undefined as never);
+    classifyEnrichmentCnpjs.mockResolvedValue({
+      chargeable: Array.from({ length: QUALIFY_LIST_MAX + 30 }, (_, i) =>
+        String(i + 1).padStart(14, "0"),
+      ),
+    });
+    enqueueEnrichment.mockResolvedValue({ queued: QUALIFY_LIST_MAX, skippedOptOut: 0 });
+
+    const res = await POST(
+      new Request("http://localhost/api/crm/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pipeline_id: PIPELINE,
+          qualify: true,
+          rows: [{ name: "Maria", cnpj: "00000000000191" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ qualified: QUALIFY_LIST_MAX });
+    expect(debitEnrich).toHaveBeenCalledWith(
+      "u1",
+      expect.arrayContaining([expect.any(String)]),
+      "list-1",
+    );
+    expect(vi.mocked(debitEnrich).mock.calls[0]?.[1]).toHaveLength(QUALIFY_LIST_MAX);
+    expect(enqueueEnrichment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cnpjs: expect.any(Array),
+        searchId: "list-1",
+        priority: true,
+      }),
+    );
+    expect(enqueueEnrichment.mock.calls[0]?.[0].cnpjs).toHaveLength(QUALIFY_LIST_MAX);
   });
 });

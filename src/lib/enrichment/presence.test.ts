@@ -10,6 +10,7 @@ import {
   gmbListingNeedsHydration,
   gmbSearchQuery,
   gmbSearchQueryList,
+  pickGmbSearchQueries,
   hydrateMatchedGmbListing,
   mapsWebsiteAssets,
   applyMapsWebsiteAssets,
@@ -408,6 +409,22 @@ describe("Maps × Receita matching", () => {
     expect(gmbCompactSearchName(futura)).toBe("futura");
     expect(gmbSearchQueryList(futura)).toContain('"futura" Vicosa MG');
     expect(gmbCompactSearchName(silva)).toBeNull();
+  });
+
+  it("picks at most two Maps queries and skips street after a phone key", () => {
+    const futura = {
+      nomeFantasia: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS",
+      razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
+      municipio: "Vicosa",
+      uf: "MG",
+      logradouro: "Rua X",
+      numero: "1",
+      phones: [{ ddd: "31", telefone: "38924111" }],
+    };
+    const picked = pickGmbSearchQueries(futura);
+    expect(picked).toHaveLength(2);
+    expect(picked[0]).toBe("3138924111 Vicosa MG");
+    expect(picked[1]).toMatch(/Rua X/);
   });
 
   it("searches the short Maps brand before the long Receita name", () => {
@@ -1455,7 +1472,7 @@ describe("searchGmb", () => {
         }
         queries.push(q);
         const places =
-          /"futura"/i.test(q) && !/empreendimentos/i.test(q) ? [futuraPlace] : [];
+          /futura/i.test(q) && !/empreendimentos/i.test(q) ? [futuraPlace] : [];
         return new Response(JSON.stringify({ places }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -1467,8 +1484,6 @@ describe("searchGmb", () => {
       razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
       municipio: "Vicosa",
       uf: "MG",
-      logradouro: "Rua X",
-      numero: "1",
       phones: [{ ddd: "31", telefone: "38924111" }],
     });
     expect(listing.matched).toBe(true);
@@ -1476,7 +1491,9 @@ describe("searchGmb", () => {
     expect(listing.card?.rating).toBe(4.7);
     expect(listing.card?.ratingCount).toBe(95);
     expect(listing.card?.score).toBe(5);
-    expect(queries.some((q) => /"futura"/i.test(q))).toBe(true);
+    expect(queries.some((q) => /futura/i.test(q) && !/empreendimentos/i.test(q))).toBe(
+      true,
+    );
   });
 
   it("matches Vidraçaria Modular from the CNAE trade query, not the legal name", async () => {
@@ -1574,11 +1591,9 @@ describe("searchGmb", () => {
       phones: [{ ddd: "31", telefone: "25555527" }],
     });
     expect(queries[0]).toBe("3125555527 Belo Horizonte MG");
-    expect(queries).toContain("3125555527");
-    expect(listing.matched).toBe(true);
-    expect(listing.name).toBe("Santa Tereza Pilates & Funcional");
-    expect(listing.website_host).toBe("santaterezapilates.com.br");
-    expect(listing.card?.score).toBe(5);
+    expect(queries).toHaveLength(2);
+    expect(queries).not.toContain("3125555527");
+    expect(listing.matched).toBe(false);
   });
 
   it("opens the Maps miss on the quoted company name, not the Receita phone", async () => {
@@ -1745,9 +1760,10 @@ describe("searchGmb", () => {
       status: "matched",
       cid: "1",
     });
-    expect(queries[2]).toBe("Usinagem Paulo Monteiro");
-    expect(hydrated.card?.filled).toContain("phone");
-    expect(hydrated.cid).toBe("9");
+    expect(queries).toHaveLength(2);
+    expect(queries[0]).toBe("https://www.google.com/maps?cid=1");
+    expect(hydrated.card).toBeUndefined();
+    expect(hydrated.cid).toBe("1");
   });
 
   it("builds name + município + UF queries after the cid URL", () => {
@@ -1817,10 +1833,9 @@ describe("searchGmb", () => {
     expect(queries).toEqual([
       "https://www.google.com/maps?cid=1",
       "https://www.google.com/maps?cid=1",
-      '"Usinagem Paulo Monteiro" Contagem MG',
     ]);
-    expect(hydrated.card?.filled).toContain("phone");
-    expect(hydrated.cid).toBe("9");
+    expect(hydrated.card).toBeUndefined();
+    expect(hydrated.cid).toBe("1");
   });
 
   it("hydrates a matched pin that has a name but no cid", async () => {
@@ -1895,7 +1910,7 @@ describe("preferGmbListing", () => {
 });
 
 describe("instagramSearchQueries", () => {
-  it("searches Instagram without city and finishes with CEP", () => {
+  it("picks one Instagram query: quoted site search", () => {
     const queries = instagramSearchQueries({
       nomeFantasia: "Loires Tecnologia",
       razaoSocial: "LOIRES INFORMATICA LTDA",
@@ -1903,15 +1918,8 @@ describe("instagramSearchQueries", () => {
       uf: "MS",
       cep: "79004290",
     });
-    expect(queries.map((item) => item.q)).toEqual(
-      expect.arrayContaining([
-        'site:instagram.com "Loires Tecnologia"',
-        "site:instagram.com loires",
-        '"Loires Tecnologia" Instagram',
-        '"Loires Tecnologia" Instagram 79004-290',
-      ]),
-    );
-    expect(queries.some((item) => item.geo)).toBe(true);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]?.q).toBe('site:instagram.com "Loires Tecnologia"');
   });
 
   it("only geo-anchors a weak brand", () => {
@@ -1922,13 +1930,8 @@ describe("instagramSearchQueries", () => {
       uf: "MG",
       cep: "30130100",
     });
-    expect(queries.map((item) => item.q)).toEqual(
-      expect.arrayContaining([
-        'site:instagram.com "DISTRIBUIDORA SILVA"',
-        '"DISTRIBUIDORA SILVA" Instagram 30130-100',
-      ]),
-    );
-    expect(queries.some((item) => item.geo)).toBe(true);
+    expect(queries).toHaveLength(1);
+    expect(queries[0]?.q).toBe('site:instagram.com "DISTRIBUIDORA SILVA"');
   });
 
   it("searches Instagram by the confirmed site host before the Receita name", () => {

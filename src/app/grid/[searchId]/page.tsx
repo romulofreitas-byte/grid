@@ -425,7 +425,6 @@ export default function GridPage() {
   const [listName, setListName] = useState("");
   const [renamed, setRenamed] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [confirmAll, setConfirmAll] = useState(false);
   const [connectionId, setConnectionId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const rowFilter = parseGridRowFilter(searchParams.get("recorte"));
@@ -650,7 +649,6 @@ export default function GridPage() {
       setCrmHint(shown.hint);
       setCrmPipelineId(shown.pipelineId);
       setSelected(new Set());
-      setConfirmAll(false);
       void qc.invalidateQueries({ queryKey: ["enrich-jobs", searchId] });
       void qc.invalidateQueries({ queryKey: ["grid", searchId] });
       void qc.invalidateQueries({ queryKey: ["lead"] });
@@ -769,7 +767,6 @@ export default function GridPage() {
     visibleUnaudited.length > 0 &&
     visibleUnaudited.every((r) => selected.has(r.cnpj));
   const selectedCost = selectedCount * ENRICH_CREDIT_COST;
-  const allCost = unaudited * ENRICH_CREDIT_COST;
   const exportCostHint = `${EXPORT_CREDIT_COST} créditos por empresa`;
   const extraBatchSizes = QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal);
   const destinations = (connectionsQuery.data?.connections ?? []).filter(
@@ -1071,14 +1068,10 @@ export default function GridPage() {
           <GridMoreMenu
             qualifyPending={enrichMutation.isPending}
             unaudited={unaudited}
-            allCost={allCost}
-            confirmAll={confirmAll}
             batchSizes={extraBatchSizes}
             onQualifyBatch={(limit) =>
               requestQualify({ scope: "first_unaudited", limit })
             }
-            onQualifyAll={() => requestQualify({ scope: "all_unaudited" })}
-            onAskConfirmAll={() => setConfirmAll(true)}
             canExport={canExport}
             exportCostHint={exportCostHint}
             onPickFormat={exportCost.askExport}

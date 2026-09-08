@@ -4,6 +4,7 @@ import {
   asaasConfigured,
   stripeConfigured,
 } from "@/lib/billing/providers/types";
+import { isSerperPaused } from "@/lib/enrichment/serper-stats";
 
 export function isProdDeploy(): boolean {
   return (
@@ -116,7 +117,13 @@ export function collectLaunchEnvIssues(): EnvIssue[] {
     });
   }
 
-  if (strict && !process.env.SERPER_API_KEY?.trim()) {
+  if (isSerperPaused()) {
+    issues.push({
+      level: "warn",
+      message:
+        "SERPER_PAUSED — busca no Google desligada para não gastar créditos Serper.",
+    });
+  } else if (strict && !process.env.SERPER_API_KEY?.trim()) {
     issues.push({
       level: "warn",
       message:

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   compareEnrichmentClaimOrder,
+  ENRICH_STALE_RUNNING_SECONDS,
+  QUALIFY_LIST_MAX,
   enrichJobPriority,
   isInteractiveEnrichScope,
   latestEnrichmentJobPerCnpj,
@@ -31,6 +33,8 @@ describe("enrich job priority", () => {
     expect(isInteractiveEnrichScope("all_unaudited")).toBe(false);
     expect(enrichJobPriority(true)).toBe(1);
     expect(enrichJobPriority(false)).toBe(0);
+    expect(QUALIFY_LIST_MAX).toBe(50);
+    expect(ENRICH_STALE_RUNNING_SECONDS).toBe(900);
   });
 
   it("claims interactive jobs ahead of older bulk jobs", () => {

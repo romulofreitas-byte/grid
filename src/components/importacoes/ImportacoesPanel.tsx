@@ -15,6 +15,7 @@ import { ENRICH_CREDIT_COST, creditsPhrase, planHasFeature } from "@/lib/billing
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { COPY } from "@/lib/copy";
+import { QUALIFY_LIST_MAX } from "@/lib/enrichment/jobs";
 import {
   guessImportMapping,
   hydrateImportRow,
@@ -577,23 +578,40 @@ export function ImportacoesPanel({
           {canImport ? (
             <div className="rounded-md border border-white/10 px-3 py-3">
               <p className="text-sm font-medium text-podium-white">
-                {COPY.importacoesImportAndQualify}
+                {COPY.importacoesImportAndQualify.replace(
+                  "{max}",
+                  String(QUALIFY_LIST_MAX),
+                )}
               </p>
               <p className="mt-0.5 text-[11px] text-podium-muted">
-                {creditsPhrase(ENRICH_CREDIT_COST)} por CNPJ · só quem já tiver
-                CNPJ na planilha
-                {mappedCnpjs > 0 ? ` · ${mappedCnpjs} na planilha` : ""}.
+                {COPY.importacoesImportAndQualifyHint
+                  .replace("{cost}", creditsPhrase(ENRICH_CREDIT_COST))
+                  .replace("{max}", String(QUALIFY_LIST_MAX))}
+                {mappedCnpjs > 0
+                  ? ` ${mappedCnpjs} na planilha${
+                      mappedCnpjs > QUALIFY_LIST_MAX
+                        ? `, ${QUALIFY_LIST_MAX} agora`
+                        : ""
+                    }.`
+                  : ""}{" "}
                 Saldo: {creditsPhrase(credits)}.
               </p>
               <Button
                 variant="secondary"
                 className="mt-2"
-                disabled={importRows.isPending}
+                disabled={importRows.isPending || mappedCnpjs === 0}
                 onClick={() =>
                   importRows.mutate({ mode: "ready", qualify: true })
                 }
               >
-                {COPY.importacoesImportAndQualify}
+                {COPY.importacoesImportAndQualify.replace(
+                  "{max}",
+                  String(
+                    mappedCnpjs > 0
+                      ? Math.min(mappedCnpjs, QUALIFY_LIST_MAX)
+                      : QUALIFY_LIST_MAX,
+                  ),
+                )}
               </Button>
             </div>
           ) : null}
