@@ -11,7 +11,10 @@ import {
 
 describe("invalidateLiveStats", () => {
   it("invalidates each live stats family", async () => {
-    const invalidateQueries = vi.fn(async () => undefined);
+    const invalidateQueries = vi.fn(async () => undefined) as unknown as {
+      (filters?: { queryKey?: unknown }): Promise<void>;
+      mock: { calls: Array<[{ queryKey?: unknown } | undefined]> };
+    };
     await invalidateLiveStats({ invalidateQueries });
     expect(invalidateQueries.mock.calls.map((call) => call[0]?.queryKey)).toEqual(
       LIVE_STATS_KEYS.map((key) => [key]),

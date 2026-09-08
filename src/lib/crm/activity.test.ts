@@ -99,11 +99,10 @@ describe("earliestOpenActivity", () => {
       created_at: "2026-09-06T12:00:00.000Z",
     };
     expect(earliestOpenActivity([later, overdue])?.id).toBe("ligar");
-    expect(openActivitiesOf({ open_activities: [later, overdue] }).map((row) => row.id)).toEqual([
+    expect(openActivitiesOf({ next_activity: overdue, open_activities: [later, overdue] }).map((row) => row.id)).toEqual([
       "ligar",
-      "reuniao",
     ]);
-    expect(openActivitiesOf({ open_activities: [] })).toEqual([]);
+    expect(openActivitiesOf({ next_activity: null, open_activities: [] })).toEqual([]);
   });
 
   it("labels overdue and same-day dues in relative Portuguese", () => {
