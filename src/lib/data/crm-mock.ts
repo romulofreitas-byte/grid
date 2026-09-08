@@ -31,7 +31,7 @@ import {
   IMPORT_RUN_LIST_LIMIT,
   ignoreImportRunErrors,
 } from "@/lib/crm/import-history";
-import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
+import { peopleFromDeal, sanitizePeople, sanitizeSecretaries, snapshotContactName, socioNamesForBriefing } from "@/lib/crm/people";
 import { resolveDecisor } from "@/lib/decisor";
 import { planDeleteStage, insertAt } from "@/lib/crm/stages";
 import { isEnrichmentVisible } from "@/lib/enrichment/fresh";
@@ -477,7 +477,7 @@ export const crmMockMethods = {
       (row) => row.stage_id === stage.id,
     ).length;
     const created = nowIso();
-    const secretaries = cleanList(input.secretaries);
+    const secretaries = sanitizeSecretaries(input.secretaries);
     const people = peopleFromDeal({
       contact_name: input.contact_name?.trim() ?? "",
       secretaries,
@@ -663,6 +663,7 @@ export const crmMockMethods = {
         store.ref_cnae.find((row) => row.codigo === est.cnae_principal)
           ?.descricao ?? null,
       decisor: decisor?.nome ?? null,
+      socios: socioNamesForBriefing(partners, decisor?.nome ?? null),
       assets: enrichment
         ? briefingAssetsFromFields({
             domain: enrichment.domain,
@@ -691,7 +692,7 @@ export const crmMockMethods = {
       deal.contact_name = patch.contact_name;
     }
     if (patch.secretaries !== undefined) {
-      deal.secretaries = cleanList(patch.secretaries);
+      deal.secretaries = sanitizeSecretaries(patch.secretaries);
     }
     if (patch.phones !== undefined) deal.phones = cleanList(patch.phones);
     if (patch.notes !== undefined) deal.notes = patch.notes;

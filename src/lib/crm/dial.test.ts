@@ -30,8 +30,9 @@ describe("crm dial links", () => {
       dealDialPhones({
         phones: ["(11) 4123-3244", ""],
         people: [{ phone: "(11) 99999-0000" }, { phone: "" }],
+        secretaries: [{ phone: "(11) 98888-0000" }],
       }),
-    ).toEqual(["(11) 4123-3244", "(11) 99999-0000"]);
+    ).toEqual(["(11) 4123-3244", "(11) 99999-0000", "(11) 98888-0000"]);
     expect(
       firstDialablePhone(
         dealDialPhones({ phones: [], people: [{ phone: "(11) 4123-3244" }] }),

@@ -33,7 +33,7 @@ function deal(patch: Partial<CrmDeal> = {}): CrmDeal {
     stage_id: "s",
     company_name: "Padaria Central",
     contact_name: "Ana",
-    secretaries: ["Bia"],
+    secretaries: [{ name: "Bia", phone: "", email: "" }],
     people: [{ name: "Ana", phone: "(34) 99999-0000", email: "ana@x.com" }],
     phones: ["(34) 3333-1010"],
     notes: "",
@@ -145,6 +145,42 @@ describe("crm briefing", () => {
       assets: null,
     }));
     expect(row.audited).toBe(false);
+    expect(row.socios).toEqual([]);
+  });
+
+  it("lists PF socios from the dossier QSA", () => {
+    const row = buildCrmBriefing(
+      deal(),
+      dossier({
+        socios: [
+          {
+            nome: "Carlos",
+            qualificacao: "Sócio",
+            dataEntrada: null,
+            faixaEtaria: null,
+            kind: "pessoa",
+            kindLabel: null,
+          },
+          {
+            nome: "ALPHA HOLDING",
+            qualificacao: "Sócio",
+            dataEntrada: null,
+            faixaEtaria: null,
+            kind: "holding",
+            kindLabel: "Holding",
+          },
+          {
+            nome: "Maria Silva",
+            qualificacao: "Sócio",
+            dataEntrada: null,
+            faixaEtaria: null,
+            kind: "pessoa",
+            kindLabel: null,
+          },
+        ],
+      }),
+    );
+    expect(row.socios).toEqual(["Carlos", "Maria Silva"]);
   });
 
   it("skips the lookup when the deal has no CNPJ", async () => {
@@ -158,6 +194,7 @@ describe("crm briefing", () => {
     expect(row.contact).toBe("Ana");
     expect(row.badges.every((badge) => !badge.found)).toBe(true);
     expect(row.audited).toBe(false);
+    expect(row.socios).toEqual([]);
   });
 
   it("applies a slim lookup without a full dossier", async () => {
@@ -173,6 +210,7 @@ describe("crm briefing", () => {
       address: "Rua A, 10 · Centro · Uberlândia/MG",
       cnae: "Restaurantes",
       decisor: "Carlos",
+      socios: ["Carlos", "Maria Silva"],
       assets: null,
     });
     const row = await loadCrmBriefing(deal({ cnpj: "12345678000190" }), getLookup);
@@ -191,6 +229,7 @@ describe("crm briefing", () => {
     expect(row.address).toBe("Rua A, 10 · Centro · Uberlândia/MG");
     expect(row.cnae).toBe("Restaurantes");
     expect(row.decisor).toBe("Carlos");
+    expect(row.socios).toEqual(["Carlos", "Maria Silva"]);
   });
 
   it("lists extra receita and contact phones without duplicates", () => {

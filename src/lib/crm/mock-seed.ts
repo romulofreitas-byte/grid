@@ -1,6 +1,6 @@
 import { LOCAL_USER_ID } from "@/lib/data/pg";
 import { cloneDefaultCadenceEntries } from "@/lib/crm/cadence";
-import { peopleFromDeal } from "@/lib/crm/people";
+import { peopleFromDeal, sanitizeSecretaries } from "@/lib/crm/people";
 import type { CrmActivityKind, CrmOutcome } from "@/lib/crm/types";
 import type { MockStore } from "@/lib/data/mock-store";
 
@@ -186,7 +186,7 @@ export function seedCrmStore(store: MockStore, now = Date.now()): void {
         stage_id: stageId,
         company_name: row.company,
         contact_name: row.contact,
-        secretaries: row.secretaries,
+        secretaries: sanitizeSecretaries(row.secretaries),
         people: peopleFromDeal({
           contact_name: row.contact,
           secretaries: row.secretaries,

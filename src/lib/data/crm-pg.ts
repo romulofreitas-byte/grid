@@ -50,7 +50,13 @@ import { escapeIlike, sqlFoldAccent } from "@/lib/data/company-search";
 import { normalizeText } from "@/lib/normalize-text";
 import { formatPhone } from "@/lib/format";
 import { planDeleteStage } from "@/lib/crm/stages";
-import { peopleFromDeal, sanitizePeople, snapshotContactName } from "@/lib/crm/people";
+import {
+  peopleFromDeal,
+  sanitizePeople,
+  sanitizeSecretaries,
+  snapshotContactName,
+  socioNamesForBriefing,
+} from "@/lib/crm/people";
 import type {
   CrmActivity,
   CrmActivityKind,
@@ -122,10 +128,10 @@ function mapDeal(row: QueryResultRow): CrmDeal {
     stage_id: String(row.stage_id),
     company_name: String(row.company_name),
     contact_name: String(row.contact_name ?? ""),
-    secretaries: asStringList(row.secretaries),
+    secretaries: sanitizeSecretaries(row.secretaries),
     people: peopleFromDeal({
       contact_name: String(row.contact_name ?? ""),
-      secretaries: asStringList(row.secretaries),
+      secretaries: row.secretaries,
       people: row.people,
     }),
     phones: asStringList(row.phones),
@@ -158,7 +164,7 @@ function normalizeDealCnpj(value: string | null | undefined): string | null {
 }
 
 function fieldsForDealInsert(input: CrmDealCreateInput) {
-  const secretaries = asStringList(input.secretaries);
+  const secretaries = sanitizeSecretaries(input.secretaries);
   const people = peopleFromDeal({
     contact_name: input.contact_name?.trim() ?? "",
     secretaries,
@@ -726,7 +732,7 @@ export const crmPgMethods = {
         `select count(*)::int as n from crm_deals where stage_id = $1`,
         [stageId],
       );
-      const secretaries = asStringList(input.secretaries);
+      const secretaries = sanitizeSecretaries(input.secretaries);
       const people = peopleFromDeal({
         contact_name: input.contact_name?.trim() ?? "",
         secretaries,
@@ -1161,6 +1167,7 @@ export const crmPgMethods = {
       : null;
     const basico = row.cnpj_basico == null ? "" : String(row.cnpj_basico).trim();
     let decisor: string | null = null;
+    let socios: string[] = [];
     if (basico) {
       const [partnersRes, qualsRes] = await Promise.all([
         query(
@@ -1188,6 +1195,7 @@ export const crmPgMethods = {
           naturezaId:
             row.natureza_id == null ? null : Number(row.natureza_id),
         })?.nome ?? null;
+      socios = socioNamesForBriefing(partners, decisor);
     }
     return {
       municipioNome,
@@ -1197,6 +1205,7 @@ export const crmPgMethods = {
       address,
       cnae: row.cnae_descricao == null ? null : String(row.cnae_descricao),
       decisor,
+      socios,
       assets,
     };
   },
@@ -1214,7 +1223,7 @@ export const crmPgMethods = {
         ? snapshotContactName(people)
         : (patch.contact_name ?? null);
       const secretaries = patch.secretaries
-        ? asStringList(patch.secretaries)
+        ? sanitizeSecretaries(patch.secretaries)
         : null;
       await q(
         `update crm_deals

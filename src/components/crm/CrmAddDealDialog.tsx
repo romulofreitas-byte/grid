@@ -23,7 +23,8 @@ import {
 import { digitsCnpj } from "@/lib/crm/bridge";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
-import type { CrmBoard, CrmPipelineSummary, CrmStage } from "@/lib/crm/types";
+import { peopleFromContactAndSocios } from "@/lib/crm/people";
+import type { CrmBoard, CrmPerson, CrmPipelineSummary, CrmStage } from "@/lib/crm/types";
 import { canSearchCompanies } from "@/lib/data/company-search";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnpj } from "@/lib/format";
@@ -43,6 +44,7 @@ export type CrmAddDealInput = {
   company_name: string;
   contact_name: string;
   secretaries: string[];
+  people?: CrmPerson[];
   phones?: string[];
   cnpj?: string;
   meta?: { source: "crm_add" };
@@ -377,6 +379,10 @@ export function CrmAddDealDialog({
         company_name: company.trim(),
         contact_name: contact.trim(),
         secretaries: secretary.trim() ? [secretary.trim()] : [],
+        people: peopleFromContactAndSocios(
+          contact.trim(),
+          (socios ?? []).map((socio) => socio.nome),
+        ),
         phones: phones.length ? phones : undefined,
         cnpj: selected.cnpj,
         meta: { source: "crm_add" },

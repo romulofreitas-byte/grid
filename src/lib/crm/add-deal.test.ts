@@ -240,6 +240,22 @@ describe("dealCreateSchema", () => {
     });
     expect(parsed.cnpj).toBeUndefined();
     expect(parsed.company_name).toBe("Padaria do Zé");
+    expect(parsed.secretaries).toEqual(["Maria"]);
+  });
+
+  it("accepts secretary cards with phone and email", () => {
+    const parsed = dealCreateSchema.parse({
+      company_name: "Padaria do Zé",
+      secretaries: [{ name: "Maria", phone: "(34) 99999-0000", email: "m@x.com" }],
+      people: [
+        { name: "Zé", phone: "", email: "" },
+        { name: "Ana", phone: "", email: "" },
+      ],
+    });
+    expect(parsed.secretaries).toEqual([
+      { name: "Maria", phone: "(34) 99999-0000", email: "m@x.com" },
+    ]);
+    expect(parsed.people?.map((person) => person.name)).toEqual(["Zé", "Ana"]);
   });
 
   it("normalizes CNPJ and keeps phones and crm_add source", () => {

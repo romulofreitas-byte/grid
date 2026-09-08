@@ -17,6 +17,11 @@ export const crmPersonSchema = z.object({
   email: z.string().trim().max(120),
 });
 
+const secretaryInputSchema = z.union([
+  z.string().trim().max(80),
+  crmPersonSchema,
+]);
+
 export const pipelineNameSchema = z.string().trim().min(1).max(80);
 
 export const pipelineCreateSchema = z.object({
@@ -52,7 +57,7 @@ export const stageReorderSchema = z.object({
 export const dealCreateSchema = z.object({
   company_name: z.string().trim().min(1).max(120),
   contact_name: z.string().trim().max(80).optional(),
-  secretaries: z.array(z.string().trim().max(80)).max(8).optional(),
+  secretaries: z.array(secretaryInputSchema).max(8).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   stage_id: z.string().uuid().optional(),
   notes: z.string().max(4000).optional(),
@@ -157,7 +162,7 @@ export const crmInboundPatchSchema = z.object({
 export const dealPatchSchema = z.object({
   company_name: z.string().trim().min(1).max(120).optional(),
   contact_name: z.string().trim().max(80).optional(),
-  secretaries: z.array(z.string().trim().max(80)).max(8).optional(),
+  secretaries: z.array(secretaryInputSchema).max(8).optional(),
   people: z.array(crmPersonSchema).max(12).optional(),
   phones: z.array(z.string().trim().max(24)).max(8).optional(),
   notes: z.string().max(4000).optional(),

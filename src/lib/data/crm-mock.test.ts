@@ -343,7 +343,9 @@ describe("crm mock board", () => {
       secretaries: ["Bia"],
     });
     expect(created?.people.map((row) => row.name)).toEqual(["Ana"]);
-    expect(created?.secretaries).toEqual(["Bia"]);
+    expect(created?.secretaries).toEqual([
+      { name: "Bia", phone: "", email: "" },
+    ]);
     const updated = await mockRepo.updateCrmDeal(USER, created!.id, {
       people: [
         { name: "Carlos", phone: "(34) 99999-0000", email: "c@x.com" },
@@ -356,12 +358,16 @@ describe("crm mock board", () => {
       email: "c@x.com",
     });
     expect(updated?.contact_name).toBe("Carlos");
-    expect(updated?.secretaries).toEqual(["Bia"]);
+    expect(updated?.secretaries).toEqual([
+      { name: "Bia", phone: "", email: "" },
+    ]);
     const renamed = await mockRepo.updateCrmDeal(USER, created!.id, {
       people: [{ name: "Diego", phone: "", email: "" }],
     });
     expect(renamed?.contact_name).toBe("Diego");
-    expect(renamed?.secretaries).toEqual(["Bia"]);
+    expect(renamed?.secretaries).toEqual([
+      { name: "Bia", phone: "", email: "" },
+    ]);
   });
 
   it("schedules a dated note as next_activity and leaves undated notes alone", async () => {
@@ -585,6 +591,8 @@ describe("seeded telemetry mix", () => {
     expect(lookup?.presence === null || typeof lookup?.presence?.site === "boolean").toBe(
       true,
     );
+    expect(Array.isArray(lookup?.socios)).toBe(true);
+    expect((lookup?.socios?.length ?? 0) > 0).toBe(true);
   });
 
   it("searches deals across pipelines and keeps the other user out", async () => {

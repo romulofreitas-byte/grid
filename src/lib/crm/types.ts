@@ -182,7 +182,7 @@ export type CrmDeal = {
   stage_id: string;
   company_name: string;
   contact_name: string;
-  secretaries: string[];
+  secretaries: CrmPerson[];
   people: CrmPerson[];
   phones: string[];
   notes: string;
@@ -259,7 +259,7 @@ export type CrmDealCreateInput = {
   stage_id?: string;
   company_name: string;
   contact_name?: string;
-  secretaries?: string[];
+  secretaries?: Array<string | CrmPerson>;
   people?: CrmPerson[];
   phones?: string[];
   notes?: string;
@@ -270,7 +270,7 @@ export type CrmDealCreateInput = {
 export type CrmDealPatch = {
   company_name?: string;
   contact_name?: string;
-  secretaries?: string[];
+  secretaries?: Array<string | CrmPerson>;
   people?: CrmPerson[];
   phones?: string[];
   notes?: string;

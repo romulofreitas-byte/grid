@@ -7,6 +7,7 @@ import {
   Mail,
   MessageCircle,
   Phone,
+  ChevronDown,
   Plus,
   Repeat,
   StickyNote,
@@ -68,7 +69,9 @@ import {
 } from "@/lib/crm/events";
 import {
   emptyPerson,
+  mergePeopleWithSocios,
   peopleFromDeal,
+  peopleListsEqual,
   sanitizePeople,
   sanitizeSecretaries,
 } from "@/lib/crm/people";
@@ -177,6 +180,105 @@ function personPlaceholder(field: "name" | "phone" | "email"): string {
   return COPY.crmPersonEmail;
 }
 
+function secretariesFromDeal(deal: { secretaries: CrmPerson[] }): CrmPerson[] {
+  return deal.secretaries.length > 0 ? deal.secretaries : [emptyPerson()];
+}
+
+type PeopleCardKey = `secretary:${number}` | `person:${number}`;
+
+function PersonContactCard({
+  label,
+  person,
+  namePlaceholder,
+  expanded,
+  canRemove,
+  fieldPrefix,
+  onExpand,
+  onToggle,
+  onChange,
+  onBlur,
+  onRemove,
+}: {
+  label: string;
+  person: CrmPerson;
+  namePlaceholder: string;
+  expanded: boolean;
+  canRemove: boolean;
+  fieldPrefix: string;
+  onExpand: () => void;
+  onToggle: () => void;
+  onChange: (field: keyof CrmPerson, value: string) => void;
+  onBlur: () => void;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-podium-muted">
+          {label}
+        </span>
+        {canRemove && onRemove ? (
+          <button
+            type="button"
+            aria-label="Remover"
+            onClick={onRemove}
+            className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
+      <div className="flex gap-1">
+        <input
+          className={cn(CRM_FIELD, "min-w-0 truncate font-medium")}
+          value={person.name}
+          autoComplete="off"
+          name={`${fieldPrefix}-name`}
+          placeholder={namePlaceholder}
+          onFocus={onExpand}
+          onChange={(event) => onChange("name", event.target.value)}
+          onBlur={onBlur}
+        />
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={
+            expanded ? "Ocultar telefone e e-mail" : "Mostrar telefone e e-mail"
+          }
+          onClick={onToggle}
+          className="shrink-0 rounded-md p-1.5 text-podium-muted hover:text-podium-white"
+        >
+          <ChevronDown
+            className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-180")}
+          />
+        </button>
+      </div>
+      {expanded ? (
+        <>
+          <input
+            className={CRM_FIELD}
+            value={person.phone}
+            autoComplete="off"
+            name={`${fieldPrefix}-phone`}
+            placeholder={personPlaceholder("phone")}
+            onChange={(event) => onChange("phone", event.target.value)}
+            onBlur={onBlur}
+          />
+          <input
+            className={CRM_FIELD}
+            value={person.email}
+            autoComplete="off"
+            name={`${fieldPrefix}-email`}
+            placeholder={personPlaceholder("email")}
+            onChange={(event) => onChange("email", event.target.value)}
+            onBlur={onBlur}
+          />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export function CrmDealModal({
   deal,
   stages,
@@ -206,8 +308,9 @@ export function CrmDealModal({
   const qc = useQueryClient();
   const [people, setPeople] = useState(() => peopleFromDeal(deal));
   const [secretaries, setSecretaries] = useState(() =>
-    deal.secretaries.length > 0 ? deal.secretaries : [""],
+    secretariesFromDeal(deal),
   );
+  const [openCard, setOpenCard] = useState<PeopleCardKey | null>(null);
   const [phones, setPhones] = useState(
     deal.phones.length > 0 ? deal.phones : [""],
   );
@@ -253,24 +356,41 @@ export function CrmDealModal({
   const amountRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const briefingGen = useRef(0);
+  const mergedSociosForDeal = useRef<string | null>(null);
 
   useEffect(() => {
     setPeople(peopleFromDeal(deal));
   }, [deal]);
 
   useEffect(() => {
-    if (!briefing.decisor?.trim()) return;
+    mergedSociosForDeal.current = null;
+    setOpenCard(null);
+  }, [deal.id]);
+
+  useEffect(() => {
+    if (!briefingReady) return;
+    if (mergedSociosForDeal.current === deal.id) return;
     const current = peopleRef.current;
     const primary = current[0] ?? emptyPerson();
-    if (primary.name.trim()) return;
-    const next = [{ ...primary, name: briefing.decisor }, ...current.slice(1)];
+    const seeded =
+      !primary.name.trim() && briefing.decisor?.trim()
+        ? [{ ...primary, name: briefing.decisor.trim() }, ...current.slice(1)]
+        : current;
+    const next = mergePeopleWithSocios(
+      seeded,
+      briefing.socios ?? [],
+      secretariesRef.current,
+    );
+    mergedSociosForDeal.current = deal.id;
+    if (peopleListsEqual(sanitizePeople(current), next)) return;
     peopleRef.current = next;
     setPeople(next);
-  }, [briefing.decisor]);
+    void persistPeople(next);
+  }, [briefingReady, briefing.socios, briefing.decisor, deal.id]);
 
   useEffect(() => {
     setPhones(deal.phones.length > 0 ? deal.phones : [""]);
-    setSecretaries(deal.secretaries.length > 0 ? deal.secretaries : [""]);
+    setSecretaries(secretariesFromDeal(deal));
     setBody("");
     setComposerKind("ligar");
     setComposerOpen(true);
@@ -405,12 +525,12 @@ export function CrmDealModal({
     void persistPeople(ready);
   }
 
-  function queueSecretaries(next: string[]) {
-    secretariesRef.current = next.length > 0 ? next : [""];
+  function queueSecretaries(next: CrmPerson[]) {
+    secretariesRef.current = next.length > 0 ? next : [emptyPerson()];
     setSecretaries(secretariesRef.current);
   }
 
-  async function persistSecretaries(next: string[]) {
+  async function persistSecretaries(next: CrmPerson[]) {
     try {
       await patch({ secretaries: sanitizeSecretaries(next) });
     } catch (err) {
@@ -419,7 +539,18 @@ export function CrmDealModal({
   }
 
   function flushSecretaries(next = secretariesRef.current) {
+    const ready = sanitizeSecretaries(next);
+    const shown = ready.length > 0 ? ready : [emptyPerson()];
+    secretariesRef.current = shown;
+    setSecretaries(shown);
     void persistSecretaries(next);
+  }
+
+  function updateSecretary(index: number, field: keyof CrmPerson, value: string) {
+    const next = secretariesRef.current.map((person, i) =>
+      i === index ? { ...person, [field]: value } : person,
+    );
+    queueSecretaries(next);
   }
 
   async function persistAmount(raw: string) {
@@ -470,6 +601,9 @@ export function CrmDealModal({
     return uniquePhones([
       ...cleanedPhones(phonesRef.current),
       ...peopleRef.current.flatMap((person) =>
+        person.phone.trim() ? [person.phone] : [],
+      ),
+      ...secretariesRef.current.flatMap((person) =>
         person.phone.trim() ? [person.phone] : [],
       ),
     ]);
@@ -728,6 +862,10 @@ export function CrmDealModal({
       i === index ? { ...person, [field]: value } : person,
     );
     queuePeople(next);
+  }
+
+  function toggleCard(key: PeopleCardKey) {
+    setOpenCard((current) => (current === key ? null : key));
   }
 
   function selectCompanyPhone(value: string) {
@@ -1231,104 +1369,97 @@ export function CrmDealModal({
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>
               <div className="mt-1.5 flex flex-col gap-3">
-                {people.map((person, index) => (
-                    <div key={`person-${index}`} className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-semibold text-podium-muted">
-                          {index === 0 ? COPY.crmContactLabel : `Pessoa ${index + 1}`}
-                        </span>
-                        {index > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = peopleRef.current.filter((_, i) => i !== index);
-                              peopleRef.current = next;
-                              setPeople(next);
-                              void persistPeople(next);
-                            }}
-                            className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                      {(["name", "phone", "email"] as const).map((field) => (
-                        <input
-                          key={`${index}-${field}`}
-                          className={CRM_FIELD}
-                          value={person[field]}
-                          autoComplete="off"
-                          name={`crm-person-${index}-${field}`}
-                          placeholder={
-                            index === 0 && field === "name"
-                              ? briefing.decisor || personPlaceholder("name")
-                              : personPlaceholder(field)
-                          }
-                          onChange={(event) =>
-                            updatePerson(index, field, event.target.value)
-                          }
-                          onBlur={() => flushPeople()}
-                        />
-                      ))}
-                    </div>
-                ))}
+                {secretaries.map((person, index) => {
+                  const key: PeopleCardKey = `secretary:${index}`;
+                  return (
+                    <PersonContactCard
+                      key={key}
+                      label={
+                        index === 0
+                          ? COPY.crmSecretaryLabel
+                          : `${COPY.crmSecretaryLabel} ${index + 1}`
+                      }
+                      person={person}
+                      namePlaceholder={COPY.crmSecretaryName}
+                      expanded={openCard === key}
+                      canRemove={secretaries.length > 1}
+                      fieldPrefix={`crm-secretary-${index}`}
+                      onExpand={() => setOpenCard(key)}
+                      onToggle={() => toggleCard(key)}
+                      onChange={(field, value) =>
+                        updateSecretary(index, field, value)
+                      }
+                      onBlur={() => flushSecretaries()}
+                      onRemove={() => {
+                        const next = secretariesRef.current.filter(
+                          (_, i) => i !== index,
+                        );
+                        queueSecretaries(next);
+                        void persistSecretaries(next);
+                      }}
+                    />
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...secretariesRef.current, emptyPerson()];
+                    queueSecretaries(next);
+                    setOpenCard(`secretary:${next.length - 1}`);
+                  }}
+                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  {COPY.crmAddSecretary}
+                </button>
+                {people.map((person, index) => {
+                  const key: PeopleCardKey = `person:${index}`;
+                  return (
+                    <PersonContactCard
+                      key={key}
+                      label={
+                        index === 0
+                          ? COPY.crmContactLabel
+                          : `Pessoa ${index + 1}`
+                      }
+                      person={person}
+                      namePlaceholder={
+                        index === 0
+                          ? briefing.decisor || personPlaceholder("name")
+                          : personPlaceholder("name")
+                      }
+                      expanded={openCard === key}
+                      canRemove={index > 0}
+                      fieldPrefix={`crm-person-${index}`}
+                      onExpand={() => setOpenCard(key)}
+                      onToggle={() => toggleCard(key)}
+                      onChange={(field, value) =>
+                        updatePerson(index, field, value)
+                      }
+                      onBlur={() => flushPeople()}
+                      onRemove={() => {
+                        const next = peopleRef.current.filter(
+                          (_, i) => i !== index,
+                        );
+                        peopleRef.current = next;
+                        setPeople(next);
+                        void persistPeople(next);
+                      }}
+                    />
+                  );
+                })}
                 <button
                   type="button"
                   onClick={() => {
                     const next = [...peopleRef.current, emptyPerson()];
                     peopleRef.current = next;
                     setPeople(next);
+                    setOpenCard(`person:${next.length - 1}`);
                   }}
                   className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   {COPY.crmAddPerson}
-                </button>
-              </div>
-              <p className={cn(CRM_LABEL, "mt-3")}>{COPY.crmSecretaryName}</p>
-              <div className="mt-1.5 flex flex-col gap-1.5">
-                {secretaries.map((name, index) => (
-                  <div key={`secretary-${index}`} className="flex gap-1.5">
-                    <input
-                      className={CRM_FIELD}
-                      value={name}
-                      autoComplete="off"
-                      name={`crm-secretary-${index}`}
-                      placeholder={COPY.crmSecretaryName}
-                      onChange={(event) => {
-                        const next = secretariesRef.current.map((row, i) =>
-                          i === index ? event.target.value : row,
-                        );
-                        queueSecretaries(next);
-                      }}
-                      onBlur={() => flushSecretaries()}
-                    />
-                    {secretaries.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = secretariesRef.current.filter(
-                            (_, i) => i !== index,
-                          );
-                          queueSecretaries(next);
-                          void persistSecretaries(next);
-                        }}
-                        className="rounded-md p-0.5 text-podium-muted hover:text-red-400"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => {
-                    queueSecretaries([...secretariesRef.current, ""]);
-                  }}
-                  className="inline-flex items-center gap-1 self-start text-[10px] font-medium text-podium-muted hover:text-podium-white"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {COPY.crmAddSecretary}
                 </button>
               </div>
             </div>

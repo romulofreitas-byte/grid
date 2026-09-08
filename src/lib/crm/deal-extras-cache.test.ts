@@ -31,6 +31,7 @@ const briefing: CrmBriefing = {
   address: null,
   cnae: null,
   decisor: null,
+  socios: [],
   badges: [],
   assets: [],
   audited: false,

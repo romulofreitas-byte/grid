@@ -185,7 +185,7 @@ export function findDealByCnpj<T extends { cnpj: string | null }>(
 export function attachCompanyHitToDeal(
   deal: {
     contact_name: string;
-    secretaries?: string[];
+    secretaries?: string[] | { name: string; phone: string; email: string }[];
     phones: string[];
     people?: { name: string; phone: string; email: string }[];
   },

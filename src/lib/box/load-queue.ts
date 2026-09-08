@@ -11,7 +11,7 @@ import {
 import { buildBoxRhythm, type BoxRhythm } from "@/lib/box/rhythm";
 import { isCrmStageKey } from "@/lib/crm/cadence";
 import { uniquePhones } from "@/lib/crm/dial";
-import { peopleFromDeal } from "@/lib/crm/people";
+import { peopleFromDeal, sanitizeSecretaries } from "@/lib/crm/people";
 import type { CrmOutcome } from "@/lib/crm/types";
 import { getDataSource, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
@@ -58,12 +58,13 @@ function phonesFromDeal(row: {
 }): string[] {
   const people = peopleFromDeal({
     contact_name: String(row.contact_name ?? ""),
-    secretaries: asStringList(row.secretaries),
+    secretaries: row.secretaries,
     people: row.people,
   });
   return uniquePhones([
     ...asStringList(row.phones),
     ...people.map((person) => person.phone),
+    ...sanitizeSecretaries(row.secretaries).map((person) => person.phone),
   ]);
 }
 

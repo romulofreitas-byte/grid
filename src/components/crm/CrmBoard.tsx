@@ -936,6 +936,7 @@ export function CrmBoard({
                   company_name: input.company_name,
                   contact_name: input.contact_name,
                   secretaries: input.secretaries,
+                  people: input.people,
                   phones: input.phones,
                   cnpj: input.cnpj,
                   meta: input.meta,

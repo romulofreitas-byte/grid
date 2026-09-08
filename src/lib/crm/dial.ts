@@ -49,15 +49,23 @@ export function firstDialablePhone(phones: string[]): string | null {
   return null;
 }
 
+function personPhones(rows: { phone?: string }[] | string[] | null | undefined): string[] {
+  return (rows ?? []).flatMap((row) => {
+    if (typeof row === "string") return [];
+    const phone = row.phone?.trim() ?? "";
+    return phone ? [phone] : [];
+  });
+}
+
 export function dealDialPhones(deal: {
   phones?: string[] | null;
   people?: { phone: string }[] | null;
+  secretaries?: { phone?: string }[] | string[] | null;
 }): string[] {
   return uniquePhones([
     ...(deal.phones ?? []),
-    ...(deal.people ?? []).flatMap((person) =>
-      person.phone.trim() ? [person.phone] : [],
-    ),
+    ...personPhones(deal.people),
+    ...personPhones(deal.secretaries),
   ]);
 }
 

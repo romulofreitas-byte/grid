@@ -1,6 +1,6 @@
 import { gridPresenceFromEnrichment } from "@/lib/audit/grid-presence";
 import { uniquePhones, waHrefFromPhone } from "@/lib/crm/dial";
-import { peopleFromDeal } from "@/lib/crm/people";
+import { peopleFromDeal, socioNamesFromQsa } from "@/lib/crm/people";
 import { mapsListingHref } from "@/lib/enrichment/company-name";
 import { companySiteHref } from "@/lib/enrichment/company-site";
 import type { CrmDeal } from "@/lib/crm/types";
@@ -71,6 +71,7 @@ export type CrmBriefing = {
   address: string | null;
   cnae: string | null;
   decisor: string | null;
+  socios: string[];
   badges: CrmBriefingBadge[];
   assets: CrmBriefingAsset[];
   audited: boolean;
@@ -86,6 +87,7 @@ export type CrmBriefingLookup = {
   address: string | null;
   cnae: string | null;
   decisor: string | null;
+  socios?: string[];
   assets: CrmBriefingAsset[] | null;
 };
 
@@ -409,6 +411,9 @@ export function buildCrmBriefing(
       lookup?.decisor?.trim() ||
       dossier?.decisor?.nome?.trim() ||
       null,
+    socios:
+      lookup?.socios ??
+      (dossier ? socioNamesFromQsa(dossier.socios) : []),
     badges: lookup
       ? briefingBadgesFromPresence(lookup.presence)
       : briefingBadgesFromDossier(dossier),
