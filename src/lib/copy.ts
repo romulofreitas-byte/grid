@@ -495,6 +495,8 @@ export const COPY = {
   crmPhoneSourceCrm: "CRM",
   crmActions: "Ações",
   crmCallNow: "Ligar",
+  crmCopyPhone: "Copiar telefone",
+  crmCopiedPhone: "Copiado",
   crmWhatsappNow: "WhatsApp",
   crmNoteNow: "Nota",
   crmEmailNow: "E-mail",

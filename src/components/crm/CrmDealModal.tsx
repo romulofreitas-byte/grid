@@ -115,6 +115,43 @@ function formatPhoneDisplay(raw: string): string {
   return parsed.display;
 }
 
+function CopyPhoneChip({ phone }: { phone: string }) {
+  const [copied, setCopied] = useState(false);
+  const display = formatPhoneDisplay(phone);
+  const label = copied ? COPY.crmCopiedPhone : COPY.crmCopyPhone;
+
+  useEffect(() => {
+    setCopied(false);
+  }, [phone]);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(display);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      return;
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={() => void copy()}
+      className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-xs text-podium-gray transition hover:border-white/20 hover:bg-white/[0.08] hover:text-podium-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-podium-yellow" />
+      ) : (
+        <Phone className="h-3 w-3" />
+      )}
+      {display}
+    </button>
+  );
+}
+
 function cleanedPhones(values: string[]): string[] {
   return values.map((value) => value.trim()).filter(Boolean);
 }
@@ -835,10 +872,7 @@ export function CrmDealModal({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {headerPhone ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-xs text-podium-gray">
-                <Phone className="h-3 w-3" />
-                {formatPhoneDisplay(headerPhone)}
-              </span>
+              <CopyPhoneChip phone={headerPhone} />
             ) : (
               <span className="text-[11px] text-podium-muted">{COPY.crmNoPhone}</span>
             )}
