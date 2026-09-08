@@ -18,12 +18,12 @@ describe("shell work nav", () => {
   it("keeps the work destinations and the Nova lista tour target", () => {
     expect(SHELL_WORK_NAV.map((item) => item.href)).toEqual([
       "/painel",
+      "/metas",
       "/box",
       "/crm",
       "/largada",
       "/listas",
       "/empresas",
-      "/metas",
     ]);
     expect(SHELL_WORK_NAV.find((item) => item.href === "/largada")?.tour).toBe(
       "nova-lista",
@@ -40,9 +40,9 @@ describe("shell mobile nav", () => {
     ]);
     expect(SHELL_MORE_NAV.map((item) => item.href)).toEqual([
       "/painel",
+      "/metas",
       "/largada",
       "/empresas",
-      "/metas",
     ]);
     expect(SHELL_MORE_NAV.find((item) => item.href === "/largada")?.tour).toBe(
       "nova-lista",

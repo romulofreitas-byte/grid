@@ -40,12 +40,12 @@ export type ShellFooterItem = {
 
 export const SHELL_WORK_NAV: readonly ShellNavItem[] = [
   { href: "/painel", label: "Painel", icon: BarChart3 },
+  { href: "/metas", label: "Meta", icon: Target },
   { href: "/box", label: "Ligar", icon: Phone },
   { href: "/crm", label: "CRM", icon: Columns3 },
   { href: "/largada", label: "Nova lista", icon: Flag, tour: "nova-lista" },
   { href: "/listas", label: "Listas", icon: List },
   { href: "/empresas", label: "Empresas", icon: Search },
-  { href: "/metas", label: "Meta", icon: Target },
 ];
 
 /** Phone tab bar: primary work. The rest lives in SHELL_MORE_NAV. */
@@ -57,9 +57,9 @@ export const SHELL_MOBILE_NAV: readonly ShellNavItem[] = [
 
 export const SHELL_MORE_NAV: readonly ShellNavItem[] = [
   { href: "/painel", label: "Painel", icon: BarChart3 },
+  { href: "/metas", label: "Meta", icon: Target },
   { href: "/largada", label: "Nova lista", icon: Flag, tour: "nova-lista" },
   { href: "/empresas", label: "Empresas", icon: Search },
-  { href: "/metas", label: "Meta", icon: Target },
 ];
 
 export const SHELL_MORE_TAB = {
