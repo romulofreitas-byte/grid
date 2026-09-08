@@ -69,20 +69,32 @@ import type {
   CrmEvent,
   CrmEventCreateInput,
   CrmEventKind,
-  CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEndpointCreateInput,
+  CrmInboundEndpointPatchInput,
   CrmInboundEvent,
   CrmInboundEventCreateInput,
   CrmImportRun,
   CrmImportRunCreateInput,
   CrmLeadKind,
+  CrmMetaConnection,
+  CrmMetaConnectionRecord,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
   CrmPipelineSummary,
   CrmStage,
 } from "@/lib/crm/types";
-import { isUndefinedTableError, query, withTransaction, type SqlQuery } from "@/lib/data/pg";
+import { normalizeFormChannel } from "@/lib/crm/types";
+import { parseFormFields } from "@/lib/crm/form-fields";
+import {
+  isUndefinedColumnError,
+  isUndefinedTableError,
+  isUniqueViolation,
+  query,
+  withTransaction,
+  type SqlQuery,
+} from "@/lib/data/pg";
 import type { QueryResultRow } from "pg";
 
 function asIso(value: unknown): string {
@@ -233,10 +245,54 @@ function mapInboundEndpoint(row: QueryResultRow): CrmInboundEndpoint {
     stage_id: row.stage_id == null || row.stage_id === "" ? null : String(row.stage_id),
     nome: String(row.nome ?? "Campanha"),
     lead_kind: row.lead_kind === "person" ? "person" : "company",
-    channel: row.channel === "ads" ? "ads" : "site",
+    channel: normalizeFormChannel(String(row.channel ?? "site")),
     token_hash: String(row.token_hash),
+    public_token_hash:
+      row.public_token_hash == null || row.public_token_hash === ""
+        ? null
+        : String(row.public_token_hash),
+    form_fields: parseFormFields(row.form_fields),
+    meta_connection_id:
+      row.meta_connection_id == null || row.meta_connection_id === ""
+        ? null
+        : String(row.meta_connection_id),
+    meta_form_id:
+      row.meta_form_id == null || row.meta_form_id === ""
+        ? null
+        : String(row.meta_form_id),
     created_at: asIso(row.created_at),
     updated_at: asIso(row.updated_at),
+  };
+}
+
+function mapMetaConnection(row: QueryResultRow): CrmMetaConnectionRecord {
+  return {
+    id: String(row.id),
+    user_id: String(row.user_id),
+    page_id: String(row.page_id),
+    page_name: String(row.page_name),
+    status:
+      row.status === "pending" ||
+      row.status === "error" ||
+      row.status === "revoked"
+        ? row.status
+        : "active",
+    credentials_ciphertext: String(row.credentials_ciphertext ?? ""),
+    credentials_nonce: String(row.credentials_nonce ?? ""),
+    created_at: asIso(row.created_at),
+    updated_at: asIso(row.updated_at),
+  };
+}
+
+function publicMetaConnection(row: CrmMetaConnectionRecord): CrmMetaConnection {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    page_id: row.page_id,
+    page_name: row.page_name,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -251,6 +307,7 @@ function mapInboundEvent(row: QueryResultRow): CrmInboundEvent | null {
     deal_id: row.deal_id,
     snapshot: row.snapshot,
     payload: row.payload,
+    external_id: row.external_id,
     created_at: row.created_at,
   });
 }
@@ -374,18 +431,27 @@ async function listPipelineRows(userId: string): Promise<CrmPipeline[]> {
   return rows.map(mapPipeline);
 }
 
+const BOARD_DEAL_COLUMNS = `id, pipeline_id, stage_id, company_name, contact_name,
+  secretaries, people, phones, cnpj, meta, outcome, amount_cents, position,
+  created_at, updated_at`;
+
+const BOARD_ACTIVITY_COLUMNS = `a.id, a.deal_id, a.kind, a.due_at, a.status, a.created_at`;
+
 async function assembleBoard(pipeline: CrmPipeline): Promise<CrmBoard> {
   const [stages, deals, activities] = await Promise.all([
     listStages(query, pipeline.id),
     query(
-      `select * from crm_deals where pipeline_id = $1 order by position, created_at`,
+      `select ${BOARD_DEAL_COLUMNS}
+         from crm_deals
+        where pipeline_id = $1
+        order by position, created_at`,
       [pipeline.id],
     ),
     query(
-      `select a.*
-       from crm_activities a
-       join crm_deals d on d.id = a.deal_id
-       where d.pipeline_id = $1 and a.status = 'open'`,
+      `select ${BOARD_ACTIVITY_COLUMNS}
+         from crm_activities a
+         join crm_deals d on d.id = a.deal_id
+        where d.pipeline_id = $1 and a.status = 'open'`,
       [pipeline.id],
     ),
   ]);
@@ -1747,6 +1813,50 @@ export const crmPgMethods = {
     }
   },
 
+  async getCrmInboundEndpointByPublicTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_endpoints where public_token_hash = $1 limit 1`,
+        [tokenHash],
+      );
+      return rows[0] ? mapInboundEndpoint(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async findCrmInboundEndpointsForMetaLead(
+    pageId: string,
+    formId: string | null,
+  ): Promise<CrmInboundEndpoint[]> {
+    try {
+      const { rows } = await query(
+        `select e.*
+           from crm_inbound_endpoints e
+           join crm_meta_connections c on c.id = e.meta_connection_id
+          where c.page_id = $1
+            and c.status = 'active'
+            and e.channel = 'meta'
+            and (
+              e.meta_form_id is null
+              or e.meta_form_id = ''
+              or ($2::text is not null and e.meta_form_id = $2)
+            )`,
+        [pageId, formId],
+      );
+      const mapped = rows.map(mapInboundEndpoint);
+      if (!formId) return mapped;
+      const exact = mapped.filter((row) => row.meta_form_id === formId);
+      return exact.length > 0 ? exact : mapped.filter((row) => !row.meta_form_id);
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
   async findCrmInboundEndpoint(
     endpointId: string,
   ): Promise<CrmInboundEndpoint | null> {
@@ -1764,14 +1874,7 @@ export const crmPgMethods = {
 
   async createCrmInboundEndpoint(
     userId: string,
-    input: {
-      nome: string;
-      pipelineId: string;
-      stage_id?: string | null;
-      lead_kind: CrmLeadKind;
-      channel: CrmFormChannel;
-      token_hash: string;
-    },
+    input: CrmInboundEndpointCreateInput,
   ): Promise<CrmInboundEndpoint | null> {
     try {
       return await withTransaction(async (q) => {
@@ -1782,8 +1885,9 @@ export const crmPgMethods = {
         }
         const { rows } = await q(
           `insert into crm_inbound_endpoints (
-             user_id, pipeline_id, stage_id, nome, lead_kind, channel, token_hash
-           ) values ($1, $2, $3, $4, $5, $6, $7)
+             user_id, pipeline_id, stage_id, nome, lead_kind, channel, token_hash,
+             public_token_hash, form_fields, meta_connection_id, meta_form_id
+           ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11)
            returning *`,
           [
             userId,
@@ -1793,12 +1897,16 @@ export const crmPgMethods = {
             input.lead_kind,
             input.channel,
             input.token_hash,
+            input.public_token_hash ?? null,
+            JSON.stringify(input.form_fields ?? {}),
+            input.meta_connection_id ?? null,
+            input.meta_form_id ?? null,
           ],
         );
         return rows[0] ? mapInboundEndpoint(rows[0]) : null;
       });
     } catch (err) {
-      if (isUndefinedTableError(err)) return null;
+      if (isUndefinedTableError(err) || isUndefinedColumnError(err)) return null;
       throw err;
     }
   },
@@ -1806,14 +1914,7 @@ export const crmPgMethods = {
   async updateCrmInboundEndpoint(
     userId: string,
     endpointId: string,
-    input: {
-      nome?: string;
-      pipelineId?: string;
-      stage_id?: string | null;
-      lead_kind?: CrmLeadKind;
-      channel?: CrmFormChannel;
-      token_hash?: string;
-    },
+    input: CrmInboundEndpointPatchInput,
   ): Promise<CrmInboundEndpoint | null> {
     try {
       return await withTransaction(async (q) => {
@@ -1843,6 +1944,10 @@ export const crmPgMethods = {
                   lead_kind = coalesce($6, lead_kind),
                   channel = coalesce($7, channel),
                   token_hash = coalesce($8, token_hash),
+                  public_token_hash = coalesce($9, public_token_hash),
+                  form_fields = coalesce($10::jsonb, form_fields),
+                  meta_connection_id = coalesce($11, meta_connection_id),
+                  meta_form_id = coalesce($12, meta_form_id),
                   updated_at = now()
             where id = $1 and user_id = $2
             returning *`,
@@ -1855,6 +1960,10 @@ export const crmPgMethods = {
             input.lead_kind ?? null,
             input.channel ?? null,
             input.token_hash ?? null,
+            input.public_token_hash ?? null,
+            input.form_fields ? JSON.stringify(input.form_fields) : null,
+            input.meta_connection_id ?? null,
+            input.meta_form_id ?? null,
           ],
         );
         return rows[0] ? mapInboundEndpoint(rows[0]) : null;
@@ -1888,9 +1997,9 @@ export const crmPgMethods = {
     try {
       const { rows } = await query(
         `insert into crm_inbound_events (
-           endpoint_id, user_id, status, http_status, message, deal_id, snapshot, payload
+           endpoint_id, user_id, status, http_status, message, deal_id, snapshot, payload, external_id
          )
-         select $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb
+         select $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9
            from crm_inbound_endpoints
           where id = $1 and user_id = $2
          returning *`,
@@ -1903,6 +2012,7 @@ export const crmPgMethods = {
           input.dealId ?? null,
           JSON.stringify(input.snapshot),
           input.payload ? JSON.stringify(input.payload) : null,
+          input.externalId ?? null,
         ],
       );
       await query(
@@ -1917,6 +2027,114 @@ export const crmPgMethods = {
         [input.endpointId, INBOUND_EVENT_KEEP],
       );
       return rows[0] ? mapInboundEvent(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      if (isUniqueViolation(err) && input.externalId) {
+        return this.findCrmInboundEventByExternalId(
+          input.endpointId,
+          input.externalId,
+        );
+      }
+      throw err;
+    }
+  },
+
+  async findCrmInboundEventByExternalId(
+    endpointId: string,
+    externalId: string,
+  ): Promise<CrmInboundEvent | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_inbound_events
+          where endpoint_id = $1 and external_id = $2
+          limit 1`,
+        [endpointId, externalId],
+      );
+      return rows[0] ? mapInboundEvent(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async listCrmMetaConnections(userId: string): Promise<CrmMetaConnection[]> {
+    try {
+      const { rows } = await query(
+        `select * from crm_meta_connections
+          where user_id = $1 and status = 'active'
+          order by page_name asc`,
+        [userId],
+      );
+      return rows.map((row) => publicMetaConnection(mapMetaConnection(row)));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async getCrmMetaConnection(
+    userId: string,
+    connectionId: string,
+  ): Promise<CrmMetaConnectionRecord | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_meta_connections where id = $1 and user_id = $2 limit 1`,
+        [connectionId, userId],
+      );
+      return rows[0] ? mapMetaConnection(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async getCrmMetaConnectionByPageId(
+    pageId: string,
+  ): Promise<CrmMetaConnectionRecord | null> {
+    try {
+      const { rows } = await query(
+        `select * from crm_meta_connections
+          where page_id = $1 and status = 'active'
+          limit 1`,
+        [pageId],
+      );
+      return rows[0] ? mapMetaConnection(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async upsertCrmMetaConnection(
+    userId: string,
+    input: {
+      pageId: string;
+      pageName: string;
+      credentialsCiphertext: string;
+      credentialsNonce: string;
+    },
+  ): Promise<CrmMetaConnectionRecord | null> {
+    try {
+      const { rows } = await query(
+        `insert into crm_meta_connections (
+           user_id, page_id, page_name, status, credentials_ciphertext, credentials_nonce
+         ) values ($1, $2, $3, 'active', $4, $5)
+         on conflict (user_id, page_id) do update set
+           page_name = excluded.page_name,
+           status = 'active',
+           credentials_ciphertext = excluded.credentials_ciphertext,
+           credentials_nonce = excluded.credentials_nonce,
+           updated_at = now()
+         returning *`,
+        [
+          userId,
+          input.pageId,
+          input.pageName,
+          input.credentialsCiphertext,
+          input.credentialsNonce,
+        ],
+      );
+      return rows[0] ? mapMetaConnection(rows[0]) : null;
     } catch (err) {
       if (isUndefinedTableError(err)) return null;
       throw err;

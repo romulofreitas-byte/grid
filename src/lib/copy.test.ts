@@ -137,6 +137,12 @@ describe("COPY automações", () => {
     expect(COPY.automacoesOriginSite).toMatch(/link|embed/i);
     expect(COPY.automacoesOriginMeta).toMatch(/meta/i);
     expect(COPY.automacoesOriginWebhook).toMatch(/origem/i);
+    expect(COPY.automacoesConnectMeta).toMatch(/meta api/i);
+    expect(COPY.automacoesMetaHint.toLowerCase()).toMatch(/conecte a página/);
+    expect(COPY.automacoesEmptyPane.toLowerCase()).toMatch(/integrações|integracoes/);
+    expect(COPY.integracoesTitle).toBe("Integrações");
+    expect(COPY.telefoniaTitle).toBe("Telefonia");
+    expect(COPY.integracoesFacebookTitle).toBe("Meta API");
     expect(COPY.automacoesHint.toLowerCase()).not.toMatch(/make/);
     expect(COPY.automacoesPayloadLead.toLowerCase()).not.toMatch(/make/);
     expect(COPY.lockedAutomationsHighlight2.toLowerCase()).not.toMatch(/make/);
@@ -212,6 +218,7 @@ describe("COPY crm", () => {
     expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
     expect(COPY.painelOpenBox).toMatch(/box/i);
     expect(COPY.crmOpening).toMatch(/CRM/);
+    expect(COPY.metasOpening).toMatch(/Meta/);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);
     expect(COPY.crmBridgePartial).toMatch(/não entraram no crm/i);
@@ -389,6 +396,8 @@ describe("COPY ficha maps", () => {
     expect(COPY.fichaGmbHumanPin).toBe("Você confirmou este pin.");
     expect(COPY.fichaGmbHumanPin.toLowerCase()).not.toMatch(/receita/);
     expect(COPY.fichaGmbCardUnread).toMatch(/não li o card/i);
+    expect(COPY.fichaMapsClosedPermanently).toBe("Permanentemente fechado");
+    expect(COPY.fichaMapsClosedTemporarily).toBe("Fechado temporariamente");
   });
 });
 

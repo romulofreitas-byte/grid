@@ -61,6 +61,7 @@ export function BoxSprint({
   const router = useRouter();
   const qc = useQueryClient();
   const snapshotRef = useRef<BoxQueuePayload | null>(null);
+  const seededAtRef = useRef(Date.now());
   useLayoutEffect(() => {
     replaceQueryIfSnapshotChanged(
       qc,
@@ -78,6 +79,7 @@ export function BoxSprint({
       return body as BoxQueuePayload;
     },
     initialData: initialQueue,
+    initialDataUpdatedAt: seededAtRef.current,
     ...LIVE_STATS_QUERY_OPTIONS,
   });
   const jobsQuery = useQuery({

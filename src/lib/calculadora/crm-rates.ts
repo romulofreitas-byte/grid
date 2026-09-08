@@ -39,6 +39,14 @@ export type CrmRateSuggestions = {
   ticket: { reais: number; amostra: number } | null;
 };
 
+export const EMPTY_CRM_RATE_SUGGESTIONS: CrmRateSuggestions = {
+  taxa1: null,
+  taxa2: null,
+  taxa3: null,
+  taxa4: null,
+  ticket: null,
+};
+
 export type CrmRateInput = {
   deals: readonly CrmRateDeal[];
 };

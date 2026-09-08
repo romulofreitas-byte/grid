@@ -1,6 +1,7 @@
 export const BACK = {
   inicio: { href: "/", label: "Voltar ao início" },
   painel: { href: "/painel", label: "Voltar ao Painel" },
+  integracoes: { href: "/integracoes", label: "Voltar às integrações" },
   box: { href: "/box", label: "Voltar a ligar" },
   setup: { href: "/setup", label: "Voltar ao perfil" },
   largada: { href: "/largada", label: "Voltar à nova lista" },
@@ -20,20 +21,26 @@ export function largadaIntentHref(intent: string, opts?: { uf?: string }) {
 
 export type ConexoesKind = "crm" | "dialer" | "voip" | "webhook";
 
-export const INTEGRACOES_VOIP = "/integracoes/voip";
-export const INTEGRACOES_DISCADOR = "/integracoes/discador";
+export const INTEGRACOES = "/integracoes";
+export const INTEGRACOES_TELEFONIA = "/integracoes/telefonia";
 
 export function integracoesHref(kind: "voip" | "dialer" = "voip") {
-  return kind === "dialer" ? INTEGRACOES_DISCADOR : INTEGRACOES_VOIP;
+  return kind === "dialer"
+    ? `${INTEGRACOES_TELEFONIA}?tab=discador`
+    : `${INTEGRACOES_TELEFONIA}?tab=voip`;
 }
 
-/** Old `/conexoes?kind=` links resolve to the split Integrações pages. */
+export function parseTelefoniaTab(value: string | null | undefined): "voip" | "dialer" {
+  return value === "discador" ? "dialer" : "voip";
+}
+
+/** Old `/conexoes?kind=` links resolve to Telefonia with the matching tab. */
 export function conexoesHref(kind?: ConexoesKind) {
   return integracoesHref(kind === "dialer" ? "dialer" : "voip");
 }
 
 export function conexoesLegacyRedirect(kind: string | null | undefined): string {
-  return kind === "dialer" ? INTEGRACOES_DISCADOR : INTEGRACOES_VOIP;
+  return integracoesHref(kind === "dialer" ? "dialer" : "voip");
 }
 
 export type GridFrom = "box" | "largada" | "listas" | "empresas";

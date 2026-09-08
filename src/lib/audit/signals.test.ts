@@ -655,6 +655,33 @@ describe("buildAuditSignals", () => {
     ]);
     expect(gmb.hint).toMatch(/incompleto/i);
 
+    const closedRow = enrichment({
+      gmb: {
+        name: "Comercial Amicitate",
+        url: "https://www.google.com/maps?cid=1",
+        matched: true,
+        match_by: ["title", "city"],
+        address: "R. Conceição do Mato Dentro, 540 - Belo Horizonte",
+        card: {
+          filled: ["phone"],
+          score: 1,
+          operational_status: "closed_permanently",
+        },
+      },
+    });
+    const closedMaps = byId(closedRow, "maps");
+    const closedGmb = byId(closedRow, "gmb");
+    expect(closedMaps.pills?.[0]).toEqual({
+      id: "operational_status",
+      label: "Permanentemente fechado",
+      present: false,
+      tone: "alert",
+    });
+    expect(closedMaps.hint).toMatch(/permanentemente fechado/i);
+    expect(closedGmb.pills?.[0]?.id).toBe("operational_status");
+    expect(closedGmb.hint).toMatch(/permanentemente fechado/i);
+    expect(closedGmb.hint).toMatch(/Conceição do Mato Dentro/i);
+
     const full = byId(
       enrichment({
         gmb: {
@@ -924,6 +951,27 @@ describe("gmbAssetPills", () => {
     expect(pills.find((p) => p.id === "hours")?.label).toMatch(/07:30/);
     expect(pills.find((p) => p.id === "address")?.label).toMatch(/Rio São Francisco/);
     expect(pills.find((p) => p.id === "category")?.label).toBe("Vidraçaria");
+  });
+
+  it("puts a permanently closed Maps flag first, in alert tone", () => {
+    const pills = gmbAssetPills({
+      name: "Comercial Amicitate",
+      url: "https://www.google.com/maps?cid=1",
+      matched: true,
+      status: "matched",
+      address: "R. Conceição do Mato Dentro, 540 - Belo Horizonte",
+      card: {
+        filled: ["phone"],
+        score: 1,
+        operational_status: "closed_permanently",
+      },
+    });
+    expect(pills[0]).toEqual({
+      id: "operational_status",
+      label: "Permanentemente fechado",
+      present: false,
+      tone: "alert",
+    });
   });
 
   it("omits a shared-phone cross-ref", () => {

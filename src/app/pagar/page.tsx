@@ -25,8 +25,9 @@ import {
   pagarSucessoHref,
   planosHref,
 } from "@/lib/billing/href";
-import type { BillingOrder } from "@/lib/billing/types";
+import type { BillingMe, BillingOrder } from "@/lib/billing/types";
 import { buttonClassName } from "@/components/ui/Button";
+import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const METHODS: Array<{ id: PaymentMethod; label: string; hint: string }> = [
@@ -59,6 +60,7 @@ function PagarInner() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [order, setOrder] = useState<BillingOrder | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const pixWaiting = Boolean(order?.status === "pending" && order.method === "pix");
   const { litCount: busyLit } = useHoldLights(busy && !pixWaiting, true);
   const { phase, litCount, goToSuccess } = usePodiumWait(pixWaiting, from);
@@ -71,6 +73,12 @@ function PagarInner() {
       .then((r) => r.json())
       .then((p: { documento?: string | null }) => {
         if (p.documento) setDocumento(p.documento);
+      })
+      .catch(() => undefined);
+    void fetch("/api/billing/me")
+      .then((r) => r.json())
+      .then((me: BillingMe) => {
+        setCurrentPlan(me.balance?.plano ?? null);
       })
       .catch(() => undefined);
   }, []);
@@ -164,6 +172,9 @@ function PagarInner() {
   }
 
   const offSale = !isSkuOnSale(sku);
+  const upgradingFromPiloto =
+    sku === "piloto_pro" &&
+    (currentPlan === "piloto" || currentPlan === "membro_plataforma");
 
   return (
     <AppShell fill title="Pagar" back={planosBack}>
@@ -193,6 +204,9 @@ function PagarInner() {
             <p className="mt-2 text-sm text-podium-muted md:text-base">
               {item.credits.toLocaleString("pt-BR")} créditos
             </p>
+            {upgradingFromPiloto ? (
+              <Hint className="mt-4">{COPY.pagarUpgradeFromPiloto}</Hint>
+            ) : null}
             <ul className="mt-8 space-y-3 border-t border-white/10 pt-6">
               {catalogBenefitLines(item).map((line) => (
                 <li key={line} className="flex gap-3 text-sm text-podium-gray">

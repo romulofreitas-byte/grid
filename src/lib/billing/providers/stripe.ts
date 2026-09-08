@@ -18,15 +18,20 @@ function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }
 
-async function stripeFetch<T>(path: string, params: Record<string, string>): Promise<T> {
-  const body = new URLSearchParams(params);
+async function stripeFetch<T>(
+  path: string,
+  params: Record<string, string> = {},
+  method: "POST" | "DELETE" = "POST",
+): Promise<T> {
   const res = await fetch(`https://api.stripe.com/v1${path}`, {
-    method: "POST",
+    method,
     headers: {
       Authorization: `Basic ${Buffer.from(`${secret()}:`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded",
+      ...(method === "POST"
+        ? { "Content-Type": "application/x-www-form-urlencoded" }
+        : {}),
     },
-    body,
+    body: method === "DELETE" ? undefined : new URLSearchParams(params),
   });
   const json = (await res.json()) as T & { error?: { message?: string } };
   if (!res.ok) {
@@ -116,6 +121,10 @@ export const stripeProvider: PaymentProvider = {
     await stripeFetch<StripeSub>(`/subscriptions/${providerSubId}`, {
       cancel_at_period_end: "true",
     });
+  },
+
+  async cancelSubscriptionNow(providerSubId: string) {
+    await stripeFetch<StripeSub>(`/subscriptions/${providerSubId}`, {}, "DELETE");
   },
 
   async parseWebhook(req: Request, rawBody: string): Promise<NormalizedPaymentEvent | null> {

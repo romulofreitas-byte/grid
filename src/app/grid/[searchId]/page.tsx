@@ -23,7 +23,7 @@ import { usePaywall } from "@/components/PaywallDialog";
 import { COPY } from "@/lib/copy";
 import { DEFAULT_CALL_GOAL } from "@/lib/pilot-profile";
 import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
-import { gridBack, largadaEditHref, leadHref, parseGridFrom, crmHref } from "@/lib/back";
+import { gridBack, integracoesHref, largadaEditHref, leadHref, parseGridFrom, crmHref } from "@/lib/back";
 import { ENRICH_CREDIT_COST, EXPORT_CREDIT_COST, creditsEach } from "@/lib/billing/catalog";
 import {
   blockQualifyIfFree,
@@ -780,7 +780,7 @@ export default function GridPage() {
       if (CONNECTIONS_STANDBY) return null;
       return (
         <Link
-          href="/integracoes/discador"
+          href={integracoesHref("dialer")}
           className={buttonClassName({
             variant: "secondary",
             size: "sm",

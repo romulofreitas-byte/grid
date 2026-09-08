@@ -142,6 +142,7 @@ export function mapInboundEventRow(row: {
   deal_id: unknown;
   snapshot: unknown;
   payload: unknown;
+  external_id?: unknown;
   created_at: unknown;
 }): CrmInboundEvent | null {
   const status = parseInboundEventStatus(row.status);
@@ -157,6 +158,10 @@ export function mapInboundEventRow(row: {
       row.deal_id == null || row.deal_id === "" ? null : String(row.deal_id),
     snapshot: parseSnapshot(row.snapshot),
     payload: parsePayload(row.payload),
+    external_id:
+      row.external_id == null || row.external_id === ""
+        ? null
+        : String(row.external_id),
     created_at: new Date(String(row.created_at)).toISOString(),
   };
 }

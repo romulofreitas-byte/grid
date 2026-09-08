@@ -32,6 +32,10 @@ export const mockProvider: PaymentProvider = {
     /* no-op */
   },
 
+  async cancelSubscriptionNow() {
+    /* no-op */
+  },
+
   async parseWebhook() {
     return null;
   },

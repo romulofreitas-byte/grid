@@ -43,6 +43,7 @@ import type {
   GmbCardCheck,
   GmbListing,
   GmbMatchBy,
+  GmbOperationalStatus,
   GmbPhoneVsReceita,
   LeadEnrichment,
   PresenceSocialCandidate,
@@ -76,6 +77,8 @@ export type MapsPlace = {
   category?: string;
   openingHours?: unknown;
   thumbnailUrl?: string;
+  /** Closed flag from the public Maps card — never “open now”. */
+  operationalStatus?: GmbOperationalStatus;
 };
 
 export type GmbSearchInput = {
@@ -1424,17 +1427,101 @@ function firstPhotoUrl(value: unknown): string | undefined {
   return undefined;
 }
 
+const CLOSED_PERMANENT_RE =
+  /permanentemente\s+fechad|fechad[oa]\s+permanente|permanently\s*closed|closed[_ ]?permanently/;
+const CLOSED_TEMPORARY_RE =
+  /temporariamente\s+fechad|fechad[oa]\s+temporari|temporarily\s*closed|closed[_ ]?temporarily/;
+
+function collectMapsText(value: unknown, into: string[], depth = 0): void {
+  if (value == null || depth > 4) return;
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value).trim();
+    if (text) into.push(text);
+    return;
+  }
+  if (typeof value === "boolean") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectMapsText(item, into, depth + 1);
+    return;
+  }
+  if (typeof value === "object") {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      collectMapsText(item, into, depth + 1);
+    }
+  }
+}
+
+function mapsOperationalStatusFromText(
+  raw: string | null | undefined,
+): GmbOperationalStatus | undefined {
+  if (!raw?.trim()) return undefined;
+  const hay = stripAccents(raw);
+  if (CLOSED_PERMANENT_RE.test(hay)) return "closed_permanently";
+  if (CLOSED_TEMPORARY_RE.test(hay)) return "closed_temporarily";
+  return undefined;
+}
+
+function mapsCategoryLabel(
+  raw: string | null | undefined,
+): string | undefined {
+  const text = raw?.trim();
+  if (!text || mapsOperationalStatusFromText(text)) return undefined;
+  return text;
+}
+
+function mapsOperationalStatusFromPlace(
+  place: Pick<MapsPlace, "title" | "category" | "openingHours"> & {
+    operationalStatus?: GmbOperationalStatus;
+  },
+): GmbOperationalStatus | undefined {
+  if (place.operationalStatus) return place.operationalStatus;
+  const parts: string[] = [];
+  collectMapsText(place.title, parts);
+  collectMapsText(place.category, parts);
+  collectMapsText(place.openingHours, parts);
+  return mapsOperationalStatusFromText(parts.join(" "));
+}
+
+function mapsOperationalStatusFromSerper(
+  place: Record<string, unknown>,
+): GmbOperationalStatus | undefined {
+  if (place.permanentlyClosed === true || place.permanently_closed === true) {
+    return "closed_permanently";
+  }
+  if (place.temporarilyClosed === true || place.temporarily_closed === true) {
+    return "closed_temporarily";
+  }
+  const parts: string[] = [];
+  for (const key of [
+    "businessStatus",
+    "business_status",
+    "status",
+    "title",
+    "type",
+    "types",
+    "category",
+    "description",
+    "openingHours",
+    "hours",
+    "opening_hours",
+  ]) {
+    collectMapsText(place[key], parts);
+  }
+  return mapsOperationalStatusFromText(parts.join(" "));
+}
+
 function mapsPlaceFromSerper(
   place: Record<string, unknown>,
 ): MapsPlace | null {
   const title = asTrimmedString(place.title);
   if (!title) return null;
   const category =
-    asTrimmedString(place.category) ||
-    asTrimmedString(place.type) ||
+    mapsCategoryLabel(asTrimmedString(place.category)) ||
+    mapsCategoryLabel(asTrimmedString(place.type)) ||
     (Array.isArray(place.types)
-      ? asTrimmedString(place.types[0])
+      ? mapsCategoryLabel(asTrimmedString(place.types[0]))
       : undefined);
+  const operationalStatus = mapsOperationalStatusFromSerper(place);
   return {
     title,
     address: asTrimmedString(place.address),
@@ -1457,6 +1544,7 @@ function mapsPlaceFromSerper(
       firstPhotoUrl(place.thumbnail) ||
       firstPhotoUrl(place.imageUrl) ||
       firstPhotoUrl(place.photos),
+    ...(operationalStatus ? { operationalStatus } : {}),
   };
 }
 
@@ -1645,7 +1733,11 @@ function mapsHoursLabel(value: unknown): string | null {
 
 function mapsHoursOnCard(value: unknown): boolean {
   if (value == null) return false;
-  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text || mapsOperationalStatusFromText(text)) return false;
+    return true;
+  }
   if (Array.isArray(value)) {
     return value.some((item) => mapsHoursOnCard(item));
   }
@@ -1662,20 +1754,23 @@ export function gmbCardFromPlace(place: MapsPlace): GmbCard {
   const filled: GmbCardCheck[] = [];
   if (place.phoneNumber?.trim()) filled.push("phone");
   if (mapsWebsiteOnCard(place.website)) filled.push("website");
-  if (mapsHoursOnCard(place.openingHours)) filled.push("hours");
+  const hoursPresent = mapsHoursOnCard(place.openingHours);
+  if (hoursPresent) filled.push("hours");
   if (place.thumbnailUrl?.trim()) filled.push("photo");
   const rating = asFiniteNumber(place.rating) ?? null;
   const ratingCount = asFiniteNumber(place.ratingCount) ?? null;
   if ((ratingCount != null && ratingCount > 0) || (rating != null && rating > 0)) {
     filled.push("reviews");
   }
+  const operationalStatus = mapsOperationalStatusFromPlace(place);
   return {
     filled: GMB_CARD_CHECKS.filter((check) => filled.includes(check)),
     score: filled.length,
     rating,
     ratingCount,
-    category: place.category?.trim() || null,
-    hours_label: mapsHoursLabel(place.openingHours),
+    category: mapsCategoryLabel(place.category) ?? null,
+    hours_label: hoursPresent ? mapsHoursLabel(place.openingHours) : null,
+    ...(operationalStatus ? { operational_status: operationalStatus } : {}),
   };
 }
 

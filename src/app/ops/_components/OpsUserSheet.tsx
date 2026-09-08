@@ -489,7 +489,7 @@ export function OpsUserSheet({ id }: { id: string }) {
                     {confirm === "cancel"
                       ? "O acesso segue até o fim do ciclo. Não estorna."
                       : confirm === "plan-pro"
-                        ? "Não cobra. O Pro destrava Automações mesmo fora do checkout."
+                        ? "Não cobra. O Pro destrava Automações."
                         : confirm === "plan-piloto"
                           ? "Não cobra. Libera CRM e o fluxo do Piloto."
                           : "30 dias de Piloto, sem cobrança agora."}

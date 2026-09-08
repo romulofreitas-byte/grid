@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { sanitizeMetaUpdate } from "@/lib/calculadora/meta";
-import { loadMetasPayload, jsonMetasPersistError } from "@/lib/calculadora/load";
+import { loadMetasCore, jsonMetasPersistError } from "@/lib/calculadora/load";
 import { getRepo } from "@/lib/data";
 
 export async function PATCH(
@@ -23,7 +23,7 @@ export async function PATCH(
     if (!meta) {
       return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
     }
-    return NextResponse.json(await loadMetasPayload(gated.userId));
+    return NextResponse.json(await loadMetasCore(gated.userId));
   } catch (err) {
     console.error("metas_patch_error", err);
     return jsonMetasPersistError(err, "Não foi possível salvar a meta");
@@ -42,7 +42,7 @@ export async function DELETE(
     if (!deleted) {
       return NextResponse.json({ error: "Meta não encontrada" }, { status: 404 });
     }
-    return NextResponse.json(await loadMetasPayload(gated.userId));
+    return NextResponse.json(await loadMetasCore(gated.userId));
   } catch (err) {
     console.error("metas_delete_error", err);
     return jsonMetasPersistError(err, "Não foi possível apagar a meta");

@@ -18,6 +18,9 @@ import {
   isSkuOnSale,
   planHasFeature,
   orderKindFor,
+  billedPlanRank,
+  ALREADY_ON_PLAN_MESSAGE,
+  PLAN_DOWNGRADE_MESSAGE,
   SKU_OFF_SALE_MESSAGE,
   type BillingSku,
   type PaymentMethod,
@@ -326,6 +329,18 @@ export async function createCheckout(input: {
   const store = await getBillingStore();
   await ensureStartingCredits(input.profileId);
 
+  if (item.kind === "plan" && item.sku !== "membro_plataforma") {
+    const current = await store.getActiveSubscription(input.profileId);
+    if (subscriptionGrantsAccess(current) && current) {
+      if (current.plan === item.sku) {
+        throw new BillingError(ALREADY_ON_PLAN_MESSAGE, 409);
+      }
+      if (billedPlanRank(item.sku) < billedPlanRank(current.plan)) {
+        throw new BillingError(PLAN_DOWNGRADE_MESSAGE, 409);
+      }
+    }
+  }
+
   if (item.kind === "plan" && item.sku === "membro_plataforma") {
     if (!isValidPlatformCoupon(input.coupon)) {
       throw new BillingError("Cupom da Plataforma inválido", 403);
@@ -534,6 +549,8 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
   }
 
   const existing = await store.getActiveSubscription(claimed.profileId);
+  const previousProvider = existing?.provider ?? null;
+  const previousSubId = existing?.providerSubId ?? null;
   if (existing) {
     await store.updateSubscription(existing.id, {
       plan: plan.sku,
@@ -556,6 +573,26 @@ export async function applyPaymentPaid(orderId: string): Promise<void> {
       currentPeriodEnd: end,
       cancelAtPeriodEnd: false,
     });
+  }
+
+  if (
+    previousSubId &&
+    previousSubId !== claimed.providerSubId &&
+    (previousProvider === "asaas" ||
+      previousProvider === "stripe" ||
+      previousProvider === "mock")
+  ) {
+    try {
+      const previous = await loadProvider(previousProvider);
+      await previous.cancelSubscriptionNow(previousSubId);
+    } catch (err) {
+      console.error("billing_upgrade_cancel_failed", {
+        profileId: claimed.profileId,
+        provider: previousProvider,
+        providerSubId: previousSubId,
+        err,
+      });
+    }
   }
 
   await grantLot(store, {

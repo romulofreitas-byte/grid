@@ -10,6 +10,7 @@ import { LongOpChip } from "@/components/DataPullIndicator";
 import { PilotHeaderAvatar } from "@/components/PilotHeaderAvatar";
 import { CatchUpRunner } from "@/components/CatchUpRunner";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { useBillingMe } from "@/hooks/useBillingMe";
 import { useFocusMode } from "@/components/FocusModeProvider";
 import {
   ShellRail,
@@ -53,9 +54,15 @@ type AppShellProps = {
   lockHeight?: boolean;
 };
 
+function BillingPrefetch() {
+  useBillingMe();
+  return null;
+}
+
 export function AppShell(props: AppShellProps) {
   return (
     <ShellRailOpenProvider>
+      <BillingPrefetch />
       <AppShellFrame {...props} />
     </ShellRailOpenProvider>
   );

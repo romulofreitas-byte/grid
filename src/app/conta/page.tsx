@@ -85,7 +85,7 @@ export default function ContaResumoPage() {
                 : `${activeConnections.length} conexões ativas`}
           </p>
           <p className="mt-1 text-sm text-podium-muted">
-            VoIP, discador, importações e automações.
+            Telefonia, importações e automações.
           </p>
         </GlassCard>
       </Link>

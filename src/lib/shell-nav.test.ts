@@ -61,7 +61,7 @@ describe("shell mobile nav", () => {
 });
 
 describe("shell footer nav", () => {
-  it("keeps five permanent items, with VoIP and discador under Integrações", () => {
+  it("keeps five permanent items, with Telefonia under Integrações", () => {
     expect(SHELL_FOOTER_NAV.map((item) => item.label)).toEqual([
       "Conta",
       "Integrações",
@@ -75,16 +75,16 @@ describe("shell footer nav", () => {
     expect(isFooterAccordion(integracoes!)).toBe(true);
     expect(integracoes?.href).toBeUndefined();
     expect(integracoes?.children?.map((child) => child.label)).toEqual([
-      "VoIP",
-      "Discador",
-      "Importações",
+      "Meta API",
       "Automações",
+      "Importações",
+      "Telefonia",
     ]);
     expect(integracoes?.children?.map((child) => child.href)).toEqual([
-      "/integracoes/voip",
-      "/integracoes/discador",
-      "/importacoes",
+      "/integracoes",
       "/automacoes",
+      "/importacoes",
+      "/integracoes/telefonia",
     ]);
     expect(SHELL_FOOTER_NAV.find((item) => item.action === "logout")?.label).toBe(
       "Sair",
@@ -107,9 +107,10 @@ describe("isShellNavActive", () => {
 });
 
 describe("showsOpeningNav", () => {
-  it("marks CRM and Ligar while the destination is still loading", () => {
+  it("marks CRM, Ligar, and Meta while the destination is still loading", () => {
     expect(showsOpeningNav("/crm")).toBe(true);
     expect(showsOpeningNav("/box")).toBe(true);
+    expect(showsOpeningNav("/metas")).toBe(true);
     expect(showsOpeningNav("/painel")).toBe(false);
   });
 });
@@ -118,21 +119,32 @@ describe("isShellChildActive", () => {
   const integracoes = SHELL_FOOTER_NAV.find(
     (item) => item.label === "Integrações",
   );
-  const voip = integracoes?.children?.[0];
-  const dialer = integracoes?.children?.[1];
-  const importacoes = integracoes?.children?.[2];
+  const telefonia = integracoes?.children?.find(
+    (child) => child.href === "/integracoes/telefonia",
+  );
+  const importacoes = integracoes?.children?.find(
+    (child) => child.href === "/importacoes",
+  );
+  const facebook = integracoes?.children?.find(
+    (child) => child.href === "/integracoes",
+  );
 
   it("lights Integrações children from path", () => {
-    expect(voip && isShellChildActive(voip, "/integracoes/voip", null)).toBe(
+    expect(
+      telefonia && isShellChildActive(telefonia, "/integracoes/telefonia", null),
+    ).toBe(true);
+    expect(
+      facebook && isShellChildActive(facebook, "/integracoes", null),
+    ).toBe(true);
+    expect(
+      facebook && isShellChildActive(facebook, "/integracoes/telefonia", null),
+    ).toBe(false);
+    expect(
+      telefonia && isShellChildActive(telefonia, "/integracoes", null),
+    ).toBe(false);
+    expect(isShellFooterGroupActive(integracoes!, "/integracoes", null)).toBe(
       true,
     );
-    expect(
-      dialer && isShellChildActive(dialer, "/integracoes/discador", null),
-    ).toBe(true);
-    expect(voip && isShellChildActive(voip, "/integracoes/discador", null)).toBe(
-      false,
-    );
-    expect(voip && isShellChildActive(voip, "/painel", null)).toBe(false);
     expect(
       importacoes && isShellChildActive(importacoes, "/importacoes", null),
     ).toBe(true);
@@ -149,20 +161,19 @@ describe("isShellFooterActive", () => {
   const conta = SHELL_FOOTER_NAV.find((item) => item.href === "/conta")!;
 
   it("keeps selection on the child page, not on Integrações", () => {
-    expect(isShellFooterActive(integracoes, "/integracoes/voip", null)).toBe(
+    expect(isShellFooterActive(integracoes, "/integracoes/telefonia", null)).toBe(
       false,
     );
-    expect(isShellFooterActive(integracoes, "/integracoes/discador", null)).toBe(
-      false,
-    );
-    expect(isShellFooterGroupActive(integracoes, "/integracoes/voip", null)).toBe(
-      true,
-    );
+    expect(
+      isShellFooterGroupActive(integracoes, "/integracoes/telefonia", null),
+    ).toBe(true);
     expect(isShellFooterGroupActive(integracoes, "/importacoes", null)).toBe(
       true,
     );
     expect(isShellFooterGroupActive(integracoes, "/conta", null)).toBe(false);
     expect(isShellFooterActive(conta, "/conta", null)).toBe(true);
-    expect(isShellFooterActive(conta, "/integracoes/voip", null)).toBe(false);
+    expect(isShellFooterActive(conta, "/integracoes/telefonia", null)).toBe(
+      false,
+    );
   });
 });

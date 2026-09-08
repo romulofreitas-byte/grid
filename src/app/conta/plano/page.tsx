@@ -5,8 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { Button, buttonClassName } from "@/components/ui/Button";
-import { formatBrl, getCatalogItem } from "@/lib/billing/catalog";
-import { planosHref } from "@/lib/billing/href";
+import { formatBrl, getCatalogItem, isSkuOnSale } from "@/lib/billing/catalog";
+import { pagarHref, planosHref } from "@/lib/billing/href";
 import {
   ledgerReasonLabel,
   ledgerSign,
@@ -70,6 +70,11 @@ export default function ContaPlanoPage() {
         <p className="mt-1 text-xs text-podium-muted">
           O crédito do plano zera no mês. Recarga fica e não reabre o CRM.
         </p>
+        {(billing?.balance.plano === "piloto" ||
+          billing?.balance.plano === "membro_plataforma") &&
+        isSkuOnSale("piloto_pro") ? (
+          <p className="mt-2 text-xs text-podium-gray">{COPY.contaUpgradeToPro}</p>
+        ) : null}
         {billing?.balance.trialExpired ? (
           <p className="mt-2 text-xs text-podium-yellow">
             Os 30 dias acabaram. Assine o Piloto para continuar.
@@ -85,9 +90,27 @@ export default function ContaPlanoPage() {
           <p className="mt-2 text-xs text-podium-yellow">Cancela no fim do ciclo.</p>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
+          {(billing?.balance.plano === "piloto" ||
+            billing?.balance.plano === "membro_plataforma") &&
+          isSkuOnSale("piloto_pro") ? (
+            <Link
+              href={pagarHref("piloto_pro", "/conta/plano")}
+              className={buttonClassName({ variant: "primary", size: "md" })}
+            >
+              {COPY.contaUpgradeCta}
+            </Link>
+          ) : null}
           <Link
             href={planosHref("/conta/plano")}
-            className={buttonClassName({ variant: "primary", size: "md" })}
+            className={buttonClassName({
+              variant:
+                (billing?.balance.plano === "piloto" ||
+                  billing?.balance.plano === "membro_plataforma") &&
+                isSkuOnSale("piloto_pro")
+                  ? "secondary"
+                  : "primary",
+              size: "md",
+            })}
           >
             Trocar plano / Recarregar
           </Link>

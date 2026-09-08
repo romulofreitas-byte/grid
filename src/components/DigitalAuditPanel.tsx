@@ -201,9 +201,13 @@ function GmbAssetPills({ pills }: { pills: GmbAssetPill[] }) {
           key={pill.id}
           className={cn(
             "inline-flex max-w-full items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-            pill.present
-              ? "bg-podium-success/15 text-podium-success"
-              : "border border-white/25 bg-white/[0.03] text-podium-muted",
+            pill.tone === "alert"
+              ? "bg-red-500/15 text-red-300"
+              : pill.tone === "warn"
+                ? "bg-amber-400/15 text-amber-300"
+                : pill.present
+                  ? "bg-podium-success/15 text-podium-success"
+                  : "border border-white/25 bg-white/[0.03] text-podium-muted",
           )}
         >
           {pill.label}
@@ -443,7 +447,10 @@ function SelectedSignalCard({
               Site fora do ar
             </p>
           ) : null}
-          {signal.id === "gmb" && signal.hint && !scanning ? (
+          {((signal.id === "gmb" ||
+            (signal.id === "maps" && signal.pills?.length)) &&
+            signal.hint &&
+            !scanning) ? (
             <p className="mt-1 text-[11px] leading-snug text-podium-muted">
               {signal.hint}
             </p>
@@ -452,7 +459,8 @@ function SelectedSignalCard({
               {signal.hint}
             </p>
           ) : null}
-          {signal.id === "gmb" && signal.pills?.length ? (
+          {(signal.id === "gmb" || signal.id === "maps") &&
+          signal.pills?.length ? (
             <GmbAssetPills pills={signal.pills} />
           ) : signal.id === "gmb" && signal.note && !scanning ? (
             <p className="mt-1 text-[11px] leading-snug text-podium-muted">

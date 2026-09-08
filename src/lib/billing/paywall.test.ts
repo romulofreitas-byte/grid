@@ -97,14 +97,11 @@ describe("paywallCopy", () => {
     expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
   });
 
-  it("points automations to the Pro waitlist, not a dead checkout", () => {
+  it("points automations to Piloto Pro checkout", () => {
     const copy = paywallCopy({ kind: "plan", feature: "automations" });
     expect(copy.title).toMatch(/Piloto Pro/i);
-    expect(copy.body).toMatch(/lista/i);
-    expect(copy.primary.label).toMatch(/Quero o Piloto Pro/i);
-    expect(copy.primary.href === "/planos#piloto-pro" || copy.primary.external).toBe(
-      true,
-    );
+    expect(copy.primary.label).toMatch(/Assinar o Piloto Pro/i);
+    expect(copy.primary.href).toMatch(/sku=piloto_pro/);
     expect("href" in copy.secondary && copy.secondary.href).toBe("/planos#piloto-pro");
   });
 

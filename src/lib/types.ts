@@ -53,6 +53,11 @@ export const GMB_CARD_CHECKS = [
 
 export type GmbCardCheck = (typeof GMB_CARD_CHECKS)[number];
 
+/** Maps listing flag from the public card — not Receita situacao, not “open now”. */
+export type GmbOperationalStatus =
+  | "closed_permanently"
+  | "closed_temporarily";
+
 export type GmbCard = {
   filled: GmbCardCheck[];
   /** 0–5 checks present on the public card. */
@@ -62,6 +67,8 @@ export type GmbCard = {
   category?: string | null;
   /** Compact hours from Serper — not the raw openingHours object. */
   hours_label?: string | null;
+  /** Snapshot of the pin’s closed flag. Absent when the card does not say. */
+  operational_status?: GmbOperationalStatus | null;
 };
 
 export type GmbListingStatus = "matched" | "candidate" | "none";

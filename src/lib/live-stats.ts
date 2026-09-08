@@ -12,9 +12,9 @@ export const LIVE_STATS_KEYS = [
 export const BOX_QUEUE_QUERY_KEY = ["box-queue"] as const;
 
 export const LIVE_STATS_QUERY_OPTIONS = {
-  staleTime: 0,
+  staleTime: 15_000,
   refetchOnWindowFocus: true as const,
-  refetchOnMount: "always" as const,
+  refetchOnMount: true as const,
 };
 
 export function invalidateLiveStats(

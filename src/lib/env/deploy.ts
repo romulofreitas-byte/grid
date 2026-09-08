@@ -4,6 +4,7 @@ import {
   asaasConfigured,
   stripeConfigured,
 } from "@/lib/billing/providers/types";
+import { metaConfigured, metaWebhookConfigured } from "@/lib/crm/meta-api";
 import { isSerperPaused } from "@/lib/enrichment/serper-stats";
 
 export function isProdDeploy(): boolean {
@@ -128,6 +129,20 @@ export function collectLaunchEnvIssues(): EnvIssue[] {
       level: "warn",
       message:
         "SERPER_API_KEY ausente — enriquecimento de domínio fica limitado ao e-mail da RF.",
+    });
+  }
+
+  if (isRuntimeProduction() && !metaConfigured()) {
+    issues.push({
+      level: "warn",
+      message:
+        "META_APP_ID/SECRET ausentes — Formulário Instantâneo do Meta fica desligado.",
+    });
+  } else if (isRuntimeProduction() && !metaWebhookConfigured()) {
+    issues.push({
+      level: "warn",
+      message:
+        "META_WEBHOOK_VERIFY_TOKEN ausente — o webhook leadgen do Meta não verifica.",
     });
   }
 

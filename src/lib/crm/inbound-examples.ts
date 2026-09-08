@@ -27,5 +27,7 @@ export const INBOUND_PERSON_EXAMPLE = {
 } as const;
 
 export function formAnswersTitle(channel?: CrmFormChannel): string {
-  return channel === "ads" ? "Respostas do anúncio" : "Respostas do formulário";
+  return channel === "meta" || channel === "ads"
+    ? "Respostas do anúncio"
+    : "Respostas do formulário";
 }

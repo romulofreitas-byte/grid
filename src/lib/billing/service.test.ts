@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_USER_ID } from "@/lib/data/pg";
-import { SKU_OFF_SALE_MESSAGE } from "@/lib/billing/catalog";
+import {
+  ALREADY_ON_PLAN_MESSAGE,
+  PLAN_DOWNGRADE_MESSAGE,
+  SKU_OFF_SALE_MESSAGE,
+} from "@/lib/billing/catalog";
 import { memoryBillingStore, resetBillingMemory } from "@/lib/billing/memory-store";
+import { mockProvider } from "@/lib/billing/providers/mock";
 import {
   applyPaymentPaid,
   assertAutomationsAccess,
@@ -435,18 +440,16 @@ describe("billing service", () => {
   });
 
   it("rejects checkout for plans that are not on sale", async () => {
-    for (const sku of ["piloto_pro", "escuderia"] as const) {
-      await expect(
-        createCheckout({
-          profileId,
-          email: "piloto@mundopodium.com.br",
-          nome: "Rômulo",
-          sku,
-          method: "pix",
-          coupon: "PILOTO",
-        }),
-      ).rejects.toMatchObject({ message: SKU_OFF_SALE_MESSAGE });
-    }
+    await expect(
+      createCheckout({
+        profileId,
+        email: "piloto@mundopodium.com.br",
+        nome: "Rômulo",
+        sku: "escuderia",
+        method: "pix",
+        coupon: "PILOTO",
+      }),
+    ).rejects.toMatchObject({ message: SKU_OFF_SALE_MESSAGE });
   });
 
   it("locks qualify and redacts the grid after 31 days without payment", async () => {
@@ -657,5 +660,88 @@ describe("billing service", () => {
     await expect(assertAutomationsAccess(profileId)).resolves.toMatchObject({
       plano: "piloto_pro",
     });
+  });
+
+  it("rejects a second checkout of the same billed plan", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    await expect(
+      createCheckout({
+        profileId,
+        email: "piloto@mundopodium.com.br",
+        nome: "Rômulo",
+        sku: "piloto",
+        method: "card_br",
+      }),
+    ).rejects.toMatchObject({ message: ALREADY_ON_PLAN_MESSAGE, status: 409 });
+  });
+
+  it("cancels the previous provider sub when upgrading to Piloto Pro", async () => {
+    const cancelNow = vi.spyOn(mockProvider, "cancelSubscriptionNow");
+    const piloto = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    expect(piloto.providerSubId).toBeTruthy();
+    const proOrder: BillingOrder = {
+      id: crypto.randomUUID(),
+      profileId,
+      sku: "piloto_pro",
+      kind: "subscription_cycle",
+      provider: "mock",
+      method: "card_br",
+      status: "pending",
+      amountCents: 19_700,
+      currency: "BRL",
+      providerPaymentId: "pay_pro",
+      providerSubId: "sub_mock_pro",
+      pixQr: null,
+      pixCopy: null,
+      boletoUrl: null,
+      boletoLine: null,
+      checkoutUrl: null,
+      paidAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    await memoryBillingStore.insertOrder(proOrder);
+    await applyPaymentPaid(proOrder.id);
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("piloto_pro");
+    expect(bal.plan).toBe(4_000);
+    expect(cancelNow).toHaveBeenCalledWith(piloto.providerSubId);
+    cancelNow.mockRestore();
+  });
+
+  it("allows checkout for Piloto Pro", async () => {
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto_pro",
+      method: "card_br",
+    });
+    expect(order.sku).toBe("piloto_pro");
+    expect(order.amountCents).toBe(19_700);
+  });
+
+  it("rejects checking out a lower plan while Pro is active", async () => {
+    await opsGrantPlan(profileId, "piloto_pro");
+    await expect(
+      createCheckout({
+        profileId,
+        email: "piloto@mundopodium.com.br",
+        nome: "Rômulo",
+        sku: "piloto",
+        method: "card_br",
+      }),
+    ).rejects.toMatchObject({ message: PLAN_DOWNGRADE_MESSAGE, status: 409 });
   });
 });

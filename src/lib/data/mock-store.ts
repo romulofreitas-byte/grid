@@ -90,6 +90,7 @@ export type MockStore = {
   crm_events: CrmEvent[];
   crm_inbound_endpoints: CrmInboundEndpoint[];
   crm_inbound_events: CrmInboundEvent[];
+  crm_meta_connections: import("@/lib/crm/types").CrmMetaConnectionRecord[];
   crm_import_runs: CrmImportRun[];
   billed_cnpjs: Array<{
     profile_id: string;
@@ -685,6 +686,7 @@ function createMockStore(): MockStore {
     crm_events: [],
     crm_inbound_endpoints: [],
     crm_inbound_events: [],
+    crm_meta_connections: [],
     crm_import_runs: [],
     billed_cnpjs: [],
     user_catchup_state: [],

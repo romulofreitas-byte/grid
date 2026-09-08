@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
+import { WorkOpeningSkeleton } from "@/components/WorkOpeningSkeleton";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import type { MetasPayload } from "@/lib/calculadora/payload";
 import {
@@ -22,7 +23,11 @@ import {
   type MetaInput,
   type PilotMeta,
 } from "@/lib/calculadora/meta";
-import type { CrmRateSample, CrmRateSuggestions } from "@/lib/calculadora/crm-rates";
+import {
+  EMPTY_CRM_RATE_SUGGESTIONS,
+  type CrmRateSample,
+  type CrmRateSuggestions,
+} from "@/lib/calculadora/crm-rates";
 import {
   eachTen,
   formatBrl,
@@ -275,8 +280,19 @@ async function readPayload(res: Response): Promise<MetasPayload> {
   return json;
 }
 
-export function MetasPage() {
+function initialSelected(payload?: MetasPayload): PilotMeta | null {
+  if (!payload) return null;
+  return (
+    payload.metas.find((row) => row.id === payload.activeMetaId) ??
+    payload.metas[0] ??
+    null
+  );
+}
+
+export function MetasPage({ initial }: { initial?: MetasPayload }) {
   const qc = useQueryClient();
+  const seeded = initial ?? undefined;
+  const seededAtRef = useRef(Date.now());
   const query = useQuery({
     queryKey: METAS_QUERY,
     queryFn: async () => {
@@ -284,12 +300,28 @@ export function MetasPage() {
       if (!res.ok) throw new Error("load");
       return (await res.json()) as MetasPayload;
     },
+    initialData: seeded,
+    initialDataUpdatedAt: seeded ? seededAtRef.current : undefined,
   });
-  const [draft, setDraft] = useState<MetaInput>(defaultMetaInput);
+  const suggestionsQuery = useQuery({
+    queryKey: ["metas-suggestions"],
+    queryFn: async () => {
+      const res = await fetch("/api/metas/suggestions");
+      if (!res.ok) throw new Error("suggestions");
+      const json = (await res.json()) as {
+        suggestions?: CrmRateSuggestions;
+      };
+      return json.suggestions ?? EMPTY_CRM_RATE_SUGGESTIONS;
+    },
+  });
+  const first = initialSelected(seeded);
+  const [draft, setDraft] = useState<MetaInput>(
+    first ? metaToInput(first) : defaultMetaInput(),
+  );
   const draftRef = useRef(draft);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(first?.id ?? null);
   const selectedIdRef = useRef(selectedId);
-  const [hydrated, setHydrated] = useState(false);
+  const [hydrated, setHydrated] = useState(Boolean(seeded));
   const [justApplied, setJustApplied] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PilotMeta | null>(null);
@@ -301,18 +333,21 @@ export function MetasPage() {
   useEffect(() => {
     if (!query.data || hydrated) return;
     const { metas, activeMetaId } = query.data;
-    const initial =
+    const nextMeta =
       metas.find((row) => row.id === activeMetaId) ?? metas[0] ?? null;
-    if (initial) {
-      const next = metaToInput(initial);
+    if (nextMeta) {
+      const next = metaToInput(nextMeta);
       draftRef.current = next;
       setDraft(next);
-      setSelectedId(initial.id);
+      setSelectedId(nextMeta.id);
     }
     setHydrated(true);
   }, [query.data, hydrated]);
 
-  const suggestions = query.data?.suggestions;
+  const suggestions =
+    suggestionsQuery.data ??
+    query.data?.suggestions ??
+    EMPTY_CRM_RATE_SUGGESTIONS;
   const activeMetaId = query.data?.activeMetaId ?? null;
   const metas = useMemo(
     () => sortMetasForList(query.data?.metas ?? [], activeMetaId),
@@ -325,7 +360,13 @@ export function MetasPage() {
   const activeOnBox = Boolean(selectedId && selectedId === activeMetaId);
 
   function setCache(data: MetasPayload) {
-    qc.setQueryData(METAS_QUERY, data);
+    qc.setQueryData(METAS_QUERY, {
+      ...data,
+      suggestions:
+        suggestionsQuery.data ??
+        data.suggestions ??
+        EMPTY_CRM_RATE_SUGGESTIONS,
+    });
     qc.invalidateQueries({ queryKey: ["profile"] });
   }
 
@@ -492,7 +533,7 @@ export function MetasPage() {
   }
 
   if (query.isLoading || !hydrated) {
-    return <p className="text-sm text-podium-muted">Carregando…</p>;
+    return <WorkOpeningSkeleton label={COPY.metasOpening} split />;
   }
 
   const ctaLabel = COPY.calculadoraCta.replace(

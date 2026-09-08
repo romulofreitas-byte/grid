@@ -69,7 +69,7 @@ describe("crm inbound endpoint API", () => {
     });
   });
 
-  it("creates a token on first save", async () => {
+  it("creates a public form token on first save", async () => {
     listCrmInboundEndpoints.mockResolvedValue([]);
     createCrmInboundEndpoint.mockResolvedValue({
       id: "e1",
@@ -80,6 +80,10 @@ describe("crm inbound endpoint API", () => {
       lead_kind: "company",
       channel: "site",
       token_hash: hashInboundToken("test-token"),
+      public_token_hash: hashInboundToken("test-token"),
+      form_fields: {},
+      meta_connection_id: null,
+      meta_form_id: null,
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: "2026-01-01T00:00:00.000Z",
     });
@@ -97,16 +101,75 @@ describe("crm inbound endpoint API", () => {
     );
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.token).toBe("test-token");
-    expect(body.endpoint.url).toBe("http://localhost/api/webhooks/leads/e1");
+    expect(body.token).toBeNull();
+    expect(body.public_token).toBe("test-token");
+    expect(body.endpoint.form_url).toBe("http://localhost/f/test-token");
+    expect(body.endpoint.has_public_form).toBe(true);
     expect(createCrmInboundEndpoint).toHaveBeenCalledWith(
       "u1",
       expect.objectContaining({
         token_hash: hashInboundToken("test-token"),
+        public_token_hash: hashInboundToken("test-token"),
         nome: "Site",
         lead_kind: "company",
+        channel: "site",
       }),
     );
+  });
+
+  it("returns a Bearer token for the webhook origin", async () => {
+    listCrmInboundEndpoints.mockResolvedValue([]);
+    createCrmInboundEndpoint.mockResolvedValue({
+      id: "e2",
+      user_id: "u1",
+      pipeline_id: PIPELINE,
+      stage_id: null,
+      nome: "Webhook",
+      lead_kind: "company",
+      channel: "webhook",
+      token_hash: hashInboundToken("test-token"),
+      public_token_hash: null,
+      form_fields: {},
+      meta_connection_id: null,
+      meta_form_id: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-01-01T00:00:00.000Z",
+    });
+    const res = await POST(
+      new Request("http://localhost/api/crm/inbound", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: "Webhook",
+          pipeline_id: PIPELINE,
+          lead_kind: "company",
+          channel: "webhook",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.token).toBe("test-token");
+    expect(body.public_token).toBeNull();
+    expect(body.endpoint.url).toBe("http://localhost/api/webhooks/leads/e2");
+  });
+
+  it("rejects Meta without a connected Page", async () => {
+    listCrmInboundEndpoints.mockResolvedValue([]);
+    const res = await POST(
+      new Request("http://localhost/api/crm/inbound", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: "Meta",
+          pipeline_id: PIPELINE,
+          lead_kind: "company",
+          channel: "meta",
+        }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(createCrmInboundEndpoint).not.toHaveBeenCalled();
   });
 
   it("rejects an 11th campaign", async () => {

@@ -32,6 +32,19 @@ export function publicRequestOrigin(req: Request): string {
   return url.origin;
 }
 
+export function publicFormUrl(origin: string, publicToken: string): string {
+  return `${origin.replace(/\/$/, "")}/f/${publicToken}`;
+}
+
+export function publicFormEmbedUrl(origin: string, publicToken: string): string {
+  return `${publicFormUrl(origin, publicToken)}?embed=1`;
+}
+
+export function publicFormEmbedSnippet(origin: string, publicToken: string): string {
+  const src = publicFormEmbedUrl(origin, publicToken);
+  return `<iframe src="${src}" title="Formulário no site" width="100%" height="520" style="border:0;border-radius:8px;"></iframe>`;
+}
+
 export function inboundLeadsUrl(origin: string, endpointId?: string): string {
   const base = `${origin.replace(/\/$/, "")}/api/webhooks/leads`;
   return endpointId ? `${base}/${endpointId}` : base;

@@ -53,6 +53,7 @@ describe("GET /api/crm/inbound/[endpointId]/events", () => {
         deal_id: null,
         snapshot: { company: "", name: "", phone: "", email: "", cnpj: "" },
         payload: null,
+        external_id: null,
         created_at: "2026-09-05T12:00:00.000Z",
       },
     ]);

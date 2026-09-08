@@ -118,11 +118,11 @@ export const PLANS: PlanDefinition[] = [
     highlights: [
       "4.000 créditos / mês",
       "Tudo do Piloto",
-      "Automações: formulário, anúncio, Make",
+      "Automações: link no site e anúncio Meta",
       "~130 fichas por dia no mês",
     ],
     details: [
-      "Formulário, anúncio e Make criam negócio no CRM",
+      "Link ou embed no site e Formulário Instantâneo do Meta criam negócio no CRM",
       "Munição de mercado na ficha",
     ],
   },
@@ -142,7 +142,7 @@ export const PLANS: PlanDefinition[] = [
       "Volume para a operação inteira",
     ],
     details: [
-      "Formulário, anúncio e Make criam negócio no CRM",
+      "Link ou embed no site e Formulário Instantâneo do Meta criam negócio no CRM",
       "Munição de mercado na ficha",
     ],
     notes: ["Seats extras em desenvolvimento"],
@@ -202,6 +202,7 @@ const BY_SKU: Record<string, CatalogItem> = Object.fromEntries(
 /** SKUs currently for sale. Treino livre is free and never goes through checkout. */
 export const SKUS_ON_SALE: ReadonlySet<string> = new Set([
   "piloto",
+  "piloto_pro",
   "membro_plataforma",
   "pack_100",
   "pack_500",
@@ -210,6 +211,19 @@ export const SKUS_ON_SALE: ReadonlySet<string> = new Set([
 
 export const SKU_OFF_SALE_MESSAGE =
   "Este plano não está à venda neste momento";
+
+export const ALREADY_ON_PLAN_MESSAGE = "Você já está neste plano";
+
+export const PLAN_DOWNGRADE_MESSAGE =
+  "Este plano é menor que o seu atual. Fale com a gente para mudar.";
+
+/** Paid ladder. `membro_plataforma` sits with Piloto for upgrade checks. */
+export function billedPlanRank(sku: string): number {
+  if (sku === "escuderia") return 3;
+  if (sku === "piloto_pro") return 2;
+  if (sku === "piloto" || sku === "membro_plataforma") return 1;
+  return 0;
+}
 
 export function isSkuOnSale(sku: string): boolean {
   return SKUS_ON_SALE.has(sku);

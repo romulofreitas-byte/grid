@@ -1,19 +1,24 @@
+import { Suspense } from "react";
+import Link from "next/link";
 import { BoxPlatformCouponBanner } from "@/components/BoxPlatformCouponBanner";
 import { BoxSprint } from "@/components/box/BoxSprint";
-import { buildBoxEstrutura } from "@/lib/box-estrutura";
+import { buildBoxEstrutura, type BoxSlot } from "@/lib/box-estrutura";
 import { loadBoxQueue } from "@/lib/box/load-queue";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
+import type { CreditBalance } from "@/lib/billing/types";
 import {
   isPlatformSubscriber,
   shouldShowPlatformCouponBanner,
 } from "@/lib/platform/subscribers";
-import { toPublicConnection } from "@/lib/integrations/records";
-import { cookies } from "next/headers";
+import {
+  toPublicConnection,
+  type IntegrationConnectionPublic,
+} from "@/lib/integrations/records";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { WORKING_SEARCH_COOKIE } from "@/lib/working-search";
+import type { Profile } from "@/lib/types";
 
 export default async function BoxPage() {
   try {
@@ -36,40 +41,74 @@ async function BoxPageInner() {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   const repo = getRepo();
-  const cookieStore = await cookies();
-  const workingSearchId =
-    cookieStore.get(WORKING_SEARCH_COOKIE)?.value ?? null;
 
   const billingPromise = getBalance(session.id);
-  const [
-    profile,
-    billing,
-    platformSubscriber,
-    recent,
-    savedPreview,
-    connectionRows,
-    hasCrmPipeline,
-    queue,
-  ] = await Promise.all([
-    repo.getProfile(session.id),
-    billingPromise,
-    isPlatformSubscriber(session.email),
-    repo.listRecentSearches(session.id, { limit: 5 }),
-    repo.listSearches(session.id, { limit: 6 }),
-    repo.listIntegrationConnections(session.id),
-    repo.hasCrmPipeline(session.id).catch((err) => {
-      console.error("box_has_crm_pipeline_error", err);
-      return false;
-    }),
-    billingPromise.then((balance) =>
-      loadBoxQueue(session.id, new Date(), {
-        crmAllowed: balance.enrichAllowed,
-        trialExpired: balance.trialExpired,
+  const [profile, billing, connectionRows, hasCrmPipeline, queue] =
+    await Promise.all([
+      repo.getProfile(session.id),
+      billingPromise,
+      repo.listIntegrationConnections(session.id),
+      repo.hasCrmPipeline(session.id).catch((err) => {
+        console.error("box_has_crm_pipeline_error", err);
+        return false;
       }),
-    ).catch((err) => {
-      console.error("box_queue_error", err);
-      throw err;
-    }),
+      billingPromise
+        .then((balance) =>
+          loadBoxQueue(session.id, new Date(), {
+            crmAllowed: balance.enrichAllowed,
+            trialExpired: balance.trialExpired,
+          }),
+        )
+        .catch((err) => {
+          console.error("box_queue_error", err);
+          throw err;
+        }),
+    ]);
+
+  const connections = connectionRows.map((row) => toPublicConnection(row));
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <Suspense fallback={null}>
+        <BoxDeferredChrome
+          userId={session.id}
+          email={session.email}
+          billing={billing}
+          profile={profile}
+          connections={connections}
+          hasCrmPipeline={hasCrmPipeline}
+        />
+      </Suspense>
+      <BoxSprint
+        queue={queue}
+        connections={connections}
+        novoSearchId={null}
+        gap={null}
+      />
+    </div>
+  );
+}
+
+async function BoxDeferredChrome({
+  userId,
+  email,
+  billing,
+  profile,
+  connections,
+  hasCrmPipeline,
+}: {
+  userId: string;
+  email: string | null;
+  billing: CreditBalance;
+  profile: Profile;
+  connections: IntegrationConnectionPublic[];
+  hasCrmPipeline: boolean;
+}) {
+  const repo = getRepo();
+  const [platformSubscriber, recent, savedPreview] = await Promise.all([
+    isPlatformSubscriber(email),
+    repo.listRecentSearches(userId, { limit: 5 }),
+    repo.listSearches(userId, { limit: 6 }),
   ]);
 
   const showPlatformCoupon = shouldShowPlatformCouponBanner(
@@ -77,26 +116,15 @@ async function BoxPageInner() {
     billing.plano,
     { trialExpired: billing.trialExpired },
   );
-  const savedCount = savedPreview.length;
-  const connections = connectionRows.map((row) => toPublicConnection(row));
   const unsavedSearch = recent.find((s) => !s.saved) ?? null;
   const estrutura = buildBoxEstrutura({
-    savedCount,
+    savedCount: savedPreview.length,
     hasUnsavedSearch: Boolean(unsavedSearch),
     profile,
     billing,
     connections,
     hasCrmPipeline,
   });
-  let novoSearchId: string | null = null;
-  if (queue.counts.total === 0) {
-    try {
-      const next = await repo.findNextCallLead(session.id, workingSearchId);
-      novoSearchId = next?.searchId ?? null;
-    } catch (err) {
-      console.error("box_next_call_error", err);
-    }
-  }
   const rawGap =
     estrutura.nextGap != null
       ? (estrutura.slots.find((slot) => slot.id === estrutura.nextGap) ?? null)
@@ -104,7 +132,7 @@ async function BoxPageInner() {
   const gap = rawGap?.id === "ligar" ? null : rawGap;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    <>
       {showPlatformCoupon ? (
         <div className="shrink-0 overflow-hidden rounded-lg bg-podium-navy">
           <BoxPlatformCouponBanner />
@@ -115,12 +143,24 @@ async function BoxPageInner() {
           <BoxPlatformCouponBanner ended />
         </div>
       ) : null}
-      <BoxSprint
-        queue={queue}
-        connections={connections}
-        novoSearchId={novoSearchId}
-        gap={gap}
-      />
+      {gap ? <BoxGapStrip gap={gap} /> : null}
+    </>
+  );
+}
+
+function BoxGapStrip({ gap }: { gap: BoxSlot }) {
+  return (
+    <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5">
+      <p className="min-w-0 truncate text-xs text-podium-muted">
+        <span className="font-medium text-podium-white">{gap.title}</span>
+        <span className="hidden sm:inline"> — {gap.body}</span>
+      </p>
+      <Link
+        href={gap.href}
+        className="shrink-0 text-xs text-podium-yellow hover:underline"
+      >
+        {gap.cta}
+      </Link>
     </div>
   );
 }

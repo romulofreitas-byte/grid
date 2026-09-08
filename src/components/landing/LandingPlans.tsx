@@ -38,7 +38,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
           {BILLED.map((plan, i) => {
             const featured = plan.sku === "piloto";
             const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
-            const waitlist = plan.sku === "piloto_pro";
+            const waitlist = plan.sku === "piloto_pro" && !onSale;
             const href =
               plan.sku === "free"
                 ? signedIn

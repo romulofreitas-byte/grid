@@ -2,6 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { recordCrmDialAfterCall } from "./record-dial";
 import type { CrmDealCard } from "./types";
 
+function jsonResponse(body: unknown) {
+  const text = JSON.stringify(body);
+  return {
+    ok: true,
+    json: async () => body,
+    text: async () => text,
+  };
+}
+
 function deal(overrides: Partial<CrmDealCard> = {}): CrmDealCard {
   return {
     id: "deal-1",
@@ -42,10 +51,9 @@ describe("recordCrmDialAfterCall", () => {
       created_at: "2026-09-01T12:00:00.000Z",
       updated_at: "2026-09-01T12:00:00.000Z",
     };
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ deal: updated, event }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ deal: updated, event }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await recordCrmDialAfterCall(
@@ -85,14 +93,8 @@ describe("recordCrmDialAfterCall", () => {
   it("logs a profile call when there is no ligar activity", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({}),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ events: [] }),
-      });
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({ events: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const card = deal({ next_activity: null });

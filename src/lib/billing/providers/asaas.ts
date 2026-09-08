@@ -143,6 +143,10 @@ export const asaasProvider: PaymentProvider = {
     await asaasFetch(`/subscriptions/${providerSubId}`, { method: "DELETE" });
   },
 
+  async cancelSubscriptionNow(providerSubId: string) {
+    await asaasFetch(`/subscriptions/${providerSubId}`, { method: "DELETE" });
+  },
+
   async parseWebhook(req: Request, rawBody: string): Promise<NormalizedPaymentEvent | null> {
     const token = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
     requireBillingWebhookSecret("ASAAS_WEBHOOK_TOKEN", token);

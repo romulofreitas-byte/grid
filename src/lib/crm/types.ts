@@ -67,10 +67,49 @@ export type CrmDealSource = (typeof CRM_DEAL_SOURCES)[number];
 export const CRM_LEAD_KINDS = ["company", "person"] as const;
 export type CrmLeadKind = (typeof CRM_LEAD_KINDS)[number];
 
-export const CRM_FORM_CHANNELS = ["ads", "site"] as const;
+export const CRM_FORM_CHANNELS = ["ads", "site", "meta", "webhook"] as const;
 export type CrmFormChannel = (typeof CRM_FORM_CHANNELS)[number];
 
 export const AUTOMATION_LIMIT = 10;
+
+export type CrmFormQuestion = {
+  id: string;
+  label: string;
+};
+
+export type CrmFormFields = {
+  company?: boolean;
+  cnpj?: boolean;
+  questions?: CrmFormQuestion[];
+};
+
+export type CrmMetaConnection = {
+  id: string;
+  user_id: string;
+  page_id: string;
+  page_name: string;
+  status: "pending" | "active" | "error" | "revoked";
+  created_at: string;
+  updated_at: string;
+};
+
+export type CrmMetaConnectionRecord = CrmMetaConnection & {
+  credentials_ciphertext: string;
+  credentials_nonce: string;
+};
+
+export function normalizeFormChannel(raw: string | null | undefined): CrmFormChannel {
+  if (raw === "meta" || raw === "webhook" || raw === "ads" || raw === "site") {
+    return raw;
+  }
+  return "site";
+}
+
+export function formChannelLabel(channel: CrmFormChannel): string {
+  if (channel === "meta" || channel === "ads") return "anúncio Meta";
+  if (channel === "webhook") return "webhook";
+  return "link no site";
+}
 
 export type CrmDealMeta = {
   searchId?: string;
@@ -91,8 +130,38 @@ export type CrmInboundEndpoint = {
   lead_kind: CrmLeadKind;
   channel: CrmFormChannel;
   token_hash: string;
+  public_token_hash: string | null;
+  form_fields: CrmFormFields;
+  meta_connection_id: string | null;
+  meta_form_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CrmInboundEndpointCreateInput = {
+  nome: string;
+  pipelineId: string;
+  stage_id?: string | null;
+  lead_kind: CrmLeadKind;
+  channel: CrmFormChannel;
+  token_hash: string;
+  public_token_hash?: string | null;
+  form_fields?: CrmFormFields;
+  meta_connection_id?: string | null;
+  meta_form_id?: string | null;
+};
+
+export type CrmInboundEndpointPatchInput = {
+  nome?: string;
+  pipelineId?: string;
+  stage_id?: string | null;
+  lead_kind?: CrmLeadKind;
+  channel?: CrmFormChannel;
+  token_hash?: string;
+  public_token_hash?: string | null;
+  form_fields?: CrmFormFields;
+  meta_connection_id?: string | null;
+  meta_form_id?: string | null;
 };
 
 export const CRM_INBOUND_EVENT_STATUSES = [
@@ -120,6 +189,7 @@ export type CrmInboundEvent = {
   deal_id: string | null;
   snapshot: CrmInboundEventSnapshot;
   payload: Record<string, string> | null;
+  external_id: string | null;
   created_at: string;
 };
 
@@ -131,6 +201,7 @@ export type CrmInboundEventCreateInput = {
   dealId?: string | null;
   snapshot: CrmInboundEventSnapshot;
   payload?: Record<string, string> | null;
+  externalId?: string | null;
 };
 
 export const CRM_IMPORT_ISSUE_STATUSES = ["error", "skipped", "ignored"] as const;

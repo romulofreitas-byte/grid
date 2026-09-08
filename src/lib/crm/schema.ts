@@ -148,6 +148,23 @@ export const crmInboundCreateSchema = z.object({
   stage_id: z.string().uuid().nullable().optional(),
   lead_kind: z.enum(CRM_LEAD_KINDS),
   channel: z.enum(CRM_FORM_CHANNELS),
+  form_fields: z
+    .object({
+      company: z.boolean().optional(),
+      cnpj: z.boolean().optional(),
+      questions: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(40).optional(),
+            label: z.string().trim().min(1).max(80),
+          }),
+        )
+        .max(8)
+        .optional(),
+    })
+    .optional(),
+  meta_connection_id: z.string().uuid().nullable().optional(),
+  meta_form_id: z.string().trim().max(80).nullable().optional(),
 });
 
 export const crmInboundPatchSchema = z.object({
@@ -156,7 +173,25 @@ export const crmInboundPatchSchema = z.object({
   stage_id: z.string().uuid().nullable().optional(),
   lead_kind: z.enum(CRM_LEAD_KINDS).optional(),
   channel: z.enum(CRM_FORM_CHANNELS).optional(),
+  meta_connection_id: z.string().uuid().nullable().optional(),
+  meta_form_id: z.string().trim().max(80).nullable().optional(),
+  form_fields: z
+    .object({
+      company: z.boolean().optional(),
+      cnpj: z.boolean().optional(),
+      questions: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(40).optional(),
+            label: z.string().trim().min(1).max(80),
+          }),
+        )
+        .max(8)
+        .optional(),
+    })
+    .optional(),
   rotate: z.boolean().optional(),
+  rotate_public: z.boolean().optional(),
 });
 
 export const dealPatchSchema = z.object({

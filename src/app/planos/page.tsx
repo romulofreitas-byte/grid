@@ -37,8 +37,8 @@ export default async function PlanosPage({
       <div className="mt-8 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
         {billed.map((plan) => {
           const featured = plan.sku === "piloto";
-          const waitlist = plan.sku === "piloto_pro";
           const onSale = plan.sku === "free" || isSkuOnSale(plan.sku);
+          const waitlist = plan.sku === "piloto_pro" && !onSale;
           const ctaClass = featured
             ? buttonClassName({ variant: "primary", size: "md", className: "w-full" })
             : onSale

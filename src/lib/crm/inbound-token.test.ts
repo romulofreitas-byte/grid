@@ -5,6 +5,8 @@ import {
   inboundLeadsUrl,
   inboundTokensEqual,
   parseBearerToken,
+  publicFormEmbedSnippet,
+  publicFormUrl,
   publicRequestOrigin,
 } from "./inbound-token";
 
@@ -37,6 +39,15 @@ describe("inbound token", () => {
     );
     expect(inboundLeadsUrl("https://grid.example", "e1")).toBe(
       "https://grid.example/api/webhooks/leads/e1",
+    );
+  });
+
+  it("builds the public form URL and embed", () => {
+    expect(publicFormUrl("https://grid.example", "tok")).toBe(
+      "https://grid.example/f/tok",
+    );
+    expect(publicFormEmbedSnippet("https://grid.example", "tok")).toContain(
+      "/f/tok?embed=1",
     );
   });
 });

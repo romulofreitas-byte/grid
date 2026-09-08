@@ -5,7 +5,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { useConnections } from "@/hooks/useConnections";
-import { integracoesHref } from "@/lib/back";
+import { integracoesHref, INTEGRACOES_TELEFONIA } from "@/lib/back";
 import {
   CATALOG_SECTIONS,
   catalogAvailability,
@@ -44,12 +44,8 @@ export default function ContaConexoesPage() {
           O setup fica em Integrações. Aqui você vê o que já está ligado.
         </Hint>
         <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-          <Link href={integracoesHref("voip")} className="text-podium-yellow">
-            VoIP
-          </Link>
-          <span className="text-podium-muted">·</span>
-          <Link href={integracoesHref("dialer")} className="text-podium-yellow">
-            Discador
+          <Link href={INTEGRACOES_TELEFONIA} className="text-podium-yellow">
+            Telefonia
           </Link>
           <span className="text-podium-muted">·</span>
           <Link href="/importacoes" className="text-podium-yellow">

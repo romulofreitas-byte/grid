@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Check, Copy, Trash2 } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
@@ -12,7 +11,6 @@ import { TestRamalButton } from "@/components/TestRamalButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { BACK } from "@/lib/back";
 import {
   catalogAvailability,
   catalogItemsByKind,
@@ -399,7 +397,7 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
   const canSubmit = kind === "dialer" ? canSubmitDialer : canSubmitVoip;
 
   return (
-    <AppShell title={copy.title} back={BACK.painel}>
+    <>
       {CONNECTIONS_STANDBY ? (
         <p
           role="status"
@@ -415,8 +413,8 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
       {planHasFeature(billing.data?.balance.plano, "automations") ? (
         <p className="mt-3 max-w-3xl text-pretty text-sm text-podium-gray">
           {COPY.conexoesInboundHint}{" "}
-          <Link href="/automacoes" className="font-semibold text-podium-yellow">
-            Abrir Automações
+          <Link href="/integracoes" className="font-semibold text-podium-yellow">
+            Abrir Integrações
           </Link>
         </p>
       ) : null}
@@ -681,6 +679,6 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
           </GlassCard>
         </aside>
       </div>
-    </AppShell>
+    </>
   );
 }

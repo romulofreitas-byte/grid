@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  DOMAIN_DISCOVERY_VERSION,
+  stampDiscoveryFonte,
+} from "@/lib/enrichment/discovery";
 import { mockRepo } from "./mock-repo";
 import { getMockStore } from "./mock-store";
 
 const USER = "enrich-refresh-user";
+const FRESH_CNPJ = "11111111000191";
 
 describe("enqueueEnrichment refresh (force)", () => {
   afterEach(() => {
@@ -11,25 +16,34 @@ describe("enqueueEnrichment refresh (force)", () => {
       (j) => j.requested_by !== USER,
     );
     store.lead_enrichment = store.lead_enrichment.filter(
-      (e) => e.cnpj !== "03658515001062",
+      (e) => e.cnpj !== "03658515001062" && e.cnpj !== FRESH_CNPJ,
     );
   });
 
   it("skips fresh complete enrichment without force", async () => {
     const store = getMockStore();
-    const fresh = store.lead_enrichment.find((e) => e.stage === "complete");
-    expect(fresh).toBeTruthy();
-    const cnpj = fresh!.cnpj;
+    const base = store.lead_enrichment.find((e) => e.stage === "complete");
+    expect(base).toBeTruthy();
+    store.lead_enrichment.push({
+      ...base!,
+      cnpj: FRESH_CNPJ,
+      fonte: stampDiscoveryFonte(base!.fonte, base!.collected_at),
+      expires_at: "2027-01-01T00:00:00.000Z",
+    });
+    expect(
+      store.lead_enrichment.find((e) => e.cnpj === FRESH_CNPJ)?.fonte.discovery
+        ?.fonte,
+    ).toBe(DOMAIN_DISCOVERY_VERSION);
 
     const result = await mockRepo.enqueueEnrichment({
-      cnpjs: [cnpj],
+      cnpjs: [FRESH_CNPJ],
       userId: USER,
       searchId: null,
     });
 
     expect(result.queued).toBe(0);
     const job = store.enrichment_jobs.find(
-      (j) => j.cnpj === cnpj && j.requested_by === USER,
+      (j) => j.cnpj === FRESH_CNPJ && j.requested_by === USER,
     );
     expect(job?.status).toBe("skipped");
   });

@@ -22,13 +22,16 @@ import type {
   CrmDealSearchHit,
   CrmEvent,
   CrmEventCreateInput,
-  CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEndpointCreateInput,
+  CrmInboundEndpointPatchInput,
   CrmInboundEvent,
   CrmInboundEventCreateInput,
   CrmImportRun,
   CrmImportRunCreateInput,
   CrmLeadKind,
+  CrmMetaConnection,
+  CrmMetaConnectionRecord,
   CrmNextAction,
   CrmOutcome,
   CrmPipeline,
@@ -435,34 +438,31 @@ export type GridRepo = {
   getCrmInboundEndpointByTokenHash(
     tokenHash: string,
   ): Promise<CrmInboundEndpoint | null>;
+  getCrmInboundEndpointByPublicTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null>;
   findCrmInboundEndpoint(endpointId: string): Promise<CrmInboundEndpoint | null>;
+  findCrmInboundEndpointsForMetaLead(
+    pageId: string,
+    formId: string | null,
+  ): Promise<CrmInboundEndpoint[]>;
   createCrmInboundEndpoint(
     userId: string,
-    input: {
-      nome: string;
-      pipelineId: string;
-      stage_id?: string | null;
-      lead_kind: CrmLeadKind;
-      channel: CrmFormChannel;
-      token_hash: string;
-    },
+    input: CrmInboundEndpointCreateInput,
   ): Promise<CrmInboundEndpoint | null>;
   updateCrmInboundEndpoint(
     userId: string,
     endpointId: string,
-    input: {
-      nome?: string;
-      pipelineId?: string;
-      stage_id?: string | null;
-      lead_kind?: CrmLeadKind;
-      channel?: CrmFormChannel;
-      token_hash?: string;
-    },
+    input: CrmInboundEndpointPatchInput,
   ): Promise<CrmInboundEndpoint | null>;
   deleteCrmInboundEndpoint(userId: string, endpointId: string): Promise<boolean>;
   createCrmInboundEvent(
     userId: string,
     input: CrmInboundEventCreateInput,
+  ): Promise<CrmInboundEvent | null>;
+  findCrmInboundEventByExternalId(
+    endpointId: string,
+    externalId: string,
   ): Promise<CrmInboundEvent | null>;
   listCrmInboundEvents(
     userId: string,
@@ -470,6 +470,23 @@ export type GridRepo = {
     limit?: number,
   ): Promise<CrmInboundEvent[]>;
   listCrmInboundLastEvents(userId: string): Promise<CrmInboundEvent[]>;
+  listCrmMetaConnections(userId: string): Promise<CrmMetaConnection[]>;
+  getCrmMetaConnection(
+    userId: string,
+    connectionId: string,
+  ): Promise<CrmMetaConnectionRecord | null>;
+  getCrmMetaConnectionByPageId(
+    pageId: string,
+  ): Promise<CrmMetaConnectionRecord | null>;
+  upsertCrmMetaConnection(
+    userId: string,
+    input: {
+      pageId: string;
+      pageName: string;
+      credentialsCiphertext: string;
+      credentialsNonce: string;
+    },
+  ): Promise<CrmMetaConnectionRecord | null>;
   createCrmImportRun(
     userId: string,
     input: CrmImportRunCreateInput,

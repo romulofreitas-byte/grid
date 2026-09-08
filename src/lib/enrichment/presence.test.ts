@@ -1304,6 +1304,30 @@ describe("gmbCardFromPlace", () => {
       }).filled,
     ).toContain("hours");
   });
+
+  it("reads a permanently closed Maps pin without treating the flag as hours or category", () => {
+    const card = gmbCardFromPlace({
+      title: "Comercial Amicitate",
+      category: "Permanentemente fechado",
+      openingHours: ["Permanentemente fechado"],
+      operationalStatus: "closed_permanently",
+    });
+    expect(card.operational_status).toBe("closed_permanently");
+    expect(card.filled).not.toContain("hours");
+    expect(card.hours_label).toBeNull();
+    expect(card.category).toBeNull();
+  });
+
+  it("reads temporarily closed from the public hours line", () => {
+    const card = gmbCardFromPlace({
+      title: "Padaria Central",
+      category: "Padaria",
+      openingHours: "Fechado temporariamente",
+    });
+    expect(card.operational_status).toBe("closed_temporarily");
+    expect(card.category).toBe("Padaria");
+    expect(card.filled).not.toContain("hours");
+  });
 });
 
 describe("hitsFromSerperJson", () => {
@@ -1861,6 +1885,40 @@ describe("searchGmb", () => {
         cid: "55",
       }).website_host,
     ).toBe("santaterezapilates.com.br");
+  });
+
+  it("hydrates a permanently closed Serper type onto the public card", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            places: [
+              {
+                title: "Comercial Amicitate",
+                address: "R. Conceição do Mato Dentro, 540 - Belo Horizonte",
+                type: "Permanentemente fechado",
+                category: "Loja de materiais de construção",
+                cid: "91",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const hydrated = await hydrateMatchedGmbListing({
+      name: "Comercial Amicitate",
+      url: "https://www.google.com/maps?cid=91",
+      matched: true,
+      status: "matched",
+      cid: "91",
+    });
+    expect(hydrated.card?.operational_status).toBe("closed_permanently");
+    expect(hydrated.card?.category).toBe("Loja de materiais de construção");
+    expect(hydrated.card?.filled).not.toContain("hours");
+    expect(hydrated.address).toMatch(/Conceição do Mato Dentro/);
   });
 
   it("rehydrates a pin that already has a card to pick up an Instagram globe", async () => {

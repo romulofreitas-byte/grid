@@ -1,4 +1,4 @@
-import { largadaNovaHref } from "@/lib/back";
+import { integracoesHref, largadaNovaHref } from "@/lib/back";
 import { EXPORT_CREDIT_COST } from "@/lib/billing/catalog";
 
 export const FAQ_CATEGORIES = [
@@ -127,7 +127,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O GRID usa Google Maps?",
     answer:
-      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca o card público no Maps pelo nome e pela cidade — o endereço fiscal da Receita muitas vezes é o do escritório, não o da operação. Cruza telefone ou nome+cidade/endereço com o cadastro e lê se o card está completo (telefone, site, horário, foto, nota). Se achar a marca na cidade mas não cruzar com este CNPJ (rede/franquia), mostra o card como candidato — não como ficha da empresa. “Não possui” só aparece quando a busca não acha card. Não usa a API do Google Places e não grava telefone, texto de avaliação nem coordenadas.",
+      "A fonte cadastral é a Receita Federal. Na qualificação o GRID busca o card público no Maps pelo nome e pela cidade — o endereço fiscal da Receita muitas vezes é o do escritório, não o da operação. Cruza telefone ou nome+cidade/endereço com o cadastro e lê se o card está completo (telefone, site, horário, foto, nota) e se o pin está fechado no Maps. Se achar a marca na cidade mas não cruzar com este CNPJ (rede/franquia), mostra o card como candidato — não como ficha da empresa. “Não possui” só aparece quando a busca não acha card. Não usa a API do Google Places e não grava telefone, texto de avaliação nem coordenadas.",
   },
   {
     id: "quando-credito",
@@ -166,9 +166,10 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "O que é o Piloto Pro e as Automações?",
     answer:
-      "Automações — formulário, anúncio e Make alimentando o quadro — entram no Piloto Pro. O Pro ainda não está à venda no checkout: entre na lista em Planos e a gente avisa. No Piloto você importa a planilha e liga pelo CRM.",
+      "Automações — link ou embed no site e Formulário Instantâneo do Meta alimentando o quadro — entram no Piloto Pro. No Piloto você importa a planilha e liga pelo CRM.",
     links: [
-      { href: "/planos#piloto-pro", label: "Quero o Piloto Pro" },
+      { href: "/integracoes", label: "Abrir Integrações" },
+      { href: "/pagar?sku=piloto_pro", label: "Assinar o Piloto Pro" },
       { href: "/automacoes", label: "Abrir Automações" },
     ],
   },
@@ -202,7 +203,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: "Onde ligo o VoIP?",
     answer:
       "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Integrações e o GRID disca ao clicar (Painel, lista e ficha).",
-    links: [{ href: "/integracoes/voip", label: "Abrir VoIP" }],
+    links: [{ href: integracoesHref("voip"), label: "Abrir Telefonia" }],
   },
   {
     id: "cpf",

@@ -24,6 +24,7 @@ export type GmbAssetPill = {
   id: string;
   label: string;
   present: boolean;
+  tone?: "alert" | "warn";
 };
 
 export type AuditSignal = {
@@ -387,6 +388,52 @@ function formatGmbRatingPill(
   return stars;
 }
 
+function gmbClosedLabel(
+  listing: GmbListing | null | undefined,
+): string | null {
+  const closed = listing?.card?.operational_status;
+  if (closed === "closed_permanently") return COPY.fichaMapsClosedPermanently;
+  if (closed === "closed_temporarily") return COPY.fichaMapsClosedTemporarily;
+  return null;
+}
+
+function gmbOperationalPills(
+  listing: GmbListing | null | undefined,
+): GmbAssetPill[] {
+  const closed = listing?.card?.operational_status;
+  if (closed === "closed_permanently") {
+    return [
+      {
+        id: "operational_status",
+        label: COPY.fichaMapsClosedPermanently,
+        present: false,
+        tone: "alert",
+      },
+    ];
+  }
+  if (closed === "closed_temporarily") {
+    return [
+      {
+        id: "operational_status",
+        label: COPY.fichaMapsClosedTemporarily,
+        present: false,
+        tone: "warn",
+      },
+    ];
+  }
+  return [];
+}
+
+function withClosedHint(
+  listing: GmbListing | null | undefined,
+  hint: string,
+): string {
+  const closed = gmbClosedLabel(listing);
+  if (!closed) return hint;
+  if (hint === closed || hint.startsWith(`${closed} ·`)) return hint;
+  return `${closed} · ${hint}`;
+}
+
 export function gmbAssetPills(
   listing: GmbListing | null | undefined,
 ): GmbAssetPill[] {
@@ -457,7 +504,7 @@ export function gmbAssetPills(
       present: bit.present,
     });
   }
-  return pills;
+  return [...gmbOperationalPills(listing), ...pills];
 }
 
 function gmbSeal(listing: GmbListing | null | undefined): {
@@ -498,9 +545,14 @@ function gmbHint(
     return COPY.fichaGmbHumanPin;
   }
   if (status === "candidate") {
-    return "Confirme se é este pin — não cruzamos com este CNPJ.";
+    return withClosedHint(
+      listing,
+      "Confirme se é este pin — não cruzamos com este CNPJ.",
+    );
   }
+  const closed = gmbClosedLabel(listing);
   if (listing.address) {
+    if (closed) return `${closed} · ${listing.address}`;
     return listing.card?.hours_label
       ? `${listing.address} · ${listing.card.hours_label}`
       : listing.address;
@@ -508,19 +560,25 @@ function gmbHint(
   const score = listing.card?.score ?? 0;
   if (score >= 5) {
     if (corroborated) {
-      return listing.match_by?.includes("city") &&
-        !listing.match_by?.includes("address") &&
-        !listing.match_by?.includes("phone") &&
-        !listing.match_by?.includes("cep") &&
-        !listing.match_by?.includes("website")
-        ? "Card completo conferido com a Receita (nome e cidade)."
-        : "Card completo conferido com a Receita.";
+      return withClosedHint(
+        listing,
+        listing.match_by?.includes("city") &&
+          !listing.match_by?.includes("address") &&
+          !listing.match_by?.includes("phone") &&
+          !listing.match_by?.includes("cep") &&
+          !listing.match_by?.includes("website")
+          ? "Card completo conferido com a Receita (nome e cidade)."
+          : "Card completo conferido com a Receita.",
+      );
     }
-    return "Card público do Google Meu Negócio.";
+    return withClosedHint(listing, "Card público do Google Meu Negócio.");
   }
-  return score > 0
-    ? `Pin no Maps, mas o card público está incompleto (${score}/5).`
-    : "Pin no Maps sem os campos que o cliente vê no Google.";
+  return withClosedHint(
+    listing,
+    score > 0
+      ? `Pin no Maps, mas o card público está incompleto (${score}/5).`
+      : "Pin no Maps sem os campos que o cliente vê no Google.",
+  );
 }
 
 function gmbCardLinks(
@@ -548,22 +606,28 @@ function mapsHint(
       return COPY.fichaGmbHumanPin;
     }
     if (corroborated) {
-      return listing?.match_by?.includes("city") &&
-        !listing.match_by?.includes("address") &&
-        !listing.match_by?.includes("phone") &&
-        !listing.match_by?.includes("cep") &&
-        !listing.match_by?.includes("website")
-        ? "Conferido com a Receita (nome e cidade)."
-        : "Conferido com a Receita (endereço, CEP, telefone ou site).";
+      return withClosedHint(
+        listing,
+        listing?.match_by?.includes("city") &&
+          !listing.match_by?.includes("address") &&
+          !listing.match_by?.includes("phone") &&
+          !listing.match_by?.includes("cep") &&
+          !listing.match_by?.includes("website")
+          ? "Conferido com a Receita (nome e cidade)."
+          : "Conferido com a Receita (endereço, CEP, telefone ou site).",
+      );
     }
-    return "Ficha encontrada no Google Maps.";
+    return withClosedHint(listing, "Ficha encontrada no Google Maps.");
   }
   if (status === "candidate") {
     const n = listing?.candidates_in_city;
     if (n && n > 1) {
-      return `${n} pins nesta cidade — confirme se é este.`;
+      return withClosedHint(
+        listing,
+        `${n} pins nesta cidade — confirme se é este.`,
+      );
     }
-    return "Confirme se é este pin.";
+    return withClosedHint(listing, "Confirme se é este pin.");
   }
   if (listing) {
     if (fonte === "human") {
@@ -1035,6 +1099,7 @@ export function buildAuditSignals(
           ? COPY.fichaMapsConfirmValue
           : "—",
       hint: mapsHint(e.gmb, e.fonte.gmb?.fonte ?? e.fonte.maps?.fonte, corroborated),
+      pills: gmbOperationalPills(e.gmb),
       note:
         mapsPinFound && e.gmb?.card
           ? formatGmbRating(e.gmb.card.rating, e.gmb.card.ratingCount) ||

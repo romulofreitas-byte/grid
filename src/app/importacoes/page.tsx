@@ -1,25 +1,20 @@
-import { AppShell } from "@/components/AppShell";
 import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
 import { ImportacoesPanel } from "@/components/importacoes/ImportacoesPanel";
-import { BACK } from "@/lib/back";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
-import { COPY } from "@/lib/copy";
-import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
+import { ensureDefaultPipeline } from "@/lib/crm/ensure-pipeline";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 function ImportLocked({ trialExpired }: { trialExpired: boolean }) {
   return (
-    <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
-      <FeatureLockedPage
-        feature="crm"
-        trialExpired={trialExpired}
-        from="/importacoes"
-      />
-    </AppShell>
+    <FeatureLockedPage
+      feature="crm"
+      trialExpired={trialExpired}
+      from="/importacoes"
+    />
   );
 }
 
@@ -34,29 +29,18 @@ export default async function ImportacoesPage() {
     if (!balance.enrichAllowed) {
       return <ImportLocked trialExpired={balance.trialExpired} />;
     }
-    const repo = getRepo();
-    let pipelines = listed;
-    if (pipelines.length === 0) {
-      await repo.createCrmPipeline(session.id, DEFAULT_PIPELINE_NAME);
-      pipelines = await repo.listCrmPipelines(session.id);
-    }
-    return (
-      <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
-        <ImportacoesPanel initialPipelines={pipelines} />
-      </AppShell>
-    );
+    const pipelines = await ensureDefaultPipeline(session.id, listed);
+    return <ImportacoesPanel initialPipelines={pipelines} />;
   } catch (err) {
     unstable_rethrow(err);
     console.error("importacoes_page_error", err);
     return (
-      <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
-        <GlassCard className="p-3">
-          <p className="text-sm font-semibold">Não deu para abrir Importações.</p>
-          <p className="mt-2 text-sm text-podium-gray">
-            {userFacingDbBusyMessage(err)}
-          </p>
-        </GlassCard>
-      </AppShell>
+      <GlassCard className="p-3">
+        <p className="text-sm font-semibold">Não deu para abrir Importações.</p>
+        <p className="mt-2 text-sm text-podium-gray">
+          {userFacingDbBusyMessage(err)}
+        </p>
+      </GlassCard>
     );
   }
 }

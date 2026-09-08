@@ -53,6 +53,7 @@ describe("maps FAQ", () => {
     expect(item?.answer).toMatch(/não usa a API do Google Places/i);
     expect(item?.answer).toMatch(/candidato/i);
     expect(item?.answer).toMatch(/Não possui/i);
+    expect(item?.answer).toMatch(/fechado/i);
   });
 });
 
@@ -101,11 +102,13 @@ describe("membro-plataforma FAQ", () => {
 });
 
 describe("piloto-pro FAQ", () => {
-  it("says Automações wait for Piloto Pro waitlist", () => {
+  it("sends Automações to Piloto Pro checkout", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "piloto-pro");
     expect(item?.answer).toMatch(/Piloto Pro/);
-    expect(item?.answer).toMatch(/lista/);
-    expect(item?.links?.[0]?.href).toBe("/planos#piloto-pro");
+    expect(item?.answer).not.toMatch(/lista de espera|ainda não está à venda/i);
+    expect(item?.links?.some((link) => link.href === "/pagar?sku=piloto_pro")).toBe(
+      true,
+    );
   });
 });
 

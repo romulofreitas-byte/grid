@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { suggestCrmRates, type CrmRateDeal } from "./crm-rates";
+import { EMPTY_CRM_RATE_SUGGESTIONS, suggestCrmRates, type CrmRateDeal } from "./crm-rates";
 
 function deal(
   partial: Pick<CrmRateDeal, "canonical_key"> & Partial<CrmRateDeal>,
@@ -95,5 +95,15 @@ describe("suggestCrmRates", () => {
     const suggestions = suggestCrmRates({ deals });
     expect(suggestions.taxa1).toBeNull();
     expect(suggestions.ticket).toBeNull();
+  });
+
+  it("exposes an empty suggestion payload for deferred CRM rates", () => {
+    expect(EMPTY_CRM_RATE_SUGGESTIONS).toEqual({
+      taxa1: null,
+      taxa2: null,
+      taxa3: null,
+      taxa4: null,
+      ticket: null,
+    });
   });
 });

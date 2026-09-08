@@ -9,6 +9,7 @@ export type RateBucket =
   | "optout"
   | "billing"
   | "webhook"
+  | "form"
   | "crm";
 
 const WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
@@ -20,6 +21,7 @@ const WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   optout: { limit: 5, windowMs: 60_000 },
   billing: { limit: 30, windowMs: 60_000 },
   webhook: { limit: 60, windowMs: 60_000 },
+  form: { limit: 20, windowMs: 60_000 },
   crm: { limit: 90, windowMs: 60_000 },
 };
 
@@ -33,6 +35,7 @@ const USER_WINDOWS: Record<RateBucket, { limit: number; windowMs: number }> = {
   optout: { limit: 5, windowMs: 60_000 },
   billing: { limit: 20, windowMs: 60_000 },
   webhook: { limit: 60, windowMs: 60_000 },
+  form: { limit: 20, windowMs: 60_000 },
   crm: { limit: 120, windowMs: 60_000 },
 };
 

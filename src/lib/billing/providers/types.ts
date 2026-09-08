@@ -31,7 +31,10 @@ export interface PaymentProvider {
     customerId: string,
     method: PaymentMethod,
   ): Promise<ChargeResult>;
+  /** User asked to stop at the end of the cycle (Stripe) or now (Asaas). */
   cancelSubscription(providerSubId: string): Promise<void>;
+  /** Upgrade path: stop the previous plan immediately so it cannot double-charge. */
+  cancelSubscriptionNow(providerSubId: string): Promise<void>;
   parseWebhook(req: Request, rawBody: string): Promise<NormalizedPaymentEvent | null>;
 }
 

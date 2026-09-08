@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
-import { loadMetasPayload, jsonMetasPersistError } from "@/lib/calculadora/load";
+import { loadMetasCore, jsonMetasPersistError } from "@/lib/calculadora/load";
 import { getRepo } from "@/lib/data";
 
 export async function POST(
@@ -21,7 +21,7 @@ export async function POST(
         { status: 400 },
       );
     }
-    return NextResponse.json(await loadMetasPayload(gated.userId));
+    return NextResponse.json(await loadMetasCore(gated.userId));
   } catch (err) {
     console.error("metas_apply_error", err);
     return jsonMetasPersistError(err, "Não foi possível aplicar a meta no Box");

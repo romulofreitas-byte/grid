@@ -14,7 +14,7 @@ import {
   UserRound,
   Wallet,
 } from "lucide-react";
-import { integracoesHref } from "@/lib/back";
+import { INTEGRACOES_TELEFONIA } from "@/lib/back";
 
 export type ShellNavItem = {
   href: string;
@@ -26,7 +26,6 @@ export type ShellNavItem = {
 export type ShellNavChild = {
   href: string;
   label: string;
-  kind?: "voip" | "dialer";
 };
 
 export type ShellFooterItem = {
@@ -73,10 +72,10 @@ export const SHELL_FOOTER_NAV: readonly ShellFooterItem[] = [
     label: "Integrações",
     icon: Cable,
     children: [
-      { href: integracoesHref("voip"), label: "VoIP", kind: "voip" },
-      { href: integracoesHref("dialer"), label: "Discador", kind: "dialer" },
-      { href: "/importacoes", label: "Importações" },
+      { href: "/integracoes", label: "Meta API" },
       { href: "/automacoes", label: "Automações" },
+      { href: "/importacoes", label: "Importações" },
+      { href: INTEGRACOES_TELEFONIA, label: "Telefonia" },
     ],
   },
   { href: "/planos", label: "Planos", icon: Wallet, billingFrom: true },
@@ -89,7 +88,7 @@ export function isShellNavActive(href: string, pathname: string): boolean {
 }
 
 export function showsOpeningNav(href: string): boolean {
-  return href === "/crm" || href === "/box";
+  return href === "/crm" || href === "/box" || href === "/metas";
 }
 
 export function isShellMoreActive(pathname: string): boolean {
@@ -102,6 +101,7 @@ export function isShellChildActive(
   _searchKind: string | null,
 ): boolean {
   const path = child.href.split("?")[0] ?? child.href;
+  if (path === "/integracoes") return pathname === "/integracoes";
   return isShellNavActive(path, pathname);
 }
 

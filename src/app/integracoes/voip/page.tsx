@@ -1,5 +1,6 @@
-import { IntegracaoSetup } from "@/components/integracoes/IntegracaoSetup";
+import { integracoesHref } from "@/lib/back";
+import { redirect } from "next/navigation";
 
-export default function IntegracoesVoipPage() {
-  return <IntegracaoSetup kind="voip" />;
+export default function IntegracoesVoipRedirectPage() {
+  redirect(integracoesHref("voip"));
 }

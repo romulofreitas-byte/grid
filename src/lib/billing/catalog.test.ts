@@ -8,6 +8,7 @@ import {
   getCatalogItem,
   isBilledPlanSku,
   isSkuOnSale,
+  billedPlanRank,
   orderKindFor,
   planHasFeature,
   PACKS,
@@ -79,7 +80,7 @@ describe("catalog", () => {
     expect(planHasFeature("unknown", "crm")).toBe(false);
     const pro = asPlan("piloto_pro");
     const escuderia = asPlan("escuderia");
-    expect(pro.highlights).toContain("Automações: formulário, anúncio, Make");
+    expect(pro.highlights).toContain("Automações: link no site e anúncio Meta");
     expect(pro.highlights).toContain("Tudo do Piloto");
     expect(pro.details).toContain("Munição de mercado na ficha");
     expect(escuderia.highlights).toContain("Tudo do Piloto Pro");
@@ -116,14 +117,14 @@ describe("catalog", () => {
     expect(orderKindFor("membro_plataforma")).toBe("platform");
   });
 
-  it("sells Piloto, the platform coupon plan, and credit packs right now", () => {
+  it("sells Piloto, Piloto Pro, the platform coupon plan, and credit packs", () => {
     expect(isSkuOnSale("piloto")).toBe(true);
+    expect(isSkuOnSale("piloto_pro")).toBe(true);
     expect(isSkuOnSale("membro_plataforma")).toBe(true);
     expect(isSkuOnSale("pack_100")).toBe(true);
     expect(isSkuOnSale("pack_500")).toBe(true);
     expect(isSkuOnSale("pack_2000")).toBe(true);
     expect(isSkuOnSale("free")).toBe(false);
-    expect(isSkuOnSale("piloto_pro")).toBe(false);
     expect(isSkuOnSale("escuderia")).toBe(false);
   });
 
@@ -144,6 +145,14 @@ describe("catalog", () => {
     expect(creditsPhrase(1)).toBe("1 crédito");
     expect(creditsPhrase(10)).toBe("10 créditos");
     expect(PLANS).toHaveLength(5);
+  });
+
+  it("ranks billed plans for upgrade checks", () => {
+    expect(billedPlanRank("piloto")).toBe(1);
+    expect(billedPlanRank("membro_plataforma")).toBe(1);
+    expect(billedPlanRank("piloto_pro")).toBe(2);
+    expect(billedPlanRank("escuderia")).toBe(3);
+    expect(billedPlanRank("free")).toBe(0);
   });
 
   it("marks billed plans for ops MRR", () => {

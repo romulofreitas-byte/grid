@@ -12,6 +12,7 @@ import {
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { buttonClassName } from "@/components/ui/Button";
 import { withFrom } from "@/lib/billing/href";
+import { isSkuOnSale } from "@/lib/billing/catalog";
 import { paywallCopy } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -97,7 +98,7 @@ export function FeatureLockedPage({
           COPY.lockedCrmHighlight3,
         ];
   const waitlist =
-    feature === "automations" && !trialExpired ? (
+    feature === "automations" && !trialExpired && !isSkuOnSale("piloto_pro") ? (
       <SupportWhatsAppButton
         pathname={from}
         intent="piloto_pro_waitlist"

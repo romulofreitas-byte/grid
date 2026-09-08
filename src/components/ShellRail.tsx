@@ -27,6 +27,7 @@ import {
   SHELL_FOOTER_NAV,
   SHELL_WORK_NAV,
   type ShellFooterItem,
+  type ShellNavChild,
   type ShellNavItem,
 } from "@/lib/shell-nav";
 import {
@@ -188,7 +189,7 @@ function FooterChild({
   searchKind,
   itemKind,
 }: {
-  child: { href: string; label: string; kind?: "voip" | "dialer" };
+  child: ShellNavChild;
   pathname: string;
   searchKind: string | null;
   itemKind: "link" | "static";

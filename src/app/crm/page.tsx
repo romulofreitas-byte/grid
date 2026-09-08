@@ -5,7 +5,7 @@ import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
-import { DEFAULT_PIPELINE_NAME } from "@/lib/crm/cadence";
+import { ensureDefaultPipeline } from "@/lib/crm/ensure-pipeline";
 import {
   LAST_CRM_PIPELINE_COOKIE,
   parseLastCrmPipelineId,
@@ -51,11 +51,7 @@ async function CrmPageInner({
       return <CrmLocked trialExpired={balance.trialExpired} />;
     }
     const repo = getRepo();
-    let pipelines = listed;
-    if (pipelines.length === 0) {
-      await repo.createCrmPipeline(session.id, DEFAULT_PIPELINE_NAME);
-      pipelines = await repo.listCrmPipelines(session.id);
-    }
+    const pipelines = await ensureDefaultPipeline(session.id, listed);
     const cookieStore = await cookies();
     const remembered = parseLastCrmPipelineId(
       cookieStore.get(LAST_CRM_PIPELINE_COOKIE)?.value,

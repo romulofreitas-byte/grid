@@ -267,6 +267,8 @@ export const COPY = {
   fichaIgConfirmThis: "É este",
   fichaIgRejectThis: "Não é",
   fichaSealMapsLive: "No Maps",
+  fichaMapsClosedPermanently: "Permanentemente fechado",
+  fichaMapsClosedTemporarily: "Fechado temporariamente",
   fichaSealUnverified: "A confirmar",
   fichaSealPending: "Ainda não vimos",
   fichaSealScanning: "Buscando",
@@ -442,6 +444,12 @@ export const COPY = {
   crmOpening: "Abrindo CRM…",
   crmOpeningNav: "Abrindo…",
   boxOpening: "Abrindo Ligar…",
+  metasOpening: "Abrindo Meta…",
+  painelOpening: "Abrindo Painel…",
+  listasOpening: "Abrindo Listas…",
+  integracoesOpening: "Abrindo Integrações…",
+  automacoesOpening: "Abrindo Automações…",
+  importacoesOpening: "Abrindo Importações…",
   crmLoadingNicho: "Abrindo nicho…",
   crmAddDeal: "Adicionar negócio",
   crmAddDealSearchPlaceholder: "Nome, fantasia ou CNPJ",
@@ -625,6 +633,23 @@ export const COPY = {
   notFoundBody: "Volte ao Painel ou abra as dúvidas se estava procurando outra coisa.",
   notFoundHome: "Ir ao Painel",
   notFoundFaq: "Ver dúvidas",
+  integracoesTitle: "Integrações",
+  integracoesLead:
+    "Meta API, campanhas, planilha e ligação. Cada uma no seu lugar.",
+  integracoesFacebookTitle: "Meta API",
+  integracoesFacebookBody:
+    "Conecte a Página. O Formulário Instantâneo cai no quadro nas Automações.",
+  integracoesAutomacoesBody:
+    "Campanhas: link no site, anúncio Meta ou outra origem.",
+  telefoniaTitle: "Telefonia",
+  telefoniaLead:
+    "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
+  integracoesTelefoniaBody:
+    "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
+  integracoesOpenAutomacoes: "Abrir Automações",
+  integracoesOpenImportacoes: "Abrir Importações",
+  integracoesOpenTelefonia: "Abrir Telefonia",
+  integracoesProCta: "Assinar o Piloto Pro",
   equipeTitle: "Equipe",
   equipeLead:
     "O mural da semana — quem ligou, qualificou e fechou — vive em Operações, para gestores. Aqui você deixa a foto pronta e pede vaga para o time na mesma conta.",
@@ -693,7 +718,7 @@ export const COPY = {
   conexoesStandbyForm:
     "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do\u00a0aparelho.",
   conexoesInboundHint:
-    "Aqui o GRID envia lista e ligação para fora. Para um link no site ou anúncio criarem negócio no CRM, use Automações.",
+    "Aqui o GRID envia lista e ligação para fora. Meta API e campanhas ficam em Integrações.",
   importacoesTitle: "Importações",
   importacoesLead:
     "Planilha entra no quadro. CNPJ também vai para Minhas listas.",
@@ -811,9 +836,15 @@ export const COPY = {
   automacoesOriginSite: "Link ou embed no site",
   automacoesOriginMeta: "Anúncio Meta",
   automacoesOriginWebhook: "Outra origem",
-  automacoesConnectMeta: "Conectar Facebook",
+  automacoesConnectMeta: "Conectar Meta API",
+  automacoesConnectMetaAgain: "Conectar outra Página",
+  automacoesMetaTitle: "Anúncio Meta",
+  automacoesMetaHint:
+    "Conecte a Página. O Formulário Instantâneo do anúncio cai no quadro. Depois crie a campanha com origem Anúncio Meta.",
+  automacoesEmptyPane:
+    "Conecte a Meta API em Integrações, ou crie uma campanha para o link no site.",
   automacoesMetaNotConfigured:
-    "Conexão com o Meta ainda não está configurada neste ambiente.",
+    "A Meta API ainda não está ligada neste GRID.",
   automacoesMetaPagesEmpty: "Nenhuma Página conectada ainda.",
   automacoesAllMetaForms: "Todos os formulários desta Página",
   automacoesSaveDestino: "Salvar destino",

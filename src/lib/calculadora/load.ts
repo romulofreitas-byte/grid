@@ -1,4 +1,9 @@
-import { suggestCrmRates, type CrmRateDeal, type CrmRateSuggestions } from "@/lib/calculadora/crm-rates";
+import {
+  EMPTY_CRM_RATE_SUGGESTIONS,
+  suggestCrmRates,
+  type CrmRateDeal,
+  type CrmRateSuggestions,
+} from "@/lib/calculadora/crm-rates";
 import type { MetasPayload } from "@/lib/calculadora/payload";
 import { getDataSource, getRepo, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
@@ -74,19 +79,26 @@ export async function loadCrmSuggestions(
   return suggestCrmRates({ deals });
 }
 
-export async function loadMetasPayload(userId: string): Promise<MetasPayload> {
+export async function loadMetasCore(userId: string): Promise<MetasPayload> {
   const repo = getRepo();
-  const [profile, metas, suggestions] = await Promise.all([
+  const [profile, metas] = await Promise.all([
     repo.getProfile(userId),
     repo.listMetas(userId),
-    loadCrmSuggestions(userId),
   ]);
   return {
     metas: sortMetasForList(metas, profile.active_meta_id),
     activeMetaId: profile.active_meta_id,
     metaLigacoesDia: profile.meta_ligacoes_dia,
-    suggestions,
+    suggestions: EMPTY_CRM_RATE_SUGGESTIONS,
   };
+}
+
+export async function loadMetasPayload(userId: string): Promise<MetasPayload> {
+  const [core, suggestions] = await Promise.all([
+    loadMetasCore(userId),
+    loadCrmSuggestions(userId),
+  ]);
+  return { ...core, suggestions };
 }
 
 export function jsonMetasPersistError(err: unknown, fallback: string) {

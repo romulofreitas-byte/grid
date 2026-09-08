@@ -50,8 +50,16 @@ import type {
   CrmEventKind,
   CrmFormChannel,
   CrmInboundEndpoint,
+  CrmInboundEndpointCreateInput,
+  CrmInboundEndpointPatchInput,
   CrmInboundEvent,
   CrmInboundEventCreateInput,
+  CrmImportRun,
+  CrmImportRunCreateInput,
+  CrmLeadKind,
+  CrmMetaConnection,
+  CrmMetaConnectionRecord,
+  CrmNextAction,
   CrmImportRun,
   CrmImportRunCreateInput,
   CrmLeadKind,
@@ -1026,6 +1034,16 @@ export const crmMockMethods = {
     );
   },
 
+  async getCrmInboundEndpointByPublicTokenHash(
+    tokenHash: string,
+  ): Promise<CrmInboundEndpoint | null> {
+    return (
+      getMockStore().crm_inbound_endpoints.find(
+        (row) => row.public_token_hash === tokenHash,
+      ) ?? null
+    );
+  },
+
   async findCrmInboundEndpoint(
     endpointId: string,
   ): Promise<CrmInboundEndpoint | null> {
@@ -1035,16 +1053,30 @@ export const crmMockMethods = {
     );
   },
 
+  async findCrmInboundEndpointsForMetaLead(
+    pageId: string,
+    formId: string | null,
+  ): Promise<CrmInboundEndpoint[]> {
+    const store = getMockStore();
+    const connections = store.crm_meta_connections.filter(
+      (row) => row.page_id === pageId && row.status === "active",
+    );
+    const ids = new Set(connections.map((row) => row.id));
+    const mapped = store.crm_inbound_endpoints.filter(
+      (row) =>
+        row.channel === "meta" &&
+        row.meta_connection_id &&
+        ids.has(row.meta_connection_id) &&
+        (!row.meta_form_id || (formId != null && row.meta_form_id === formId)),
+    );
+    if (!formId) return mapped;
+    const exact = mapped.filter((row) => row.meta_form_id === formId);
+    return exact.length > 0 ? exact : mapped.filter((row) => !row.meta_form_id);
+  },
+
   async createCrmInboundEndpoint(
     userId: string,
-    input: {
-      nome: string;
-      pipelineId: string;
-      stage_id?: string | null;
-      lead_kind: CrmLeadKind;
-      channel: CrmFormChannel;
-      token_hash: string;
-    },
+    input: CrmInboundEndpointCreateInput,
   ): Promise<CrmInboundEndpoint | null> {
     const store = getMockStore();
     if (!ownPipeline(store, userId, input.pipelineId)) return null;
@@ -1065,6 +1097,10 @@ export const crmMockMethods = {
       lead_kind: input.lead_kind,
       channel: input.channel,
       token_hash: input.token_hash,
+      public_token_hash: input.public_token_hash ?? null,
+      form_fields: input.form_fields ?? {},
+      meta_connection_id: input.meta_connection_id ?? null,
+      meta_form_id: input.meta_form_id ?? null,
       created_at: now,
       updated_at: now,
     };
@@ -1075,14 +1111,7 @@ export const crmMockMethods = {
   async updateCrmInboundEndpoint(
     userId: string,
     endpointId: string,
-    input: {
-      nome?: string;
-      pipelineId?: string;
-      stage_id?: string | null;
-      lead_kind?: CrmLeadKind;
-      channel?: CrmFormChannel;
-      token_hash?: string;
-    },
+    input: CrmInboundEndpointPatchInput,
   ): Promise<CrmInboundEndpoint | null> {
     const store = getMockStore();
     const existing = store.crm_inbound_endpoints.find(
@@ -1103,6 +1132,14 @@ export const crmMockMethods = {
     if (input.lead_kind !== undefined) existing.lead_kind = input.lead_kind;
     if (input.channel !== undefined) existing.channel = input.channel;
     if (input.token_hash !== undefined) existing.token_hash = input.token_hash;
+    if (input.public_token_hash !== undefined) {
+      existing.public_token_hash = input.public_token_hash;
+    }
+    if (input.form_fields !== undefined) existing.form_fields = input.form_fields;
+    if (input.meta_connection_id !== undefined) {
+      existing.meta_connection_id = input.meta_connection_id;
+    }
+    if (input.meta_form_id !== undefined) existing.meta_form_id = input.meta_form_id;
     existing.pipeline_id = pipelineId;
     existing.stage_id = stageId;
     existing.updated_at = nowIso();
@@ -1140,6 +1177,7 @@ export const crmMockMethods = {
       deal_id: input.dealId ?? null,
       snapshot: input.snapshot,
       payload: input.payload ?? null,
+      external_id: input.externalId ?? null,
       created_at: nowIso(),
     };
     store.crm_inbound_events.push(row);
@@ -1153,6 +1191,18 @@ export const crmMockMethods = {
       (item) => item.endpoint_id !== input.endpointId || keep.has(item.id),
     );
     return row;
+  },
+
+  async findCrmInboundEventByExternalId(
+    endpointId: string,
+    externalId: string,
+  ): Promise<CrmInboundEvent | null> {
+    return (
+      getMockStore().crm_inbound_events.find(
+        (row) =>
+          row.endpoint_id === endpointId && row.external_id === externalId,
+      ) ?? null
+    );
   },
 
   async listCrmInboundEvents(
@@ -1179,6 +1229,80 @@ export const crmMockMethods = {
       }
     }
     return [...byEndpoint.values()];
+  },
+
+  async listCrmMetaConnections(userId: string): Promise<CrmMetaConnection[]> {
+    return getMockStore()
+      .crm_meta_connections.filter(
+        (row) => row.user_id === userId && row.status === "active",
+      )
+      .map((row) => ({
+        id: row.id,
+        user_id: row.user_id,
+        page_id: row.page_id,
+        page_name: row.page_name,
+        status: row.status,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      }));
+  },
+
+  async getCrmMetaConnection(
+    userId: string,
+    connectionId: string,
+  ): Promise<CrmMetaConnectionRecord | null> {
+    return (
+      getMockStore().crm_meta_connections.find(
+        (row) => row.id === connectionId && row.user_id === userId,
+      ) ?? null
+    );
+  },
+
+  async getCrmMetaConnectionByPageId(
+    pageId: string,
+  ): Promise<CrmMetaConnectionRecord | null> {
+    return (
+      getMockStore().crm_meta_connections.find(
+        (row) => row.page_id === pageId && row.status === "active",
+      ) ?? null
+    );
+  },
+
+  async upsertCrmMetaConnection(
+    userId: string,
+    input: {
+      pageId: string;
+      pageName: string;
+      credentialsCiphertext: string;
+      credentialsNonce: string;
+    },
+  ): Promise<CrmMetaConnectionRecord | null> {
+    const store = getMockStore();
+    const existing = store.crm_meta_connections.find(
+      (row) => row.user_id === userId && row.page_id === input.pageId,
+    );
+    const now = nowIso();
+    if (existing) {
+      existing.page_name = input.pageName;
+      existing.status = "active";
+      existing.credentials_ciphertext = input.credentialsCiphertext;
+      existing.credentials_nonce = input.credentialsNonce;
+      existing.updated_at = now;
+      return existing;
+    }
+    const row: CrmMetaConnectionRecord = {
+      id: id(),
+      user_id: userId,
+      page_id: input.pageId,
+      page_name: input.pageName,
+      status: "active",
+      credentials_ciphertext: input.credentialsCiphertext,
+      credentials_nonce: input.credentialsNonce,
+      created_at: now,
+      updated_at: now,
+    };
+    store.crm_meta_connections.push(row);
+    return row;
   },
 
   async createCrmImportRun(

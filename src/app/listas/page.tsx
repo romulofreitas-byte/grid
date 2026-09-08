@@ -1,7 +1,5 @@
-import { AppShell } from "@/components/AppShell";
 import { GlassCard } from "@/components/GlassCard";
 import { ListsBoard } from "@/components/ListsBoard";
-import { BACK } from "@/lib/back";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { requireSession } from "@/lib/auth/session";
@@ -16,14 +14,12 @@ export default async function ListasPage() {
     unstable_rethrow(err);
     console.error("listas_page_error", err);
     return (
-      <AppShell fill wide lockHeight title="Listas">
-        <GlassCard className="p-3">
-          <p className="text-sm font-semibold">Não deu para carregar as listas.</p>
-          <p className="mt-2 text-sm text-podium-gray">
-            {userFacingDbBusyMessage(err)}
-          </p>
-        </GlassCard>
-      </AppShell>
+      <GlassCard className="p-3">
+        <p className="text-sm font-semibold">Não deu para carregar as listas.</p>
+        <p className="mt-2 text-sm text-podium-gray">
+          {userFacingDbBusyMessage(err)}
+        </p>
+      </GlassCard>
     );
   }
 }
@@ -32,11 +28,12 @@ async function ListasPageInner() {
   const session = await requireSession();
   if (!session) redirect("/entrar");
   const repo = getRepo();
-  const profile = await repo.getProfile(session.id);
-  await repo.pruneUnsavedSearches(profile.id);
+  void repo.pruneUnsavedSearches(session.id).catch((err) => {
+    console.error("listas_prune_error", err);
+  });
   const [saved, unsaved, pipelineNomes] = await Promise.all([
-    repo.listSearches(profile.id),
-    repo.listRecentSearches(profile.id, {
+    repo.listSearches(session.id),
+    repo.listRecentSearches(session.id, {
       saved: false,
       limit: UNSAVED_LIST_CAP,
     }),
@@ -51,7 +48,7 @@ async function ListasPageInner() {
   const savedIds = saved.map((row) => row.id);
   const performanceById = savedIds.length
     ? await repo
-        .listSearchPerformance(profile.id, savedIds)
+        .listSearchPerformance(session.id, savedIds)
         .then((rows) => indexListPerformance(rows, savedIds))
         .catch((err) => {
           console.error("listas_performance_error", err);
@@ -60,12 +57,10 @@ async function ListasPageInner() {
     : {};
 
   return (
-    <AppShell fill wide lockHeight title="Listas" back={BACK.painel}>
-      <ListsBoard
-        initial={[...saved, ...unsaved]}
-        pipelineNomes={pipelineNomes}
-        performanceById={performanceById}
-      />
-    </AppShell>
+    <ListsBoard
+      initial={[...saved, ...unsaved]}
+      pipelineNomes={pipelineNomes}
+      performanceById={performanceById}
+    />
   );
 }

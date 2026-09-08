@@ -1,4 +1,5 @@
-import { supportWhatsAppHref } from "@/lib/support";
+import { pagarHref } from "@/lib/billing/href";
+import { isSkuOnSale } from "@/lib/billing/catalog";
 
 export const PLANOS_URL = "/planos";
 export const RECARGA_URL = "/planos#recarga";
@@ -179,17 +180,16 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
   }
   if (state.kind === "plan") {
     if (state.feature === "automations") {
-      const waitlist = supportWhatsAppHref({
-        pathname: "/automacoes",
-        intent: "piloto_pro_waitlist",
-      });
       return {
         eyebrow: "Piloto Pro",
         title: "Automações entra no Piloto Pro",
-        body: "Formulário, anúncio e Make alimentam o quadro no Pro. Entre na lista — o Pro ainda não está à venda no checkout.",
-        primary: waitlist
-          ? { href: waitlist, label: "Quero o Piloto Pro", external: true }
-          : { href: PLANOS_PRO_URL, label: "Quero o Piloto Pro" },
+        body: "Link ou embed no site e anúncio do Meta alimentam o quadro no Pro.",
+        primary: {
+          href: isSkuOnSale("piloto_pro")
+            ? pagarHref("piloto_pro", "/integracoes")
+            : PLANOS_PRO_URL,
+          label: "Assinar o Piloto Pro",
+        },
         secondary: { href: PLANOS_PRO_URL, label: "Ver o Pro" },
       };
     }

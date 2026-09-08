@@ -18,11 +18,11 @@ describe("invalidateLiveStats", () => {
     );
   });
 
-  it("keeps focus refetch only on the live stats queries", () => {
+  it("avoids refetch-on-mount when seeded stats are still fresh", () => {
     expect(LIVE_STATS_QUERY_OPTIONS).toEqual({
-      staleTime: 0,
+      staleTime: 15_000,
       refetchOnWindowFocus: true,
-      refetchOnMount: "always",
+      refetchOnMount: true,
     });
   });
 
