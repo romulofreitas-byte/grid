@@ -1,4 +1,4 @@
-import { quotedAliasPlaceQueries } from "@/lib/enrichment/brand-aliases";
+import { domainHostMatchesBrand, quotedAliasPlaceQueries } from "@/lib/enrichment/brand-aliases";
 import { confirmDomainOwnership, presenceBrandTokens } from "@/lib/enrichment/confirm-domain";
 import { domainSearchQueries } from "@/lib/enrichment/company-name";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
@@ -615,7 +615,15 @@ async function enrichCompanyTracked(
     ? normalizeHost(cachedDomain.domain)
     : "";
   const cacheUsable = Boolean(
-    cachedHost && !discarded.has(cachedHost) && !isDirectoryUrl(cachedHost),
+    cachedHost &&
+      !discarded.has(cachedHost) &&
+      !isDirectoryUrl(cachedHost) &&
+      domainHostMatchesBrand(
+        cachedHost,
+        input.company.razao_social,
+        est.nome_fantasia,
+        input.municipioNome,
+      ),
   );
   let domain: string | null = forceHost
     ? forceHost
@@ -672,7 +680,17 @@ async function enrichCompanyTracked(
 
   if (!domain && options.seedDomain) {
     const seedHost = normalizeHost(options.seedDomain);
-    if (seedHost && !discarded.has(seedHost) && !isDirectoryUrl(seedHost)) {
+    if (
+      seedHost &&
+      !discarded.has(seedHost) &&
+      !isDirectoryUrl(seedHost) &&
+      domainHostMatchesBrand(
+        seedHost,
+        input.company.razao_social,
+        est.nome_fantasia,
+        input.municipioNome,
+      )
+    ) {
       domain = seedHost;
       fonte.domain = { fonte: "hint", coletado_em: collected_at };
       noteDomainWave("hint");
@@ -988,8 +1006,19 @@ async function enrichCompanyTracked(
     const homeOk = await resolveHome();
 
     const applyOwnershipHtml = () => {
+      const htmlOwnershipOk =
+        Boolean(forceHost) ||
+        gmbConfirmsDomain(gmb, domain) ||
+        (domain != null &&
+          domainHostMatchesBrand(
+            domain,
+            input.company.razao_social,
+            est.nome_fantasia,
+            input.municipioNome,
+          ));
       if (
         !confirmed &&
+        htmlOwnershipOk &&
         confirmDomainOwnership({
           html: combinedHtml,
           cnpj: est.cnpj,

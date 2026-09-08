@@ -82,6 +82,13 @@ export function linkedinHandleMatchesQsa(
   return false;
 }
 
+/** LinkedIn company page — not a personal `/in/` profile. */
+export function isLinkedInCompanyUrl(url: string): boolean {
+  const parsed = pathParts(url);
+  if (!parsed || !parsed.host.includes("linkedin.com")) return false;
+  return parsed.parts[0]?.toLowerCase() === "company" && Boolean(parsed.parts[1]);
+}
+
 /**
  * True when the URL is a profile/page we can show as the company's channel.
  * LinkedIn `/in/` only passes when the handle matches a sócio.

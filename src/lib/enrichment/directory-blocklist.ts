@@ -4,16 +4,31 @@ export const DIRECTORY_BLOCKLIST = [
   "cnpj.biz",
   "cnpjcheck.com.br",
   "cnpja.com",
+  "cnpjgo.com.br",
+  "cnpjgo",
+  "cnpj.ws",
+  "opencnpj.org",
+  "minhacnpj.com.br",
+  "cnpjencontre.com.br",
   "serasaexperian.com.br",
   "serasa.com.br",
   "casadosdados.com.br",
   "casadosdados",
   "econodata.com.br",
   "econodata",
+  "economatica.com.br",
+  "economatica",
   "empresascnpj.com.br",
   "empresascnpj",
   "consultacnpj.com",
   "receitaws.com.br",
+  "speedio.com.br",
+  "speedio",
+  "leadjet.com.br",
+  "datastone.com.br",
+  "facilita.tools",
+  "receita.fazenda.gov.br",
+  "solucoes.receita.fazenda.gov.br",
   "brasil.io",
   "mapaosc.ipea.gov.br",
   // listas / guias
@@ -78,9 +93,17 @@ function hostnameOf(raw: string): string {
   }
 }
 
+/** True when any hostname label (not the TLD) contains "cnpj". */
+export function hostLooksLikeCnpjDirectory(host: string): boolean {
+  const labels = host.replace(/^www\./i, "").toLowerCase().split(".");
+  if (labels.length < 2) return false;
+  return labels.slice(0, -1).some((label) => label.includes("cnpj"));
+}
+
 export function isDirectoryUrl(url: string): boolean {
   const host = hostnameOf(url);
   if (!host) return false;
+  if (hostLooksLikeCnpjDirectory(host)) return true;
   return DIRECTORY_BLOCKLIST.some((d) => {
     const needle = d.replace(/^www\./, "").toLowerCase();
     if (needle.includes(".")) {

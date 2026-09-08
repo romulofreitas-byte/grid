@@ -202,7 +202,7 @@ describe("swapWwwOrigin", () => {
 
 describe("enrichCompany crawl", () => {
   it("stops ownership after home confirms, then harvests contact paths", async () => {
-    const domain = "sol-home.test";
+    const domain = "solaris-home.test";
     const requested = mockSiteFetch({
       "/": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
       "/quem-somos": "<html><body>equipe</body></html>",
@@ -227,7 +227,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("keeps home http_status 200 when harvest paths like /contato return 404", async () => {
-    const domain = "paprika-home.test";
+    const domain = "solaris-http.test";
     mockSiteFetch({
       "/": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
     });
@@ -242,7 +242,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("falls back to www when the apex host refuses the home fetch", async () => {
-    const domain = "sol-www.test";
+    const domain = "solaris-www.test";
     const requested: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -282,7 +282,7 @@ describe("enrichCompany crawl", () => {
 
     expect(row.domain_status).toBe("confirmado");
     expect(row.http_status).toBe(200);
-    expect(requested.some((u) => u.startsWith("https://www.sol-www.test"))).toBe(
+    expect(requested.some((u) => u.startsWith("https://www.solaris-www.test"))).toBe(
       true,
     );
   });
@@ -350,7 +350,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("keeps http_status null when every host fetch fails", async () => {
-    const domain = "sol-unreachable.test";
+    const domain = "solaris-unreachable.test";
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -376,7 +376,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("keeps crawling ownership until an inner page confirms, then harvests", async () => {
-    const domain = "sol-inner.test";
+    const domain = "solaris-inner.test";
     const requested = mockSiteFetch({
       "/": "<html><body>Bem-vindo</body></html>",
       "/quem-somos": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
@@ -434,7 +434,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("harvests WhatsApp and Instagram from SPA JS when HTML shell is empty", async () => {
-    const domain = "spa-wa.test";
+    const domain = "solaris-spa.test";
     const requested = mockSiteFetch({
       "/": `<!doctype html><html><head><title>Solaris CNPJ ${CNPJ}</title></head>
         <body><div id="root"></div>
@@ -1627,7 +1627,7 @@ describe("enrichCompany crawl", () => {
   });
 
   it("flushes progress so a slow home upsert cannot land after complete", async () => {
-    const domain = "sol-progress.test";
+    const domain = "solaris-progress.test";
     mockSiteFetch({
       "/": `<html><body>Solaris CNPJ ${CNPJ}</body></html>`,
       "/contato": "<html><body>contato</body></html>",

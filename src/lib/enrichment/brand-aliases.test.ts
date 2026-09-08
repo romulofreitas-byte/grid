@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   discoveryAliases,
   extraDiscoveryAliases,
+  handleMatchesBrand,
   hostLabelMatchesBrand,
+  domainHostMatchesBrand,
 } from "./brand-aliases";
 
 const vaz = {
@@ -74,5 +76,45 @@ describe("hostLabelMatchesBrand", () => {
         "Contagem",
       ),
     ).toBe(0);
+    expect(
+      domainHostMatchesBrand(
+        "cnpjgo.com.br",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(false);
+    expect(
+      domainHostMatchesBrand(
+        "docesaritana.com.br",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("handleMatchesBrand", () => {
+  it("accepts a handle that contains the strong brand token", () => {
+    expect(
+      handleMatchesBrand(
+        "docesaritana",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a personal handle that only mentioned the company in text", () => {
+    expect(
+      handleMatchesBrand(
+        "pvdlacoste9",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(false);
   });
 });

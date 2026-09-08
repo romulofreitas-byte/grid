@@ -152,4 +152,14 @@ describe("presenceBrandTokens", () => {
       ),
     ).toEqual(["drimafer", "civil"]);
   });
+
+  it("drops generic food nouns so Doces Aritana keeps the brand token", () => {
+    expect(
+      presenceBrandTokens(
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toEqual(["aritana"]);
+  });
 });

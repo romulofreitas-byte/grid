@@ -9,7 +9,10 @@ import {
   receitaProviderDomain,
 } from "@/lib/contact-confidence";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
-import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
+import {
+  needsBrandDiscoveryProbe,
+  needsDiscoveryRetry,
+} from "@/lib/enrichment/discovery";
 import {
   mergeDiscoveryHints,
   parseDiscoveryHints,
@@ -158,7 +161,8 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     existing &&
     !job.payload?.force &&
     isEnrichmentComplete(existing) &&
-    !needsDiscoveryRetry(existing)
+    !needsDiscoveryRetry(existing) &&
+    !needsBrandDiscoveryProbe(existing)
   ) {
     await repo.updateJob(job.id, {
       status: "skipped",
@@ -187,6 +191,25 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       finished_at: new Date().toISOString(),
     });
     log({ status: "failed", error: "lead not found", dossier_ms });
+    return;
+  }
+
+  const brand = {
+    razaoSocial: dossier.company.razao_social,
+    nomeFantasia: dossier.establishment.nome_fantasia,
+    municipio: dossier.municipioNome,
+  };
+  if (
+    existing &&
+    !job.payload?.force &&
+    isEnrichmentComplete(existing) &&
+    !needsDiscoveryRetry(existing, brand)
+  ) {
+    await repo.updateJob(job.id, {
+      status: "skipped",
+      finished_at: new Date().toISOString(),
+    });
+    log({ status: "skipped", reason: "fresh" });
     return;
   }
 

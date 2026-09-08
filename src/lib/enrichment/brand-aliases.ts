@@ -92,6 +92,54 @@ export function quotedAliasPlaceQueries(
   );
 }
 
+export function domainHostMatchesBrand(
+  host: string,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  const hostname = host
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .split("/")[0]
+    ?.split(":")[0]
+    ?.toLowerCase();
+  if (!hostname) return false;
+  const label = hostname.split(".")[0] ?? "";
+  return hostLabelMatchesBrand(label, razaoSocial, nomeFantasia, municipio) > 0;
+}
+
+export function handleMatchesBrand(
+  handle: string,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  const compact = handle.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (compact.length < 4) return false;
+  const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
+  if (strong.length > 0) {
+    return strong.some((token) => token.length >= 4 && compact.includes(token));
+  }
+  const parts = distinctiveTokens(razaoSocial, nomeFantasia, municipio).filter(
+    (token) => token.length >= 4,
+  );
+  return parts.filter((token) => compact.includes(token)).length >= 2;
+}
+
+export function handleHasDistinctiveToken(
+  handle: string,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  const compact = handle.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (compact.length < 3) return false;
+  return distinctiveTokens(razaoSocial, nomeFantasia, municipio).some(
+    (token) => token.length >= 3 && compact.includes(token),
+  );
+}
+
 export function hostLabelMatchesBrand(
   label: string,
   razaoSocial: string,

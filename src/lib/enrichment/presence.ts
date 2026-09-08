@@ -1,4 +1,9 @@
-import { extraDiscoveryAliases, hostLabelMatchesBrand } from "@/lib/enrichment/brand-aliases";
+import {
+  extraDiscoveryAliases,
+  handleHasDistinctiveToken,
+  handleMatchesBrand,
+  hostLabelMatchesBrand,
+} from "@/lib/enrichment/brand-aliases";
 import { gmbCnaeTradeLabels } from "@/lib/enrichment/maps-trade";
 import {
   brandTokenHits,
@@ -12,7 +17,10 @@ import {
   recordSerperCall,
   serperBudgetAllows,
 } from "@/lib/enrichment/serper-stats";
-import { isUsableSocialProfileUrl } from "@/lib/enrichment/social-profile";
+import {
+  isLinkedInCompanyUrl,
+  isUsableSocialProfileUrl,
+} from "@/lib/enrichment/social-profile";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
 import {
   cidFromMapsUrl,
@@ -1016,9 +1024,8 @@ export function socialHandleFromUrl(url: string): string | null {
 }
 
 /**
- * Accept a search hit only when a *strong* brand token appears in the title
- * or in the profile handle. Weak-only names (e.g. "Distribuidora Silva") never
- * match from search — they require a confirmed site link.
+ * Accept a search hit only when a *strong* brand token appears in the
+ * profile handle. Title/snippet mentions are not enough (personal posts).
  */
 export function socialHitMatchesBrand(
   hit: OrganicHit,
@@ -1030,15 +1037,39 @@ export function socialHitMatchesBrand(
   if (strong.length === 0) return false;
 
   const handle = socialHandleFromUrl(hit.link)?.toLowerCase() ?? "";
-  const handleCompact = handle.replace(/[^a-z0-9]/g, "");
-  const hay = stripAccents(`${hit.title} ${hit.snippet ?? ""}`);
+  return handleMatchesBrand(handle, razaoSocial, nomeFantasia, municipio);
+}
 
-  return strong.some((t) => {
-    if (hay.includes(t)) return true;
-    // Handle must contain the full brand token (not the reverse — avoids gene⊂genesis).
-    if (handleCompact.length >= 4 && handleCompact.includes(t)) return true;
-    return false;
-  });
+/** Handle contains a strong brand token, or ≥2 distinctive tokens when the brand is weak. */
+export function socialHandleMatchesBrand(
+  url: string,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+): boolean {
+  const handle = socialHandleFromUrl(url);
+  if (!handle) return false;
+  return handleMatchesBrand(handle, razaoSocial, nomeFantasia, municipio);
+}
+
+function searchHandleQualifiesForAuto(
+  hit: OrganicHit,
+  platform: SocialPlatform | undefined,
+  razaoSocial: string,
+  nomeFantasia: string | null,
+  municipio: string,
+  allowCitySnippet: boolean,
+): boolean {
+  if (platform === "linkedin" && isLinkedInCompanyUrl(hit.link)) return true;
+  const handle = socialHandleFromUrl(hit.link);
+  if (!handle) return false;
+  if (handleMatchesBrand(handle, razaoSocial, nomeFantasia, municipio)) {
+    return true;
+  }
+  return (
+    allowCitySnippet &&
+    handleHasDistinctiveToken(handle, razaoSocial, nomeFantasia, municipio)
+  );
 }
 
 /** After Maps×Receita corroboration, weak brands may match on distinctive tokens. */
@@ -1166,6 +1197,9 @@ export function pickBestDomainHit(
         .replace(/^www\./, "");
       if (blocked.has(host)) continue;
     } catch {
+      continue;
+    }
+    if (hostBrandTokenHits(hit.link, razaoSocial, nomeFantasia, municipio) < 1) {
       continue;
     }
     const score = scoreDomainHit(hit, razaoSocial, nomeFantasia, municipio);
@@ -1728,13 +1762,30 @@ export function pickSocialHit(
     }
     if (needCep && !hitMentionsCep(hit, geo?.cep)) continue;
     if (needStreet && !hitMentionsStreet(hit, geo?.logradouro)) continue;
+    if (
+      !searchHandleQualifiesForAuto(
+        hit,
+        platform,
+        razaoSocial,
+        nomeFantasia,
+        municipio,
+        options.allowCitySnippet === true,
+      )
+    ) {
+      continue;
+    }
     if (matches(hit, razaoSocial, nomeFantasia, municipio)) {
       return hit.link;
     }
     if (
       options.allowCitySnippet &&
       socialHitMentionsCity(hit, municipio) &&
-      socialHitHasDistinctiveToken(hit, razaoSocial, nomeFantasia, municipio)
+      handleHasDistinctiveToken(
+        handle,
+        razaoSocial,
+        nomeFantasia,
+        municipio,
+      )
     ) {
       return hit.link;
     }

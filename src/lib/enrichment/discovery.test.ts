@@ -3,6 +3,7 @@ import {
   DOMAIN_DISCOVERY_VERSION,
   humanClearedDomain,
   humanClearedMaps,
+  needsBrandDiscoveryProbe,
   needsDiscoveryRetry,
 } from "./discovery";
 import type { LeadEnrichment, TechSignals } from "@/lib/types";
@@ -210,6 +211,141 @@ describe("needsDiscoveryRetry", () => {
             },
           },
         }),
+      ),
+    ).toBe(false);
+  });
+
+  const aritana = {
+    razaoSocial: "DOCES ARITANA LTDA",
+    nomeFantasia: "Doces Aritana",
+    municipio: "Caete",
+  };
+
+  it("retries a CNPJ Go host stored as the company site", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "cnpjgo.com.br",
+          domain_status: "confirmado",
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+        aritana,
+      ),
+    ).toBe(true);
+  });
+
+  it("retries a Serper domain whose host does not match the brand", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "portalxyz.com.br",
+          domain_status: "confirmado",
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            domain: {
+              fonte: "serper",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+        aritana,
+      ),
+    ).toBe(true);
+    expect(
+      needsBrandDiscoveryProbe(
+        row({
+          domain: "portalxyz.com.br",
+          fonte: {
+            domain: {
+              fonte: "serper",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not retry an unbranded host that came from Google Maps", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "docesartesanais.com.br",
+          domain_status: "confirmado",
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            domain: {
+              fonte: "gmb",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+        aritana,
+      ),
+    ).toBe(false);
+  });
+
+  it("retries a Serper Instagram whose handle does not match the brand", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "docesaritana.com.br",
+          domain_status: "confirmado",
+          socials: { instagram: "https://instagram.com/pvdlacoste9" },
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            domain: {
+              fonte: "serper",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            instagram: {
+              fonte: "serper",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+        aritana,
+      ),
+    ).toBe(true);
+  });
+
+  it("does not retry Instagram linked from the confirmed site", () => {
+    expect(
+      needsDiscoveryRetry(
+        row({
+          domain: "docesaritana.com.br",
+          domain_status: "confirmado",
+          socials: { instagram: "https://instagram.com/pvdlacoste9" },
+          fonte: {
+            discovery: {
+              fonte: DOMAIN_DISCOVERY_VERSION,
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            domain: {
+              fonte: "serper",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+            instagram: {
+              fonte: "site",
+              coletado_em: "2026-09-08T00:00:00.000Z",
+            },
+          },
+        }),
+        aritana,
       ),
     ).toBe(false);
   });

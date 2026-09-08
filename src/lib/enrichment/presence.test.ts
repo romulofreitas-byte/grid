@@ -35,6 +35,7 @@ import {
   scoreDomainHit,
   scoreMapsPlace,
   searchGmb,
+  socialHandleMatchesBrand,
   socialHitMatchesBrand,
   socialHitMatchesLoose,
   titleMatchesCompany,
@@ -179,6 +180,58 @@ describe("socialHitMatchesBrand / pickSocialHit", () => {
       ),
     ).toBe(false);
   });
+
+  it("does not auto-attach a personal Instagram that only mentions the company", () => {
+    const hit = {
+      link: "https://instagram.com/pvdlacoste9",
+      title: "pvdlacoste9",
+      snippet:
+        "Tive a oportunidade de conhecer Doces Aritana, empresa que faz parte da história da região #DocesAritana #Caeté",
+    };
+    expect(
+      socialHitMatchesBrand(
+        hit,
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(false);
+    expect(
+      socialHandleMatchesBrand(
+        hit.link,
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe(false);
+    expect(
+      pickSocialHit(
+        [hit],
+        "instagram.com",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+        { allowCitySnippet: true },
+      ),
+    ).toBeNull();
+  });
+
+  it("auto-attaches an Instagram handle that contains the brand", () => {
+    expect(
+      pickSocialHit(
+        [
+          {
+            link: "https://instagram.com/docesaritana",
+            title: "Doces Aritana (@docesaritana)",
+          },
+        ],
+        "instagram.com",
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBe("https://instagram.com/docesaritana");
+  });
 });
 
 describe("presenceQuery", () => {
@@ -314,6 +367,61 @@ describe("pickBestDomainHit", () => {
         "Belo Horizonte",
       ),
     ).toBeNull();
+  });
+
+  it("skips a CNPJ aggregator even when the title matches the company", () => {
+    expect(
+      pickBestDomainHit(
+        [
+          {
+            link: "https://cnpjgo.com.br/empresas/00291345000141",
+            title: "DOCES ARITANA — CNPJ 00.291.345/0001-41 | CNPJ Go",
+            snippet: "Consulta CNPJ grátis de Doces Aritana em Caeté MG",
+          },
+        ],
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBeNull();
+  });
+
+  it("skips an unbranded host even when the title cites the company", () => {
+    expect(
+      pickBestDomainHit(
+        [
+          {
+            link: "https://portalxyz.com.br/doces-aritana",
+            title: "DOCES ARITANA Caeté MG",
+            snippet: "Fábrica de doces em Caeté",
+          },
+        ],
+        "DOCES ARITANA LTDA",
+        "Doces Aritana",
+        "Caete",
+      ),
+    ).toBeNull();
+  });
+
+  it("still picks a branded host for Doces Aritana", () => {
+    const best = pickBestDomainHit(
+      [
+        {
+          link: "https://cnpjgo.com.br/empresas/00291345000141",
+          title: "DOCES ARITANA — CNPJ Go",
+          snippet: "Consulta CNPJ",
+        },
+        {
+          link: "https://docesaritana.com.br/",
+          title: "Doces Aritana",
+          snippet: "Fábrica de doces em Caeté",
+        },
+      ],
+      "DOCES ARITANA LTDA",
+      "Doces Aritana",
+      "Caete",
+    );
+    expect(best?.link).toBe("https://docesaritana.com.br/");
   });
 
   it("scores title token overlap", () => {
@@ -712,6 +820,32 @@ describe("Maps × Receita matching", () => {
         website_url: "https://empresas.serasaexperian.com.br/consulta/foo",
       }),
     ).toBeNull();
+  });
+
+  it("does not treat CNPJ Go as a Maps website", () => {
+    expect(
+      domainFromGmb({
+        name: "DOCES ARITANA",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        status: "matched",
+        website_host: "cnpjgo.com.br",
+        website_url: "https://cnpjgo.com.br/empresas/00291345000141",
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps an unbranded Maps website that is not a directory", () => {
+    expect(
+      domainFromGmb({
+        name: "DOCES ARITANA",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        status: "matched",
+        website_host: "docesartesanais.com.br",
+        website_url: "https://docesartesanais.com.br/",
+      }),
+    ).toBe("docesartesanais.com.br");
   });
 
   it("auto-matches a trading-name pin when the Receita phone is on the Maps card", () => {
@@ -2062,6 +2196,38 @@ describe("searchInstagramProfile", () => {
     expect(found.candidates.map((item) => item.url)).toEqual([
       "https://instagram.com/vazibirite",
       "https://instagram.com/vazoficial",
+    ]);
+  });
+
+  it("keeps a personal mention as a candidate instead of auto-attaching", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            organic: [
+              {
+                link: "https://www.instagram.com/pvdlacoste9/",
+                title: "pvdlacoste9 (@pvdlacoste9)",
+                snippet:
+                  "Conheci Doces Aritana em Caeté — #DocesAritana #MinasGerais",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const found = await searchInstagramProfile({
+      nomeFantasia: "Doces Aritana",
+      razaoSocial: "DOCES ARITANA LTDA",
+      municipio: "Caete",
+      uf: "MG",
+    });
+    expect(found.url).toBeNull();
+    expect(found.candidates.map((item) => item.url)).toEqual([
+      "https://instagram.com/pvdlacoste9",
     ]);
   });
 });
