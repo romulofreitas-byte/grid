@@ -648,6 +648,19 @@ describe("Maps × Receita matching", () => {
     expect(domainFromGmb(listing)).toBe("delpra.net.br");
   });
 
+  it("does not treat a Serasa Maps website as the company domain", () => {
+    expect(
+      domainFromGmb({
+        name: "LS ESTETICA AUTOMOTIVA",
+        url: "https://maps.google.com/?cid=1",
+        matched: true,
+        status: "matched",
+        website_host: "empresas.serasaexperian.com.br",
+        website_url: "https://empresas.serasaexperian.com.br/consulta/foo",
+      }),
+    ).toBeNull();
+  });
+
   it("auto-matches a trading-name pin when the Receita phone is on the Maps card", () => {
     const listing = resolveGmbListing(
       [

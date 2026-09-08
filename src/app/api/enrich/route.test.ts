@@ -594,7 +594,7 @@ describe("POST /api/enrich action=confirm|reject", () => {
     );
   });
 
-  it("drops a rejected candidate immediately and recrawls", async () => {
+  it("drops a rejected candidate without paying Google again", async () => {
     const res = await POST(
       correctRequest({
         cnpjs: ["00000000000000"],
@@ -607,15 +607,9 @@ describe("POST /api/enrich action=confirm|reject", () => {
     expect(json.enrichment.domain).toBeNull();
     expect(json.enrichment.domain_status).toBe("nao_encontrado");
     expect(json.enrichment.discarded_domains).toContain("granexpo.com.br");
-    expect(enqueueEnrichment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          action: "reject",
-          domain: "granexpo.com.br",
-          refresh: true,
-        }),
-      }),
-    );
+    expect(json.recrawl).toBe(false);
+    expect(enqueueEnrichment).not.toHaveBeenCalled();
+    expect(processOwnedEnrichmentJobs).not.toHaveBeenCalled();
   });
 
   it("supersedes a running job instead of returning 409", async () => {
@@ -846,6 +840,29 @@ describe("POST /api/enrich serper pause", () => {
     expect(res.status).toBe(503);
     expect(enqueueEnrichment).not.toHaveBeenCalled();
     expect(processOwnedEnrichmentJobs).not.toHaveBeenCalled();
+  });
+
+  it("still lets the human reject a wrong site", async () => {
+    isCnpjBilled.mockResolvedValue(true);
+    getEnrichment.mockResolvedValue({
+      ...completeRow(),
+      domain: "empresas.serasaexperian.com.br",
+      domain_status: "nao_confirmado",
+    });
+    resolveJobScoreProfile.mockResolvedValue("b2c_local");
+    skipActiveEnrichmentJobs.mockResolvedValue(0);
+    const res = await POST(
+      correctRequest({
+        cnpjs: ["00000000000000"],
+        action: "reject",
+        domain: "empresas.serasaexperian.com.br",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(enqueueEnrichment).not.toHaveBeenCalled();
+    const json = await res.json();
+    expect(json.recrawl).toBe(false);
+    expect(json.enrichment.domain).toBeNull();
   });
 });
 

@@ -2124,7 +2124,8 @@ export function domainFromGmb(listing: GmbListing | null): string | null {
   if (
     stored &&
     !stored.includes("google.com") &&
-    !stored.includes("maps.google")
+    !stored.includes("maps.google") &&
+    !isDirectoryUrl(stored)
   ) {
     return stored;
   }

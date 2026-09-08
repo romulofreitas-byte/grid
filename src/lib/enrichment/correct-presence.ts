@@ -165,8 +165,11 @@ export function applyMapsConfirm(
   );
 }
 
-export function normalizeCompanyDomain(raw: string): string | null {
-  return parseCompanySite(raw)?.host ?? null;
+export function normalizeCompanyDomain(
+  raw: string,
+  opts?: { allowDirectory?: boolean },
+): string | null {
+  return parseCompanySite(raw, opts)?.host ?? null;
 }
 
 function stamp(
@@ -290,8 +293,8 @@ export function companyHostsEqual(
   right: string,
 ): boolean {
   if (!left) return false;
-  const a = normalizeCompanyDomain(left);
-  const b = normalizeCompanyDomain(right);
+  const a = normalizeCompanyDomain(left, { allowDirectory: true });
+  const b = normalizeCompanyDomain(right, { allowDirectory: true });
   return Boolean(a && b && a === b);
 }
 
@@ -329,7 +332,7 @@ export function applySiteReject(
   domain: string,
   options: { scoreProfile?: ScoreProfile; now?: Date } = {},
 ): LeadEnrichment {
-  const host = normalizeCompanyDomain(domain);
+  const host = normalizeCompanyDomain(domain, { allowDirectory: true });
   if (!host) {
     throw new PresenceCorrectionError("Domínio inválido.");
   }
@@ -337,7 +340,7 @@ export function applySiteReject(
   const discarded = new Set(row.discarded_domains ?? []);
   discarded.add(host);
   if (row.domain) {
-    const current = normalizeCompanyDomain(row.domain);
+    const current = normalizeCompanyDomain(row.domain, { allowDirectory: true });
     if (current) discarded.add(current);
   }
   const cleared = companyHostsEqual(row.domain, host)

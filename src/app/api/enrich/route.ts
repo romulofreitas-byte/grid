@@ -135,7 +135,11 @@ export async function POST(req: Request) {
   const repo = getRepo();
   const searchId = parsed.data.searchId ?? null;
 
-  if (isSerperPaused()) {
+  const humanCorrection =
+    parsed.data.action === "confirm" ||
+    parsed.data.action === "reject" ||
+    parsed.data.action === "correct";
+  if (isSerperPaused() && !humanCorrection) {
     return NextResponse.json({ error: SERPER_PAUSED_MESSAGE }, { status: 503 });
   }
   const search =
@@ -160,7 +164,9 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
-    const site = parseCompanySite(parsed.data.domain);
+    const site = parseCompanySite(parsed.data.domain, {
+      allowDirectory: parsed.data.action === "reject",
+    });
     if (!site) {
       return NextResponse.json({ error: "Domínio inválido." }, { status: 400 });
     }
@@ -191,6 +197,14 @@ export async function POST(req: Request) {
     } else if (companyHostsEqual(enrichment.domain, site.host)) {
       await repo.setDomainCache(cnpj.slice(0, 8), null, "nao_encontrado");
     }
+    if (parsed.data.action === "reject") {
+      return NextResponse.json({
+        queued: 0,
+        skippedOptOut: 0,
+        enrichment: patched,
+        recrawl: false,
+      });
+    }
     const result = await repo.enqueueEnrichment({
       cnpjs: [cnpj],
       userId,
@@ -200,7 +214,7 @@ export async function POST(req: Request) {
       payload: {
         force: true,
         refresh: true,
-        action: parsed.data.action,
+        action: "confirm",
         domain: site.host,
         homepagePath: site.homepagePath,
       },

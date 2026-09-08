@@ -419,6 +419,20 @@ describe("enrichCompany crawl", () => {
     expect(row.fonte.instagram?.fonte).toBe("site");
   });
 
+  it("does not pay Serper after a human-confirmed host", async () => {
+    process.env.SERPER_API_KEY = "test";
+    const domain = "optica-ok.test";
+    const requested = mockSiteFetch({
+      "/": "<html><body><h1>Óptica</h1></body></html>",
+    });
+    const { row } = await enrichCompany(companyInput(domain), null, undefined, {
+      forceConfirmDomain: domain,
+    });
+    expect(row.domain_status).toBe("confirmado");
+    expect(requested.some((u) => u.includes("google.serper.dev"))).toBe(false);
+    delete process.env.SERPER_API_KEY;
+  });
+
   it("harvests WhatsApp and Instagram from SPA JS when HTML shell is empty", async () => {
     const domain = "spa-wa.test";
     const requested = mockSiteFetch({

@@ -46,7 +46,10 @@ export function homepagePathFromUrl(link: string): string | null {
   }
 }
 
-export function parseCompanySite(raw: string): CompanySite | null {
+export function parseCompanySite(
+  raw: string,
+  opts?: { allowDirectory?: boolean },
+): CompanySite | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
@@ -55,7 +58,8 @@ export function parseCompanySite(raw: string): CompanySite | null {
       : `https://${trimmed.replace(/^\/\//, "")}`;
     const u = new URL(withProto);
     const host = u.hostname.replace(/^www\./i, "").toLowerCase();
-    if (!host.includes(".") || isDirectoryUrl(host)) return null;
+    if (!host.includes(".")) return null;
+    if (!opts?.allowDirectory && isDirectoryUrl(host)) return null;
     return {
       host,
       homepagePath: normalizeHomepagePath(u.pathname),

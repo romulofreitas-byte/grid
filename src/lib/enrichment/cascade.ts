@@ -382,6 +382,9 @@ export type EnrichOptions = {
   extraNames?: string[];
   seedDomain?: string | null;
   seedInstagram?: string | null;
+  /** Keep the first-pass pin; confirm recrawl must not pay Maps again. */
+  seedGmb?: GmbListing | null;
+  seedSocials?: LeadEnrichment["socials"];
 };
 
 type SitePhone = NonNullable<ReturnType<typeof extractNormalizedPhones>>[number];
@@ -627,9 +630,14 @@ async function enrichCompanyTracked(
   let http_status: number | null = null;
   let combinedHtml = "";
   let finalUrl = "";
-  let gmb: GmbListing | null = null;
-  let socialsFromSearch: LeadEnrichment["socials"] = {};
+  let gmb: GmbListing | null = options.seedGmb ?? null;
+  let socialsFromSearch: LeadEnrichment["socials"] = {
+    ...options.seedSocials,
+  };
   let presenceCandidates: LeadEnrichment["presence_candidates"] = null;
+  if (gmb) {
+    fonte.gmb = { fonte: "serper", coletado_em: collected_at };
+  }
   const timings: Omit<EnrichTimings, "serper"> = {
     serper_ms: 0,
     crawl_ms: 0,
@@ -677,6 +685,8 @@ async function enrichCompanyTracked(
       instagram: `https://instagram.com/${options.seedInstagram}`,
     };
     fonte.instagram = { fonte: "hint", coletado_em: collected_at };
+  } else if (socialsFromSearch.instagram && !fonte.instagram) {
+    fonte.instagram = { fonte: "serper", coletado_em: collected_at };
   }
 
   if (!domain) domain_status = "nao_encontrado";
@@ -886,7 +896,11 @@ async function enrichCompanyTracked(
     }
     if (!domain && gmbSeed?.matched) {
       const fromMaps = domainFromGmb(gmbSeed);
-      if (fromMaps && !discarded.has(normalizeHost(fromMaps))) {
+      if (
+        fromMaps &&
+        !discarded.has(normalizeHost(fromMaps)) &&
+        !isDirectoryUrl(fromMaps)
+      ) {
         domain = fromMaps;
         fonte.domain = { fonte: "gmb", coletado_em: collected_at };
         domain_status = "nao_confirmado";
@@ -1105,7 +1119,7 @@ async function enrichCompanyTracked(
   const siteConfirmed = domain_status === "confirmado";
   const brandOverride = siteConfirmed ? siteBrand : null;
 
-  if (!gmb) {
+  if (!gmb && !forceHost) {
     gmb = await withSerperStage("gmb", () => searchGmb(gmbInput));
     fonte.gmb = { fonte: "serper", coletado_em: collected_at };
   }
@@ -1154,7 +1168,11 @@ async function enrichCompanyTracked(
 
   if (snap.socials.instagram && !fonte.instagram) {
     fonte.instagram = { fonte: "site", coletado_em: collected_at };
-  } else if (!snap.socials.instagram && !socialsFromSearch.instagram) {
+  } else if (
+    !forceHost &&
+    !snap.socials.instagram &&
+    !socialsFromSearch.instagram
+  ) {
     const found = await withSerperStage("instagram", () =>
       searchInstagramProfile({
         ...presencePlace,

@@ -33,6 +33,14 @@ describe("parseCompanySite", () => {
     expect(
       parseCompanySite("empresas.serasaexperian.com.br"),
     ).toBeNull();
+    expect(
+      parseCompanySite("empresas.serasaexperian.com.br", {
+        allowDirectory: true,
+      }),
+    ).toEqual({
+      host: "empresas.serasaexperian.com.br",
+      homepagePath: null,
+    });
   });
 });
 

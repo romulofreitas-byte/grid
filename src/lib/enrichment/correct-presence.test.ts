@@ -148,6 +148,20 @@ describe("applyPresenceCorrection", () => {
     expect(result.fonte.domain?.fonte).toBe("human");
   });
 
+  it("lets the human discard a directory host that leaked into the ficha", () => {
+    const result = applySiteReject(
+      enrichment({
+        domain: "empresas.serasaexperian.com.br",
+        domain_status: "nao_confirmado",
+      }),
+      "empresas.serasaexperian.com.br",
+    );
+    expect(result.domain).toBeNull();
+    expect(result.discarded_domains).toContain(
+      "empresas.serasaexperian.com.br",
+    );
+  });
+
   it("stores a WhatsApp number from wa.me", () => {
     const result = applyPresenceCorrection(enrichment(), {
       whatsapp: "https://wa.me/5531999887766",

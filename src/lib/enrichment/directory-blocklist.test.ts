@@ -13,6 +13,12 @@ describe("isDirectoryUrl", () => {
       isDirectoryUrl("https://empresas.serasaexperian.com.br/consulta/foo"),
     ).toBe(true);
     expect(isDirectoryUrl("https://www.serasa.com.br/empresa/foo")).toBe(true);
+    expect(isDirectoryUrl("https://www.casadosdados.com.br/empresa/foo")).toBe(
+      true,
+    );
+    expect(isDirectoryUrl("https://www.econodata.com.br/consulta/foo")).toBe(
+      true,
+    );
   });
 
   it("does not treat a branded school host as a directory", () => {

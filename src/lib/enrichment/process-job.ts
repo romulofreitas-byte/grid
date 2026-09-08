@@ -133,7 +133,7 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
 
   log({ event: "enrich_start", attempts: job.attempts });
 
-  if (isSerperPaused()) {
+  if (isSerperPaused() && job.payload?.action !== "confirm") {
     await repo.updateJob(job.id, {
       status: "skipped",
       last_error: "serper_paused",
@@ -270,6 +270,10 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
         extraNames,
         seedDomain: hints.domain,
         seedInstagram: hints.instagram,
+        seedGmb:
+          job.payload?.action === "confirm" ? (existing?.gmb ?? null) : null,
+        seedSocials:
+          job.payload?.action === "confirm" ? existing?.socials : undefined,
       },
     );
     const latest = await repo.getLatestEnrichmentJob(job.cnpj);
@@ -366,7 +370,6 @@ export async function runJobPool<T>(options: {
 export async function drainJobs(
   concurrency = DEFAULT_ENRICH_CONCURRENCY,
 ): Promise<number> {
-  if (isSerperPaused()) return 0;
   const repo = getRepo();
   return runJobPool({
     concurrency,
@@ -504,10 +507,6 @@ export async function runEnrichmentWorker(
   async function slot(slotId: number): Promise<void> {
     while (!options.signal?.aborted) {
       try {
-        if (isSerperPaused()) {
-          await sleep(idleMs, options.signal);
-          continue;
-        }
         const job = await repo.claimEnrichmentJob();
         if (!job) {
           await sleep(idleMs, options.signal);
@@ -536,7 +535,6 @@ export async function processOwnedEnrichmentJobs(
   userId: string,
   options: { budgetMs?: number; maxJobs?: number } = {},
 ): Promise<number> {
-  if (isSerperPaused()) return 0;
   const repo = getRepo();
   const budgetMs = options.budgetMs ?? ENRICH_OWNED_BUDGET_MS;
   const maxJobs = options.maxJobs ?? ENRICH_OWNED_MAX_JOBS;
