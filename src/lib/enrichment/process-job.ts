@@ -189,6 +189,7 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
       sharedVerdict: dossier.contacts[0]?.sharedVerdict ?? "proprio",
       scoreProfile,
       qsaNomes: dossier.socios.map((s) => s.nome),
+      cnaeDescricao: dossier.cnaeDescricao,
     };
     const isRefresh =
       job.payload?.refresh === true ||

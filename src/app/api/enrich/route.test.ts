@@ -11,6 +11,7 @@ const enqueueEnrichment = vi.hoisted(() => vi.fn());
 const setDomainCache = vi.hoisted(() => vi.fn());
 const skipActiveEnrichmentJobs = vi.hoisted(() => vi.fn());
 const getSearch = vi.hoisted(() => vi.fn());
+const searchCompanies = vi.hoisted(() => vi.fn());
 const classifyEnrichmentCnpjs = vi.hoisted(() => vi.fn());
 const listUnauditedCnpjs = vi.hoisted(() => vi.fn());
 const listEnrichmentJobs = vi.hoisted(() => vi.fn());
@@ -44,6 +45,7 @@ vi.mock("@/lib/billing/service", () => ({
 vi.mock("@/lib/data", () => ({
   getRepo: () => ({
     getSearch,
+    searchCompanies,
     getEnrichment,
     getLatestEnrichmentJob,
     upsertEnrichment,
@@ -134,6 +136,7 @@ describe("POST /api/enrich action=correct", () => {
     skipActiveEnrichmentJobs.mockReset();
     skipActiveEnrichmentJobs.mockResolvedValue(0);
     getSearch.mockReset();
+    searchCompanies.mockReset();
     classifyEnrichmentCnpjs.mockReset();
     drainJobsIfMock.mockReset();
     resolveJobScoreProfile.mockReset();
@@ -141,6 +144,7 @@ describe("POST /api/enrich action=correct", () => {
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     isCnpjBilled.mockResolvedValue(true);
     getSearch.mockResolvedValue(undefined);
+    searchCompanies.mockResolvedValue([]);
     getLatestEnrichmentJob.mockResolvedValue(null);
     getEnrichment.mockResolvedValue(completeRow());
     resolveJobScoreProfile.mockResolvedValue("b2c_local");
@@ -227,6 +231,171 @@ describe("POST /api/enrich action=correct", () => {
     );
     expect(json.enrichment.gmb.name).toBe("Drimafer Máquinas e Equipamentos");
     expect(upsertEnrichment).toHaveBeenCalledOnce();
+  });
+
+  it("hydrates the Maps card from Serper after a pasted pin", async () => {
+    const cid = BigInt("0xce7f0a7f9addee96").toString(10);
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            places: [
+              {
+                title: "Drimafer Máquinas e Equipamentos",
+                phoneNumber: "(11) 1111-1111",
+                website: "https://drimafer.com.br",
+                cid,
+                rating: 4.5,
+                ratingCount: 10,
+                openingHours: ["Fecha 18:00"],
+                thumbnailUrl: "https://img.test/d.jpg",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    try {
+      const href =
+        "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z/data=!3m1!4b1!4m6!3m5!1s0x94ce455536cfb6c9:0xce7f0a7f9addee96";
+      const res = await POST(
+        correctRequest({
+          cnpjs: ["00000000000000"],
+          action: "correct",
+          corrections: { maps: href },
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.enrichment.gmb.card.score).toBe(5);
+      expect(json.enrichment.gmb.card.filled).toContain("phone");
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.SERPER_API_KEY;
+    }
+  });
+
+  it("copies an Instagram profile from the Maps card onto the Instagram tile", async () => {
+    const cid = BigInt("0xce7f0a7f9addee96").toString(10);
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            places: [
+              {
+                title: "Vidraçaria Modular",
+                phoneNumber: "(37) 3381-1319",
+                website: "https://www.instagram.com/vidracaria.modular/",
+                address: "R. Rio São Francisco, 135 - Cláudio - MG",
+                cid,
+                rating: 4,
+                ratingCount: 2,
+                openingHours: ["Fecha terça 07:30"],
+                thumbnailUrl: "https://img.test/modular.jpg",
+                category: "Vidraçaria",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    try {
+      const href =
+        "https://www.google.com/maps/place/Vidra%C3%A7aria+Modular/@-20.4,-44.7,17z/data=!3m1!4b1!4m6!3m5!1s0x0:0xce7f0a7f9addee96";
+      const res = await POST(
+        correctRequest({
+          cnpjs: ["00000000000000"],
+          action: "correct",
+          corrections: { maps: href },
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.enrichment.socials.instagram).toBe(
+        "https://instagram.com/vidracaria.modular",
+      );
+      expect(json.enrichment.fonte.instagram.fonte).toBe("gmb");
+      expect(json.enrichment.gmb.website_host).toBeNull();
+      expect(json.enrichment.gmb.website_url).toBe(
+        "https://instagram.com/vidracaria.modular",
+      );
+      expect(json.enrichment.gmb.address).toMatch(/Rio São Francisco/);
+      expect(json.enrichment.gmb.card.filled).toContain("website");
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.SERPER_API_KEY;
+    }
+  });
+
+  it("hydrates via name + município + UF when the cid lookup is empty", async () => {
+    searchCompanies.mockResolvedValue([
+      {
+        cnpj: "00000000000000",
+        razaoSocial: "DRIMAFER MAQUINAS E EQUIPAMENTOS LTDA",
+        nomeFantasia: null,
+        municipio: "Contagem",
+        uf: "MG",
+        cnaeCodigo: null,
+        cnaeDescricao: "",
+        telefone: null,
+      },
+    ]);
+    const queries: string[] = [];
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const q =
+          ((JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "");
+        queries.push(q);
+        const hit = q.includes("Contagem");
+        return new Response(
+          JSON.stringify({
+            places: hit
+              ? [
+                  {
+                    title: "Drimafer Máquinas e Equipamentos",
+                    phoneNumber: "(11) 1111-1111",
+                    website: "https://drimafer.com.br",
+                    cid: "9",
+                    rating: 4.5,
+                    ratingCount: 10,
+                    thumbnailUrl: "https://img.test/d.jpg",
+                  },
+                ]
+              : [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    try {
+      const href =
+        "https://www.google.com/maps/place/Drimafer+M%C3%A1quinas+e+Equipamentos/@-23.6940753,-46.6088771,17z/data=!3m1!4b1!4m6!3m5!1s0x94ce455536cfb6c9:0xce7f0a7f9addee96";
+      const res = await POST(
+        correctRequest({
+          cnpjs: ["00000000000000"],
+          action: "correct",
+          corrections: { maps: href },
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(queries.some((q) => q.includes("Contagem") && q.includes("MG"))).toBe(
+        true,
+      );
+      expect(json.enrichment.gmb.card.filled).toContain("phone");
+      expect(json.enrichment.gmb.cid).toBe("9");
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.SERPER_API_KEY;
+    }
   });
 
   it("crava a Maps candidate with confirmMaps and does not recrawl", async () => {
@@ -376,11 +545,13 @@ describe("POST /api/enrich action=confirm|reject", () => {
     skipActiveEnrichmentJobs.mockReset();
     skipActiveEnrichmentJobs.mockResolvedValue(0);
     getSearch.mockReset();
+    searchCompanies.mockReset();
     drainJobsIfMock.mockReset();
     resolveJobScoreProfile.mockReset();
     guardApi.mockResolvedValue({ userId: "u1", email: null });
     isCnpjBilled.mockResolvedValue(true);
     getSearch.mockResolvedValue(undefined);
+    searchCompanies.mockResolvedValue([]);
     getLatestEnrichmentJob.mockResolvedValue(null);
     getEnrichment.mockResolvedValue({
       ...completeRow(),

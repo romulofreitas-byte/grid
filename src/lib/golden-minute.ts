@@ -1,7 +1,8 @@
 import type { MarketPack } from "@/lib/market/packs";
 import { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
-import { gmbListingStatus, gmbListingThin } from "@/lib/types";
+import { gmbListingStatus } from "@/lib/types";
 import type { DigitalSignalId, LeadEnrichment } from "@/lib/types";
+import { gmbMissingCheckLabels, joinPt } from "@/lib/audit/signals";
 
 export { GOLDEN_MINUTE_PLACEHOLDER } from "@/lib/golden-minute-placeholder";
 
@@ -72,10 +73,14 @@ export const CONTEXT_RULES: ContextRule[] = [
   {
     id: "gmb-incompleto",
     priority: 5,
-    when: (e) => gmbListingThin(e.gmb),
+    when: (e) =>
+      gmbListingStatus(e.gmb) === "matched" &&
+      (e.gmb?.card?.score ?? 0) < 5,
     phrase: (e) => {
-      const score = e.gmb?.card?.score ?? 0;
-      return `o card no Google está incompleto (${score}/5)`;
+      const missing = gmbMissingCheckLabels(e.gmb);
+      return missing.length
+        ? `o card no Google está incompleto — falta ${joinPt(missing)}`
+        : `o card no Google está incompleto (${e.gmb?.card?.score ?? 0}/5)`;
     },
     fonte: () => "card do Google Meu Negócio",
   },
@@ -126,7 +131,10 @@ export function buildGoldenMinute(
     .slice(0, 3)
     .map((r) => ({
       id: r.id,
-      phrase: pack?.pontePorSinal[r.id] || r.phrase(enrichment),
+      phrase:
+        r.id === "gmb-incompleto"
+          ? r.phrase(enrichment)
+          : pack?.pontePorSinal[r.id] || r.phrase(enrichment),
       fonte: r.fonte(enrichment),
     }));
 

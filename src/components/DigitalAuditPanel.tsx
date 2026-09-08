@@ -27,6 +27,7 @@ import {
   qualifyChipKind,
   scanningSignalIds,
   type AuditSignal,
+  type GmbAssetPill,
   type QualifyChipKind,
 } from "@/lib/audit/signals";
 import { GRID_PRESENCE_IDS } from "@/lib/audit/grid-presence";
@@ -151,7 +152,7 @@ function assetSeal(
   if (isAuditCandidate(signal)) {
     return { text: COPY.fichaSealUnverified, kind: "candidate" };
   }
-  if (signal.unverified && signal.sealKind === "unverified") {
+  if (signal.sealKind === "unverified") {
     return {
       text: signal.sealLabel ?? COPY.fichaSealUnverified,
       kind: "unverified",
@@ -189,6 +190,26 @@ function SealPill({
     >
       {seal.text}
     </span>
+  );
+}
+
+function GmbAssetPills({ pills }: { pills: GmbAssetPill[] }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {pills.map((pill) => (
+        <span
+          key={pill.id}
+          className={cn(
+            "inline-flex max-w-full items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+            pill.present
+              ? "bg-podium-success/15 text-podium-success"
+              : "border border-white/25 bg-white/[0.03] text-podium-muted",
+          )}
+        >
+          {pill.label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -422,12 +443,22 @@ function SelectedSignalCard({
               Site fora do ar
             </p>
           ) : null}
-          {needsActionHint && signal.hint ? (
+          {signal.id === "gmb" && signal.hint && !scanning ? (
+            <p className="mt-1 text-[11px] leading-snug text-podium-muted">
+              {signal.hint}
+            </p>
+          ) : needsActionHint && signal.hint ? (
             <p className="mt-1 text-[11px] leading-snug text-podium-muted">
               {signal.hint}
             </p>
           ) : null}
-          {signal.note && !isAuditLive(signal) && !scanning ? (
+          {signal.id === "gmb" && signal.pills?.length ? (
+            <GmbAssetPills pills={signal.pills} />
+          ) : signal.id === "gmb" && signal.note && !scanning ? (
+            <p className="mt-1 text-[11px] leading-snug text-podium-muted">
+              {signal.note}
+            </p>
+          ) : signal.note && !isAuditLive(signal) && !scanning ? (
             <p className="mt-1 text-[11px] leading-snug text-podium-muted">
               {signal.note}
             </p>
@@ -1122,12 +1153,7 @@ export function LeadFichaAuditDetail({ className }: { className?: string }) {
             }
             canCorrect={canCorrect}
             canConfirmMapsPin={mapsSelected && pinConfirmable && canCorrect}
-            canRejectMaps={
-              mapsSelected &&
-              canCorrect &&
-              presenceConfirm(selected) &&
-              !pinConfirmable
-            }
+            canRejectMaps={mapsSelected && pinConfirmable && canCorrect}
             canConfirmInstagram={
               selected.id === "instagram" &&
               canCorrect &&

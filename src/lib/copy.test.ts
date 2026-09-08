@@ -361,6 +361,9 @@ describe("COPY ficha maps", () => {
     expect(COPY.inserirQualificacao).toBe("Inserir");
     expect(COPY.fichaMapsConfirmHint.length).toBeLessThan(40);
     expect(COPY.fichaMapsOpenSearch).toMatch(/busca/i);
+    expect(COPY.fichaGmbHumanPin).toBe("Você confirmou este pin.");
+    expect(COPY.fichaGmbHumanPin.toLowerCase()).not.toMatch(/receita/);
+    expect(COPY.fichaGmbCardUnread).toMatch(/não li o card/i);
   });
 });
 

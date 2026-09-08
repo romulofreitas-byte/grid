@@ -4,6 +4,7 @@ import {
   buildAuditSignals,
   defaultAuditSelection,
   emptyAuditSignals,
+  gmbAssetPills,
   isAuditGap,
   isAuditLive,
   isAuditCandidate,
@@ -251,6 +252,22 @@ describe("buildAuditSignals", () => {
     expect(gap.hint).toMatch(/Instagram/i);
   });
 
+  it("treats Instagram from the Maps card as live, not a search candidate", () => {
+    const ig = byId(
+      enrichment({
+        domain: null,
+        domain_status: "nao_encontrado",
+        socials: { instagram: "https://instagram.com/vidracaria.modular" },
+        fonte: {
+          instagram: { fonte: "gmb", coletado_em: "2026-09-07T12:00:00.000Z" },
+        },
+      }),
+      "instagram",
+    );
+    expect(isAuditLive(ig)).toBe(true);
+    expect(ig.hint).toMatch(/card do Google Maps/i);
+  });
+
   it("marks Serper Instagram without confirmed site as candidate, not live", () => {
     const candidate = byId(
       enrichment({
@@ -429,7 +446,7 @@ describe("buildAuditSignals", () => {
     expect(isAuditGap(fb)).toBe(true);
   });
 
-  it("shows Maps when the listing matched and GMB when the public card is structured", () => {
+  it("shows Maps when the listing matched and GMB live only on a complete card", () => {
     const row = enrichment({
       gmb: {
         name: "Marmoraria Carvalho",
@@ -448,8 +465,24 @@ describe("buildAuditSignals", () => {
     const maps = byId(row, "maps");
     const gmb = byId(row, "gmb");
     expect(isAuditLive(maps)).toBe(true);
-    expect(isAuditLive(gmb)).toBe(true);
+    expect(isAuditLive(gmb)).toBe(false);
+    expect(isAuditGap(gmb)).toBe(true);
+    expect(gmb.sealLabel).toBe("Parcial");
+    expect(gmb.value).toBe("Marmoraria Carvalho");
     expect(gmb.openLabel).toBe("Abrir ficha");
+    expect(gmb.pills?.map((p) => p.id)).toEqual([
+      "phone",
+      "website",
+      "hours",
+      "photo",
+      "reviews",
+      "category",
+      "rating",
+    ]);
+    expect(gmb.pills?.find((p) => p.id === "phone")?.present).toBe(true);
+    expect(gmb.pills?.find((p) => p.id === "photo")?.present).toBe(false);
+    expect(gmb.pills?.find((p) => p.id === "rating")?.label).toMatch(/4,2/);
+    expect(gmb.pills?.find((p) => p.id === "rating")?.label).toMatch(/10/);
   });
 
   it("shows a city Maps candidate as to-confirm, not missing", () => {
@@ -484,6 +517,7 @@ describe("buildAuditSignals", () => {
     expect(gmb.openLabel).toBe("Abrir no Maps");
     expect(gmb.href).toBe("https://www.google.com/maps?cid=222");
     expect(gmb.hint).toMatch(/não cruzamos/i);
+    expect(gmb.hint).toMatch(/confirme se é este/i);
     expect(gmb.value).toBe("Pizza Hut");
     expect(maps.found).toBe(true);
     expect(maps.unverified).toBe(true);
@@ -493,7 +527,39 @@ describe("buildAuditSignals", () => {
     expect(maps.hint).toMatch(/2 pins/i);
   });
 
-  it("asks to confirm a Maps miss instead of marking the pin as missing", () => {
+  it("keeps a thin city candidate as to-confirm, not a grey miss", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Padaria Central",
+          url: "https://www.google.com/maps?cid=9",
+          matched: false,
+          status: "candidate",
+          cid: "9",
+          match_by: ["title", "city"],
+          card: {
+            filled: ["phone"],
+            score: 1,
+            rating: null,
+            ratingCount: 0,
+            category: null,
+          },
+        },
+        fonte: {
+          gmb: { fonte: "serper", coletado_em: "2026-09-05T12:00:00.000Z" },
+        },
+      }),
+      "gmb",
+    );
+    expect(gmb.found).toBe(true);
+    expect(isAuditCandidate(gmb)).toBe(true);
+    expect(isAuditGap(gmb)).toBe(false);
+    expect(gmb.hint).toMatch(/confirme se é este/i);
+    expect(gmb.pills?.find((p) => p.id === "phone")?.present).toBe(true);
+    expect(gmb.pills?.find((p) => p.id === "hours")?.present).toBe(false);
+  });
+
+  it("keeps Abrir busca on a Maps miss without pretending there is a pin to confirm", () => {
     const search =
       "https://www.google.com/maps/search/?api=1&query=%22Armazem%22";
     const row = enrichment({
@@ -504,17 +570,41 @@ describe("buildAuditSignals", () => {
     });
     const maps = byId(row, "maps");
     const gmb = byId(row, "gmb");
-    expect(isAuditGap(maps)).toBe(false);
+    expect(isAuditGap(maps)).toBe(true);
     expect(isAuditCandidate(maps)).toBe(false);
     expect(maps.found).toBe(false);
-    expect(maps.unverified).toBe(true);
-    expect(maps.value).toBe("CONFIRMAR PIN");
+    expect(maps.unverified).toBe(false);
+    expect(maps.value).toBe("SEM PIN");
     expect(maps.href).toBe(search);
     expect(maps.openLabel).toBe("Abrir busca no Maps");
-    expect(maps.hint).toMatch(/confirme/i);
+    expect(maps.hint).toMatch(/nome|cole a ficha/i);
+    expect(maps.sealLabel).toBeUndefined();
     expect(isAuditGap(gmb)).toBe(true);
     expect(gmb.value).toBe("NÃO ENCONTRADO");
     expect(gmb.openLabel).toBeNull();
+    expect(gmb.pills?.filter((p) => p.id !== "rating" && p.id !== "phone_vs_receita")).toHaveLength(5);
+    expect(gmb.pills?.every((p) => !p.present)).toBe(true);
+  });
+
+  it("does not paint five missing pills on a matched pin without a card", () => {
+    const gmb = byId(
+      enrichment({
+        gmb: {
+          name: "Usinagem Paulo Monteiro",
+          url: "https://www.google.com/maps?cid=1",
+          matched: true,
+          status: "matched",
+          cid: "1",
+        },
+        fonte: {
+          gmb: { fonte: "human", coletado_em: "2026-09-07T12:00:00.000Z" },
+        },
+      }),
+      "gmb",
+    );
+    expect(gmb.pills).toEqual([]);
+    expect(gmb.note).toMatch(/não li o card/i);
+    expect(gmb.hint).toBe("Você confirmou este pin.");
   });
 
   it("uses a Receita Maps search when the stored miss has no URL yet", () => {
@@ -531,7 +621,7 @@ describe("buildAuditSignals", () => {
     ).find((s) => s.id === "maps");
     expect(maps?.href).toBe(search);
     expect(maps?.openLabel).toBe("Abrir busca no Maps");
-    expect(maps?.value).toBe("CONFIRMAR PIN");
+    expect(maps?.value).toBe("SEM PIN");
   });
 
   it("keeps the Maps pin live when the public Google card is thin", () => {
@@ -554,8 +644,15 @@ describe("buildAuditSignals", () => {
     const gmb = byId(row, "gmb");
     expect(isAuditLive(maps)).toBe(true);
     expect(isAuditGap(gmb)).toBe(true);
-    expect(gmb.value).toMatch(/incompleto/i);
-    expect(gmb.note).toMatch(/card 1\/5/i);
+    expect(gmb.value).toBe("Distribuidora Silva");
+    expect(gmb.sealLabel).toBe("Incompleto");
+    expect(gmb.pills?.find((p) => p.id === "phone")?.present).toBe(true);
+    expect(gmb.pills?.filter((p) => !p.present).map((p) => p.id)).toEqual([
+      "website",
+      "hours",
+      "photo",
+      "reviews",
+    ]);
     expect(gmb.hint).toMatch(/incompleto/i);
 
     const full = byId(
@@ -577,9 +674,10 @@ describe("buildAuditSignals", () => {
       "gmb",
     );
     expect(full.sealLabel).toBe("Completo");
-    expect(full.note).toMatch(/card completo/i);
-    expect(full.note).toMatch(/4,8/);
-    expect(full.note).toMatch(/210/);
+    expect(isAuditLive(full)).toBe(true);
+    expect(full.pills?.every((p) => p.present)).toBe(true);
+    expect(full.pills?.find((p) => p.id === "rating")?.label).toMatch(/4,8/);
+    expect(full.pills?.find((p) => p.id === "rating")?.label).toMatch(/210/);
   });
 
   it("treats title + city as a Receita conferral, not a pending Maps guess", () => {
@@ -604,8 +702,8 @@ describe("buildAuditSignals", () => {
     expect(isAuditLive(gmb)).toBe(true);
     expect(gmb.unverified).toBe(false);
     expect(gmb.hint).toMatch(/nome e cidade/i);
-    expect(gmb.note).toMatch(/5 ★/);
-    expect(gmb.note).toMatch(/49/);
+    expect(gmb.pills?.find((p) => p.id === "rating")?.label).toMatch(/5 ★/);
+    expect(gmb.pills?.find((p) => p.id === "rating")?.label).toMatch(/49/);
   });
 
   it("attaches the OSM mismatch note to the site signal", () => {
@@ -707,6 +805,33 @@ describe("qualifyChipKind", () => {
     );
   });
 
+  it("is Oportunidade when the Google card is incomplete", () => {
+    const signals = buildAuditSignals(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        socials: { instagram: "https://instagram.com/exemplo" },
+        gmb: {
+          name: "Exemplo",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          match_by: ["phone"],
+          card: {
+            filled: ["phone", "website", "hours"],
+            score: 3,
+            rating: 4.2,
+            ratingCount: 10,
+            category: "Software company",
+          },
+        },
+      }),
+    );
+    expect(qualifyChipKind(signals, { scanning: false, complete: true })).toBe(
+      "oportunidade",
+    );
+  });
+
   it("is Qualificando while the first read is in progress", () => {
     expect(
       qualifyChipKind(emptyAuditSignals(), {
@@ -723,5 +848,98 @@ describe("qualifyChipKind", () => {
         complete: false,
       }),
     ).toBeNull();
+  });
+});
+
+describe("gmbAssetPills", () => {
+  it("lists the five checks as missing when there is no listing", () => {
+    const pills = gmbAssetPills(null);
+    expect(pills.map((p) => p.label)).toEqual([
+      "Telefone",
+      "Site",
+      "Horário",
+      "Foto",
+      "Avaliações",
+    ]);
+    expect(pills.every((p) => !p.present)).toBe(true);
+  });
+
+  it("returns no pills for a matched pin that has no card snapshot", () => {
+    expect(
+      gmbAssetPills({
+        name: "Usinagem Paulo Monteiro",
+        url: "https://www.google.com/maps?cid=1",
+        matched: true,
+        status: "matched",
+        cid: "1",
+      }),
+    ).toEqual([]);
+  });
+
+  it("adds rating and Receita phone cross-ref on a matched card", () => {
+    const pills = gmbAssetPills({
+      name: "Oficina",
+      url: "https://maps.google.com/?cid=1",
+      matched: true,
+      phone_vs_receita: "diferente",
+      card: {
+        filled: ["phone", "website", "hours", "photo", "reviews"],
+        score: 5,
+        rating: 4.2,
+        ratingCount: 80,
+        category: null,
+      },
+    });
+    expect(pills.find((p) => p.id === "rating")?.label).toBe("4,2 ★ · 80");
+    expect(pills.find((p) => p.id === "phone_vs_receita")).toEqual({
+      id: "phone_vs_receita",
+      label: "Tel. ≠ Receita",
+      present: false,
+    });
+  });
+
+  it("shows the Maps globe as Instagram and the pin address", () => {
+    const pills = gmbAssetPills({
+      name: "Vidraçaria Modular",
+      url: "https://www.google.com/maps?cid=1",
+      matched: true,
+      status: "matched",
+      phone_e164: "553733811319",
+      website_url: "https://instagram.com/vidracaria.modular",
+      address: "R. Rio São Francisco, 135 - Serra verde, Cláudio - MG",
+      card: {
+        filled: ["phone", "website", "hours", "photo", "reviews"],
+        score: 5,
+        rating: 4,
+        ratingCount: 2,
+        category: "Vidraçaria",
+        hours_label: "Fecha terça 07:30",
+      },
+    });
+    expect(pills.find((p) => p.id === "website")).toEqual({
+      id: "website",
+      label: "@vidracaria.modular",
+      present: true,
+    });
+    expect(pills.find((p) => p.id === "hours")?.label).toMatch(/07:30/);
+    expect(pills.find((p) => p.id === "address")?.label).toMatch(/Rio São Francisco/);
+    expect(pills.find((p) => p.id === "category")?.label).toBe("Vidraçaria");
+  });
+
+  it("omits a shared-phone cross-ref", () => {
+    const pills = gmbAssetPills({
+      name: "Oficina",
+      url: "https://maps.google.com/?cid=1",
+      matched: true,
+      phone_vs_receita: "ignorado_compartilhado",
+      card: {
+        filled: ["phone"],
+        score: 1,
+        rating: null,
+        ratingCount: 0,
+        category: null,
+      },
+    });
+    expect(pills.some((p) => p.id === "phone_vs_receita")).toBe(false);
   });
 });

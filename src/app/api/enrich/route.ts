@@ -18,9 +18,10 @@ import {
   PresenceCorrectionError,
   type PresenceCorrectionResult,
 } from "@/lib/enrichment/correct-presence";
-import type { ScoreProfile } from "@/lib/types";
+import { gmbListingStatus, type ScoreProfile } from "@/lib/types";
 import { parseCompanySite } from "@/lib/enrichment/company-site";
 import {
+  applyMapsWebsiteAssets,
   domainFromGmb,
   gmbListingNeedsHydration,
   hydrateMatchedGmbListing,
@@ -237,13 +238,34 @@ export async function POST(req: Request) {
       }
       throw err;
     }
+    const mapsTouched =
+      parsed.data.corrections.maps !== undefined ||
+      parsed.data.corrections.gmb !== undefined ||
+      parsed.data.corrections.confirmMaps === true;
     if (
       decided.kind === "patch" &&
       decided.row.gmb &&
-      gmbListingNeedsHydration(decided.row.gmb)
+      (mapsTouched
+        ? gmbListingStatus(decided.row.gmb) === "matched"
+        : gmbListingNeedsHydration(decided.row.gmb))
     ) {
-      const gmb = await hydrateMatchedGmbListing(decided.row.gmb);
-      const row = { ...decided.row, gmb };
+      const [hit] = await repo.searchCompanies(cnpj, { limit: 1 });
+      const gmb = await hydrateMatchedGmbListing(
+        decided.row.gmb,
+        hit
+          ? {
+              municipio: hit.municipio,
+              uf: hit.uf,
+              extraNames: [hit.nomeFantasia, hit.razaoSocial],
+            }
+          : undefined,
+        { force: mapsTouched },
+      );
+      const row = applyMapsWebsiteAssets(
+        { ...decided.row, gmb },
+        new Date().toISOString(),
+        scoreProfile,
+      );
       const host = domainFromGmb(gmb);
       const site = host && !row.domain ? parseCompanySite(host) : null;
       if (site) {

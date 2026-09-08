@@ -163,6 +163,26 @@ export function isMapsUrl(raw: string | null | undefined): boolean {
   }
 }
 
+/** `/maps/search` — a query, not a place. */
+export function isMapsSearchUrl(raw: string | null | undefined): boolean {
+  return Boolean(raw && /\/maps\/search/i.test(raw));
+}
+
+/** Phone digits as Maps `query=` — Google snaps to nearby POIs, not the shop. */
+export function isMapsDigitsSearchUrl(raw: string | null | undefined): boolean {
+  if (!raw || !isMapsSearchUrl(raw)) return false;
+  try {
+    const q = decodeURIComponent(
+      new URL(withMapsHttp(raw)).searchParams.get("query") ?? "",
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+    return /^\d{10,11}(\s|$)/.test(q);
+  } catch {
+    return false;
+  }
+}
+
 export function mapsListingHref(
   listing:
     | {
@@ -180,7 +200,8 @@ export function mapsListingHref(
     (listing.matched ? "matched" : listing.cid || listing.url ? "candidate" : "none");
   if (status === "none") {
     const url = listing.url?.trim();
-    return url && isMapsUrl(url) ? url : null;
+    if (!url || !isMapsUrl(url) || isMapsDigitsSearchUrl(url)) return null;
+    return url;
   }
   if (listing.cid) return mapsCidUrl(listing.cid);
   const url = listing.url?.trim();
@@ -188,7 +209,7 @@ export function mapsListingHref(
   return url || null;
 }
 
-/** Prefer a listing cid; otherwise a quoted search, not a naked neighborhood query. */
+/** Prefer a listing cid; otherwise a quoted search, not a phone dump. */
 export function leadMapsHref(
   input: Parameters<typeof companyMapsQuery>[0],
   listing?: {
@@ -198,9 +219,24 @@ export function leadMapsHref(
     url?: string;
   } | null,
 ): string {
-  const fromListing = mapsListingHref(listing);
-  if (fromListing && listing?.cid) return fromListing;
-  if (fromListing && isMapsUrl(fromListing)) return fromListing;
+  if (listing?.cid) return mapsCidUrl(listing.cid);
+  const status =
+    listing?.status ??
+    (listing?.matched
+      ? "matched"
+      : listing?.cid || listing?.url
+        ? "candidate"
+        : "none");
+  if (status === "matched" || status === "candidate") {
+    const fromListing = mapsListingHref(listing);
+    if (
+      fromListing &&
+      isMapsUrl(fromListing) &&
+      !isMapsSearchUrl(fromListing)
+    ) {
+      return fromListing;
+    }
+  }
   return companyMapsSearchUrl(input);
 }
 

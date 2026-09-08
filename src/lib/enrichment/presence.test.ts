@@ -6,10 +6,13 @@ import {
   gmbCardFromPlace,
   gmbCompactSearchName,
   gmbEmailBrandLabel,
+  gmbHydrationQueries,
   gmbListingNeedsHydration,
   gmbSearchQuery,
   gmbSearchQueryList,
   hydrateMatchedGmbListing,
+  mapsWebsiteAssets,
+  applyMapsWebsiteAssets,
   mapsStructuredQueries,
   hitsFromSerperJson,
   instagramSearchQueries,
@@ -17,6 +20,7 @@ import {
   preferGmbListing,
   searchInstagramProfile,
   mapsAddressMatchesReceita,
+  websiteHostFromMapsPlace,
   mapsCepMatchesReceita,
   mapsCityMatchesReceita,
   mapsPhoneMatchesReceita,
@@ -467,6 +471,39 @@ describe("Maps × Receita matching", () => {
     expect(queries).toContain('"santa tereza" Belo Horizonte MG');
     expect(queries).not.toContain("studio Belo Horizonte MG");
     expect(queries).not.toContain(`"studio" Belo Horizonte MG`);
+  });
+
+  it("searches CNAE trade + brand so Maps titles like Vidraçaria Modular match", () => {
+    const modular = {
+      nomeFantasia: "MODULAR SOLUCOES",
+      razaoSocial: "MODULAR SOLUCOES LTDA",
+      municipio: "Claudio",
+      uf: "MG",
+      cnaeDescricao: "Comércio varejista de vidros",
+    };
+    const queries = gmbSearchQueryList(modular);
+    expect(queries).toEqual(
+      expect.arrayContaining([
+        '"Vidraçarias modular" Claudio MG',
+        "Vidraçarias modular Claudio MG",
+      ]),
+    );
+  });
+
+  it("searches a Maps trading name even when it does not start with the brand token", () => {
+    const queries = gmbSearchQueryList({
+      nomeFantasia: "MODULAR SOLUCOES",
+      razaoSocial: "MODULAR SOLUCOES LTDA",
+      municipio: "Claudio",
+      uf: "MG",
+      extraNames: ["Vidraçaria Modular"],
+    });
+    expect(queries).toEqual(
+      expect.arrayContaining([
+        "Vidraçaria Modular Claudio MG",
+        '"Vidraçaria Modular" Claudio MG',
+      ]),
+    );
   });
 
   it("rejects a neighbor listing that only shares the street address", () => {
@@ -938,7 +975,7 @@ describe("gmbCardFromPlace", () => {
     expect(card.rating).toBe(4.2);
     expect(card.ratingCount).toBe(37);
     expect(card.category).toBe("Auto parts store");
-    expect(JSON.stringify(card)).not.toMatch(/8AM-6PM/);
+    expect(card.hours_label).toBe("Monday: 8AM-6PM");
     expect(JSON.stringify(card)).not.toMatch(/googleusercontent/);
   });
 
@@ -961,6 +998,68 @@ describe("gmbCardFromPlace", () => {
     });
     expect(card.filled).not.toContain("website");
     expect(card.filled).toContain("reviews");
+  });
+
+  it("counts an Instagram profile in the Maps globe without treating it as the company site", () => {
+    const place = {
+      title: "Vidraçaria Modular",
+      website: "https://www.instagram.com/vidracaria.modular/",
+      phoneNumber: "(37) 3381-1319",
+    };
+    const card = gmbCardFromPlace(place);
+    const assets = mapsWebsiteAssets(place.website);
+    expect(card.filled).toContain("website");
+    expect(websiteHostFromMapsPlace(place)).toBeNull();
+    expect(assets.websiteHost).toBeNull();
+    expect(assets.socials.instagram).toBe("https://instagram.com/vidracaria.modular");
+    expect(mapsWebsiteAssets("https://instagram.com").websiteUrl).toBeNull();
+  });
+
+  it("copies an Instagram profile from the Maps globe onto empty socials", () => {
+    const row = applyMapsWebsiteAssets(
+      {
+        cnpj: "07997131000134",
+        domain: null,
+        domain_status: "nao_encontrado",
+        http_status: null,
+        phones: [],
+        emails: [],
+        whatsapp: null,
+        socials: {},
+        tech: {
+          metaPixel: false,
+          gtm: false,
+          ga4: false,
+          googleAds: false,
+          tiktokPixel: false,
+          rdStation: false,
+          hotjar: false,
+          clarity: false,
+          chat: null,
+          plataforma: null,
+          https: false,
+          viewport: false,
+        },
+        freshness: {},
+        osm: null,
+        gmb: {
+          name: "Vidraçaria Modular",
+          url: "https://www.google.com/maps?cid=1",
+          matched: true,
+          status: "matched",
+          website_url: "https://instagram.com/vidracaria.modular",
+        },
+        dor_digital: 0,
+        contexto: [],
+        fonte: {},
+        midiaPaga: { label: "NÃO VERIFICADO", verificado_automaticamente: false },
+        collected_at: "2026-09-07T12:00:00.000Z",
+        expires_at: "2026-10-07T12:00:00.000Z",
+      },
+      "2026-09-07T12:00:00.000Z",
+    );
+    expect(row.socials.instagram).toBe("https://instagram.com/vidracaria.modular");
+    expect(row.fonte.instagram?.fonte).toBe("gmb");
   });
 
   it("counts hours from an object shape", () => {
@@ -1380,6 +1479,45 @@ describe("searchGmb", () => {
     expect(queries.some((q) => /"futura"/i.test(q))).toBe(true);
   });
 
+  it("matches Vidraçaria Modular from the CNAE trade query, not the legal name", async () => {
+    const pin = {
+      title: "Vidraçaria Modular",
+      address: "R. Rio São Francisco, 135 - Serra verde, Cláudio - MG",
+      phoneNumber: "(37) 9122-1383",
+      cid: "88",
+      rating: 4,
+      ratingCount: 2,
+      thumbnailUrl: "https://img.test/vidro.jpg",
+    };
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        let q = "";
+        try {
+          q = (JSON.parse(String(init?.body ?? "")) as { q?: string }).q ?? "";
+        } catch {
+          q = "";
+        }
+        const hit = /vidra/i.test(q) && /modular/i.test(q);
+        return new Response(JSON.stringify({ places: hit ? [pin] : [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }),
+    );
+    const listing = await searchGmb({
+      nomeFantasia: "MODULAR SOLUCOES",
+      razaoSocial: "MODULAR SOLUCOES LTDA",
+      municipio: "Claudio",
+      uf: "MG",
+      cnaeDescricao: "Comércio varejista de vidros",
+    });
+    expect(listing.matched).toBe(true);
+    expect(listing.name).toBe("Vidraçaria Modular");
+    expect(listing.cid).toBe("88");
+  });
+
   it("returns a Maps search URL when every query misses", async () => {
     mapsFetch([[], [], [], [], [], [], []]);
     const listing = await searchGmb({
@@ -1443,7 +1581,7 @@ describe("searchGmb", () => {
     expect(listing.card?.score).toBe(5);
   });
 
-  it("opens the Maps miss on the Receita phone instead of the quoted cadastro name", async () => {
+  it("opens the Maps miss on the quoted company name, not the Receita phone", async () => {
     mapsFetch([[], [], [], [], [], [], [], [], [], [], []]);
     const listing = await searchGmb({
       nomeFantasia: "STUDIO SANTA TEREZA",
@@ -1453,10 +1591,8 @@ describe("searchGmb", () => {
       phones: [{ ddd: "31", telefone: "25555527" }],
     });
     expect(listing.status).toBe("none");
-    expect(decodeURIComponent(listing.url)).toContain("3125555527");
-    expect(decodeURIComponent(listing.url)).not.toContain(
-      '"STUDIO SANTA TEREZA"',
-    );
+    expect(decodeURIComponent(listing.url)).toContain('"STUDIO SANTA TEREZA"');
+    expect(decodeURIComponent(listing.url)).not.toContain("3125555527");
   });
 
   it("hydrates a human-inserted cid into the public Maps card", async () => {
@@ -1494,6 +1630,7 @@ describe("searchGmb", () => {
     const hydrated = await hydrateMatchedGmbListing(inserted);
     expect(hydrated.card?.score).toBe(5);
     expect(hydrated.website_host).toBe("santaterezapilates.com.br");
+    expect(hydrated.website_url).toContain("santaterezapilates.com.br");
     expect(hydrated.phone_e164).toBe("+553125555527");
     expect(
       mergeMapsPlaceOntoListing(inserted, {
@@ -1503,6 +1640,229 @@ describe("searchGmb", () => {
         cid: "55",
       }).website_host,
     ).toBe("santaterezapilates.com.br");
+  });
+
+  it("rehydrates a pin that already has a card to pick up an Instagram globe", async () => {
+    process.env.SERPER_API_KEY = "test";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            places: [
+              {
+                title: "Vidraçaria Modular",
+                website: "https://www.instagram.com/vidracaria.modular/",
+                phoneNumber: "(37) 3381-1319",
+                address: "R. Rio São Francisco, 135 - Cláudio - MG",
+                cid: "7",
+                rating: 4,
+                ratingCount: 2,
+                openingHours: ["Fecha terça 07:30"],
+                thumbnailUrl: "https://img.test/m.jpg",
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+    const hydrated = await hydrateMatchedGmbListing(
+      {
+        name: "MODULAR SOLUCOES",
+        url: "https://www.google.com/maps?cid=7",
+        matched: true,
+        status: "matched",
+        cid: "7",
+        card: {
+          filled: ["phone"],
+          score: 1,
+          rating: null,
+          ratingCount: 0,
+          category: null,
+        },
+      },
+      undefined,
+      { force: true },
+    );
+    expect(hydrated.website_url).toBe("https://instagram.com/vidracaria.modular");
+    expect(hydrated.website_host).toBeNull();
+    expect(hydrated.card?.filled).toContain("website");
+    expect(hydrated.address).toMatch(/Rio São Francisco/);
+  });
+
+  it("retries the cid lookup once before giving up", async () => {
+    const queries = mapsFetch([
+      [],
+      [
+        {
+          title: "Usinagem Paulo Monteiro",
+          phoneNumber: "(31) 3351-6431",
+          website: "https://usipam.com.br",
+          cid: "1",
+          rating: 4.9,
+          ratingCount: 16,
+          thumbnailUrl: "https://img.test/u.jpg",
+        },
+      ],
+    ]);
+    const hydrated = await hydrateMatchedGmbListing({
+      name: "Usinagem Paulo Monteiro",
+      url: "https://www.google.com/maps?cid=1",
+      matched: true,
+      status: "matched",
+      cid: "1",
+    });
+    expect(queries).toEqual([
+      "https://www.google.com/maps?cid=1",
+      "https://www.google.com/maps?cid=1",
+    ]);
+    expect(hydrated.card?.filled).toEqual(
+      expect.arrayContaining(["phone", "website", "photo", "reviews"]),
+    );
+    expect(hydrated.card?.ratingCount).toBe(16);
+  });
+
+  it("falls back to the pin name when the cid lookup is empty", async () => {
+    const queries = mapsFetch([
+      [],
+      [],
+      [
+        {
+          title: "Usinagem Paulo Monteiro",
+          phoneNumber: "(31) 3351-6431",
+          website: "https://usipam.com.br",
+          cid: "9",
+          rating: 4.9,
+          ratingCount: 16,
+        },
+      ],
+    ]);
+    const hydrated = await hydrateMatchedGmbListing({
+      name: "Usinagem Paulo Monteiro",
+      url: "https://www.google.com/maps?cid=1",
+      matched: true,
+      status: "matched",
+      cid: "1",
+    });
+    expect(queries[2]).toBe("Usinagem Paulo Monteiro");
+    expect(hydrated.card?.filled).toContain("phone");
+    expect(hydrated.cid).toBe("9");
+  });
+
+  it("builds name + município + UF queries after the cid URL", () => {
+    expect(
+      gmbHydrationQueries(
+        {
+          name: "Usinagem Paulo Monteiro",
+          url: "https://www.google.com/maps?cid=1",
+          matched: true,
+          status: "matched",
+          cid: "1",
+        },
+        { municipio: "Contagem", uf: "MG" },
+      ),
+    ).toEqual([
+      "https://www.google.com/maps?cid=1",
+      '"Usinagem Paulo Monteiro" Contagem MG',
+      "Usinagem Paulo Monteiro Contagem MG",
+      "Usinagem Paulo Monteiro",
+    ]);
+  });
+
+  it("tries Receita fantasia + city before the Maps pin title", () => {
+    expect(
+      gmbHydrationQueries(
+        {
+          name: "Usinagem Paulo Monteiro",
+          url: "https://www.google.com/maps?cid=1",
+          matched: true,
+          status: "matched",
+          cid: "1",
+        },
+        {
+          municipio: "CONTAGEM",
+          uf: "MG",
+          extraNames: ["USIPAM", "USINAGEM PAULO MONTEIRO LTDA"],
+        },
+      )[1],
+    ).toBe('"USIPAM" CONTAGEM MG');
+  });
+
+  it("falls back to quoted name + city + UF when the cid lookup is empty", async () => {
+    const queries = mapsFetch([
+      [],
+      [],
+      [
+        {
+          title: "Usinagem Paulo Monteiro",
+          phoneNumber: "(31) 3351-6431",
+          website: "https://usipam.com.br",
+          cid: "9",
+          rating: 4.9,
+          ratingCount: 16,
+        },
+      ],
+    ]);
+    const hydrated = await hydrateMatchedGmbListing(
+      {
+        name: "Usinagem Paulo Monteiro",
+        url: "https://www.google.com/maps?cid=1",
+        matched: true,
+        status: "matched",
+        cid: "1",
+      },
+      { municipio: "Contagem", uf: "MG" },
+    );
+    expect(queries).toEqual([
+      "https://www.google.com/maps?cid=1",
+      "https://www.google.com/maps?cid=1",
+      '"Usinagem Paulo Monteiro" Contagem MG',
+    ]);
+    expect(hydrated.card?.filled).toContain("phone");
+    expect(hydrated.cid).toBe("9");
+  });
+
+  it("hydrates a matched pin that has a name but no cid", async () => {
+    expect(
+      gmbListingNeedsHydration({
+        name: "Usinagem Paulo Monteiro",
+        url: "https://maps.app.goo.gl/abc",
+        matched: true,
+        status: "matched",
+      }),
+    ).toBe(true);
+    mapsFetch([
+      [
+        {
+          title: "Usinagem Paulo Monteiro",
+          phoneNumber: "(31) 3351-6431",
+          cid: "77",
+        },
+      ],
+    ]);
+    const hydrated = await hydrateMatchedGmbListing({
+      name: "Usinagem Paulo Monteiro",
+      url: "https://maps.app.goo.gl/abc",
+      matched: true,
+      status: "matched",
+    });
+    expect(hydrated.card?.filled).toContain("phone");
+    expect(hydrated.cid).toBe("77");
+  });
+
+  it("keeps card null when Serper returns no place", async () => {
+    mapsFetch([[], [], []]);
+    const inserted = {
+      name: "Usinagem Paulo Monteiro",
+      url: "https://www.google.com/maps?cid=1",
+      matched: true,
+      status: "matched" as const,
+      cid: "1",
+    };
+    const hydrated = await hydrateMatchedGmbListing(inserted);
+    expect(hydrated.card).toBeUndefined();
+    expect(hydrated.cid).toBe("1");
   });
 });
 

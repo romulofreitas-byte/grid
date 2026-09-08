@@ -19,7 +19,9 @@ import {
   maxSpaScriptBytes,
 } from "@/lib/enrichment/extract";
 import {
+  applyMapsWebsiteAssets,
   domainFromGmb,
+  mapsWebsiteAssets,
   pickBestDomainHit,
   preferGmbListing,
   searchGmb,
@@ -312,6 +314,7 @@ function receitaGmbInput(
   company: Company,
   municipioNome: string,
   sharedVerdict?: SharedPhoneVerdict,
+  cnaeDescricao?: string | null,
 ): GmbSearchInput {
   return {
     nomeFantasia: est.nome_fantasia,
@@ -327,6 +330,7 @@ function receitaGmbInput(
     ],
     sharedVerdict,
     receitaEmail: est.email,
+    cnaeDescricao,
   };
 }
 
@@ -399,6 +403,7 @@ export type CascadeCompany = {
   sharedVerdict: SharedPhoneVerdict;
   scoreProfile: "b2c_local" | "b2b_industria";
   qsaNomes?: string[];
+  cnaeDescricao?: string | null;
 };
 
 export type EnrichOptions = {
@@ -819,6 +824,7 @@ async function enrichCompanyTracked(
     input.company,
     input.municipioNome,
     input.sharedVerdict,
+    input.cnaeDescricao,
   );
   gmbInput.extraNames = options.extraNames;
   const presencePlace = {
@@ -1224,6 +1230,19 @@ async function enrichCompanyTracked(
     }
   }
 
+  const mapsAssets = mapsWebsiteAssets(gmb?.website_url);
+  socialsFromSearch = {
+    instagram: socialsFromSearch.instagram ?? mapsAssets.socials.instagram,
+    facebook: socialsFromSearch.facebook ?? mapsAssets.socials.facebook,
+    linkedin: socialsFromSearch.linkedin ?? mapsAssets.socials.linkedin,
+    youtube: socialsFromSearch.youtube ?? mapsAssets.socials.youtube,
+  };
+  for (const key of ["instagram", "facebook", "linkedin", "youtube"] as const) {
+    if (mapsAssets.socials[key] && !fonte[key]) {
+      fonte[key] = { fonte: "gmb", coletado_em: collected_at };
+    }
+  }
+
   if (
     domain &&
     domain_status !== "confirmado" &&
@@ -1316,6 +1335,10 @@ async function enrichCompanyTracked(
 
   await emit(assemble("site", snapExtras()));
 
-  const row = await flushProgress(assemble("complete", snapExtras()));
+  const row = applyMapsWebsiteAssets(
+    await flushProgress(assemble("complete", snapExtras())),
+    collected_at,
+    input.scoreProfile,
+  );
   return { row, timings: { ...timings, serper: serperDensityFromRow(row) } };
 }

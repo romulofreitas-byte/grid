@@ -42,7 +42,7 @@ export type EnrichmentStage =
 
 export type GmbMatchBy = "title" | "address" | "city" | "phone" | "cep" | "website";
 
-/** Public Maps-card fields we can audit without storing address/review text. */
+/** Public Maps-card fields. Review text and photo URLs stay out. */
 export const GMB_CARD_CHECKS = [
   "phone",
   "website",
@@ -60,6 +60,8 @@ export type GmbCard = {
   rating?: number | null;
   ratingCount?: number | null;
   category?: string | null;
+  /** Compact hours from Serper — not the raw openingHours object. */
+  hours_label?: string | null;
 };
 
 export type GmbListingStatus = "matched" | "candidate" | "none";
@@ -90,8 +92,12 @@ export type GmbListing = {
    * `matched` → matched, else none (empty miss) or candidate if cid/url remain.
    */
   status?: GmbListingStatus;
-  /** Public website host from the Maps card. Never a maps.google host. */
+  /** Public website host from the Maps card. Never a maps.google or social host. */
   website_host?: string | null;
+  /** Maps globe URL — company site or social profile, never a Google host. */
+  website_url?: string | null;
+  /** Street line from Serper Maps. Not review text. */
+  address?: string | null;
   /** Phone cross-ref vs Receita. Only set when `matched`. */
   phone_vs_receita?: GmbPhoneVsReceita | null;
   /** Structured GBP vs thin Maps pin. Absent when there is no card. */

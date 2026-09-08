@@ -139,5 +139,48 @@ describe("buildGoldenMinute", () => {
       }),
     );
     expect(thin.facts.some((f) => f.id === "gmb-incompleto")).toBe(true);
+    expect(thin.facts.find((f) => f.id === "gmb-incompleto")?.phrase).toMatch(
+      /falta site, horário, foto e avaliações/,
+    );
+
+    const partial = buildGoldenMinute(
+      enrichment({
+        domain: "exemplo.com.br",
+        domain_status: "confirmado",
+        http_status: 200,
+        tech: { ...emptyTech, metaPixel: true, gtm: true },
+        socials: { instagram: "https://instagram.com/exemplo" },
+        whatsapp: "5511999999999",
+        gmb: {
+          name: "Exemplo",
+          url: "https://maps.google.com/?cid=1",
+          matched: true,
+          card: {
+            filled: ["phone", "website", "hours"],
+            score: 3,
+            rating: 4.2,
+            ratingCount: 10,
+            category: null,
+          },
+        },
+      }),
+      {
+        slug: "oticas",
+        nome: "ótica",
+        dorPrincipal: "dependem da calçada",
+        dorChip: "Calçada e médico",
+        perguntaConsideracao: "Como está isso aí?",
+        sazonalidade: null,
+        sazonalidadeChip: null,
+        janelaHorario: "de manhã",
+        pontePorSinal: {
+          "gmb-incompleto":
+            "o card no Google está incompleto — falta o básico que o cliente de ótica vê",
+        },
+      },
+    );
+    const partialFact = partial.facts.find((f) => f.id === "gmb-incompleto");
+    expect(partialFact?.phrase).toMatch(/falta foto e avaliações/);
+    expect(partialFact?.phrase).not.toMatch(/falta o básico/);
   });
 });

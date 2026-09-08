@@ -151,6 +151,16 @@ describe("leadMapsHref", () => {
     expect(decodeURIComponent(href)).toContain('"GRUPO ATOS"');
   });
 
+  it("ignores a stored phone-digit search and opens the quoted name instead", () => {
+    const href = leadMapsHref(query, {
+      matched: false,
+      status: "none",
+      url: "https://www.google.com/maps/search/?api=1&query=3791221383%20CLAUDIO%20MG",
+    });
+    expect(decodeURIComponent(href)).toContain('"GRUPO ATOS"');
+    expect(decodeURIComponent(href)).not.toMatch(/3791221383/);
+  });
+
   it("deep-links a city candidate even when identity did not match", () => {
     expect(
       leadMapsHref(query, {
@@ -170,6 +180,16 @@ describe("mapsListingHref", () => {
       url: "https://www.google.com/maps/search/?api=1&query=%22Armazem%22",
     });
     expect(href).toContain("google.com/maps/search");
+  });
+
+  it("does not open a phone-digit Maps search as the miss link", () => {
+    expect(
+      mapsListingHref({
+        matched: false,
+        status: "none",
+        url: "https://www.google.com/maps/search/?api=1&query=3791221383%20CLAUDIO%20MG",
+      }),
+    ).toBeNull();
   });
 
   it("stays empty when a miss has no URL yet", () => {

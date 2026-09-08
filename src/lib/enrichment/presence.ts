@@ -1,4 +1,5 @@
 import { extraDiscoveryAliases, hostLabelMatchesBrand } from "@/lib/enrichment/brand-aliases";
+import { gmbCnaeTradeLabels } from "@/lib/enrichment/maps-trade";
 import {
   brandTokenHits,
   distinctiveTokens,
@@ -13,8 +14,10 @@ import {
   mapsCidUrl,
   searchableCompanyName,
 } from "@/lib/enrichment/company-name";
+import { normalizeSocialUrl, WHATSAPP_HREF_RE } from "@/lib/enrichment/extract";
 import { parseInstagramHandle } from "@/lib/instagram";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
+import { computeDorDigital } from "@/lib/scoring";
 import {
   emailDomainCorrelatesWithBrand,
   isOwnDomainEmail,
@@ -26,7 +29,9 @@ import type {
   GmbListing,
   GmbMatchBy,
   GmbPhoneVsReceita,
+  LeadEnrichment,
   PresenceSocialCandidate,
+  ScoreProfile,
   SharedPhoneVerdict,
 } from "@/lib/types";
 import {
@@ -77,6 +82,15 @@ export type GmbSearchInput = {
   receitaEmail?: string | null;
   /** Extra trading names from CRM notes / deal title. */
   extraNames?: string[];
+  /** Receita CNAE text — Maps titles often use the trade, not the legal name. */
+  cnaeDescricao?: string | null;
+};
+
+/** City/UF (and extra Receita names) so a human pin can reuse auto Maps queries. */
+export type GmbHydrationPlace = {
+  municipio?: string | null;
+  uf?: string | null;
+  extraNames?: Array<string | null | undefined>;
 };
 
 export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
@@ -127,14 +141,7 @@ export function mapsPlaceListingUrl(place: MapsPlace): string {
 }
 
 export function websiteHostFromMapsPlace(place: MapsPlace): string | null {
-  if (!mapsWebsiteOnCard(place.website)) return null;
-  try {
-    return new URL(withHttp(place.website!))
-      .hostname.replace(/^www\./i, "")
-      .toLowerCase();
-  } catch {
-    return null;
-  }
+  return mapsWebsiteAssets(place.website).websiteHost;
 }
 
 function receitaHasPhone(
@@ -531,6 +538,8 @@ export function gmbListingFromPlace(
     card,
     status: opts.status,
     website_host: websiteHostFromMapsPlace(place),
+    website_url: mapsWebsiteAssets(place.website).websiteUrl,
+    address: compactMapsText(place.address, 160),
     phone_vs_receita: mapsPhoneVsReceita(place, input, opts.matched),
     kind: gmbCardKindFromScore(card.score),
     candidates_in_city: opts.candidates_in_city ?? null,
@@ -757,6 +766,31 @@ export function mapsStructuredQueries(input: GmbSearchInput): string[] {
   return out.slice(0, 4);
 }
 
+function gmbTradeBrandQueries(input: GmbSearchInput): string[] {
+  const brand =
+    gmbCompactSearchName(input) ??
+    presenceBrandTokens(
+      input.razaoSocial,
+      input.nomeFantasia,
+      input.municipio,
+    )[0];
+  if (!brand || brand.length < 4) return [];
+  const place = placeOfGmb(input);
+  const out: string[] = [];
+  const push = (q: string) => {
+    const trimmed = q.replace(/\s+/g, " ").trim();
+    if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+  };
+  for (const trade of gmbCnaeTradeLabels(input.cnaeDescricao)) {
+    if (sameSearchToken(trade, brand)) continue;
+    const phrase = `${trade} ${brand}`.replace(/\s+/g, " ").trim();
+    push(`${quoteSearchName(phrase)} ${place}`.trim());
+    push(`${sanitizeSearchName(phrase)} ${place}`.trim());
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 function pushCompactBrandQueries(
   push: (q: string) => void,
   input: GmbSearchInput,
@@ -784,12 +818,8 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     if (q && !list.includes(q)) list.push(q);
   };
   for (const q of mapsStructuredQueries(input)) push(q);
+  for (const q of gmbTradeBrandQueries(input)) push(q);
   const compact = gmbCompactSearchName(input);
-  const tokens = presenceBrandTokens(
-    input.razaoSocial,
-    input.nomeFantasia,
-    input.municipio,
-  );
   const emailBrand = gmbEmailBrandLabel(input);
   const shortFirst =
     Boolean(compact && compact.length >= COMPACT_FIRST_MIN_LEN) ||
@@ -824,14 +854,12 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
     razaoSocial: input.razaoSocial,
     extraNames: input.extraNames,
   })) {
-    const head = stripAccents(alias.split(/\s+/)[0] ?? "");
-    if (tokens.length > 0 && head && !tokens.includes(head)) continue;
     if (aliasExtra >= 2) break;
     const before = list.length;
     pushCompactBrandQueries(push, input, alias);
     if (list.length > before) aliasExtra += 1;
   }
-  return list.slice(0, 10);
+  return list.slice(0, 12);
 }
 
 function pushHit(
@@ -1312,26 +1340,187 @@ function mapsPlaceFromSerper(
   };
 }
 
-function mapsWebsiteOnCard(website: string | undefined): boolean {
-  if (!website?.trim()) return false;
+function compactMapsText(
+  raw: string | null | undefined,
+  max: number,
+): string | null {
+  const text = raw?.replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+export type MapsWebsiteAssets = {
+  websiteHost: string | null;
+  websiteUrl: string | null;
+  socials: {
+    instagram?: string;
+    facebook?: string;
+    linkedin?: string;
+    youtube?: string;
+  };
+  whatsapp?: string;
+};
+
+function mapsWebsiteHostName(website: string): string | null {
   try {
-    const host = new URL(withHttp(website))
+    return new URL(withHttp(website))
       .hostname.toLowerCase()
       .replace(/^www\./, "");
-    if (host.includes("google.com") || host.includes("maps.google")) {
-      return false;
+  } catch {
+    return null;
+  }
+}
+
+function whatsappFromMapsWebsite(website: string): string | null {
+  try {
+    const u = new URL(withHttp(website));
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    if (host === "wa.me") {
+      const phone = normalizePhoneBR(u.pathname.replace(/\D/g, ""));
+      if (phone && phone.tipo !== "especial") return phone.e164.replace("+", "");
+    }
+  } catch {
+    /* invalid URL */
+  }
+  WHATSAPP_HREF_RE.lastIndex = 0;
+  const match = WHATSAPP_HREF_RE.exec(website);
+  if (!match?.[1]) return null;
+  const phone = normalizePhoneBR(match[1]);
+  if (!phone || phone.tipo === "especial") return null;
+  return phone.e164.replace("+", "");
+}
+
+/** Globe field on the Maps card: company site, social profile, or wa.me. */
+export function mapsWebsiteAssets(
+  website?: string | null,
+): MapsWebsiteAssets {
+  const empty: MapsWebsiteAssets = {
+    websiteHost: null,
+    websiteUrl: null,
+    socials: {},
+  };
+  if (!website?.trim()) return empty;
+  const host = mapsWebsiteHostName(website);
+  if (!host) return empty;
+  if (host.includes("google.com") || host.includes("maps.google")) {
+    return empty;
+  }
+
+  if (host === "instagram.com" || host.endsWith(".instagram.com")) {
+    const handle = parseInstagramHandle(website);
+    if (!handle) return empty;
+    const url = `https://instagram.com/${handle}`;
+    return { websiteHost: null, websiteUrl: url, socials: { instagram: url } };
+  }
+
+  const social = normalizeSocialUrl(website);
+  if (social) {
+    const socialHost = mapsWebsiteHostName(social);
+    if (socialHost === "facebook.com" || socialHost === "fb.com") {
+      return { websiteHost: null, websiteUrl: social, socials: { facebook: social } };
+    }
+    if (socialHost === "linkedin.com" || socialHost?.endsWith(".linkedin.com")) {
+      return { websiteHost: null, websiteUrl: social, socials: { linkedin: social } };
     }
     if (
-      host === "whatsapp.com" ||
-      host.endsWith(".whatsapp.com") ||
-      host === "wa.me"
+      socialHost === "youtube.com" ||
+      socialHost === "youtu.be" ||
+      socialHost?.endsWith(".youtube.com")
     ) {
-      return false;
+      return { websiteHost: null, websiteUrl: social, socials: { youtube: social } };
     }
-    return !isDirectoryUrl(website);
-  } catch {
-    return false;
   }
+
+  const whatsapp = whatsappFromMapsWebsite(website);
+  if (whatsapp) {
+    return {
+      websiteHost: null,
+      websiteUrl: withHttp(website).split(/[?#]/)[0] ?? withHttp(website),
+      socials: {},
+      whatsapp,
+    };
+  }
+
+  if (
+    host === "whatsapp.com" ||
+    host.endsWith(".whatsapp.com") ||
+    host === "wa.me"
+  ) {
+    return empty;
+  }
+  if (isDirectoryUrl(website)) return empty;
+  return {
+    websiteHost: host,
+    websiteUrl: withHttp(website).split(/[?#]/)[0] ?? withHttp(website),
+    socials: {},
+  };
+}
+
+function mapsWebsiteOnCard(website: string | undefined): boolean {
+  return Boolean(mapsWebsiteAssets(website).websiteUrl);
+}
+
+export function applyMapsWebsiteAssets(
+  row: LeadEnrichment,
+  collectedAt: string,
+  scoreProfile?: ScoreProfile,
+): LeadEnrichment {
+  const assets = mapsWebsiteAssets(row.gmb?.website_url);
+  const socials = { ...row.socials };
+  const fonte = { ...row.fonte };
+  let changed = false;
+  for (const key of ["instagram", "facebook", "linkedin", "youtube"] as const) {
+    if (!socials[key] && assets.socials[key]) {
+      socials[key] = assets.socials[key];
+      fonte[key] = { fonte: "gmb", coletado_em: collectedAt };
+      changed = true;
+    }
+  }
+  let whatsapp = row.whatsapp;
+  if (!whatsapp && assets.whatsapp) {
+    whatsapp = assets.whatsapp;
+    fonte.whatsapp = { fonte: "gmb", coletado_em: collectedAt };
+    changed = true;
+  }
+  if (!changed) return row;
+  const next: LeadEnrichment = {
+    ...row,
+    socials,
+    whatsapp,
+    fonte,
+    presence_candidates: socials.instagram
+      ? row.presence_candidates
+        ? (() => {
+            const rest = { ...row.presence_candidates };
+            delete rest.instagram;
+            return Object.keys(rest).length > 0 ? rest : null;
+          })()
+        : null
+      : row.presence_candidates,
+  };
+  if (scoreProfile) {
+    next.dor_digital = computeDorDigital(scoreProfile, next);
+  }
+  return next;
+}
+
+function mapsHoursLabel(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return compactMapsText(value, 80);
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    return compactMapsText(parts.slice(0, 3).join(" · "), 80);
+  }
+  if (typeof value === "object") {
+    const parts = Object.values(value as Record<string, unknown>)
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return compactMapsText(parts.slice(0, 3).join(" · "), 80);
+  }
+  return null;
 }
 
 function mapsHoursOnCard(value: unknown): boolean {
@@ -1348,7 +1537,7 @@ function mapsHoursOnCard(value: unknown): boolean {
   return false;
 }
 
-/** Checklist of the public Maps card. Does not store address, hours text, or reviews. */
+/** Checklist of the public Maps card. No review text or photo URLs. */
 export function gmbCardFromPlace(place: MapsPlace): GmbCard {
   const filled: GmbCardCheck[] = [];
   if (place.phoneNumber?.trim()) filled.push("phone");
@@ -1366,6 +1555,7 @@ export function gmbCardFromPlace(place: MapsPlace): GmbCard {
     rating,
     ratingCount,
     category: place.category?.trim() || null,
+    hours_label: mapsHoursLabel(place.openingHours),
   };
 }
 
@@ -1659,15 +1849,6 @@ export function upgradeGmbWithWebsite(
 }
 
 function mapsSearchUrlFromInput(input: GmbSearchInput): string {
-  const place = placeOfGmb(input);
-  if (input.sharedVerdict !== "contabilidade") {
-    for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
-      const digits = mapsPhoneSearchDigits(phone);
-      if (!digits) continue;
-      const query = `${digits} ${place}`.trim();
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-    }
-  }
   return companyMapsSearchUrl({
     nomeFantasia: input.nomeFantasia,
     razaoSocial: input.razaoSocial,
@@ -1711,6 +1892,7 @@ export function mergeMapsPlaceOntoListing(
     listing.matched && listing.status === "matched"
       ? normalizePhoneBR(place.phoneNumber ?? "")
       : null;
+  const assets = mapsWebsiteAssets(place.website);
   return {
     ...listing,
     name: place.title || listing.name,
@@ -1718,7 +1900,9 @@ export function mergeMapsPlaceOntoListing(
     url: mapsPlaceListingUrl(place) || listing.url,
     card,
     kind: gmbCardKindFromScore(card.score),
-    website_host: websiteHostFromMapsPlace(place) ?? listing.website_host ?? null,
+    website_host: assets.websiteHost ?? listing.website_host ?? null,
+    website_url: assets.websiteUrl ?? listing.website_url ?? null,
+    address: compactMapsText(place.address, 160) ?? listing.address ?? null,
     phone_e164: mapsPhone?.e164 ?? listing.phone_e164 ?? null,
   };
 }
@@ -1726,17 +1910,88 @@ export function mergeMapsPlaceOntoListing(
 export function gmbListingNeedsHydration(
   listing: GmbListing | null | undefined,
 ): boolean {
-  if (!listing?.cid?.trim()) return false;
+  if (!listing) return false;
   if (gmbListingStatus(listing) !== "matched") return false;
-  return listing.card == null;
+  if (listing.card != null) return false;
+  return Boolean(
+    listing.cid?.trim() || listing.name?.trim() || listing.url?.trim(),
+  );
+}
+
+async function firstMapsPlace(query: string): Promise<MapsPlace | null> {
+  try {
+    const places = await serperMaps(query);
+    return places[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function uniqueHydrationNames(
+  listing: GmbListing,
+  geo?: GmbHydrationPlace | null,
+): string[] {
+  const names: string[] = [];
+  const add = (raw: string | null | undefined) => {
+    const name = raw?.replace(/\s+/g, " ").trim();
+    if (name && !names.includes(name)) names.push(name);
+  };
+  for (const extra of geo?.extraNames ?? []) add(extra);
+  add(listing.name);
+  return names;
+}
+
+/** Cid URL, then `"Name" Municipio UF` like auto qualify, then the bare name. */
+export function gmbHydrationQueries(
+  listing: GmbListing,
+  geo?: GmbHydrationPlace | null,
+): string[] {
+  const out: string[] = [];
+  const push = (q: string) => {
+    const query = q.replace(/\s+/g, " ").trim();
+    if (query && !out.includes(query)) out.push(query);
+  };
+  const cid = listing.cid?.trim();
+  if (cid) push(mapsCidUrl(cid));
+  const names = uniqueHydrationNames(listing, geo);
+  const municipio = geo?.municipio?.trim() || "";
+  const uf = geo?.uf?.trim() || "";
+  if (municipio || uf) {
+    for (const name of names) {
+      const input: GmbSearchInput = {
+        nomeFantasia: name,
+        razaoSocial: name,
+        municipio,
+        uf,
+      };
+      push(gmbSearchQuery(input, { quoted: true, includeStreet: false }));
+      push(gmbSearchQuery(input, { quoted: false, includeStreet: false }));
+    }
+  }
+  for (const name of names) push(name);
+  return out;
 }
 
 export async function hydrateMatchedGmbListing(
   listing: GmbListing,
+  geo?: GmbHydrationPlace | null,
+  opts?: { force?: boolean },
 ): Promise<GmbListing> {
-  if (!gmbListingNeedsHydration(listing)) return listing;
-  const places = await serperMaps(mapsCidUrl(listing.cid!));
-  const place = places[0];
+  if (gmbListingStatus(listing) !== "matched") return listing;
+  if (!opts?.force && !gmbListingNeedsHydration(listing)) return listing;
+  if (!listing.cid?.trim() && !listing.name?.trim() && !listing.url?.trim()) {
+    return listing;
+  }
+  const queries = gmbHydrationQueries(listing, geo);
+  let place: MapsPlace | null = null;
+  for (let i = 0; i < queries.length; i++) {
+    const query = queries[i];
+    place = await firstMapsPlace(query);
+    if (!place && i === 0 && listing.cid?.trim()) {
+      place = await firstMapsPlace(query);
+    }
+    if (place) break;
+  }
   if (!place) return listing;
   return mergeMapsPlaceOntoListing(listing, place);
 }
