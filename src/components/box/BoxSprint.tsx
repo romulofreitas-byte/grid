@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence } from "framer-motion";
+import { BoxDealModal } from "@/components/box/BoxDealModal";
 import { BoxFocusCard } from "@/components/box/BoxFocusCard";
 import { BoxRhythmStrip } from "@/components/box/BoxRhythmStrip";
 import { BoxTaskList } from "@/components/box/BoxTaskList";
 import type { BoxSlot } from "@/lib/box-estrutura";
 import {
   boxQueueShowsCrmIdle,
+  pickBoxQueueTab,
   type BoxQueueBucket,
   type BoxQueuePayload,
 } from "@/lib/box/queue";
@@ -35,18 +38,14 @@ const TABS: Array<{
   label: string;
   empty: string;
   alert?: boolean;
+  optional?: boolean;
 }> = [
   { id: "overdue", label: COPY.boxOverdue, empty: COPY.boxTabEmptyOverdue, alert: true },
-  { id: "followup", label: COPY.boxFollowup, empty: COPY.boxTabEmptyFollowup },
-  { id: "cold", label: COPY.boxCold, empty: COPY.boxTabEmptyCold },
+  { id: "today", label: COPY.boxToday, empty: COPY.boxTabEmptyToday },
+  { id: "tomorrow", label: COPY.boxTomorrow, empty: COPY.boxTabEmptyTomorrow },
+  { id: "week", label: COPY.boxThisWeek, empty: COPY.boxTabEmptyWeek },
+  { id: "later", label: COPY.boxLater, empty: COPY.boxTabEmptyLater, optional: true },
 ];
-
-function pickTab(queue: BoxQueuePayload): BoxQueueBucket {
-  if (queue.counts.overdue > 0) return "overdue";
-  if (queue.counts.followup > 0) return "followup";
-  if (queue.counts.cold > 0) return "cold";
-  return "overdue";
-}
 
 export function BoxSprint({
   queue: initialQueue,
@@ -91,15 +90,31 @@ export function BoxSprint({
       originateCallJobsPollInterval(q.state.data?.jobs ?? []),
   });
   const hadOriginateJob = useRef(false);
-  const [tab, setTab] = useState<BoxQueueBucket>(() => pickTab(initialQueue));
+  const [tab, setTab] = useState<BoxQueueBucket>(() =>
+    pickBoxQueueTab(initialQueue.counts),
+  );
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [openDeal, setOpenDeal] = useState<{
+    dealId: string;
+    pipelineId: string;
+    pipelineNome: string;
+  } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const queue =
     snapshotRef.current === initialQueue
       ? (queueQuery.data ?? initialQueue)
       : initialQueue;
-  const rows = queue[tab];
-  const tabMeta = TABS.find((item) => item.id === tab) ?? TABS[0]!;
+  const resolvedTab =
+    queue.counts[tab] === 0 && queue.counts.total > 0
+      ? pickBoxQueueTab(queue.counts)
+      : tab;
+  if (resolvedTab !== tab) setTab(resolvedTab);
+  const rows = queue[resolvedTab];
+  const visibleTabs = TABS.filter(
+    (item) => !item.optional || queue.counts[item.id] > 0,
+  );
+  const tabMeta =
+    visibleTabs.find((item) => item.id === resolvedTab) ?? TABS[0]!;
   const focus = rows.find((row) => row.id === focusId) ?? rows[0] ?? null;
   const rest = rows.filter((row) => row.id !== focus?.id);
 
@@ -114,6 +129,10 @@ export function BoxSprint({
     hadOriginateJob.current = false;
     void invalidateLiveStats(qc);
   }, [jobsQuery.data, qc]);
+
+  useEffect(() => {
+    void import("@/components/crm/CrmDealModal");
+  }, []);
 
   async function reloadAfter(id: string) {
     setBusyId(id);
@@ -133,6 +152,7 @@ export function BoxSprint({
   }
 
   return (
+    <>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
       {gap ? (
         <div className="flex shrink-0 items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5">
@@ -157,9 +177,9 @@ export function BoxSprint({
             {COPY.boxNow}
           </p>
           <div className="flex min-w-0 flex-1 gap-1 md:flex-none md:justify-end">
-            {TABS.map((item) => {
+            {visibleTabs.map((item) => {
               const count = queue.counts[item.id];
-              const active = tab === item.id;
+              const active = resolvedTab === item.id;
               return (
                 <button
                   key={item.id}
@@ -196,6 +216,13 @@ export function BoxSprint({
                 item={focus}
                 connections={connections}
                 busy={busyId === focus.id}
+                onOpenDeal={() =>
+                  setOpenDeal({
+                    dealId: focus.dealId,
+                    pipelineId: focus.pipelineId,
+                    pipelineNome: focus.pipelineNome,
+                  })
+                }
                 onCalled={() => {
                   void invalidateLiveStats(qc);
                 }}
@@ -226,6 +253,23 @@ export function BoxSprint({
         </div>
       </div>
     </div>
+    <AnimatePresence>
+      {openDeal ? (
+        <BoxDealModal
+          key={openDeal.dealId}
+          dealId={openDeal.dealId}
+          pipelineId={openDeal.pipelineId}
+          pipelineNome={openDeal.pipelineNome}
+          onClose={() => setOpenDeal(null)}
+          onChanged={() => {
+            void invalidateLiveStats(qc);
+            void queueQuery.refetch();
+            router.refresh();
+          }}
+        />
+      ) : null}
+    </AnimatePresence>
+    </>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { BoxScheduleForm } from "@/components/box/BoxScheduleForm";
 import {
@@ -11,13 +11,18 @@ import {
 } from "@/components/box/dial";
 import { CallButton } from "@/components/CallButton";
 import { CrmTelemetryPip } from "@/components/crm/CrmTelemetryPip";
+import { leadHref, leadHrefForCnpj } from "@/lib/back";
 import {
   defaultNextDueLocal,
   formatPlannedActivity,
   toDatetimeLocal,
 } from "@/lib/crm/activity";
 import { crmFetch } from "@/lib/crm/client";
-import type { BoxQueueItem, BoxQueueKind } from "@/lib/box/queue";
+import {
+  isColdProspectingStage,
+  type BoxQueueItem,
+  type BoxQueueKind,
+} from "@/lib/box/queue";
 import { COPY } from "@/lib/copy";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
@@ -29,16 +34,21 @@ const textLink =
 const waCall =
   "inline-flex h-7 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.04] px-2.5 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:bg-white/[0.08] hover:text-podium-white";
 
+const actionBtn =
+  "h-11 w-full justify-center text-sm md:h-7 md:w-auto md:text-[11px]";
+
 export function BoxFocusCard({
   item,
   connections,
   busy,
+  onOpenDeal,
   onCalled,
   onDone,
 }: {
   item: BoxQueueItem;
   connections: IntegrationConnectionPublic[];
   busy: boolean;
+  onOpenDeal: () => void;
   onCalled?: () => void;
   onDone: () => Promise<void>;
 }) {
@@ -55,6 +65,16 @@ export function BoxFocusCard({
   });
   const locked = busy || submitting;
   const phoneLabel = tel ? formatBoxPhoneDisplay(tel.phone) : COPY.boxNoPhone;
+  const prospectChip = isColdProspectingStage(item.canonicalKey)
+    ? COPY.boxColdChip
+    : COPY.boxFollowupChip;
+  const leadDigits = item.cnpj?.replace(/\D/g, "") ?? "";
+  const qualifyHref =
+    leadDigits.length === 14
+      ? item.searchId
+        ? leadHref(leadDigits, item.searchId, "box")
+        : leadHrefForCnpj(leadDigits)
+      : null;
 
   async function completeThenSchedule(kind: BoxQueueKind, dueAt: string) {
     setSubmitting(true);
@@ -94,61 +114,84 @@ export function BoxFocusCard({
     }
   }
 
+  const callAction =
+    item.kind === "whatsapp" ? (
+      waHref ? (
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(waCall, actionBtn)}
+        >
+          <MessageCircle className="h-4 w-4 md:h-3.5 md:w-3.5" />
+          WhatsApp
+        </a>
+      ) : null
+    ) : tel || callConnection ? (
+      <CallButton
+        telHref={tel?.href ?? null}
+        connection={callConnection}
+        cnpj={item.cnpj}
+        searchId={item.searchId}
+        to={tel?.phone}
+        label="Ligar"
+        titleHint="Ligar"
+        companyName={item.companyName}
+        phoneLabel={tel ? formatBoxPhoneDisplay(tel.phone) : null}
+        className={actionBtn}
+        onCalled={onCalled}
+      />
+    ) : null;
+
   return (
     <article className="shrink-0 border-b border-white/10 px-4 py-3">
       <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <CrmTelemetryPip signal={item.signal} />
-            <p className="truncate text-base font-medium tracking-tight text-podium-white md:text-sm">
+            <button
+              type="button"
+              onClick={onOpenDeal}
+              title="Abrir ficha"
+              className="min-w-0 truncate text-left text-base font-medium tracking-tight text-podium-white hover:text-podium-yellow md:text-sm"
+            >
               {item.companyName}
-            </p>
+            </button>
           </div>
           <p className="mt-1 truncate font-mono text-sm text-podium-gray md:text-[12px]">
             {phoneLabel}
           </p>
-          <p className="mt-0.5 truncate text-xs text-podium-muted md:text-[11px]">
-            {[
-              item.contactName,
-              item.stageNome,
-              planned,
-              item.pipelineNome,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+          <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-podium-muted md:text-[11px]">
+            {[item.contactName, item.stageNome].filter(Boolean).join(" · ")}
+            {item.contactName || item.stageNome ? (
+              <span aria-hidden="true">·</span>
+            ) : null}
+            <span className="rounded-sm bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-podium-gray">
+              {prospectChip}
+            </span>
           </p>
+          {item.lastNote ? (
+            <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-podium-muted">
+              {item.lastNote}
+            </p>
+          ) : null}
         </div>
         <div className="flex w-full shrink-0 flex-col gap-2 md:w-auto md:items-end">
-          {item.kind === "whatsapp" ? (
-            waHref ? (
-              <a
-                href={waHref}
-                target="_blank"
-                rel="noopener noreferrer"
+          <div className="flex w-full items-stretch gap-2 md:w-auto md:justify-end">
+            {planned ? (
+              <span
                 className={cn(
-                  waCall,
-                  "h-11 w-full justify-center text-sm md:h-7 md:w-auto md:text-[11px]",
+                  "inline-flex h-11 shrink-0 items-center rounded-md px-2.5 text-sm font-medium md:h-7 md:text-[11px]",
+                  item.signal === "overdue"
+                    ? "bg-podium-alert/10 text-podium-alert"
+                    : "border border-white/15 bg-white/[0.04] text-podium-gray",
                 )}
               >
-                <MessageCircle className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                WhatsApp
-              </a>
-            ) : null
-          ) : tel || callConnection ? (
-            <CallButton
-              telHref={tel?.href ?? null}
-              connection={callConnection}
-              cnpj={item.cnpj}
-              searchId={item.searchId}
-              to={tel?.phone}
-              label="Ligar"
-              titleHint="Ligar"
-              companyName={item.companyName}
-              phoneLabel={tel ? formatBoxPhoneDisplay(tel.phone) : null}
-              className="h-11 w-full text-sm md:h-7 md:w-auto md:text-[11px]"
-              onCalled={onCalled}
-            />
-          ) : null}
+                {planned}
+              </span>
+            ) : null}
+            {callAction}
+          </div>
           <div className="flex flex-wrap items-center gap-3 md:justify-end md:gap-2">
             <button
               type="button"
@@ -172,12 +215,16 @@ export function BoxFocusCard({
             >
               {COPY.boxSnooze}
             </button>
-            <Link
-              href={`/crm?deal=${item.dealId}&pipeline=${item.pipelineId}`}
-              className={textLink}
-            >
-              {COPY.boxOpenCrm}
-            </Link>
+            {qualifyHref ? (
+              <Link
+                href={qualifyHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={textLink}
+              >
+                {COPY.boxQualify}
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

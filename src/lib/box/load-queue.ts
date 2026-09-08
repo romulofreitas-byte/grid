@@ -2,6 +2,7 @@ import { getBalance } from "@/lib/billing/service";
 import {
   boxQueueCounts,
   buildBoxQueue,
+  emptyBoxQueue,
   isBoxQueueKind,
   type BoxQueue,
   type BoxQueuePayload,
@@ -27,7 +28,7 @@ export class BoxQueueError extends Error {
 }
 
 function emptyQueue(): BoxQueue {
-  return { overdue: [], followup: [], cold: [] };
+  return emptyBoxQueue();
 }
 
 function asIso(value: unknown): string {
@@ -101,8 +102,10 @@ function toPayload(
     crmAllowed: flags.crmAllowed,
     trialExpired: flags.trialExpired,
     overdue: queue.overdue,
-    followup: queue.followup,
-    cold: queue.cold,
+    today: queue.today,
+    tomorrow: queue.tomorrow,
+    week: queue.week,
+    later: queue.later,
     counts: boxQueueCounts(queue),
     rhythm,
     openDealCount: idle.openDealCount,
@@ -129,10 +132,12 @@ async function loadSourcesPg(userId: string): Promise<BoxQueueSource[]> {
     stage_nome: string;
     canonical_key: string | null;
     pipeline_nome: string;
+    notes: string | null;
   }>(
     `select a.id as activity_id, a.kind, a.due_at, a.status,
             d.id as deal_id, d.company_name, d.contact_name, d.cnpj,
             d.phones, d.people, d.secretaries, d.outcome, d.meta, d.pipeline_id,
+            d.notes,
             s.nome as stage_nome, s.canonical_key,
             p.nome as pipeline_nome
        from crm_activities a
@@ -158,6 +163,7 @@ async function loadSourcesPg(userId: string): Promise<BoxQueueSource[]> {
     phones: phonesFromDeal(row),
     stageNome: String(row.stage_nome),
     canonicalKey: isCrmStageKey(row.canonical_key) ? row.canonical_key : null,
+    lastNote: String(row.notes ?? ""),
     outcome: mapOutcome(row.outcome),
     kind: String(row.kind),
     dueAt: asIso(row.due_at),
@@ -201,6 +207,7 @@ function loadSourcesMock(userId: string): BoxQueueSource[] {
           phones: phonesFromDeal(deal),
           stageNome: stage?.nome ?? "Etapa",
           canonicalKey: stage?.canonical_key ?? null,
+          lastNote: deal.notes,
           outcome: deal.outcome,
           kind: activity.kind,
           dueAt: activity.due_at,

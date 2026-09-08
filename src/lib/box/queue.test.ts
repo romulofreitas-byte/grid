@@ -8,11 +8,13 @@ import {
   flattenBoxQueue,
   isBoxQueueKind,
   isColdProspectingStage,
+  pickBoxQueueTab,
   type BoxQueueItem,
   type BoxQueueSource,
 } from "./queue";
 
-const now = new Date("2026-09-05T15:00:00-03:00");
+/** Tuesday 8 Sep 2026, 15:00 São Paulo. */
+const now = new Date("2026-09-08T15:00:00-03:00");
 
 function source(
   patch: Partial<BoxQueueSource> & Pick<BoxQueueSource, "activityId" | "companyName">,
@@ -27,6 +29,7 @@ function source(
     phones: ["34999990000"],
     stageNome: "Entrada",
     canonicalKey: "entrada",
+    lastNote: "",
     outcome: "open",
     kind: "ligar",
     dueAt: now.toISOString(),
@@ -50,6 +53,7 @@ function item(
     phones: ["34999990000"],
     stageNome: "Entrada",
     canonicalKey: "entrada",
+    lastNote: null,
     kind: "ligar",
     ...patch,
   };
@@ -76,70 +80,58 @@ describe("isColdProspectingStage", () => {
 });
 
 describe("boxQueueBucket", () => {
-  it("puts anything past due in overdue, including cold stages", () => {
+  it("puts anything past due in overdue, including today's already-passed time", () => {
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-01T12:00:00-03:00",
-          status: "open",
-          canonicalKey: "entrada",
-        },
+        { dueAt: "2026-09-01T12:00:00-03:00", status: "open" },
         now,
       ),
     ).toBe("overdue");
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-01T12:00:00-03:00",
-          status: "open",
-          canonicalKey: "followup_decisor",
-        },
+        { dueAt: "2026-09-08T12:00:00-03:00", status: "open" },
         now,
       ),
     ).toBe("overdue");
   });
 
-  it("puts later first-mile outreach in cold and the rest in follow-up", () => {
+  it("splits remaining work by São Paulo day: today, tomorrow, rest of week, later", () => {
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-05T18:00:00-03:00",
-          status: "open",
-          canonicalKey: "tentando_contato",
-        },
+        { dueAt: "2026-09-08T18:00:00-03:00", status: "open" },
         now,
       ),
-    ).toBe("cold");
+    ).toBe("today");
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-06T10:00:00-03:00",
-          status: "open",
-          canonicalKey: "contato_respondido",
-        },
+        { dueAt: "2026-09-09T10:00:00-03:00", status: "open" },
         now,
       ),
-    ).toBe("followup");
+    ).toBe("tomorrow");
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-05T18:00:00-03:00",
-          status: "open",
-          canonicalKey: null,
-        },
+        { dueAt: "2026-09-11T10:00:00-03:00", status: "open" },
         now,
       ),
-    ).toBe("followup");
+    ).toBe("week");
+    expect(
+      boxQueueBucket(
+        { dueAt: "2026-09-13T10:00:00-03:00", status: "open" },
+        now,
+      ),
+    ).toBe("week");
+    expect(
+      boxQueueBucket(
+        { dueAt: "2026-09-14T10:00:00-03:00", status: "open" },
+        now,
+      ),
+    ).toBe("later");
   });
 
   it("ignores done activities", () => {
     expect(
       boxQueueBucket(
-        {
-          dueAt: "2026-09-01T12:00:00-03:00",
-          status: "done",
-          canonicalKey: "entrada",
-        },
+        { dueAt: "2026-09-01T12:00:00-03:00", status: "done" },
         now,
       ),
     ).toBeNull();
@@ -181,52 +173,60 @@ describe("buildBoxQueue", () => {
     expect(queue.overdue[0]?.kind).toBe("whatsapp");
   });
 
-  it("orders overdue, then follow-ups, then cold — not by niche", () => {
+  it("keeps lastNote when the deal has notes, otherwise null", () => {
     const queue = buildBoxQueue(
       [
         source({
-          activityId: "cold-b",
-          companyName: "Fria B",
-          pipelineNome: "Advogados",
-          pipelineId: "pipe-b",
-          canonicalKey: "entrada",
-          dueAt: "2026-09-06T11:00:00-03:00",
+          activityId: "with-note",
+          companyName: "Com nota",
+          lastNote: "  Falou com a secretária.  ",
+          dueAt: "2026-09-08T18:00:00-03:00",
         }),
         source({
-          activityId: "follow-a",
-          companyName: "Follow A",
-          pipelineNome: "Clínicas",
-          canonicalKey: "followup_decisor",
-          stageNome: "Follow-up",
-          dueAt: "2026-09-05T16:00:00-03:00",
+          activityId: "blank",
+          companyName: "Sem nota",
+          lastNote: "   ",
+          dueAt: "2026-09-08T19:00:00-03:00",
+        }),
+      ],
+      now,
+    );
+    expect(queue.today[0]?.lastNote).toBe("Falou com a secretária.");
+    expect(queue.today[1]?.lastNote).toBeNull();
+  });
+
+  it("orders overdue, today, tomorrow, this week, then later", () => {
+    const queue = buildBoxQueue(
+      [
+        source({
+          activityId: "later",
+          companyName: "Depois",
+          dueAt: "2026-09-15T11:00:00-03:00",
+        }),
+        source({
+          activityId: "week",
+          companyName: "Semana",
+          dueAt: "2026-09-11T11:00:00-03:00",
+        }),
+        source({
+          activityId: "today",
+          companyName: "Hoje",
+          dueAt: "2026-09-08T18:00:00-03:00",
         }),
         source({
           activityId: "over-old",
           companyName: "Atraso velho",
-          pipelineNome: "Advogados",
-          pipelineId: "pipe-b",
-          canonicalKey: "entrada",
           dueAt: "2026-08-20T10:00:00-03:00",
         }),
         source({
           activityId: "over-new",
           companyName: "Atraso novo",
-          canonicalKey: "contato_respondido",
           dueAt: "2026-09-04T10:00:00-03:00",
         }),
         source({
-          activityId: "follow-later",
-          companyName: "Follow depois",
-          canonicalKey: "proposta_apresentada",
-          stageNome: "Proposta",
-          dueAt: "2026-09-08T10:00:00-03:00",
-        }),
-        source({
-          activityId: "cold-today",
-          companyName: "Fria hoje",
-          canonicalKey: "tentando_contato",
-          stageNome: "Tentando",
-          dueAt: "2026-09-05T18:00:00-03:00",
+          activityId: "tomorrow",
+          companyName: "Amanhã",
+          dueAt: "2026-09-09T10:00:00-03:00",
         }),
       ],
       now,
@@ -235,48 +235,84 @@ describe("buildBoxQueue", () => {
     expect(flattenBoxQueue(queue).map((row) => row.id)).toEqual([
       "over-old",
       "over-new",
-      "follow-a",
-      "follow-later",
-      "cold-today",
-      "cold-b",
+      "today",
+      "tomorrow",
+      "week",
+      "later",
     ]);
     expect(boxQueueCounts(queue)).toEqual({
       overdue: 2,
-      followup: 2,
-      cold: 2,
+      today: 1,
+      tomorrow: 1,
+      week: 1,
+      later: 1,
       total: 6,
     });
   });
 
-  it("sorts today before later days inside a bucket", () => {
+  it("sorts earlier due times first inside a bucket", () => {
     const later = item({
       id: "later",
-      bucket: "followup",
+      bucket: "week",
       signal: "scheduled",
-      dueAt: "2026-09-08T08:00:00.000Z",
+      dueAt: "2026-09-12T08:00:00.000Z",
     });
-    const today = item({
-      id: "today",
-      bucket: "followup",
-      signal: "today",
-      dueAt: "2026-09-05T21:00:00.000Z",
+    const sooner = item({
+      id: "sooner",
+      bucket: "week",
+      signal: "scheduled",
+      dueAt: "2026-09-11T08:00:00.000Z",
     });
-    expect(compareBoxQueueItems(today, later)).toBeLessThan(0);
+    expect(compareBoxQueueItems(sooner, later)).toBeLessThan(0);
+  });
+});
+
+describe("pickBoxQueueTab", () => {
+  it("picks the first non-empty time bucket", () => {
+    expect(
+      pickBoxQueueTab({
+        overdue: 0,
+        today: 2,
+        tomorrow: 1,
+        week: 0,
+        later: 0,
+        total: 3,
+      }),
+    ).toBe("today");
+    expect(
+      pickBoxQueueTab({
+        overdue: 1,
+        today: 2,
+        tomorrow: 0,
+        week: 0,
+        later: 0,
+        total: 3,
+      }),
+    ).toBe("overdue");
   });
 });
 
 describe("boxQueueShowsCrmIdle", () => {
+  const emptyCounts = {
+    overdue: 0,
+    today: 0,
+    tomorrow: 0,
+    week: 0,
+    later: 0,
+    total: 0,
+  };
+
   it("is true when the queue is empty but the CRM has open work", () => {
     expect(
       boxQueueShowsCrmIdle({
-        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        counts: emptyCounts,
         openDealCount: 2,
         openOtherActivityCount: 0,
       }),
     ).toBe(true);
     expect(
       boxQueueShowsCrmIdle({
-        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        counts: emptyCounts,
         openDealCount: 0,
         openOtherActivityCount: 1,
       }),
@@ -286,14 +322,14 @@ describe("boxQueueShowsCrmIdle", () => {
   it("is false when the box already has a queue or the CRM is empty", () => {
     expect(
       boxQueueShowsCrmIdle({
-        counts: { overdue: 1, followup: 0, cold: 0, total: 1 },
+        counts: { ...emptyCounts, overdue: 1, total: 1 },
         openDealCount: 3,
         openOtherActivityCount: 0,
       }),
     ).toBe(false);
     expect(
       boxQueueShowsCrmIdle({
-        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        counts: emptyCounts,
         openDealCount: 0,
         openOtherActivityCount: 0,
       }),

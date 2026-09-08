@@ -133,7 +133,13 @@ describe("COPY automações", () => {
     expect(COPY.automacoesLastCreated).toBe("Entrou");
     expect(COPY.automacoesLastSkipped).toBe("Já no quadro");
     expect(COPY.automacoesLastError).toBe("Recusado");
-    expect(COPY.automacoesEventsHint.toLowerCase()).toMatch(/token/);
+    expect(COPY.automacoesEventsHint.toLowerCase()).toMatch(/envio/);
+    expect(COPY.automacoesOriginSite).toMatch(/link|embed/i);
+    expect(COPY.automacoesOriginMeta).toMatch(/meta/i);
+    expect(COPY.automacoesOriginWebhook).toMatch(/origem/i);
+    expect(COPY.automacoesHint.toLowerCase()).not.toMatch(/make/);
+    expect(COPY.automacoesPayloadLead.toLowerCase()).not.toMatch(/make/);
+    expect(COPY.lockedAutomationsHighlight2.toLowerCase()).not.toMatch(/make/);
   });
 });
 
@@ -193,6 +199,13 @@ describe("COPY crm", () => {
     expect(COPY.boxQueue).toMatch(/fila/i);
     expect(COPY.boxOverdue).toMatch(/atrasado/i);
     expect(COPY.boxOverdueChip).toBe("Atrasado");
+    expect(COPY.boxToday).toBe("Hoje");
+    expect(COPY.boxTomorrow).toBe("Amanhã");
+    expect(COPY.boxThisWeek).toMatch(/semana/i);
+    expect(COPY.boxLater).toBe("Depois");
+    expect(COPY.boxFollowupChip).toBe("Follow-up");
+    expect(COPY.boxColdChip).toBe("Fria");
+    expect(COPY.boxQualify).toBe("Qualificação");
     expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
     expect(COPY.painelOpenBox).toMatch(/box/i);
     expect(COPY.crmOpening).toMatch(/CRM/);

@@ -4,6 +4,18 @@ import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { dealPatchSchema } from "@/lib/crm/schema";
 
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ dealId: string }> },
+) {
+  const gated = await guardCrmApi(req, "read");
+  if (isGuardReject(gated)) return gated;
+  const { dealId } = await ctx.params;
+  const deal = await getRepo().getCrmDeal(gated.userId, dealId);
+  if (!deal) return jsonError("Negócio não encontrado.", 404);
+  return NextResponse.json({ deal });
+}
+
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ dealId: string }> },

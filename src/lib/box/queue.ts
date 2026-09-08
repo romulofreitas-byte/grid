@@ -1,3 +1,4 @@
+import { saoPauloDay } from "@/lib/call-stats";
 import { activitySignal } from "@/lib/crm/activity";
 import { firstDialablePhone, uniquePhones } from "@/lib/crm/dial";
 import type { ActivitySignal, CrmActivityKind, CrmOutcome } from "@/lib/crm/types";
@@ -6,7 +7,13 @@ import type { BoxRhythm } from "@/lib/box/rhythm";
 export const BOX_QUEUE_KINDS = ["ligar", "whatsapp"] as const;
 export type BoxQueueKind = (typeof BOX_QUEUE_KINDS)[number];
 
-export const BOX_QUEUE_BUCKETS = ["overdue", "followup", "cold"] as const;
+export const BOX_QUEUE_BUCKETS = [
+  "overdue",
+  "today",
+  "tomorrow",
+  "week",
+  "later",
+] as const;
 export type BoxQueueBucket = (typeof BOX_QUEUE_BUCKETS)[number];
 
 export type BoxQueueSource = {
@@ -21,6 +28,7 @@ export type BoxQueueSource = {
   phones: string[];
   stageNome: string;
   canonicalKey: string | null;
+  lastNote: string;
   outcome: CrmOutcome;
   kind: string;
   dueAt: string;
@@ -40,31 +48,22 @@ export type BoxQueueItem = {
   phones: string[];
   stageNome: string;
   canonicalKey: string | null;
+  lastNote: string | null;
   kind: BoxQueueKind;
   dueAt: string;
   bucket: BoxQueueBucket;
   signal: Exclude<ActivitySignal, "none">;
 };
 
-export type BoxQueue = {
-  overdue: BoxQueueItem[];
-  followup: BoxQueueItem[];
-  cold: BoxQueueItem[];
-};
+export type BoxQueue = Record<BoxQueueBucket, BoxQueueItem[]>;
 
-export type BoxQueueCounts = {
-  overdue: number;
-  followup: number;
-  cold: number;
+export type BoxQueueCounts = Record<BoxQueueBucket, number> & {
   total: number;
 };
 
-export type BoxQueuePayload = {
+export type BoxQueuePayload = BoxQueue & {
   crmAllowed: boolean;
   trialExpired: boolean;
-  overdue: BoxQueueItem[];
-  followup: BoxQueueItem[];
-  cold: BoxQueueItem[];
   counts: BoxQueueCounts;
   rhythm: BoxRhythm;
   openDealCount: number;
@@ -73,8 +72,10 @@ export type BoxQueuePayload = {
 
 const BUCKET_RANK: Record<BoxQueueBucket, number> = {
   overdue: 0,
-  followup: 1,
-  cold: 2,
+  today: 1,
+  tomorrow: 2,
+  week: 3,
+  later: 4,
 };
 
 const SIGNAL_RANK: Record<Exclude<ActivitySignal, "none">, number> = {
@@ -94,8 +95,29 @@ export function isColdProspectingStage(
   return canonicalKey === "entrada" || canonicalKey === "tentando_contato";
 }
 
+function shiftSpDay(day: string, delta: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const utc = Date.UTC(y!, m! - 1, d! + delta, 15);
+  return saoPauloDay(new Date(utc));
+}
+
+/** 0 = Monday … 6 = Sunday, for a `YYYY-MM-DD` São Paulo civil date. */
+function mondayOffset(day: string): number {
+  const [y, m, d] = day.split("-").map(Number);
+  const sun0 = new Date(Date.UTC(y!, m! - 1, d!, 15)).getUTCDay();
+  return sun0 === 0 ? 6 : sun0 - 1;
+}
+
+function sundayOfWeek(day: string): string {
+  return shiftSpDay(day, 6 - mondayOffset(day));
+}
+
+export function emptyBoxQueue(): BoxQueue {
+  return { overdue: [], today: [], tomorrow: [], week: [], later: [] };
+}
+
 export function boxQueueBucket(
-  source: Pick<BoxQueueSource, "dueAt" | "status" | "canonicalKey">,
+  source: Pick<BoxQueueSource, "dueAt" | "status">,
   now: Date = new Date(),
 ): BoxQueueBucket | null {
   const signal = activitySignal(
@@ -104,8 +126,13 @@ export function boxQueueBucket(
   );
   if (signal === "none") return null;
   if (signal === "overdue") return "overdue";
-  if (isColdProspectingStage(source.canonicalKey)) return "cold";
-  return "followup";
+  const dueDay = saoPauloDay(source.dueAt);
+  const today = saoPauloDay(now);
+  if (dueDay === today) return "today";
+  const tomorrow = shiftSpDay(today, 1);
+  if (dueDay === tomorrow) return "tomorrow";
+  if (dueDay <= sundayOfWeek(today)) return "week";
+  return "later";
 }
 
 export function compareBoxQueueItems(a: BoxQueueItem, b: BoxQueueItem): number {
@@ -135,6 +162,7 @@ export function buildBoxQueue(
     );
     if (signal === "none") continue;
     const phones = uniquePhones(source.phones);
+    const note = source.lastNote.trim();
     items.push({
       id: source.activityId,
       dealId: source.dealId,
@@ -148,6 +176,7 @@ export function buildBoxQueue(
       phones,
       stageNome: source.stageNome,
       canonicalKey: source.canonicalKey,
+      lastNote: note || null,
       kind: source.kind,
       dueAt: source.dueAt,
       bucket,
@@ -155,24 +184,38 @@ export function buildBoxQueue(
     });
   }
   items.sort(compareBoxQueueItems);
-  return {
-    overdue: items.filter((item) => item.bucket === "overdue"),
-    followup: items.filter((item) => item.bucket === "followup"),
-    cold: items.filter((item) => item.bucket === "cold"),
-  };
+  const queue = emptyBoxQueue();
+  for (const item of items) {
+    queue[item.bucket].push(item);
+  }
+  return queue;
 }
 
 export function flattenBoxQueue(queue: BoxQueue): BoxQueueItem[] {
-  return [...queue.overdue, ...queue.followup, ...queue.cold];
+  return BOX_QUEUE_BUCKETS.flatMap((id) => queue[id]);
 }
 
 export function boxQueueCounts(queue: BoxQueue): BoxQueueCounts {
   return {
     overdue: queue.overdue.length,
-    followup: queue.followup.length,
-    cold: queue.cold.length,
-    total: queue.overdue.length + queue.followup.length + queue.cold.length,
+    today: queue.today.length,
+    tomorrow: queue.tomorrow.length,
+    week: queue.week.length,
+    later: queue.later.length,
+    total:
+      queue.overdue.length +
+      queue.today.length +
+      queue.tomorrow.length +
+      queue.week.length +
+      queue.later.length,
   };
+}
+
+export function pickBoxQueueTab(counts: BoxQueueCounts): BoxQueueBucket {
+  for (const id of BOX_QUEUE_BUCKETS) {
+    if (counts[id] > 0) return id;
+  }
+  return "overdue";
 }
 
 export function boxQueueShowsCrmIdle(

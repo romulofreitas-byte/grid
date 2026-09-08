@@ -183,6 +183,11 @@ export const COPY = {
   contaExtratoEmpty: "Nenhum movimento ainda.",
   contaCreditHint:
     "1 crédito = 1 qualificação. Exportar a planilha custa 50.",
+  contaUpgradeToPro:
+    "O Pro começa no dia do pagamento. Os R$ 97 do mês atual não voltam. A cobrança do Piloto para.",
+  contaUpgradeCta: "Subir para o Piloto Pro",
+  pagarUpgradeFromPiloto:
+    "Você está no Piloto. Ao pagar, o Pro começa hoje. Os R$ 97 do mês atual não voltam. A cobrança do Piloto para.",
   cargoHint: "O seu papel na prospecção ativa.",
   cargoOutroPlaceholder: "Qual o cargo?",
   marketOutroPlaceholder: "Qual o mercado?",
@@ -303,11 +308,15 @@ export const COPY = {
   boxQueue: "Fila",
   boxOverdue: "Atrasados",
   boxOverdueChip: "Atrasado",
-  boxFollowup: "Follow-ups",
-  boxCold: "Prospecção fria",
+  boxToday: "Hoje",
+  boxTomorrow: "Amanhã",
+  boxThisWeek: "Esta semana",
+  boxLater: "Depois",
+  boxFollowupChip: "Follow-up",
+  boxColdChip: "Fria",
   boxComplete: "Concluir",
   boxSnooze: "Adiar",
-  boxOpenCrm: "Abrir no CRM",
+  boxQualify: "Qualificação",
   boxNoPhone: "Sem telefone",
   boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
   boxSprintEmptyHasCrm:
@@ -325,8 +334,10 @@ export const COPY = {
   boxRhythmAdvance: "Avanço",
   boxRhythmAdvanceHint: "Reuniões registradas no CRM hoje.",
   boxTabEmptyOverdue: "Nada atrasado nesta fila.",
-  boxTabEmptyFollowup: "Nenhum follow-up de ligar ou WhatsApp.",
-  boxTabEmptyCold: "Nenhuma prospecção fria agendada.",
+  boxTabEmptyToday: "Nada para ligar hoje.",
+  boxTabEmptyTomorrow: "Nada agendado para amanhã.",
+  boxTabEmptyWeek: "Nada no restante desta semana.",
+  boxTabEmptyLater: "Nada depois desta semana.",
   painelOpenBox: "Ir ao Box",
   boxSequenciaHintZero:
     "Nenhuma sequência ainda. Ligue hoje para começar.",
@@ -601,8 +612,8 @@ export const COPY = {
   lockedCrmHighlight1: "Qualificados entram no quadro do nicho",
   lockedCrmHighlight2: "Follow-up e reunião no mesmo lugar",
   lockedCrmHighlight3: "O Box puxa a fila de ligar e WhatsApp",
-  lockedAutomationsHighlight1: "Formulário do site vira negócio no quadro",
-  lockedAutomationsHighlight2: "Anúncio e Make alimentam o CRM",
+  lockedAutomationsHighlight1: "Link ou embed no site vira negócio no quadro",
+  lockedAutomationsHighlight2: "Anúncio do Meta alimenta o CRM",
   lockedAutomationsHighlight3: "No Piloto você importa a planilha e liga pelo CRM",
   lockedAutomationsPreview: "O que o Pro destrava",
   lockedLightsReplay: "Acender as luzes de novo",
@@ -682,14 +693,14 @@ export const COPY = {
   conexoesStandbyForm:
     "A montagem de VoIP está pausada nesta versão. O botão Ligar abre o telefone do\u00a0aparelho.",
   conexoesInboundHint:
-    "Aqui o GRID envia lista e ligação para fora. Para um formulário, anúncio ou o Make criarem negócio no CRM, use Automações.",
+    "Aqui o GRID envia lista e ligação para fora. Para um link no site ou anúncio criarem negócio no CRM, use Automações.",
   importacoesTitle: "Importações",
   importacoesLead:
     "Planilha entra no quadro. CNPJ também vai para Minhas listas.",
   importacoesFileHint:
     "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:
-    "Formulário, anúncio e Make ficam em Automações, cada campanha com o próprio destino.",
+    "Link no site e anúncio do Meta ficam em Automações, cada campanha com o próprio destino.",
   importacoesHistoryTitle: "Última importação",
   importacoesHistoryOlder: "Anteriores",
   importacoesHistoryShowMore: "Abrir mais ({n})",
@@ -769,9 +780,9 @@ export const COPY = {
 
   automacoesTitle: "Automações",
   automacoesLead:
-    "Formulário, anúncio ou Make. Cada campanha tem URL, chave e destino próprios.",
+    "Link no site, anúncio do Meta ou outra origem. Cada campanha cai no quadro.",
   automacoesHint:
-    "Até 10 campanhas. Cada uma tem endereço, token e o JSON que o Make envia.",
+    "Até 10 campanhas. O lead entra no CRM sozinho.",
   automacoesUnlockBar:
     "Crie a campanha para liberar o endereço e a chave.",
   automacoesReadyBar:
@@ -782,21 +793,44 @@ export const COPY = {
   automacoesEventsTitle: "Últimos envios",
   automacoesEventsEmpty: "Ainda não chegou nada nesta campanha.",
   automacoesEventsHint:
-    "Cada POST do Make ou do formulário aparece aqui. Token errado também.",
+    "Cada envio do formulário, do Meta ou do webhook aparece aqui.",
   automacoesLastCreated: "Entrou",
   automacoesLastSkipped: "Já no quadro",
   automacoesLastError: "Recusado",
   automacoesPayloadLead:
-    "No Make: módulo HTTP, método POST. Cole o endereço da campanha, o token no header Authorization e o JSON no body.",
+    "Origem avançada: POST no endereço, header Authorization com o token, JSON no body.",
   automacoesPayloadSite:
-    "No formulário do site: POST no endereço, header Authorization com o token, JSON no body.",
+    "Use o link do formulário ou cole o embed no site. Campanha de tráfego do Meta aponta para essa URL.",
   automacoesPayloadAds:
-    "No Make: módulo HTTP, método POST. Cole o endereço, o token no header Authorization e o JSON no body.",
+    "Conecte a Página. O Formulário Instantâneo do Meta cai no quadro sozinho.",
   automacoesJsonBelow: "O JSON está no bloco abaixo.",
   automacoesDeleteTitle: "Apagar {nome}?",
   automacoesDeleteBody: "O endereço e a chave param de funcionar.",
   automacoesDeleteConfirm: "Apagar",
   automacoesDeletePending: "Apagando…",
+  automacoesOriginSite: "Link ou embed no site",
+  automacoesOriginMeta: "Anúncio Meta",
+  automacoesOriginWebhook: "Outra origem",
+  automacoesConnectMeta: "Conectar Facebook",
+  automacoesMetaNotConfigured:
+    "Conexão com o Meta ainda não está configurada neste ambiente.",
+  automacoesMetaPagesEmpty: "Nenhuma Página conectada ainda.",
+  automacoesAllMetaForms: "Todos os formulários desta Página",
+  automacoesSaveDestino: "Salvar destino",
+  automacoesFormLink: "Link do formulário",
+  automacoesEmbed: "Embed para o site",
+  automacoesRotatePublic: "Gerar outro link",
+  automacoesFormHidden:
+    "Link oculto. Se perdeu, gere outro — o antigo para de funcionar.",
+  automacoesWebhookUrlHint:
+    "POST neste endereço, com o token no header Authorization.",
+  automacoesRotateBearer: "Gerar outra chave",
+  automacoesMetaConnected: "Página do Meta conectada.",
+  automacoesMetaDenied: "Conexão com o Meta cancelada.",
+  automacoesMetaError: "Não foi possível conectar o Meta.",
+  publicFormEyebrow: "GRID",
+  publicFormSubmit: "Enviar",
+  publicFormThanks: "Recebemos. Em breve alguém fala com você.",
   crmSearchGrid: "Procurar no Grid",
   crmSearchingGrid: "Procurando…",
   crmSearchGridPlaceholder: "Razão social",

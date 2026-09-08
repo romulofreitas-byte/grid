@@ -33,9 +33,10 @@ export function BoxSprintSkeleton({
             {COPY.boxNow}
           </p>
           <div className="flex gap-1">
-            <Pulse className="h-5 w-20" />
+            <Pulse className="h-5 w-16" />
+            <Pulse className="h-5 w-12" />
+            <Pulse className="h-5 w-16" />
             <Pulse className="h-5 w-24" />
-            <Pulse className="h-5 w-28" />
           </div>
         </div>
         <div className="border-b border-white/10 px-4 py-3">

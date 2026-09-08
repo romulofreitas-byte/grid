@@ -61,6 +61,23 @@ describe("loadBoxQueue", () => {
     expect(boxQueueShowsCrmIdle(payload)).toBe(false);
   });
 
+  it("includes the deal notes on the queue item", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho box");
+    const deal = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Com nota",
+      notes: "Pediu retorno depois do almoço.",
+    });
+    await mockRepo.scheduleCrmActivity(
+      USER,
+      deal!.id,
+      "ligar",
+      "2026-09-08T18:00:00-03:00",
+    );
+    const payload = await loadBoxQueue(USER, now, flags);
+    expect(payload.today[0]?.lastNote).toBe("Pediu retorno depois do almoço.");
+  });
+
   it("keeps a followup activity off the queue and counts it as other work", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho box");
     const deal = await mockRepo.createCrmDeal(USER, {
