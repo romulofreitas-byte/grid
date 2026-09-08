@@ -2,6 +2,7 @@ import { getBalance } from "@/lib/billing/service";
 import {
   boxQueueCounts,
   buildBoxQueue,
+  isBoxQueueKind,
   type BoxQueue,
   type BoxQueuePayload,
   type BoxQueueSource,
@@ -73,15 +74,28 @@ async function optionalQuery<T extends Record<string, unknown>>(
     const { rows } = await query<T>(text, params);
     return rows;
   } catch (err) {
-    if (isUndefinedTableError(err) || isUndefinedColumnError(err)) return [];
+    if (isUndefinedTableError(err) || isUndefinedColumnError(err)) {
+      console.error("box_optional_query_missing", err);
+      return [];
+    }
     throw err;
   }
+}
+
+type BoxQueueIdle = {
+  openDealCount: number;
+  openOtherActivityCount: number;
+};
+
+function emptyIdle(): BoxQueueIdle {
+  return { openDealCount: 0, openOtherActivityCount: 0 };
 }
 
 function toPayload(
   queue: BoxQueue,
   flags: { crmAllowed: boolean; trialExpired: boolean },
   rhythm: BoxRhythm,
+  idle: BoxQueueIdle,
 ): BoxQueuePayload {
   return {
     crmAllowed: flags.crmAllowed,
@@ -91,11 +105,13 @@ function toPayload(
     cold: queue.cold,
     counts: boxQueueCounts(queue),
     rhythm,
+    openDealCount: idle.openDealCount,
+    openOtherActivityCount: idle.openOtherActivityCount,
   };
 }
 
 async function loadSourcesPg(userId: string): Promise<BoxQueueSource[]> {
-  const rows = await optionalQuery<{
+  const { rows } = await query<{
     activity_id: string;
     kind: string;
     due_at: string;
@@ -261,6 +277,60 @@ function loadRhythmMock(userId: string, now: Date): BoxRhythm {
   });
 }
 
+function ownedOpenDeals(userId: string) {
+  const store = getMockStore();
+  const owned = new Set(
+    store.crm_pipelines
+      .filter((row) => row.user_id === userId)
+      .map((row) => row.id),
+  );
+  return store.crm_deals.filter(
+    (deal) => owned.has(deal.pipeline_id) && deal.outcome === "open",
+  );
+}
+
+function loadIdleMock(userId: string): BoxQueueIdle {
+  const deals = ownedOpenDeals(userId);
+  const dealIds = new Set(deals.map((deal) => deal.id));
+  const store = getMockStore();
+  const otherOpen = store.crm_activities.filter(
+    (activity) =>
+      activity.status === "open" &&
+      dealIds.has(activity.deal_id) &&
+      !isBoxQueueKind(activity.kind),
+  );
+  return {
+    openDealCount: deals.length,
+    openOtherActivityCount: otherOpen.length,
+  };
+}
+
+async function loadIdlePg(userId: string): Promise<BoxQueueIdle> {
+  const { rows } = await query<{
+    open_deals: number;
+    other_open: number;
+  }>(
+    `select
+        (select count(*)::int
+           from crm_deals d
+           join crm_pipelines p on p.id = d.pipeline_id
+          where p.user_id = $1 and d.outcome = 'open') as open_deals,
+        (select count(*)::int
+           from crm_activities a
+           join crm_deals d on d.id = a.deal_id
+           join crm_pipelines p on p.id = d.pipeline_id
+          where p.user_id = $1
+            and a.status = 'open'
+            and d.outcome = 'open'
+            and a.kind not in ('ligar', 'whatsapp')) as other_open`,
+    [userId],
+  );
+  return {
+    openDealCount: Number(rows[0]?.open_deals ?? 0),
+    openOtherActivityCount: Number(rows[0]?.other_open ?? 0),
+  };
+}
+
 export async function loadBoxQueue(
   userId: string,
   now = new Date(),
@@ -282,6 +352,7 @@ export async function loadBoxQueue(
 
   let rhythm: BoxRhythm;
   let sources: BoxQueueSource[] = [];
+  let idle: BoxQueueIdle = emptyIdle();
   try {
     const rhythmPromise = live
       ? loadRhythmPg(userId, now)
@@ -291,7 +362,16 @@ export async function loadBoxQueue(
         ? loadSourcesPg(userId)
         : Promise.resolve(loadSourcesMock(userId))
       : Promise.resolve([]);
-    [rhythm, sources] = await Promise.all([rhythmPromise, sourcesPromise]);
+    const idlePromise = resolved.crmAllowed
+      ? live
+        ? loadIdlePg(userId)
+        : Promise.resolve(loadIdleMock(userId))
+      : Promise.resolve(emptyIdle());
+    [rhythm, sources, idle] = await Promise.all([
+      rhythmPromise,
+      sourcesPromise,
+      idlePromise,
+    ]);
   } catch (err) {
     throw new BoxQueueError(
       err instanceof Error ? err.message : "Não foi possível carregar a fila",
@@ -300,8 +380,8 @@ export async function loadBoxQueue(
   }
 
   if (!resolved.crmAllowed) {
-    return toPayload(emptyQueue(), resolved, rhythm);
+    return toPayload(emptyQueue(), resolved, rhythm, emptyIdle());
   }
 
-  return toPayload(buildBoxQueue(sources, now), resolved, rhythm);
+  return toPayload(buildBoxQueue(sources, now), resolved, rhythm, idle);
 }

@@ -74,6 +74,8 @@ describe("COPY box cluster", () => {
     expect(COPY.boxListasHintMany.replace("{n}", "4")).toBe(
       "Você possui 4 listas salvas.",
     );
+    expect(COPY.boxSprintEmptyHasCrm).toMatch(/só executa ligar e WhatsApp/i);
+    expect(COPY.crmScheduleHintFollowup).toMatch(/não entra no Box/i);
   });
 });
 
@@ -170,6 +172,7 @@ describe("COPY crm", () => {
     expect(COPY.crmTransferPipeline).toMatch(/nicho/i);
     expect(COPY.crmDeleteListEntradaHint).toMatch(/qualificação permanece/i);
     expect(COPY.crmScheduleHint).toMatch(/não substitui/i);
+    expect(COPY.crmScheduleHintFollowup).toMatch(/não entra no Box/i);
     expect(COPY.crmLogCallHint).toMatch(/não mexe/i);
     expect(COPY.crmScheduleDesktop).toBe("Agendar próxima ação");
     expect(COPY.crmLogCallDesktop).toBe("Registrar no histórico");

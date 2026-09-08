@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BoxFocusCard } from "@/components/box/BoxFocusCard";
 import { BoxRhythmStrip } from "@/components/box/BoxRhythmStrip";
 import { BoxTaskList } from "@/components/box/BoxTaskList";
 import type { BoxSlot } from "@/lib/box-estrutura";
-import type { BoxQueueBucket, BoxQueuePayload } from "@/lib/box/queue";
+import {
+  boxQueueShowsCrmIdle,
+  type BoxQueueBucket,
+  type BoxQueuePayload,
+} from "@/lib/box/queue";
 import { gridHref, largadaNovaHref } from "@/lib/back";
 import { planosHref } from "@/lib/billing/href";
 import { COPY } from "@/lib/copy";
@@ -22,6 +26,7 @@ import {
   LIVE_STATS_QUERY_OPTIONS,
   originateCallJobsActive,
   originateCallJobsPollInterval,
+  replaceQueryIfSnapshotChanged,
 } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +61,15 @@ export function BoxSprint({
 }) {
   const router = useRouter();
   const qc = useQueryClient();
+  const snapshotRef = useRef<BoxQueuePayload | null>(null);
+  useLayoutEffect(() => {
+    replaceQueryIfSnapshotChanged(
+      qc,
+      BOX_QUEUE_QUERY_KEY,
+      initialQueue,
+      snapshotRef,
+    );
+  }, [qc, initialQueue]);
   const queueQuery = useQuery({
     queryKey: BOX_QUEUE_QUERY_KEY,
     queryFn: async () => {
@@ -80,7 +94,10 @@ export function BoxSprint({
   const [tab, setTab] = useState<BoxQueueBucket>(() => pickTab(initialQueue));
   const [focusId, setFocusId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const queue = queueQuery.data ?? initialQueue;
+  const queue =
+    snapshotRef.current === initialQueue
+      ? (queueQuery.data ?? initialQueue)
+      : initialQueue;
   const rows = queue[tab];
   const tabMeta = TABS.find((item) => item.id === tab) ?? TABS[0]!;
   const focus = rows.find((row) => row.id === focusId) ?? rows[0] ?? null;
@@ -167,7 +184,11 @@ export function BoxSprint({
 
         <div className="min-h-0 flex-1 overflow-auto">
           {queue.counts.total === 0 ? (
-            <BoxEmpty crmAllowed={queue.crmAllowed} novoSearchId={novoSearchId} />
+            <BoxEmpty
+              crmAllowed={queue.crmAllowed}
+              hasCrmWork={boxQueueShowsCrmIdle(queue)}
+              novoSearchId={novoSearchId}
+            />
           ) : focus ? (
             <>
               <BoxFocusCard
@@ -210,9 +231,11 @@ export function BoxSprint({
 
 function BoxEmpty({
   crmAllowed,
+  hasCrmWork,
   novoSearchId,
 }: {
   crmAllowed: boolean;
+  hasCrmWork: boolean;
   novoSearchId: string | null;
 }) {
   const quietCta =
@@ -234,7 +257,7 @@ function BoxEmpty({
   return (
     <div className="px-4 py-8">
       <p className="max-w-lg text-pretty text-sm text-podium-muted">
-        {COPY.boxSprintEmpty}
+        {hasCrmWork ? COPY.boxSprintEmptyHasCrm : COPY.boxSprintEmpty}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {novoSearchId ? (

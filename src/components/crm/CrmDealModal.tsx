@@ -544,6 +544,7 @@ export function CrmDealModal({
       onChange(res.deal);
       prependEvent(res.event);
       setBody("");
+      void invalidateLiveStats(qc);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não registrou.");
     } finally {
@@ -565,6 +566,7 @@ export function CrmDealModal({
         { method: "POST", body: JSON.stringify(next) },
       );
       onChange(scheduled.deal);
+      void invalidateLiveStats(qc);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não agendou.");
     } finally {
@@ -585,6 +587,7 @@ export function CrmDealModal({
       );
       onChange(res.deal);
       prependEvent(res.event);
+      void invalidateLiveStats(qc);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não concluiu.");
     } finally {
@@ -623,6 +626,7 @@ export function CrmDealModal({
       );
       onChange(res.deal);
       prependEvent(res.event);
+      void invalidateLiveStats(qc);
       if (outcome === "won" && !wasWon) {
         setCelebrateCompany(res.deal.company_name);
         if (res.deal.amount_cents == null) {
@@ -641,6 +645,7 @@ export function CrmDealModal({
     setSaving(true);
     try {
       await crmFetch(`/api/crm/deals/${deal.id}`, { method: "DELETE" });
+      void invalidateLiveStats(qc);
       onDeleted(deal.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não excluiu.");
@@ -929,7 +934,11 @@ export function CrmDealModal({
                         <button
                           type="button"
                           disabled={saving}
-                          title={COPY.crmScheduleHint}
+                          title={
+                            composerKind === "followup"
+                              ? COPY.crmScheduleHintFollowup
+                              : COPY.crmScheduleHint
+                          }
                           onClick={() => void saveSchedule()}
                           className="rounded-md border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white disabled:opacity-50"
                         >

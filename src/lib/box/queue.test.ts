@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   boxQueueBucket,
   boxQueueCounts,
+  boxQueueShowsCrmIdle,
   buildBoxQueue,
   compareBoxQueueItems,
   flattenBoxQueue,
@@ -261,5 +262,41 @@ describe("buildBoxQueue", () => {
       dueAt: "2026-09-05T21:00:00.000Z",
     });
     expect(compareBoxQueueItems(today, later)).toBeLessThan(0);
+  });
+});
+
+describe("boxQueueShowsCrmIdle", () => {
+  it("is true when the queue is empty but the CRM has open work", () => {
+    expect(
+      boxQueueShowsCrmIdle({
+        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        openDealCount: 2,
+        openOtherActivityCount: 0,
+      }),
+    ).toBe(true);
+    expect(
+      boxQueueShowsCrmIdle({
+        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        openDealCount: 0,
+        openOtherActivityCount: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("is false when the box already has a queue or the CRM is empty", () => {
+    expect(
+      boxQueueShowsCrmIdle({
+        counts: { overdue: 1, followup: 0, cold: 0, total: 1 },
+        openDealCount: 3,
+        openOtherActivityCount: 0,
+      }),
+    ).toBe(false);
+    expect(
+      boxQueueShowsCrmIdle({
+        counts: { overdue: 0, followup: 0, cold: 0, total: 0 },
+        openDealCount: 0,
+        openOtherActivityCount: 0,
+      }),
+    ).toBe(false);
   });
 });

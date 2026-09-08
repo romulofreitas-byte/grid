@@ -25,6 +25,18 @@ export function invalidateLiveStats(
   );
 }
 
+/** Seed or replace cached data when the server snapshot identity changes. */
+export function replaceQueryIfSnapshotChanged<T>(
+  qc: Pick<QueryClient, "setQueryData">,
+  queryKey: readonly unknown[],
+  snapshot: T,
+  last: { current: T | null },
+): void {
+  if (last.current === snapshot) return;
+  last.current = snapshot;
+  qc.setQueryData(queryKey, snapshot);
+}
+
 export function originateCallJobsActive(
   jobs: readonly { verb: string; status: string }[],
 ): boolean {

@@ -67,6 +67,8 @@ export type BoxQueuePayload = {
   cold: BoxQueueItem[];
   counts: BoxQueueCounts;
   rhythm: BoxRhythm;
+  openDealCount: number;
+  openOtherActivityCount: number;
 };
 
 const BUCKET_RANK: Record<BoxQueueBucket, number> = {
@@ -171,6 +173,19 @@ export function boxQueueCounts(queue: BoxQueue): BoxQueueCounts {
     cold: queue.cold.length,
     total: queue.overdue.length + queue.followup.length + queue.cold.length,
   };
+}
+
+export function boxQueueShowsCrmIdle(
+  payload: Pick<
+    BoxQueuePayload,
+    "counts" | "openDealCount" | "openOtherActivityCount"
+  >,
+): boolean {
+  return (
+    payload.counts.total === 0 &&
+    ((payload.openDealCount ?? 0) > 0 ||
+      (payload.openOtherActivityCount ?? 0) > 0)
+  );
 }
 
 export function nextBoxQueueKind(kind: CrmActivityKind | BoxQueueKind): BoxQueueKind {

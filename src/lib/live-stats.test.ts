@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  BOX_QUEUE_QUERY_KEY,
   invalidateLiveStats,
   LIVE_STATS_KEYS,
   LIVE_STATS_QUERY_OPTIONS,
   originateCallJobsActive,
   originateCallJobsPollInterval,
+  replaceQueryIfSnapshotChanged,
 } from "./live-stats";
 
 describe("invalidateLiveStats", () => {
@@ -22,6 +24,27 @@ describe("invalidateLiveStats", () => {
       refetchOnWindowFocus: true,
       refetchOnMount: "always",
     });
+  });
+
+  it("puts the box queue in the live stats family", () => {
+    expect(LIVE_STATS_KEYS).toContain("box-queue");
+    expect(BOX_QUEUE_QUERY_KEY).toEqual(["box-queue"]);
+  });
+});
+
+describe("replaceQueryIfSnapshotChanged", () => {
+  it("writes only when the snapshot identity changes", () => {
+    const setQueryData = vi.fn();
+    const last = { current: null as { n: number } | null };
+    const first = { n: 1 };
+    const second = { n: 2 };
+    replaceQueryIfSnapshotChanged({ setQueryData }, BOX_QUEUE_QUERY_KEY, first, last);
+    replaceQueryIfSnapshotChanged({ setQueryData }, BOX_QUEUE_QUERY_KEY, first, last);
+    replaceQueryIfSnapshotChanged({ setQueryData }, BOX_QUEUE_QUERY_KEY, second, last);
+    expect(setQueryData.mock.calls).toEqual([
+      [BOX_QUEUE_QUERY_KEY, first],
+      [BOX_QUEUE_QUERY_KEY, second],
+    ]);
   });
 });
 

@@ -310,6 +310,8 @@ export const COPY = {
   boxOpenCrm: "Abrir no CRM",
   boxNoPhone: "Sem telefone",
   boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
+  boxSprintEmptyHasCrm:
+    "Há negócios no CRM, mas nenhuma ligação ou WhatsApp agendada. O Box só executa ligar e WhatsApp.",
   boxSprintEmptyNovo: "Agendar ligações a partir da lista",
   boxSprintEmptyCrm: "Agendar ligar ou WhatsApp no CRM",
   boxSprintLocked:
@@ -455,6 +457,8 @@ export const COPY = {
   crmScheduleDesktop: "Agendar próxima ação",
   crmScheduleHint:
     "Cria uma próxima ação. Não substitui as que já existem.",
+  crmScheduleHintFollowup:
+    "Follow-up no CRM não entra no Box. Agende Ligar ou WhatsApp para cair na fila.",
   crmLogCall: "Registrar",
   crmLogCallDesktop: "Registrar no histórico",
   crmLogCallHint:
