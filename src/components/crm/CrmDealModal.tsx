@@ -1496,6 +1496,8 @@ export function CrmDealModal({
               </div>
             </div>
 
+            {attachSurface === "aside" ? attach : null}
+
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>
               <div className="mt-1.5 flex flex-col gap-3">
@@ -1605,8 +1607,6 @@ export function CrmDealModal({
                 </div>
               </div>
             </div>
-
-            {attachSurface === "aside" ? attach : null}
             {deal.meta.form_answers &&
             Object.keys(deal.meta.form_answers).length > 0 ? (
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
