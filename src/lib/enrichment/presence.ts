@@ -106,7 +106,7 @@ export type SocialPlatform = "instagram" | "facebook" | "linkedin" | "youtube";
 export const DOMAIN_SCORE_MIN = 1;
 /** Organic window — school/CNPJ directories often occupy the first handful. */
 export const SERPER_ORGANIC_NUM = 10;
-/** Maps queries per GMB search — phone/street first, then stop. */
+/** Maps queries per GMB search — one locator + one brand, then stop. */
 export const GMB_SEARCH_MAX_QUERIES = 2;
 
 const SOCIAL_HOST: Record<SocialPlatform, string> = {
@@ -873,9 +873,50 @@ export function gmbSearchQueryList(input: GmbSearchInput): string[] {
   return list.slice(0, 12);
 }
 
-/** Phone, street, then brand — at most two paid Maps queries. */
+function pickMapsLocatorQuery(input: GmbSearchInput): string | null {
+  if (input.sharedVerdict === "contabilidade") return null;
+  const place = placeOfGmb(input);
+  for (const phone of [...(input.phones ?? []), ...(input.sitePhones ?? [])]) {
+    const digits = mapsPhoneSearchDigits(phone);
+    if (digits && digits.length >= 11) {
+      return `${digits} ${place}`.trim();
+    }
+  }
+  const street = [input.logradouro, input.numero]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
+  if (street.replace(/\s/g, "").length >= 6) {
+    return `${street} ${place}`.trim();
+  }
+  return null;
+}
+
+function pickMapsBrandQuery(input: GmbSearchInput): string | null {
+  const compact = gmbCompactSearchName(input);
+  if (compact && compact.length >= COMPACT_FIRST_MIN_LEN) {
+    const q = gmbSearchQuery(
+      { ...input, nomeFantasia: compact, razaoSocial: compact },
+      { quoted: false, includeStreet: false },
+    );
+    if (q) return q;
+  }
+  return gmbSearchQuery(input, { quoted: true, includeStreet: false }) || null;
+}
+
+/** One locator (mobile or street) + brand+city — at most two paid Maps queries. */
 export function pickGmbSearchQueries(input: GmbSearchInput): string[] {
-  return gmbSearchQueryList(input).slice(0, GMB_SEARCH_MAX_QUERIES);
+  const out: string[] = [];
+  const push = (q: string | null | undefined) => {
+    const trimmed = q?.replace(/\s+/g, " ").trim();
+    if (trimmed && !out.includes(trimmed)) out.push(trimmed);
+  };
+  push(pickMapsLocatorQuery(input));
+  push(pickMapsBrandQuery(input));
+  if (out.length < GMB_SEARCH_MAX_QUERIES) {
+    push(gmbTradeBrandQueries(input)[0]);
+  }
+  return out.slice(0, GMB_SEARCH_MAX_QUERIES);
 }
 
 function pushHit(

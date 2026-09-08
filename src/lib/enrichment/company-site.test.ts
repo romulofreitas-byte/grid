@@ -41,6 +41,7 @@ describe("parseCompanySite", () => {
       host: "empresas.serasaexperian.com.br",
       homepagePath: null,
     });
+    expect(parseCompanySite("lavarapido.ondefica.com.br")).toBeNull();
   });
 });
 

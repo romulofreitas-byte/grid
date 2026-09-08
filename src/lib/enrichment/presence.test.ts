@@ -261,6 +261,23 @@ describe("pickBestDomainHit", () => {
     ).toBeNull();
   });
 
+  it("skips a national guia host like ondefica even when the title matches", () => {
+    expect(
+      pickBestDomainHit(
+        [
+          {
+            link: "https://lavarapido.ondefica.com.br/mg/belo-horizonte/lava-jato-silveira",
+            title: "Lava Jato Silveira — Belo Horizonte/MG",
+            snippet: "Endereço e telefone do lava jato",
+          },
+        ],
+        "LAVA JATO SILVEIRA LTDA",
+        "LAVA JATO SILVEIRA",
+        "Belo Horizonte",
+      ),
+    ).toBeNull();
+  });
+
   it("prefers a branded host over a school directory with the same title tokens", () => {
     const best = pickBestDomainHit(
       [
@@ -428,7 +445,7 @@ describe("Maps × Receita matching", () => {
     expect(gmbCompactSearchName(silva)).toBeNull();
   });
 
-  it("picks at most two Maps queries and skips street after a phone key", () => {
+  it("picks street plus brand and skips a landline so Maps still gets the company name", () => {
     const futura = {
       nomeFantasia: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS",
       razaoSocial: "FUTURA EMPREENDIMENTOS E NEGOCIOS IMOBILIARIOS LTDA",
@@ -440,8 +457,44 @@ describe("Maps × Receita matching", () => {
     };
     const picked = pickGmbSearchQueries(futura);
     expect(picked).toHaveLength(2);
-    expect(picked[0]).toBe("3138924111 Vicosa MG");
-    expect(picked[1]).toMatch(/Rua X/);
+    expect(picked[0]).toBe("Rua X, 1 Vicosa MG");
+    expect(picked[1]).toBe("futura Vicosa MG");
+    expect(picked.some((q) => /^3138924111\b/.test(q))).toBe(false);
+  });
+
+  it("uses the 11-digit mobile plus brand when Receita lists two phones", () => {
+    const nanotech = {
+      nomeFantasia: "NANOTECH",
+      razaoSocial: "NANOTECH LTDA",
+      municipio: "Belo Horizonte",
+      uf: "MG",
+      logradouro: "Rua Senador Campos Vergueiro",
+      numero: "95",
+      phones: [
+        { ddd: "31", telefone: "88783666" },
+        { ddd: "31", telefone: "988783666" },
+      ],
+    };
+    const picked = pickGmbSearchQueries(nanotech);
+    expect(picked).toHaveLength(2);
+    expect(picked[0]).toBe("31988783666 Belo Horizonte MG");
+    expect(picked.some((q) => /^3188783666\b/.test(q))).toBe(false);
+    expect(picked[1]).toMatch(/nanotech/i);
+    expect(picked[1]).not.toMatch(/Rua Senador/);
+  });
+
+  it("skips locator queries for an accountant shared phone", () => {
+    const picked = pickGmbSearchQueries({
+      nomeFantasia: "Pizza Hut",
+      razaoSocial: "PH GOIANIA ALIMENTOS LTDA",
+      municipio: "Goiania",
+      uf: "GO",
+      logradouro: "Rua do Contador",
+      numero: "10",
+      phones: [{ ddd: "62", telefone: "40024003" }],
+      sharedVerdict: "contabilidade",
+    });
+    expect(picked).toEqual(['"Pizza Hut" Goiania GO']);
   });
 
   it("searches the short Maps brand before the long Receita name", () => {
@@ -1386,32 +1439,21 @@ describe("searchGmb", () => {
       numero: "2300",
       phones: [{ ddd: "85", telefone: "89902400" }],
     });
-    expect(queries[0]).toMatch(/^85\d+ Fortaleza CE$/);
+    expect(queries[0]).toMatch(/Gilberto Studart/);
     expect(listing.matched).toBe(true);
     expect(listing.status).toBe("matched");
     expect(listing.name).toBe("Live In Fortaleza Hotel");
     expect(listing.match_by).toEqual(expect.arrayContaining(["phone"]));
   });
 
-  it("still tries the street query when the city page is only a candidate", async () => {
+  it("searches the Receita street before the brand so a chain pin can crava", async () => {
     const queries = mapsFetch([
-      [
-        {
-          title: "Pizza Hut",
-          address: "Av. T-63, 100 - Goiânia - GO",
-          cid: "111",
-        },
-        {
-          title: "Pizza Hut",
-          address: "Av. 85, 50 - Goiânia - GO",
-          cid: "333",
-        },
-      ],
       [
         {
           title: "Pizza Hut",
           address: "Av. Anhanguera, 200 - Goiânia - GO",
           cid: "222",
+          ratingCount: 80,
         },
       ],
       [{ title: "Should not run" }],
@@ -1425,10 +1467,10 @@ describe("searchGmb", () => {
       numero: "200",
       phones: [{ ddd: "62", telefone: "32501111" }],
     });
+    expect(queries[0]).toMatch(/Anhanguera/);
     expect(listing.matched).toBe(true);
     expect(listing.cid).toBe("222");
-    expect(queries).toHaveLength(2);
-    expect(queries[1]).toMatch(/Anhanguera/);
+    expect(queries).toHaveLength(1);
   });
 
   it("finds a unique brand pin on the compact query before the long razão", async () => {
@@ -1579,7 +1621,7 @@ describe("searchGmb", () => {
     expect(listing.url).toContain("google.com/maps/search");
   });
 
-  it("crava the pin on a phone-only query when city tokens hide the listing", async () => {
+  it("does not search a landline-only digits query when city tokens hide the listing", async () => {
     const pin = {
       title: "Santa Tereza Pilates & Funcional",
       address: "R. Mármore, 196 - Santa Tereza, Belo Horizonte - MG",
@@ -1620,9 +1662,9 @@ describe("searchGmb", () => {
       numero: "196",
       phones: [{ ddd: "31", telefone: "25555527" }],
     });
-    expect(queries[0]).toBe("3125555527 Belo Horizonte MG");
-    expect(queries).toHaveLength(2);
-    expect(queries).not.toContain("3125555527");
+    expect(queries[0]).toBe("Rua Marmore, 196 Belo Horizonte MG");
+    expect(queries[1]).toMatch(/santa tereza/i);
+    expect(queries.some((q) => /3125555527/.test(q))).toBe(false);
     expect(listing.matched).toBe(false);
   });
 

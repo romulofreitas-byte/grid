@@ -19,6 +19,10 @@ describe("isDirectoryUrl", () => {
     expect(isDirectoryUrl("https://www.econodata.com.br/consulta/foo")).toBe(
       true,
     );
+    expect(isDirectoryUrl("https://ondefica.com.br/lava-jato")).toBe(true);
+    expect(
+      isDirectoryUrl("https://lavarapido.ondefica.com.br/mg/belo-horizonte"),
+    ).toBe(true);
   });
 
   it("does not treat a branded school host as a directory", () => {

@@ -23,6 +23,7 @@ export const DIRECTORY_BLOCKLIST = [
   "telelistas",
   "guiamais.com.br",
   "guiamais",
+  "ondefica.com.br",
   "solutudo.com.br",
   "solutudo",
   "reclameaqui.com.br",
