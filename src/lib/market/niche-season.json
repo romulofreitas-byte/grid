@@ -1,0 +1,202 @@
+[
+  {
+    "slug": "estetica-e-beleza",
+    "nome": "Estética e beleza",
+    "sazonalidade": {
+      "mesesPico": [5, 11, 12],
+      "chip": "Dia das Mães",
+      "porQue": "Dia das Mães, formaturas e festas de fim de ano aumentam a procura por embelezamento.",
+      "baixa": "Janeiro e fevereiro têm queda, período pós-gastos de fim de ano."
+    }
+  },
+  {
+    "slug": "saude-e-clinicas",
+    "nome": "Saúde e clínicas",
+    "sazonalidade": {
+      "mesesPico": [1, 12],
+      "chip": "Teto do plano",
+      "porQue": "Pacientes usam o teto do plano de saúde antes de vencer no fim do ano e retomam consultas em janeiro.",
+      "baixa": "Julho tem queda por férias escolares e viagens."
+    }
+  },
+  {
+    "slug": "pet",
+    "nome": "Pet",
+    "sazonalidade": {
+      "mesesPico": [7, 12],
+      "chip": "Férias",
+      "porQue": "Férias de julho e de fim de ano aumentam a demanda por hotelaria e banho e tosa.",
+      "baixa": "Fevereiro e março têm menor movimento, após os gastos de fim de ano."
+    }
+  },
+  {
+    "slug": "automotivo",
+    "nome": "Automotivo",
+    "sazonalidade": {
+      "mesesPico": [1, 3, 12],
+      "chip": "IPVA",
+      "porQue": "Pagamento do IPVA no início do ano e revisões antes das viagens de fim de ano aumentam o movimento.",
+      "baixa": "Fevereiro tem queda logo após os gastos de início de ano."
+    }
+  },
+  {
+    "slug": "imobiliario",
+    "nome": "Imobiliário",
+    "sazonalidade": {
+      "mesesPico": [1, 7],
+      "chip": "Temporada de mudanças",
+      "porQue": "Famílias concentram mudanças de imóvel nas férias escolares de janeiro e julho.",
+      "baixa": "Dezembro tem queda com o foco em festas de fim de ano."
+    }
+  },
+  {
+    "slug": "varejo",
+    "nome": "Varejo",
+    "sazonalidade": {
+      "mesesPico": [5, 10, 11, 12],
+      "chip": "Natal",
+      "porQue": "Dia das Mães, Dia das Crianças, Black Friday e Natal concentram grande parte das vendas do ano.",
+      "baixa": "Janeiro e fevereiro têm queda após as compras de fim de ano."
+    }
+  },
+  {
+    "slug": "alimentacao-fora-do-lar",
+    "nome": "Alimentação",
+    "sazonalidade": {
+      "mesesPico": [6, 12],
+      "chip": "Dia dos Namorados",
+      "porQue": "Dia dos Namorados em junho e confraternizações de fim de ano aumentam o movimento de bares e restaurantes.",
+      "baixa": "Janeiro tem queda com a retomada da rotina e gastos mais contidos."
+    }
+  },
+  {
+    "slug": "educacao",
+    "nome": "Educação",
+    "sazonalidade": {
+      "mesesPico": [1, 2, 7],
+      "chip": "Volta às aulas",
+      "porQue": "Matrículas e início dos semestres letivos em janeiro, fevereiro e julho concentram o faturamento.",
+      "baixa": "Dezembro tem queda com o recesso escolar de fim de ano."
+    }
+  },
+  {
+    "slug": "turismo-e-hotelaria",
+    "nome": "Turismo e hotelaria",
+    "sazonalidade": {
+      "mesesPico": [1, 7, 12],
+      "chip": "Alta temporada",
+      "porQue": "Férias de verão e o recesso escolar de julho concentram viagens e ocupação hoteleira.",
+      "baixa": "Abril e maio são baixa temporada, com menor volume de viagens."
+    }
+  },
+  {
+    "slug": "esporte-e-fitness",
+    "nome": "Esporte e fitness",
+    "sazonalidade": {
+      "mesesPico": [1, 9],
+      "chip": "Matrícula de ano novo",
+      "porQue": "Metas de ano novo em janeiro e a proximidade do verão em setembro aumentam as matrículas.",
+      "baixa": "Dezembro tem queda com férias e festas de fim de ano."
+    }
+  },
+  {
+    "slug": "servicos-locais",
+    "nome": "Serviços locais",
+    "sazonalidade": {
+      "mesesPico": [],
+      "chip": null,
+      "porQue": "A demanda por lavagem de roupas e enxovais é estável ao longo do ano, sem pico nacional definido.",
+      "baixa": ""
+    }
+  },
+  {
+    "slug": "industria",
+    "nome": "Indústria",
+    "sazonalidade": {
+      "mesesPico": [],
+      "chip": null,
+      "porQue": "O faturamento depende de contratos e ciclos de pedidos, sem sazonalidade nacional única.",
+      "baixa": "Janeiro tem queda comum por férias coletivas em fábricas."
+    }
+  },
+  {
+    "slug": "construcao-civil",
+    "nome": "Construção civil",
+    "sazonalidade": {
+      "mesesPico": [2, 5],
+      "chip": "Restituição do IR",
+      "porQue": "A restituição do Imposto de Renda em maio e a retomada das obras após o recesso de início de ano aquecem reformas.",
+      "baixa": "Dezembro tem queda pelo recesso de fim de ano nas obras."
+    }
+  },
+  {
+    "slug": "insumos-para-construcao",
+    "nome": "Insumos para construção",
+    "sazonalidade": {
+      "mesesPico": [1, 2],
+      "chip": "Pós 13º salário",
+      "porQue": "O dinheiro do 13º salário no início do ano aumenta a compra de materiais para reformas.",
+      "baixa": "Dezembro tem queda com o recesso das obras."
+    }
+  },
+  {
+    "slug": "contabilidade-e-juridico",
+    "nome": "Contabilidade e jurídico",
+    "sazonalidade": {
+      "mesesPico": [1, 3, 4, 12],
+      "chip": "Imposto de Renda",
+      "porQue": "Fechamento contábil anual e o prazo do Imposto de Renda concentram a demanda por serviços contábeis.",
+      "baixa": "Julho tem menor movimento entre os ciclos fiscais."
+    }
+  },
+  {
+    "slug": "tech-e-software",
+    "nome": "Tech e software",
+    "sazonalidade": {
+      "mesesPico": [11, 12, 1],
+      "chip": "Fechamento de orçamento",
+      "porQue": "Empresas usam o orçamento de TI antes de virar o ano e renovam contratos em janeiro.",
+      "baixa": "Meio do ano tem menor volume de novas contratações."
+    }
+  },
+  {
+    "slug": "marketing-e-publicidade",
+    "nome": "Marketing e publicidade",
+    "sazonalidade": {
+      "mesesPico": [9, 10, 11],
+      "chip": "Preparação para Black Friday",
+      "porQue": "Empresas contratam campanhas para preparar as datas de pico do varejo, como Black Friday e Natal.",
+      "baixa": "Janeiro tem queda com orçamentos ainda em definição."
+    }
+  },
+  {
+    "slug": "logistica-e-transporte",
+    "nome": "Logística e transporte",
+    "sazonalidade": {
+      "mesesPico": [11, 12],
+      "chip": "Black Friday",
+      "porQue": "A Black Friday e o Natal aumentam o volume de fretes e entregas no fim do ano.",
+      "baixa": "Fevereiro tem queda após o pico de fim de ano."
+    }
+  },
+  {
+    "slug": "atacado-e-distribuicao",
+    "nome": "Atacado e distribuição",
+    "sazonalidade": {
+      "mesesPico": [10, 11],
+      "chip": "Abastecimento pré-Natal",
+      "porQue": "Distribuidoras aumentam vendas para abastecer o varejo antes das datas de pico, como o Natal.",
+      "baixa": "Janeiro tem queda após o alto volume de reposição de fim de ano."
+    }
+  },
+  {
+    "slug": "financeiro-e-seguros",
+    "nome": "Financeiro e seguros",
+    "sazonalidade": {
+      "mesesPico": [1, 5, 12],
+      "chip": "IPVA",
+      "porQue": "IPVA no início do ano, restituição do IR em maio e 13º salário no fim do ano aumentam a contratação de seguros e produtos financeiros.",
+      "baixa": "Meio do ano tem menor procura por novos contratos financeiros."
+    }
+  }
+]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mesNumero, nomeMes, peakCaption, peakMonths, seasonStatus } from "./calendar";
+import { mesNumero, nomeMes, peakCaption, peakMonths, peakStatusLine, seasonStatus } from "./calendar";
 
 describe("seasonStatus", () => {
   it("marks the current month as agora", () => {
@@ -42,6 +42,14 @@ describe("peakCaption", () => {
   it("says when the current month is in the peak", () => {
     expect(peakCaption([1, 2, 8], new Date("2026-08-17"))).toBe(
       "Pico: jan, fev, ago. agosto está no pico.",
+    );
+  });
+});
+
+describe("peakStatusLine", () => {
+  it("omits the month list", () => {
+    expect(peakStatusLine([1, 2, 12], new Date("2026-08-17"))).toBe(
+      "agosto está fora do pico.",
     );
   });
 });

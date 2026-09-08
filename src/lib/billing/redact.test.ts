@@ -249,4 +249,38 @@ describe("redactDossier", () => {
     expect(out.emailSeal.email).toBeNull();
     expect(out.socios[0]?.nome).toContain("Assine");
   });
+
+  it("strips market munition on Treino livre", () => {
+    const paid = {
+      ...dossier,
+      market: {
+        ...dossier.market,
+        slug: "estetica-e-beleza",
+      },
+    };
+    const out = redactDossier(paid, {
+      showEnrichment: false,
+      showContacts: true,
+      plano: "free",
+    });
+    expect(out.market.munition).toBeNull();
+    expect(out.market.dorCaixa).toBeNull();
+    expect(JSON.stringify(out.market)).not.toMatch(/funcionária mais requisitada/i);
+  });
+
+  it("keeps munition on Piloto Pro", () => {
+    const paid = {
+      ...dossier,
+      market: {
+        ...dossier.market,
+        slug: "estetica-e-beleza",
+      },
+    };
+    const out = redactDossier(paid, {
+      showEnrichment: true,
+      showContacts: true,
+      plano: "piloto_pro",
+    });
+    expect(out.market.munition?.urgenciasOcultas).toHaveLength(3);
+  });
 });

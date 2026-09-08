@@ -89,6 +89,49 @@ describe("resolveMarketBrief", () => {
     expect(brief.dorChip).toBe("Calçada e médico");
     expect(brief.janelaChip).toMatch(/manhã/i);
     expect(brief.sazonalidadeMeses.length).toBeGreaterThan(0);
+    expect(brief.munition?.doresFaturamento).toHaveLength(5);
+    expect(brief.dorCaixa).toBe(brief.munition?.doresFaturamento[0]);
+  });
+
+  it("lets munition override the call window on automotive", () => {
+    const brief = resolveMarketBrief({
+      presetSlug: "automotivo",
+      cnaeDescricao: "Serviços de manutenção e reparação mecânica de veículos",
+      municipioNome: "Patos de Minas",
+    });
+    expect(brief.janelaHorario).toMatch(/tarde/i);
+    expect(brief.janelaHorario).not.toMatch(/^De manhã/i);
+    expect(brief.janelaChip).toMatch(/tarde/i);
+    expect(brief.janelaChip).not.toMatch(/^De manhã$/i);
+    expect(brief.janelaEvitar).toMatch(/manhã/i);
+  });
+
+  it("lets munition season override the old pack chip", () => {
+    const auto = resolveMarketBrief({
+      presetSlug: "automotivo",
+      cnaeDescricao: "Serviços de manutenção e reparação mecânica de veículos",
+      municipioNome: "Patos de Minas",
+    });
+    expect(auto.sazonalidadeChip).toBe("IPVA");
+    expect(auto.sazonalidadeMeses).toEqual([1, 3, 12]);
+    expect(auto.sazonalidade).toMatch(/IPVA/i);
+
+    const paint = resolveMarketBrief({
+      presetSlug: "funilaria-pintura",
+      cnaeDescricao: "Serviços de lanternagem ou funilaria e pintura de veículos automotores",
+      municipioNome: "Olinda",
+    });
+    expect(paint.sazonalidadeChip).toBe("IPVA");
+    expect(paint.sazonalidadeMeses).toEqual([1, 3, 12]);
+
+    const industry = resolveMarketBrief({
+      presetSlug: "industria",
+      cnaeDescricao: "Fabricação de produtos de metal",
+      municipioNome: "Belo Horizonte",
+    });
+    expect(industry.sazonalidadeChip).toBeNull();
+    expect(industry.sazonalidadeMeses).toEqual([]);
+    expect(industry.sazonalidade).toMatch(/contratos/i);
   });
 
   it("marks seasonality active in the window", () => {

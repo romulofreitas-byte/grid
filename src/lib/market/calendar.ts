@@ -48,12 +48,22 @@ export function peakCaption(months: number[], now = new Date()): string | null {
   const peaks = peakMonths(months);
   if (!peaks.length) return null;
   const labels = peaks.map((m) => MES_CURTO[m - 1].toLowerCase());
+  const statusLine = peakStatusLine(months, now);
+  if (!statusLine) return `Pico: ${labels.join(", ")}.`;
+  return `Pico: ${labels.join(", ")}. ${statusLine}`;
+}
+
+export function peakStatusLine(
+  months: number[],
+  now = new Date(),
+): string | null {
+  const peaks = peakMonths(months);
+  if (!peaks.length) return null;
   const current = nomeMes(mesNumero(now));
   const status = seasonStatus(months, now);
-  const pico = `Pico: ${labels.join(", ")}.`;
-  if (status === "agora") return `${pico} ${current} está no pico.`;
-  if (status === "na-porta") return `${pico} ${current} está na porta do pico.`;
-  return `${pico} ${current} está fora do pico.`;
+  if (status === "agora") return `${current} está no pico.`;
+  if (status === "na-porta") return `${current} está na porta do pico.`;
+  return `${current} está fora do pico.`;
 }
 
 export function seasonStatus(

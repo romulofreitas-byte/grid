@@ -1,0 +1,782 @@
+[
+  {
+    "slug": "estetica-e-beleza",
+    "nome": "Estética e beleza",
+    "doresFaturamento": [
+      "Segunda e terça a agenda fica com buraco e a cadeira parada é prejuízo puro",
+      "Pacote de sessões vendido barato no começo do ano hoje não cobre nem o produto",
+      "Cliente só aparece quando tem promoção de Dia das Mães ou Namorados",
+      "Se a manicure ou esteticista boa sai, a clientela dela vai junto",
+      "Fim de mês vira desconto de última hora só para não fechar a agenda vazia"
+    ],
+    "urgenciasOcultas": [
+      "Vê o salão novo do bairro lotado no Instagram e não admite que ficou com medo",
+      "Tem vergonha de anunciar preço baixo direto porque parece desespero",
+      "Teme que a funcionária mais requisitada abra por conta própria e leve as clientes"
+    ],
+    "termosRamo": [
+      "encaixe",
+      "horário vago",
+      "ficha de anamnese",
+      "pacote de sessões",
+      "comissionada",
+      "cadeira parada",
+      "fidelização",
+      "dia de pico"
+    ],
+    "barreirasDecisao": [
+      "Já contratei agência uma vez e não veio cliente nenhum",
+      "Minha cliente vem de indicação de amiga, isso aqui não funciona assim",
+      "Minha sobrinha cuida do Instagram, já tá resolvido",
+      "Quando eu solto promoção no grupo do WhatsApp já lota sozinho"
+    ],
+    "rotinaEstresse": {
+      "manha": "Abre o salão, confere agenda do dia e resolve falta de profissional",
+      "tarde": "Pico de atendimento, não solta o celular da mão do jeito certo",
+      "noite": "Fecha caixa, responde cliente de última hora pedindo encaixe",
+      "janelaLigar": "De manhã, antes de abrir o salão",
+      "evitar": "Meio da tarde, no pico de atendimento"
+    }
+  },
+  {
+    "slug": "saude-e-clinicas",
+    "nome": "Saúde e clínicas",
+    "doresFaturamento": [
+      "Convênio paga defasado e demora, quem sustenta o caixa é o particular",
+      "Agenda furada de última hora e a sala fica parada mesmo assim gerando custo",
+      "Paciente de convênio enche a sala e o de particular, que paga melhor, não aparece",
+      "Equipamento caro parado três dias na semana por falta de agenda cheia",
+      "Recepcionista vira quem resolve tudo e o dono só sabe do problema quando já é grande"
+    ],
+    "urgenciasOcultas": [
+      "Vê clínica concorrente nova com aparelho mais moderno e teme perder paciente antigo",
+      "Não admite que depende demais de um único convênio grande",
+      "Medo de o profissional-chave abrir consultório próprio e levar a carteira de pacientes"
+    ],
+    "termosRamo": [
+      "encaixe",
+      "glosa",
+      "particular",
+      "convênio",
+      "retorno",
+      "sala ociosa",
+      "faltoso",
+      "repasse"
+    ],
+    "barreirasDecisao": [
+      "Já paguei agência e não veio paciente nenhum, só relatório bonito",
+      "Meu paciente vem de indicação de outro médico, não de internet",
+      "Não posso fazer promoção, conselho da categoria não deixa",
+      "Minha secretária cuida das redes, já tá resolvido"
+    ],
+    "rotinaEstresse": {
+      "manha": "Abre a agenda e já corre atrás de encaixe de quem faltou",
+      "tarde": "Atendimento corrido, sem tempo de olhar celular entre consultas",
+      "noite": "Fecha prontuário e revisa repasse de convênio do dia",
+      "janelaLigar": "No fim da tarde, entre o último paciente e o fechamento",
+      "evitar": "Horário de pico de consulta, meio da manhã e início da tarde"
+    }
+  },
+  {
+    "slug": "pet",
+    "nome": "Pet",
+    "doresFaturamento": [
+      "Banho e tosa lota sexta e sábado e o resto da semana o box fica vazio",
+      "Cliente só volta quando o pet já está fedendo, não vira recorrência fixa",
+      "Ração e produto de prateleira empatam dinheiro parado no estoque",
+      "Clínica veterinária depende de emergência, não tem consulta de rotina marcada",
+      "Concorrente com preço de banho mais baixo puxa cliente antigo"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o tosador bom saia e monte pet shop próprio na esquina",
+      "Vê petshop de rede grande chegando no bairro e não fala disso com ninguém",
+      "Vergonha de admitir que não sabe o quanto perde com agenda vazia de terça"
+    ],
+    "termosRamo": [
+      "banho e tosa",
+      "encaixe",
+      "recorrência",
+      "plano mensal",
+      "box livre",
+      "tutor",
+      "vacina em dia",
+      "agenda da semana"
+    ],
+    "barreirasDecisao": [
+      "Já tentei anunciar no Instagram e não veio ninguém novo",
+      "Aqui é tudo boca a boca de quem passeia com o cachorro na rua",
+      "Minha filha cuida das redes sociais nas horas vagas",
+      "Baixei o preço do banho e já enche sozinho"
+    ],
+    "rotinaEstresse": {
+      "manha": "Recebe os primeiros pets marcados e organiza fila de banho",
+      "tarde": "Pico de banho e tosa, telefone tocando e balcão cheio",
+      "noite": "Fecha caixa e vê quantos boxes ficaram vazios no dia",
+      "janelaLigar": "De manhã cedo, antes de encher o box",
+      "evitar": "Sexta e sábado à tarde, pico da semana"
+    }
+  },
+  {
+    "slug": "automotivo",
+    "nome": "Automotivo",
+    "doresFaturamento": [
+      "Oficina vive de carro quebrado, não tem revisão preventiva agendada",
+      "Peça fica parada no estoque porque comprou lote grande achando que ia girar",
+      "Início de mês é fraco, só enche perto do vencimento do IPVA e do seguro",
+      "Cliente troca de oficina toda vez que acha um mecânico mais barato",
+      "Elevador parado meio-dia é prejuízo que ninguém calcula"
+    ],
+    "urgenciasOcultas": [
+      "Teme parecer oficina de fundo de quintal do lado da concessionária nova",
+      "Não admite que perde cliente bom para o mecânico que abriu por conta própria",
+      "Vergonha de reconhecer que não tem controle de quantos carros vencem revisão no mês"
+    ],
+    "termosRamo": [
+      "elevador parado",
+      "revisão",
+      "orçamento",
+      "peça original",
+      "retrabalho",
+      "cliente de carteira",
+      "box livre",
+      "laudo"
+    ],
+    "barreirasDecisao": [
+      "Já contratei quem fazia site e não apareceu carro nenhum a mais",
+      "Meu cliente vem de indicação de outro cliente satisfeito",
+      "Meu sobrinho mexe com as redes da oficina nas horas vagas",
+      "Baixei o preço da revisão e já enche a agenda"
+    ],
+    "rotinaEstresse": {
+      "manha": "Recebe carro, faz diagnóstico e monta orçamento do dia",
+      "tarde": "Corre atrás de peça e resolve cliente impaciente esperando",
+      "noite": "Fecha ordem de serviço e calcula quanto sobrou de margem",
+      "janelaLigar": "No fim da tarde, quando o movimento de balcão diminui",
+      "evitar": "Início da manhã, na entrada de carros e diagnóstico"
+    }
+  },
+  {
+    "slug": "imobiliario",
+    "nome": "Imobiliário",
+    "doresFaturamento": [
+      "Imóvel bom parado três meses no portal sem visita nenhuma",
+      "Comissão só vem no fechamento, mês inteiro sem venda é mês sem caixa",
+      "Corretor autônomo capta o imóvel e leva para outra imobiliária",
+      "Cliente pede vídeo e visita marcada e depois some sem justificar",
+      "Imóvel de aluguel vago é despesa de condomínio saindo do próprio bolso"
+    ],
+    "urgenciasOcultas": [
+      "Teme corretor bom sair e abrir a própria carteira levando os imóveis captados",
+      "Vê imobiliária digital sem loja física fechando negócio mais rápido e não admite medo",
+      "Vergonha de não saber quantos imóveis da carteira estão realmente ativos"
+    ],
+    "termosRamo": [
+      "captação",
+      "carteira de imóveis",
+      "visita agendada",
+      "exclusividade",
+      "proposta",
+      "portal de anúncio",
+      "comissão",
+      "imóvel encalhado"
+    ],
+    "barreirasDecisao": [
+      "Já paguei para impulsionar anúncio e não veio proposta nenhuma",
+      "Meu cliente vem de indicação de quem já comprou comigo",
+      "Meu corretor mais novo cuida das redes da imobiliária",
+      "Baixei a comissão do corretor parceiro e o imóvel já sai da carteira"
+    ],
+    "rotinaEstresse": {
+      "manha": "Organiza visitas do dia e responde interessado que sumiu ontem",
+      "tarde": "Está em visita ou levando cliente para conhecer imóvel",
+      "noite": "Fecha proposta ou ajusta anúncio de imóvel parado",
+      "janelaLigar": "À tarde, entre uma visita e outra",
+      "evitar": "Horário de visita marcada e fim de tarde de fechamento de proposta"
+    }
+  },
+  {
+    "slug": "varejo",
+    "nome": "Varejo",
+    "doresFaturamento": [
+      "Segunda e terça a loja fica vazia e o vendedor fica de braço cruzado",
+      "Mercadoria de coleção passada empatada na prateleira, precisa liquidar no prejuízo",
+      "Cliente experimenta na loja e compra mais barato no site depois",
+      "Vendedor bom sai e leva os clientes fiéis que só compravam com ele",
+      "Fim de mês vira queima de estoque só para fechar meta de caixa"
+    ],
+    "urgenciasOcultas": [
+      "Vê loja de shopping ou rede grande abrindo perto e não fala do medo abertamente",
+      "Vergonha de admitir que não sabe o giro real de cada produto na prateleira",
+      "Teme que o vendedor-estrela abra o próprio ponto levando a clientela"
+    ],
+    "termosRamo": [
+      "giro de estoque",
+      "vitrine",
+      "encalhe",
+      "meta do mês",
+      "troca",
+      "cliente de balcão",
+      "reposição",
+      "queima de estoque"
+    ],
+    "barreirasDecisao": [
+      "Já contratei quem fazia anúncio e não vendeu nada a mais",
+      "Meu cliente é da região, vem de boca a boca há anos",
+      "Minha filha cuida do Instagram da loja",
+      "Baixei o preço na loja física e já vendeu"
+    ],
+    "rotinaEstresse": {
+      "manha": "Abre a loja, confere vitrine e organiza reposição",
+      "tarde": "Pico de cliente passando e vendedor não larga o balcão",
+      "noite": "Fecha caixa e confere o que sobrou parado na prateleira",
+      "janelaLigar": "No início da manhã, antes de abrir para o público",
+      "evitar": "Fim de tarde, pico de movimento na loja"
+    }
+  },
+  {
+    "slug": "alimentacao-fora-do-lar",
+    "nome": "Alimentação",
+    "doresFaturamento": [
+      "Terça e quarta o salão e o motoboy ficam parados esperando pedido",
+      "Combo de sobrevivência vendido barato come a margem inteira do prato",
+      "iFood fica com boa fatia e o cliente não sabe nem o nome do restaurante",
+      "Insumo perecível estraga na geladeira quando o movimento cai de repente",
+      "Fim de mês vira promoção de última hora só para não fechar caixa negativo"
+    ],
+    "urgenciasOcultas": [
+      "Vê concorrente novo do bairro lotado no fim de semana e não admite a insegurança",
+      "Teme que o cozinheiro-chefe saia e leve a receita para montar negócio próprio",
+      "Vergonha de reconhecer que não sabe qual prato realmente dá lucro"
+    ],
+    "termosRamo": [
+      "salão vazio",
+      "ficha técnica",
+      "taxa do aplicativo",
+      "combo",
+      "mise en place",
+      "cardápio fixo",
+      "pico da cozinha",
+      "motoboy parado"
+    ],
+    "barreirasDecisao": [
+      "Já paguei para impulsionar no aplicativo e não voltou o dinheiro",
+      "Meu cliente é do bairro, vem de boca a boca há anos",
+      "Meu sobrinho cuida das redes do restaurante",
+      "Baixei o preço do combo e já enche o salão"
+    ],
+    "rotinaEstresse": {
+      "manha": "Recebe insumo e organiza mise en place do dia",
+      "tarde": "Resolve falta de motoboy ou ajuste de cardápio do dia",
+      "noite": "Pico da cozinha, não atende nem olha o telefone",
+      "janelaLigar": "Meio da manhã, antes do movimento do almoço",
+      "evitar": "Horário de pico da cozinha, almoço e jantar"
+    }
+  },
+  {
+    "slug": "educacao",
+    "nome": "Educação",
+    "doresFaturamento": [
+      "Janeiro e fevereiro a matrícula não enche e o custo fixo continua correndo",
+      "Turma com vaga sobrando custa professor e sala do mesmo jeito",
+      "Aluno evade no meio do ano e a vaga fica parada até o próximo semestre",
+      "Inadimplência de mensalidade aperta o caixa todo mês",
+      "Curso concorrente com preço mais baixo puxa aluno na hora da rematrícula"
+    ],
+    "urgenciasOcultas": [
+      "Vê escola ou curso novo do bairro anunciando e não admite o medo de perder aluno",
+      "Teme que o professor mais procurado saia e monte curso próprio levando turma",
+      "Vergonha de reconhecer que não sabe quantas vagas realmente sobraram este mês"
+    ],
+    "termosRamo": [
+      "matrícula",
+      "rematrícula",
+      "turma fechada",
+      "vaga ociosa",
+      "inadimplência",
+      "grade horária",
+      "evasão",
+      "mensalidade"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio de matrícula e não veio aluno nenhum a mais",
+      "Meu aluno vem de indicação de outro pai satisfeito",
+      "Minha coordenadora cuida das redes da escola",
+      "Baixei a mensalidade e a turma já fechou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Resolve pauta de professor e organiza turma do dia",
+      "tarde": "Atende pai ou responsável e ajusta grade horária",
+      "noite": "Fecha relatório de frequência e inadimplência do dia",
+      "janelaLigar": "No fim da tarde, depois do horário de aula",
+      "evitar": "Horário de entrada e saída dos alunos"
+    }
+  },
+  {
+    "slug": "turismo-e-hotelaria",
+    "nome": "Turismo e hotelaria",
+    "doresFaturamento": [
+      "Baixa temporada o quarto fica vazio e a diária não cobre a limpeza",
+      "Plataforma de reserva fica com boa fatia e o hóspede nem sabe o nome da pousada",
+      "Cliente cancela em cima da hora e o quarto não é reocupado a tempo",
+      "Feriado lota e o resto do mês some, sem meio-termo",
+      "Concorrente baixa diária no último minuto e puxa reserva que já era sua"
+    ],
+    "urgenciasOcultas": [
+      "Vê pousada nova do bairro lotada nas redes e não admite a insegurança",
+      "Teme que o funcionário de confiança saia e abra hospedagem própria",
+      "Vergonha de reconhecer que não sabe a taxa real de ocupação do mês"
+    ],
+    "termosRamo": [
+      "diária",
+      "taxa de ocupação",
+      "baixa temporada",
+      "overbooking",
+      "check-in",
+      "no-show",
+      "comissão da plataforma",
+      "temporada cheia"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio de temporada e não veio reserva a mais",
+      "Meu hóspede vem de indicação de quem já ficou aqui",
+      "Minha sobrinha cuida das redes da pousada",
+      "Baixei a diária e já lota no feriado"
+    ],
+    "rotinaEstresse": {
+      "manha": "Resolve check-out e prepara quarto para o próximo hóspede",
+      "tarde": "Atende reserva e resolve imprevisto de manutenção",
+      "noite": "Recebe check-in e fecha caixa do dia",
+      "janelaLigar": "No início da manhã, depois do check-out",
+      "evitar": "Horário de check-in e check-out, fim de tarde e início de noite"
+    }
+  },
+  {
+    "slug": "esporte-e-fitness",
+    "nome": "Esporte e fitness",
+    "doresFaturamento": [
+      "Janeiro lota de matrícula e março a academia já esvazia pela metade",
+      "Aluno paga o plano e some, mas a vaga continua ocupada no sistema",
+      "Horário de pico lota e o resto do dia o espaço fica vazio",
+      "Personal autônomo aluga a sala e leva o aluno fiel quando sai",
+      "Inadimplência do plano mensal aperta o caixa no meio do mês"
+    ],
+    "urgenciasOcultas": [
+      "Vê academia ou box novo do bairro lotado nas redes e não admite o medo",
+      "Teme que o professor mais querido saia e monte estúdio próprio levando aluno",
+      "Vergonha de reconhecer que não sabe a taxa real de evasão do mês"
+    ],
+    "termosRamo": [
+      "matrícula",
+      "evasão",
+      "plano mensal",
+      "horário de pico",
+      "aula cheia",
+      "inadimplência",
+      "renovação",
+      "ficha de treino"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio de matrícula e não veio aluno a mais",
+      "Meu aluno vem de indicação de quem já treina aqui",
+      "Meu instrutor cuida das redes da academia",
+      "Baixei o plano e já lotou de novo"
+    ],
+    "rotinaEstresse": {
+      "manha": "Recebe aluno do horário de pico antes do trabalho",
+      "tarde": "Espaço mais vazio, resolve renovação e ficha de treino",
+      "noite": "Segundo pico de aula, não larga o salão",
+      "janelaLigar": "À tarde, no horário mais vazio da academia",
+      "evitar": "Pico da manhã cedo e início da noite"
+    }
+  },
+  {
+    "slug": "servicos-locais",
+    "nome": "Serviços locais",
+    "doresFaturamento": [
+      "Semana sem chamado de emergência é semana sem faturar nada",
+      "Orçamento passado e cliente compara com três outros antes de fechar",
+      "Ajudante bom sai e leva cliente fixo que só confiava nele",
+      "Ferramenta e carro parados no meio da semana pesam no custo fixo",
+      "Cliente só liga quando já é urgência, não fecha manutenção preventiva"
+    ],
+    "urgenciasOcultas": [
+      "Vê prestador novo cobrando mais barato e pegando serviço que era seu",
+      "Teme que o ajudante de confiança saia e vire concorrente direto",
+      "Vergonha de admitir que não sabe quantos orçamentos virou serviço este mês"
+    ],
+    "termosRamo": [
+      "orçamento",
+      "chamado",
+      "visita técnica",
+      "cliente fixo",
+      "emergência",
+      "mão de obra",
+      "peça e material",
+      "agenda da semana"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio chamado nenhum a mais",
+      "Meu cliente vem de indicação de vizinho satisfeito",
+      "Meu filho cuida do WhatsApp comercial",
+      "Baixei o valor da visita e já enche a agenda"
+    ],
+    "rotinaEstresse": {
+      "manha": "Sai para o primeiro atendimento agendado do dia",
+      "tarde": "Resolve orçamento e corre atrás de material que falta",
+      "noite": "Fecha caixa e organiza agenda do dia seguinte",
+      "janelaLigar": "No fim da tarde, quando volta do último atendimento",
+      "evitar": "Durante o atendimento e deslocamento entre chamados"
+    }
+  },
+  {
+    "slug": "industria",
+    "nome": "Indústria",
+    "doresFaturamento": [
+      "Linha parada por falta de pedido custa o mesmo que linha rodando cheia",
+      "Cliente grande atrasa pagamento e aperta o caixa do mês inteiro",
+      "Matéria-prima comprada em lote grande fica parada esperando pedido",
+      "Turno noturno ocioso quando a demanda cai fora de época",
+      "Depender de dois ou três clientes grandes deixa o caixa refém deles"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o cliente grande concentre a compra em concorrente maior",
+      "Vergonha de admitir que não sabe a real ociosidade da linha este mês",
+      "Vê indústria concorrente automatizando e não fala do medo de ficar para trás"
+    ],
+    "termosRamo": [
+      "linha parada",
+      "ociosidade",
+      "pedido em carteira",
+      "matéria-prima",
+      "turno",
+      "lead time",
+      "cliente-chave",
+      "capacidade instalada"
+    ],
+    "barreirasDecisao": [
+      "Já paguei consultoria de marketing e não trouxe pedido nenhum",
+      "Meu cliente vem de relacionamento antigo, não de anúncio",
+      "Meu filho cuida do site da empresa",
+      "Baixei o preço para o cliente grande e ele já aumentou o pedido"
+    ],
+    "rotinaEstresse": {
+      "manha": "Confere produção do turno e resolve falta de matéria-prima",
+      "tarde": "Negocia com fornecedor ou cliente sobre prazo e pedido",
+      "noite": "Fecha relatório de produção e ociosidade do dia",
+      "janelaLigar": "No fim da manhã, antes do almoço",
+      "evitar": "Início de turno e fechamento de produção"
+    }
+  },
+  {
+    "slug": "construcao-civil",
+    "nome": "Construção civil",
+    "doresFaturamento": [
+      "Obra parada por falta de material atrasa cronograma e come margem",
+      "Orçamento fechado e cliente pede desconto até o último tijolo",
+      "Equipe terceirizada some no meio da obra e trava tudo",
+      "Chuva parou a obra e o custo fixo de equipe continua correndo",
+      "Cliente muda o projeto no meio e a conta não fecha como planejado"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o mestre de obra saia e monte empreiteira própria levando cliente",
+      "Vergonha de admitir que não sabe a margem real da obra em andamento",
+      "Vê construtora concorrente entregando mais rápido e não fala do medo"
+    ],
+    "termosRamo": [
+      "cronograma de obra",
+      "orçamento fechado",
+      "mestre de obra",
+      "medição",
+      "aditivo",
+      "material em falta",
+      "empreiteira",
+      "entrega da obra"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio orçamento fechado nenhum",
+      "Meu cliente vem de indicação de obra anterior",
+      "Meu genro cuida das redes da construtora",
+      "Baixei o preço do orçamento e já fechou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Está na obra resolvendo cronograma e falta de material",
+      "tarde": "Segue em obra ou negocia orçamento com cliente novo",
+      "noite": "Fecha medição e planeja próxima etapa da obra",
+      "janelaLigar": "À tarde, quando saiu da obra",
+      "evitar": "Manhã cedo, no início da obra"
+    }
+  },
+  {
+    "slug": "insumos-para-construcao",
+    "nome": "Insumos para construção",
+    "doresFaturamento": [
+      "Início de mês a loja fica vazia, só enche perto do pagamento da obra",
+      "Material pesado parado no depósito empata o caixa da loja",
+      "Cliente compra o básico ali e o material caro pede orçamento em três lugares",
+      "Frete de entrega ociosa quando a obra do bairro atrasa",
+      "Concorrente com preço de tabela mais baixo puxa cliente fiel"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o vendedor de balcão saia e leve os mestres de obra que ele atendia",
+      "Vê loja de rede grande de material abrindo perto e não admite a preocupação",
+      "Vergonha de reconhecer que não sabe o giro real de cada linha de produto"
+    ],
+    "termosRamo": [
+      "pedido de obra",
+      "entrega no canteiro",
+      "giro de estoque",
+      "cliente de obra",
+      "orçamento por telefone",
+      "material pesado",
+      "prazo de pagamento",
+      "carteira de mestres"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio pedido de obra nenhum",
+      "Meu cliente é mestre de obra da região, vem de indicação",
+      "Meu filho cuida do catálogo online da loja",
+      "Baixei o preço da entrega e já fechou o pedido"
+    ],
+    "rotinaEstresse": {
+      "manha": "Recebe pedido de obra e organiza entrega do dia",
+      "tarde": "Atende balcão e resolve orçamento de material pesado",
+      "noite": "Fecha caixa e confere o que sobrou parado no depósito",
+      "janelaLigar": "No início da manhã, antes da correria de entrega",
+      "evitar": "Horário de entrega e pico de balcão"
+    }
+  },
+  {
+    "slug": "contabilidade-e-juridico",
+    "nome": "Contabilidade e jurídico",
+    "doresFaturamento": [
+      "Cliente pequeno paga honorário defasado há anos e não dá para reajustar sem perder",
+      "Época de fechamento fiscal a equipe trava e não sobra tempo para captar cliente novo",
+      "Cliente troca de contador ou advogado por diferença pequena de honorário",
+      "Processo ou serviço pontual paga uma vez só, sem recorrência garantida",
+      "Depender de poucos clientes grandes deixa o escritório refém deles"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o funcionário sênior saia e abra escritório próprio levando cliente",
+      "Vergonha de admitir que não sabe quantos clientes realmente dão lucro hoje",
+      "Vê escritório concorrente mais jovem digitalizado ganhando cliente novo e não fala disso"
+    ],
+    "termosRamo": [
+      "honorário mensal",
+      "fechamento fiscal",
+      "cliente recorrente",
+      "processo em andamento",
+      "obrigação acessória",
+      "carteira de clientes",
+      "consulta avulsa",
+      "prazo do órgão"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio cliente novo nenhum",
+      "Meu cliente vem de indicação de outro cliente satisfeito",
+      "Minha filha cuida do site do escritório",
+      "Baixei o honorário e o cliente já ficou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Resolve prazo de órgão e organiza obrigação do dia",
+      "tarde": "Atende cliente presencial ou reunião de processo",
+      "noite": "Fecha pendência do dia e prepara prazo de amanhã",
+      "janelaLigar": "No fim da tarde, depois do horário de atendimento",
+      "evitar": "Época de fechamento fiscal e prazo de entrega de obrigação"
+    }
+  },
+  {
+    "slug": "tech-e-software",
+    "nome": "Tech e software",
+    "doresFaturamento": [
+      "Cliente cancela assinatura no meio do contrato e o caixa recorrente cai de repente",
+      "Desenvolvedor sênior sai no meio do projeto e atrasa entrega de vários clientes",
+      "Projeto sob medida trava no escopo e o cliente não fecha o pagamento final",
+      "Time fica ocioso entre um contrato grande e outro, sem pipeline constante",
+      "Cliente pequeno paga pouco e consome tanto suporte quanto o grande"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o desenvolvedor-chave saia e monte concorrente direto com o mesmo produto",
+      "Vergonha de admitir que não sabe o churn real da base de clientes",
+      "Vê startup nova levantando investimento e ganhando cliente que era seu e não fala disso"
+    ],
+    "termosRamo": [
+      "churn",
+      "escopo fechado",
+      "sprint",
+      "contrato recorrente",
+      "backlog",
+      "suporte",
+      "time ocioso",
+      "entrega do projeto"
+    ],
+    "barreirasDecisao": [
+      "Já paguei agência de marketing e não veio lead qualificado nenhum",
+      "Meu cliente vem de indicação de outro cliente satisfeito",
+      "Meu sócio cuida do LinkedIn da empresa",
+      "Baixei o valor da mensalidade e o cliente já renovou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Está em reunião de alinhamento de sprint ou projeto",
+      "tarde": "Resolve bug urgente ou pendência de cliente",
+      "noite": "Revisa entrega do dia e planeja prioridade de amanhã",
+      "janelaLigar": "No fim da tarde, depois da reunião diária",
+      "evitar": "Horário de reunião de sprint e pico de suporte"
+    }
+  },
+  {
+    "slug": "marketing-e-publicidade",
+    "nome": "Marketing e publicidade",
+    "doresFaturamento": [
+      "Cliente cancela contrato mensal no primeiro mês sem resultado imediato",
+      "Time fica parado entre a entrega de uma campanha e o início da próxima",
+      "Cliente pequeno consome tanta reunião quanto o grande, mas paga bem menos",
+      "Depender de dois ou três clientes grandes deixa a agência refém deles",
+      "Fechamento de contrato demora meses e o caixa fica apertado esperando"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o criativo-chave saia e leve cliente para montar agência própria",
+      "Vergonha de admitir que não sabe a real taxa de renovação de contrato",
+      "Vê agência concorrente menor ganhando cliente grande e não fala do medo"
+    ],
+    "termosRamo": [
+      "briefing",
+      "contrato mensal",
+      "entrega de campanha",
+      "cliente recorrente",
+      "reunião de alinhamento",
+      "renovação de contrato",
+      "prazo de entrega",
+      "time ocioso"
+    ],
+    "barreirasDecisao": [
+      "Já tentei prospectar do jeito antigo e não fechou contrato nenhum",
+      "Meu cliente vem de indicação de outra agência ou cliente satisfeito",
+      "Meu sócio cuida da prospecção nas horas vagas",
+      "Baixei a mensalidade e o cliente já assinou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Está em reunião de alinhamento com cliente ou equipe",
+      "tarde": "Resolve entrega de campanha ou ajuste de última hora",
+      "noite": "Fecha relatório de resultado do dia para o cliente",
+      "janelaLigar": "No fim da tarde, depois da reunião de alinhamento",
+      "evitar": "Horário de reunião com cliente e fechamento de entrega"
+    }
+  },
+  {
+    "slug": "logistica-e-transporte",
+    "nome": "Logística e transporte",
+    "doresFaturamento": [
+      "Caminhão parado no pátio é prejuízo igual a caminhão rodando vazio",
+      "Frete de retorno vazio come toda a margem da viagem de ida",
+      "Cliente grande atrasa pagamento e aperta o caixa do mês inteiro",
+      "Motorista bom sai e vira autônomo levando cliente fixo da transportadora",
+      "Depender de poucos contratos grandes deixa a frota refém deles"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o motorista de confiança saia e vire concorrente autônomo",
+      "Vergonha de admitir que não sabe a ociosidade real da frota este mês",
+      "Vê transportadora concorrente crescendo e ganhando contrato que era seu"
+    ],
+    "termosRamo": [
+      "frete de retorno",
+      "frota ociosa",
+      "contrato de transporte",
+      "rota fixa",
+      "carga fechada",
+      "prazo de entrega",
+      "pátio parado",
+      "cliente-chave"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio contrato de frete nenhum",
+      "Meu cliente vem de indicação de outro transportador",
+      "Meu filho cuida do site da transportadora",
+      "Baixei o valor do frete e o contrato já fechou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Organiza rota do dia e resolve falta de motorista",
+      "tarde": "Negocia frete de retorno ou resolve atraso de entrega",
+      "noite": "Fecha relatório de rota e ociosidade da frota do dia",
+      "janelaLigar": "No fim da tarde, depois do fechamento das rotas",
+      "evitar": "Horário de saída de rota e fechamento de carga"
+    }
+  },
+  {
+    "slug": "atacado-e-distribuicao",
+    "nome": "Atacado e distribuição",
+    "doresFaturamento": [
+      "Cliente pequeno compra pouco e demora para pagar, aperta o caixa",
+      "Produto de giro lento empata dinheiro parado no depósito",
+      "Cliente grande negocia prazo maior e o caixa do mês fica apertado",
+      "Vendedor externo bom sai e leva a carteira de clientes fixos",
+      "Concorrente com preço de tabela mais baixo puxa cliente fiel"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o vendedor externo de confiança saia e monte distribuidora própria",
+      "Vergonha de admitir que não sabe o giro real de cada linha de produto",
+      "Vê distribuidor concorrente crescendo e ganhando cliente que era seu"
+    ],
+    "termosRamo": [
+      "giro de estoque",
+      "carteira de clientes",
+      "pedido mínimo",
+      "prazo de pagamento",
+      "vendedor externo",
+      "rota de entrega",
+      "produto encalhado",
+      "cliente inadimplente"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio pedido novo nenhum",
+      "Meu cliente vem de indicação de outro lojista",
+      "Meu filho cuida do catálogo online da distribuidora",
+      "Baixei o preço do pedido mínimo e já fechou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Organiza pedido do dia e resolve entrega atrasada",
+      "tarde": "Vendedor externo está em visita a cliente da carteira",
+      "noite": "Fecha relatório de pedido e cliente inadimplente do dia",
+      "janelaLigar": "No início da manhã, antes da saída de entrega",
+      "evitar": "Horário de rota de entrega e pico de pedido"
+    }
+  },
+  {
+    "slug": "financeiro-e-seguros",
+    "nome": "Financeiro e seguros",
+    "doresFaturamento": [
+      "Cliente cancela apólice ou consórcio no meio do contrato e a comissão recorrente para",
+      "Época de renovação de seguro é a única que realmente movimenta o caixa",
+      "Cliente compara cotação em três corretoras antes de fechar por diferença pequena",
+      "Corretor bom sai e leva a carteira de clientes fiéis",
+      "Depender de poucos clientes grandes deixa a carteira refém deles"
+    ],
+    "urgenciasOcultas": [
+      "Teme que o corretor de confiança saia e monte corretora própria levando carteira",
+      "Vergonha de admitir que não sabe a taxa real de cancelamento da carteira",
+      "Vê corretora digital nova ganhando cliente com cotação mais rápida e não fala do medo"
+    ],
+    "termosRamo": [
+      "apólice",
+      "renovação",
+      "carteira de clientes",
+      "cotação",
+      "comissão recorrente",
+      "sinistro",
+      "cancelamento",
+      "cliente fiel"
+    ],
+    "barreirasDecisao": [
+      "Já paguei anúncio e não veio cotação nenhuma a mais",
+      "Meu cliente vem de indicação de outro cliente satisfeito",
+      "Minha filha cuida das redes da corretora",
+      "Baixei a comissão e o cliente já renovou"
+    ],
+    "rotinaEstresse": {
+      "manha": "Resolve renovação de apólice e cotação pendente",
+      "tarde": "Atende cliente sobre sinistro ou ajuste de contrato",
+      "noite": "Fecha relatório de renovação e cancelamento do dia",
+      "janelaLigar": "No fim da tarde, depois do horário de atendimento",
+      "evitar": "Época de renovação em massa e fechamento de sinistro"
+    }
+  }
+]

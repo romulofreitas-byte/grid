@@ -1,4 +1,5 @@
 import type { CompanySearchHit, GridRow, LeadDossier, LeadEnrichment } from "@/lib/types";
+import { redactMarketBrief } from "@/lib/market/munition";
 
 const MASK_PHONE = "••••-••••";
 
@@ -100,9 +101,12 @@ function stripEnrichmentFields(enrichment: LeadEnrichment | null): LeadEnrichmen
 /** Paid plans see qualification; free plan only sees Receita cadastral in the ficha. */
 export function redactDossier(
   dossier: LeadDossier,
-  opts: { showEnrichment: boolean; showContacts: boolean },
+  opts: { showEnrichment: boolean; showContacts: boolean; plano?: string | null },
 ): LeadDossier {
-  let out: LeadDossier = { ...dossier };
+  let out: LeadDossier = {
+    ...dossier,
+    market: redactMarketBrief(dossier.market, opts.plano),
+  };
 
   if (!opts.showEnrichment) {
     out = {

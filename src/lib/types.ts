@@ -193,6 +193,29 @@ export type DigitalSignalId =
   | "sem-whatsapp"
   | "midia-paga";
 
+export type MarketRotina = {
+  manha: string;
+  tarde: string;
+  noite: string;
+  janelaLigar: string;
+  evitar: string;
+};
+
+export type MarketMunition = {
+  doresFaturamento: string[];
+  urgenciasOcultas: string[];
+  termosRamo: string[];
+  barreirasDecisao: string[];
+  rotinaEstresse: MarketRotina;
+};
+
+export type MarketSeason = {
+  mesesPico: number[];
+  chip: string | null;
+  porQue: string;
+  baixa: string;
+};
+
 export type MarketBrief = {
   slug: string;
   nome: string;
@@ -203,9 +226,19 @@ export type MarketBrief = {
   sazonalidadeChip: string | null;
   sazonalidadeMeses: number[];
   sazonalidadeAtiva: boolean;
+  /** Off-peak line from munition season. */
+  sazonalidadeBaixa?: string | null;
   janelaHorario: string;
   janelaChip: string;
+  /** When not to call. From munition rotina when present. */
+  janelaEvitar?: string | null;
   cidade: string;
+  /** Piloto teaser. Absent on Treino livre after redact. */
+  dorCaixa?: string | null;
+  /** Full Prompt-1 munition. Only on Piloto Pro / Escuderia after redact. */
+  munition?: MarketMunition | null;
+  /** Piloto: show locked Pro slots without the copy. */
+  munitionLocked?: boolean;
 };
 
 export type EnrichmentJobStatus =

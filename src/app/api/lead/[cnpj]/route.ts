@@ -64,6 +64,7 @@ export async function GET(
   const safe = redactDossier(dossier, {
     showEnrichment: enriched,
     showContacts: balance.enrichAllowed || enriched,
+    plano: balance.plano,
   });
   const crm = balance.enrichAllowed
     ? await loadLeadCrm(repo, {

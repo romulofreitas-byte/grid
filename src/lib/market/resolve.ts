@@ -1,5 +1,6 @@
 import { TAXONOMY, normalizeText } from "@/lib/niches";
 import type { MarketBrief, NichePreset, SearchFilters } from "@/lib/types";
+import { attachMunition } from "@/lib/market/munition";
 import { GENERIC_PACK, getMarketPack, janelaChipFrom, type MarketPack, type SeasonalHook } from "@/lib/market/packs";
 
 function fillCity(text: string, cidade: string): string {
@@ -95,7 +96,7 @@ export function resolveMarketBrief(input: {
     input.municipioNome,
   );
   const ativa = seasonalHookActive(pack.sazonalidade, input.now);
-  return {
+  return attachMunition({
     slug: pack.slug,
     nome: pack.nome,
     dorPrincipal: pack.dorPrincipal,
@@ -108,7 +109,7 @@ export function resolveMarketBrief(input: {
     janelaHorario: pack.janelaHorario,
     janelaChip: janelaChipFrom(pack.janelaHorario),
     cidade: input.municipioNome.trim() || "esta cidade",
-  };
+  }, input.now);
 }
 
 export function resolveMarketPackForPonte(input: {

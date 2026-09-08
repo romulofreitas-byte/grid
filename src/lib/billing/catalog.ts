@@ -41,13 +41,13 @@ export type PackDefinition = {
 
 export type CatalogItem = PlanDefinition | PackDefinition;
 
-export type PlanFeature = "crm" | "import" | "automations";
+export type PlanFeature = "crm" | "import" | "automations" | "market_munition";
 
 const PLAN_FEATURES: Record<PlanSku, readonly PlanFeature[]> = {
   free: [],
   piloto: ["crm", "import"],
-  piloto_pro: ["crm", "import", "automations"],
-  escuderia: ["crm", "import", "automations"],
+  piloto_pro: ["crm", "import", "automations", "market_munition"],
+  escuderia: ["crm", "import", "automations", "market_munition"],
   membro_plataforma: ["crm", "import"],
 };
 
@@ -123,6 +123,7 @@ export const PLANS: PlanDefinition[] = [
     ],
     details: [
       "Formulário, anúncio e Make criam negócio no CRM",
+      "Munição de mercado na ficha",
     ],
   },
   {
@@ -140,7 +141,10 @@ export const PLANS: PlanDefinition[] = [
       "~200 fichas por dia no mês",
       "Volume para a operação inteira",
     ],
-    details: ["Formulário, anúncio e Make criam negócio no CRM"],
+    details: [
+      "Formulário, anúncio e Make criam negócio no CRM",
+      "Munição de mercado na ficha",
+    ],
     notes: ["Seats extras em desenvolvimento"],
   },
   {

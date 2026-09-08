@@ -1,17 +1,21 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { GlassCard } from "@/components/GlassCard";
+import { COPY } from "@/lib/copy";
 import {
   MES_CURTO,
   MES_NOME,
   mesNumero,
-  peakCaption,
+  peakStatusLine,
   peakMonths,
   seasonStatus,
   type SeasonStatus,
 } from "@/lib/market/calendar";
-import type { MarketBrief } from "@/lib/types";
+import { PLANOS_PRO_URL } from "@/lib/billing/paywall";
+import type { MarketBrief, MarketMunition } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const SEASON_PILL: Record<SeasonStatus, string | null> = {
@@ -21,24 +25,15 @@ const SEASON_PILL: Record<SeasonStatus, string | null> = {
   nenhuma: null,
 };
 
-const SEASON_BANNER: Record<
-  SeasonStatus,
-  { title: string; className: string } | null
-> = {
-  agora: {
-    title: "Janela aberta — pico de demanda deste nicho",
-    className: "border-podium-yellow/40 bg-podium-yellow/10 text-podium-yellow",
-  },
-  "na-porta": {
-    title: "Pico na porta — prepare abordagem este mês",
-    className: "border-podium-info/35 bg-podium-info/10 text-podium-info",
-  },
-  fora: {
-    title: "Fora do pico — use o calendário com cuidado",
-    className: "border-white/10 bg-white/[0.03] text-podium-muted",
-  },
-  nenhuma: null,
-};
+type MunitionTab = "caixa" | "dono" | "lingua" | "barreiras" | "rotina";
+
+const MUNITION_TABS: Array<{ id: MunitionTab; label: string }> = [
+  { id: "caixa", label: COPY.marketChipCaixa },
+  { id: "dono", label: COPY.marketChipDono },
+  { id: "lingua", label: COPY.marketChipLingua },
+  { id: "barreiras", label: COPY.marketChipBarreiras },
+  { id: "rotina", label: COPY.marketChipRotina },
+];
 
 function firstName(nome: string | null | undefined): string {
   const first = nome?.trim().split(/\s+/)[0];
@@ -109,117 +104,83 @@ function Cue({
 function SeasonCalendar({
   months,
   now,
-  sazonalidade,
+  why,
+  baixa,
 }: {
   months: number[];
   now: Date;
-  sazonalidade: string | null;
+  why?: string | null;
+  baixa?: string | null;
 }) {
   const current = mesNumero(now);
   const peaks = peakMonths(months);
-  const status = seasonStatus(months, now);
-  const caption = peakCaption(months, now);
-  const banner = SEASON_BANNER[status];
+  const statusLine = peakStatusLine(months, now);
+  const caption = [why?.trim(), statusLine, baixa?.trim()]
+    .filter(Boolean)
+    .join(" ");
 
-  if (peaks.length === 0 && !sazonalidade?.trim()) {
+  if (peaks.length === 0) {
+    const empty = why?.trim() || "Sem calendário de pico curado para este nicho.";
     return (
-      <p className="mt-3 text-sm text-podium-muted">
-        Sem calendário de pico curado para este nicho.
-      </p>
+      <div className="mt-4 border-t border-white/10 pt-3">
+        <p className="text-sm text-podium-muted">{empty}</p>
+        {baixa?.trim() ? (
+          <p className="mt-1 text-[11px] leading-relaxed text-podium-gray">
+            {baixa.trim()}
+          </p>
+        ) : null}
+      </div>
     );
   }
 
   return (
-    <div className="mt-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
-            Calendário de mercado
-          </p>
-          <p className="mt-1 text-sm font-semibold text-podium-white">
-            Picos e janelas de oportunidade
-          </p>
-        </div>
-        {SEASON_PILL[status] ? (
-          <Badge variant={status === "agora" ? "accent" : "neutral"}>
-            {SEASON_PILL[status]}
-          </Badge>
-        ) : null}
-      </div>
-
-      {banner ? (
-        <p
-          className={cn(
-            "mt-3 rounded-md border px-3 py-2 text-xs font-medium leading-snug",
-            banner.className,
-          )}
-        >
-          {banner.title}
-        </p>
-      ) : null}
-
-      {peaks.length > 0 ? (
-        <ol className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-12">
-          {MES_CURTO.map((label, index) => {
-            const month = index + 1;
-            const inSeason = peaks.includes(month);
-            const isNow = month === current;
-            return (
-              <li key={month}>
-                <span
-                  title={MES_NOME[index]}
-                  className={cn(
-                    "flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center",
-                    inSeason &&
-                      isNow &&
-                      "border-podium-yellow bg-podium-yellow text-podium-navy",
-                    inSeason &&
-                      !isNow &&
-                      "border-podium-yellow/35 bg-podium-yellow/15 text-podium-yellow",
-                    !inSeason &&
-                      isNow &&
-                      "border-podium-yellow/40 text-podium-yellow",
-                    !inSeason &&
-                      !isNow &&
-                      "border-white/10 text-podium-muted",
-                  )}
-                >
-                  <span className="text-[10px] font-semibold uppercase">
-                    {label}
-                  </span>
-                  {inSeason ? (
-                    <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-80">
-                      pico
-                    </span>
-                  ) : isNow ? (
-                    <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-70">
-                      agora
-                    </span>
-                  ) : (
-                    <span className="mt-0.5 text-[8px] opacity-0">·</span>
-                  )}
+    <div className="mt-4 border-t border-white/10 pt-3">
+      <ol className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-12">
+        {MES_CURTO.map((label, index) => {
+          const month = index + 1;
+          const inSeason = peaks.includes(month);
+          const isNow = month === current;
+          return (
+            <li key={month}>
+              <span
+                title={MES_NOME[index]}
+                className={cn(
+                  "flex min-h-11 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-center",
+                  inSeason &&
+                    isNow &&
+                    "border-podium-yellow bg-podium-yellow text-podium-navy",
+                  inSeason &&
+                    !isNow &&
+                    "border-podium-yellow/35 bg-podium-yellow/15 text-podium-yellow",
+                  !inSeason &&
+                    isNow &&
+                    "border-podium-yellow/40 text-podium-yellow",
+                  !inSeason && !isNow && "border-white/10 text-podium-muted",
+                )}
+              >
+                <span className="text-[10px] font-semibold uppercase">
+                  {label}
                 </span>
-              </li>
-            );
-          })}
-        </ol>
-      ) : null}
-
+                {inSeason ? (
+                  <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-80">
+                    pico
+                  </span>
+                ) : isNow ? (
+                  <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-70">
+                    agora
+                  </span>
+                ) : (
+                  <span className="mt-0.5 text-[8px] opacity-0">·</span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
       {caption ? (
         <p className="mt-2 text-[11px] leading-relaxed text-podium-gray">
           {caption}
         </p>
-      ) : null}
-
-      {sazonalidade?.trim() ? (
-        <div className="mt-3 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-            Contexto do nicho
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-podium-gray">
-            {sazonalidade.trim()}
-          </p>
-        </div>
       ) : null}
     </div>
   );
@@ -246,65 +207,53 @@ export function AnatomyCard({
     status === "nenhuma"
       ? "Sem mês de pico neste nicho"
       : (market.sazonalidadeChip ?? "Janela");
-  const tip = market.dorPrincipal.trim();
-  const angulo = market.perguntaConsideracao.trim();
-
   const body = (
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-              Mercado
-            </p>
-            <h2 className="mt-1 text-base font-semibold leading-tight text-podium-white">
-              {market.dorChip}
-            </h2>
+    <div className="relative">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+            Mercado
+          </p>
+          <h2 className="mt-1 text-sm font-semibold leading-tight capitalize text-podium-white">
+            {market.nome}
+          </h2>
+          {place ? (
             <p className="mt-1 truncate text-xs capitalize text-podium-gray">
-              {market.nome}
-              {place ? ` · ${place}` : ""}
+              {place}
             </p>
-          </div>
-          {volta ? (
-            <Badge variant="neutral" className="shrink-0">
-              {volta}
-            </Badge>
           ) : null}
         </div>
-
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          <Cue kicker="Quem" title={firstName(decisorNome)} />
-          <Cue
-            kicker="Sazonalidade"
-            title={seasonTitle}
-            live={status === "agora"}
-            pill={SEASON_PILL[status]}
-          />
-          <Cue kicker="Ligar" title={market.janelaChip}>
-            {place || null}
-          </Cue>
-        </div>
-
-        {tip ? (
-          <p className="mt-4 text-xs leading-relaxed text-podium-gray">{tip}</p>
-        ) : null}
-
-        <SeasonCalendar
-          months={market.sazonalidadeMeses}
-          now={now}
-          sazonalidade={market.sazonalidade}
-        />
-
-        {angulo ? (
-          <div className="mt-4 border-t border-white/10 pt-3">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-podium-muted">
-              Pergunta
-            </p>
-            <p className="mt-1 text-xs font-medium leading-snug text-podium-white/80">
-              {angulo}
-            </p>
-          </div>
+        {volta ? (
+          <Badge variant="neutral" className="shrink-0">
+            {volta}
+          </Badge>
         ) : null}
       </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <Cue kicker="Quem" title={firstName(decisorNome)} />
+        <Cue
+          kicker="Sazonalidade"
+          title={seasonTitle}
+          live={status === "agora"}
+          pill={SEASON_PILL[status]}
+        />
+        <Cue kicker="Ligar" title={market.janelaChip}>
+          {market.janelaEvitar
+            ? `${COPY.marketRotinaEvitar}: ${market.janelaEvitar}`
+            : null}
+        </Cue>
+      </div>
+
+      <MunitionBoard market={market} />
+
+      <SeasonCalendar
+        months={market.sazonalidadeMeses}
+        now={now}
+        why={market.sazonalidade}
+        baixa={status === "agora" ? null : market.sazonalidadeBaixa}
+      />
+    </div>
   );
 
   if (embedded) return body;
@@ -313,5 +262,200 @@ export function AnatomyCard({
     <GlassCard className="relative shrink-0 border-white/10 bg-white/[0.03] p-5 hover:translate-y-0">
       {body}
     </GlassCard>
+  );
+}
+
+function MunitionBoard({ market }: { market: MarketBrief }) {
+  const full = market.munition ?? null;
+  const teaser = market.dorCaixa?.trim() || null;
+  const locked = Boolean(market.munitionLocked);
+  const [tab, setTab] = useState<MunitionTab>("caixa");
+
+  if (!full && !teaser && !locked) return null;
+
+  const tabLocked = (id: MunitionTab) => id !== "caixa" && !full && locked;
+
+  return (
+    <div className="mt-4 border-t border-white/10 pt-3">
+      <div className="flex flex-wrap gap-1.5">
+        {MUNITION_TABS.map((item) => {
+          const isLocked = tabLocked(item.id);
+          const selected = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => setTab(item.id)}
+              className={cn(
+                "inline-flex h-7 items-center rounded-md border px-2 text-[10px] font-medium transition",
+                selected && "ring-1 ring-podium-yellow/40",
+                isLocked
+                  ? "border-dashed border-white/15 bg-transparent text-podium-muted hover:border-white/25"
+                  : selected
+                    ? "border-podium-yellow/55 bg-podium-yellow/10 text-podium-yellow"
+                    : "border-white/15 bg-white/[0.03] text-podium-gray hover:border-white/25 hover:text-podium-white",
+              )}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3">
+        {tabLocked(tab) ? (
+          <MunitionLockedPanel />
+        ) : (
+          <MunitionPanel
+            tab={tab}
+            munition={full}
+            teaser={teaser}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MunitionLockedPanel() {
+  return (
+    <div className="rounded-md border border-dashed border-white/10 bg-white/[0.02] px-3 py-2.5">
+      <p className="text-[11px] leading-relaxed text-podium-muted">
+        {COPY.marketMunitionHint}
+      </p>
+      <Link
+        href={PLANOS_PRO_URL}
+        className="mt-1.5 inline-block text-[11px] font-medium text-podium-yellow hover:underline"
+      >
+        {COPY.marketMunitionCta}
+      </Link>
+    </div>
+  );
+}
+
+function MunitionPanel({
+  tab,
+  munition,
+  teaser,
+}: {
+  tab: MunitionTab;
+  munition: MarketMunition | null;
+  teaser: string | null;
+}) {
+  if (tab === "caixa") {
+    const items = munition?.doresFaturamento?.length
+      ? munition.doresFaturamento
+      : teaser
+        ? [teaser]
+        : [];
+    return <MunitionList items={items} />;
+  }
+  if (!munition) return null;
+  if (tab === "dono") {
+    return <MunitionList items={munition.urgenciasOcultas} />;
+  }
+  if (tab === "lingua") {
+    return (
+      <ul className="grid gap-1.5 sm:grid-cols-2">
+        {munition.termosRamo.map((term) => (
+          <li
+            key={term}
+            className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-snug text-podium-gray"
+          >
+            {term}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (tab === "barreiras") {
+    return <MunitionList items={munition.barreirasDecisao} />;
+  }
+  return <RotinaBands rotina={munition.rotinaEstresse} />;
+}
+
+function ligarBandFromJanela(
+  janela: string,
+): "manha" | "tarde" | "noite" | null {
+  const t = janela.toLowerCase();
+  if (t.includes("tarde")) return "tarde";
+  if (t.includes("manhã") || t.includes("manha")) return "manha";
+  if (t.includes("noite")) return "noite";
+  return null;
+}
+
+function RotinaBands({
+  rotina,
+}: {
+  rotina: MarketMunition["rotinaEstresse"];
+}) {
+  const live = ligarBandFromJanela(rotina.janelaLigar);
+  const bands: Array<{
+    id: "manha" | "tarde" | "noite" | "evitar";
+    label: string;
+    text: string;
+  }> = [
+    { id: "manha", label: COPY.marketRotinaManha, text: rotina.manha },
+    { id: "tarde", label: COPY.marketRotinaTarde, text: rotina.tarde },
+    { id: "noite", label: COPY.marketRotinaNoite, text: rotina.noite },
+    { id: "evitar", label: COPY.marketRotinaEvitar, text: rotina.evitar },
+  ];
+
+  return (
+    <ol className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+      {bands.map((band) => {
+        const isLive = band.id === live;
+        return (
+          <li key={band.id}>
+            <span
+              className={cn(
+                "flex min-h-[4.5rem] flex-col rounded-lg border px-3 py-2",
+                isLive &&
+                  "border-podium-yellow bg-podium-yellow text-podium-navy",
+                !isLive &&
+                  band.id === "evitar" &&
+                  "border-white/10 bg-white/[0.02] text-podium-muted",
+                !isLive &&
+                  band.id !== "evitar" &&
+                  "border-white/10 bg-white/[0.03] text-podium-gray",
+              )}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "text-[9px] font-semibold uppercase tracking-[0.12em]",
+                    isLive ? "opacity-80" : "text-podium-muted",
+                  )}
+                >
+                  {band.label}
+                </span>
+                {isLive ? (
+                  <span className="text-[8px] font-semibold uppercase opacity-80">
+                    {COPY.marketRotinaLigar}
+                  </span>
+                ) : null}
+              </span>
+              <span className="mt-1 text-[11px] leading-snug">{band.text}</span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function MunitionList({ items }: { items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <ul className="grid gap-1.5">
+      {items.map((item) => (
+        <li
+          key={item}
+          className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-podium-gray"
+        >
+          {item}
+        </li>
+      ))}
+    </ul>
   );
 }

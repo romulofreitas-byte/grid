@@ -198,6 +198,11 @@ describe("COPY crm", () => {
     expect(COPY.crmBridgePartial).toMatch(/não entraram no crm/i);
     expect(COPY.lockedLightsReplay).toMatch(/luzes/i);
     expect(COPY.lockedHighlightHint).toMatch(/pro/i);
+    expect(COPY.marketMunitionCta).toMatch(/pro/i);
+    expect(COPY.marketDorCaixa).toMatch(/caixa/i);
+    expect(COPY.marketChipCaixa).toBe("Caixa");
+    expect(COPY.marketChipDono).toBe("Dono");
+    expect(COPY.marketChipLingua).toBe("Língua");
     expect(COPY.salvarNaPista).toBe("Salvar no CRM");
     expect(COPY.listaDaVolta).toMatch(/lista/i);
   });

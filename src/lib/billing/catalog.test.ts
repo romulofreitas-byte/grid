@@ -70,6 +70,10 @@ describe("catalog", () => {
     expect(planHasFeature("membro_plataforma", "import")).toBe(true);
     expect(planHasFeature("membro_plataforma", "automations")).toBe(false);
     expect(planHasFeature("piloto_pro", "automations")).toBe(true);
+    expect(planHasFeature("piloto", "market_munition")).toBe(false);
+    expect(planHasFeature("membro_plataforma", "market_munition")).toBe(false);
+    expect(planHasFeature("piloto_pro", "market_munition")).toBe(true);
+    expect(planHasFeature("escuderia", "market_munition")).toBe(true);
     expect(planHasFeature("escuderia", "automations")).toBe(true);
     expect(planHasFeature("escuderia", "import")).toBe(true);
     expect(planHasFeature("unknown", "crm")).toBe(false);
@@ -77,6 +81,7 @@ describe("catalog", () => {
     const escuderia = asPlan("escuderia");
     expect(pro.highlights).toContain("Automações: formulário, anúncio, Make");
     expect(pro.highlights).toContain("Tudo do Piloto");
+    expect(pro.details).toContain("Munição de mercado na ficha");
     expect(escuderia.highlights).toContain("Tudo do Piloto Pro");
     expect(escuderia.notes).toContain("Seats extras em desenvolvimento");
   });
