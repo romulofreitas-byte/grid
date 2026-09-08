@@ -1445,20 +1445,6 @@ export function CrmDealModal({
                 onBlur={() => void persistAmount(amountDraft)}
               />
             </label>
-            {briefing.address || briefing.cnae ? (
-              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
-                {briefing.address ? (
-                  <p className="text-[11px] leading-snug text-podium-gray">
-                    {briefing.address}
-                  </p>
-                ) : null}
-                {briefing.cnae ? (
-                  <p className={cn("text-[10px] text-podium-muted", briefing.address && "mt-1")}>
-                    {briefing.cnae}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmCompanyPhone}</p>
               <div className="mt-1.5">
@@ -1496,8 +1482,6 @@ export function CrmDealModal({
                 )}
               </div>
             </div>
-
-            {attachSurface === "aside" ? attach : null}
 
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>
@@ -1608,6 +1592,24 @@ export function CrmDealModal({
                 </div>
               </div>
             </div>
+
+            {attachSurface === "aside" ? attach : null}
+
+            {briefing.address || briefing.cnae ? (
+              <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
+                {briefing.address ? (
+                  <p className="text-[11px] leading-snug text-podium-gray">
+                    {briefing.address}
+                  </p>
+                ) : null}
+                {briefing.cnae ? (
+                  <p className={cn("text-[10px] text-podium-muted", briefing.address && "mt-1")}>
+                    {briefing.cnae}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             {deal.meta.form_answers &&
             Object.keys(deal.meta.form_answers).length > 0 ? (
               <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
@@ -1625,33 +1627,35 @@ export function CrmDealModal({
               </div>
             ) : null}
 
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void remove()}
-              className="mt-auto text-[11px] text-podium-muted hover:text-red-400"
-            >
-              Tirar do CRM
-            </button>
-            {pipelines.filter((row) => row.id !== deal.pipeline_id).length > 0 ? (
-              <div className="mt-3 space-y-1">
-                <p className={CRM_LABEL}>{COPY.crmTransferPipeline}</p>
-                <Select
-                  size="sm"
-                  value=""
-                  disabled={saving}
-                  placeholder={COPY.crmTransferPipeline}
-                  aria-label={COPY.crmTransferPipeline}
-                  onChange={(value) => void transferTo(value)}
-                  options={pipelines
-                    .filter((row) => row.id !== deal.pipeline_id)
-                    .map((row) => ({ value: row.id, label: row.nome }))}
-                />
-                <p className="text-[10px] leading-snug text-podium-muted">
-                  {COPY.crmTransferPipelineHint}
-                </p>
-              </div>
-            ) : null}
+            <div className="mt-auto space-y-3">
+              {pipelines.filter((row) => row.id !== deal.pipeline_id).length > 0 ? (
+                <div className="space-y-1">
+                  <p className={CRM_LABEL}>{COPY.crmTransferPipeline}</p>
+                  <Select
+                    size="sm"
+                    value=""
+                    disabled={saving}
+                    placeholder={COPY.crmTransferPipeline}
+                    aria-label={COPY.crmTransferPipeline}
+                    onChange={(value) => void transferTo(value)}
+                    options={pipelines
+                      .filter((row) => row.id !== deal.pipeline_id)
+                      .map((row) => ({ value: row.id, label: row.nome }))}
+                  />
+                  <p className="text-[10px] leading-snug text-podium-muted">
+                    {COPY.crmTransferPipelineHint}
+                  </p>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void remove()}
+                className="text-[11px] text-podium-muted hover:text-red-400"
+              >
+                Tirar do CRM
+              </button>
+            </div>
           </aside>
         </div>
       </motion.div>
