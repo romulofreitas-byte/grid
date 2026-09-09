@@ -35,26 +35,29 @@ export function MetaConnectCard({
       {names.length > 0 ? (
         <p className="text-xs text-podium-gray">{names.join(" · ")}</p>
       ) : null}
-      <Button
-        type="button"
-        variant={compact ? "secondary" : "primary"}
-        size={compact ? "sm" : "md"}
-        disabled={!ready}
-        onClick={startMetaOAuth}
-      >
-        {names.length > 0
-          ? COPY.automacoesConnectMetaAgain
-          : COPY.automacoesConnectMeta}
-      </Button>
-      {!ready ? (
-        <p className="text-xs text-podium-alert">
+      {ready ? (
+        <>
+          <Button
+            type="button"
+            variant={compact ? "secondary" : "primary"}
+            size={compact ? "sm" : "md"}
+            onClick={startMetaOAuth}
+          >
+            {names.length > 0
+              ? COPY.automacoesConnectMetaAgain
+              : COPY.automacoesConnectMeta}
+          </Button>
+          {names.length === 0 ? (
+            <p className="text-xs text-podium-muted">
+              {COPY.automacoesMetaPagesEmpty}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-xs text-podium-muted">
           {COPY.automacoesMetaNotConfigured}
         </p>
-      ) : names.length === 0 ? (
-        <p className="text-xs text-podium-muted">
-          {COPY.automacoesMetaPagesEmpty}
-        </p>
-      ) : null}
+      )}
     </div>
   );
 }
