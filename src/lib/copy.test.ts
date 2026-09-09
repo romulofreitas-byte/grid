@@ -180,7 +180,9 @@ describe("COPY crm", () => {
     expect(COPY.crmCadenceHint).toMatch(/etapa/i);
     expect(COPY.crmCadenceHint).toMatch(/nicho/i);
     expect(COPY.crmCadenceHint).toMatch(/outras pipelines/i);
-    expect(COPY.crmDeletePipelineNeedTransfer).toMatch(/transfira/i);
+    expect(COPY.crmDeletePipelineTransferTo).toBe("Mover para");
+    expect(COPY.crmDeletePipelineConfirm).toBe("Excluir");
+    expect(COPY.crmDeletePipelineTransfer).toBe("Excluir");
     expect(COPY.crmTransferPipeline).toMatch(/nicho/i);
     expect(COPY.crmDeleteListEntradaHint).toMatch(/qualificação permanece/i);
     expect(COPY.crmScheduleHint).toMatch(/não substitui/i);

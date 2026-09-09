@@ -568,9 +568,9 @@ export const COPY = {
     "{n} listas salvas deste nicho continuam. Qualificar de novo pode montar o quadro outra vez.",
   crmDeletePipelineNeedTransfer:
     "Há negócios que já avançaram ou que você colocou no CRM. Transfira para outro nicho — import e formulário não voltam.",
-  crmDeletePipelineTransferTo: "Mover negócios para",
-  crmDeletePipelineConfirm: "Apagar CRM",
-  crmDeletePipelineTransfer: "Transferir e excluir",
+  crmDeletePipelineTransferTo: "Mover para",
+  crmDeletePipelineConfirm: "Excluir",
+  crmDeletePipelineTransfer: "Excluir",
   crmTransferPipeline: "Mover para outro nicho",
   crmTransferPipelineHint: "O negócio vai para o quadro escolhido, na etapa equivalente.",
   crmTransferMerged: "Já havia este CNPJ no destino — os dois foram unidos.",

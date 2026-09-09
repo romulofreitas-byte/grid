@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS } from "@/lib/types";
 import {
   matchingSavedListCount,
+  pipelineRemovalTransferReason,
   shouldRemoveEntradaDeal,
   summarizePipelineRemoval,
 } from "./pipeline-removal";
@@ -66,6 +67,63 @@ describe("summarizePipelineRemoval", () => {
         deals: [],
       }).canDeleteDirectly,
     ).toBe(false);
+  });
+
+  it("does not treat inbound-only, user-owned Entrada, or empty boards as advanced", () => {
+    const inboundOnly = summarizePipelineRemoval({
+      isLastPipeline: false,
+      inboundCount: 1,
+      matchingSavedListCount: 0,
+      deals: [],
+    });
+    expect(inboundOnly.advancedCount).toBe(0);
+    expect(inboundOnly.canDeleteDirectly).toBe(false);
+    expect(pipelineRemovalTransferReason(inboundOnly)).toBe("inbound");
+
+    const userOwned = summarizePipelineRemoval({
+      isLastPipeline: false,
+      inboundCount: 0,
+      matchingSavedListCount: 0,
+      deals: [{ outcome: "open", source: "import", canonicalKey: "entrada" }],
+    });
+    expect(userOwned.advancedCount).toBe(0);
+    expect(pipelineRemovalTransferReason(userOwned)).toBe("user_owned");
+
+    const emptyLast = summarizePipelineRemoval({
+      isLastPipeline: true,
+      inboundCount: 0,
+      matchingSavedListCount: 0,
+      deals: [],
+    });
+    expect(emptyLast.advancedCount).toBe(0);
+    expect(pipelineRemovalTransferReason(emptyLast)).toBe("last");
+
+    const empty = summarizePipelineRemoval({
+      isLastPipeline: false,
+      inboundCount: 0,
+      matchingSavedListCount: 0,
+      deals: [],
+    });
+    expect(empty.advancedCount).toBe(0);
+    expect(empty.canDeleteDirectly).toBe(true);
+    expect(pipelineRemovalTransferReason(empty)).toBe(null);
+  });
+
+  it("names advanced deals as the transfer reason when a card left Entrada", () => {
+    const preview = summarizePipelineRemoval({
+      isLastPipeline: false,
+      inboundCount: 1,
+      matchingSavedListCount: 0,
+      deals: [
+        {
+          outcome: "open",
+          source: "qualify_bridge",
+          canonicalKey: "tentando_contato",
+        },
+      ],
+    });
+    expect(preview.advancedCount).toBe(1);
+    expect(pipelineRemovalTransferReason(preview)).toBe("advanced");
   });
 });
 

@@ -430,6 +430,9 @@ function SortablePipelineRow({
     opacity: sortable.isDragging ? 0.7 : undefined,
   };
   const canDrag = !sortableDisabled && !renaming && !confirming;
+  const needsTransfer = Boolean(
+    removalPreview && !removalPreview.canDeleteDirectly,
+  );
 
   return (
     <div
@@ -488,22 +491,9 @@ function SortablePipelineRow({
         </div>
       )}
       {confirming ? (
-        <div className="mx-1 mb-2 rounded-lg border border-white/10 bg-podium-panel p-2">
-          <p className="text-[11px] leading-snug text-podium-gray">
-            {removalPreview && !removalPreview.canDeleteDirectly
-              ? COPY.crmDeletePipelineNeedTransfer
-              : COPY.crmDeletePipelineWarn}
-          </p>
-          {removalPreview && removalPreview.matchingSavedListCount > 0 ? (
-            <p className="mt-1.5 text-[11px] leading-snug text-podium-muted">
-              {COPY.crmDeletePipelineLists.replace(
-                "{n}",
-                String(removalPreview.matchingSavedListCount),
-              )}
-            </p>
-          ) : null}
-          {removalPreview && !removalPreview.canDeleteDirectly ? (
-            <div className="mt-2">
+        <div className="mx-1 mb-2 rounded-lg border border-white/10 bg-podium-panel p-1.5">
+          {needsTransfer ? (
+            <div>
               <p className="mb-1 text-[10px] text-podium-muted">
                 {COPY.crmDeletePipelineTransferTo}
               </p>
@@ -519,34 +509,29 @@ function SortablePipelineRow({
           {removalError ? (
             <p className="mt-1.5 text-[11px] text-podium-alert">{removalError}</p>
           ) : null}
-          <div className="mt-2 flex justify-end gap-2">
+          <div
+            className={cn(
+              "flex justify-end gap-2",
+              needsTransfer || removalError ? "mt-1.5" : undefined,
+            )}
+          >
             <button
               type="button"
               disabled={deleting}
               onClick={onCancelDelete}
               className="rounded-md px-2 py-1 text-[11px] text-podium-muted hover:text-podium-white disabled:opacity-40"
             >
-              Cancelar
+              {COPY.confirmCancel}
             </button>
             <button
               type="button"
               disabled={
-                deleting ||
-                removalPreview == null ||
-                Boolean(
-                  removalPreview &&
-                    !removalPreview.canDeleteDirectly &&
-                    !transferToId,
-                )
+                deleting || removalPreview == null || (needsTransfer && !transferToId)
               }
               onClick={onConfirmDelete}
               className="rounded-md px-2 py-1 text-[11px] font-semibold text-podium-alert hover:bg-podium-alert/10 disabled:opacity-40"
             >
-              {deleting
-                ? "Excluindo…"
-                : removalPreview && !removalPreview.canDeleteDirectly
-                  ? COPY.crmDeletePipelineTransfer
-                  : COPY.crmDeletePipelineConfirm}
+              {deleting ? "Excluindo…" : COPY.crmDeletePipelineConfirm}
             </button>
           </div>
         </div>

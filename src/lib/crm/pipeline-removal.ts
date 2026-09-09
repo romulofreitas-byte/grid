@@ -42,6 +42,23 @@ export type PipelineRemovalPreview = {
   matchingSavedListCount: number;
 };
 
+export type PipelineRemovalTransferReason =
+  | "advanced"
+  | "user_owned"
+  | "inbound"
+  | "last";
+
+export function pipelineRemovalTransferReason(
+  preview: PipelineRemovalPreview,
+): PipelineRemovalTransferReason | null {
+  if (preview.canDeleteDirectly) return null;
+  if (preview.isLastPipeline) return "last";
+  if (preview.advancedCount > 0) return "advanced";
+  if (preview.userOwnedCount > 0) return "user_owned";
+  if (preview.inboundCount > 0) return "inbound";
+  return null;
+}
+
 export function isUserOwnedDealSource(
   source: CrmDealSource | undefined,
 ): boolean {
