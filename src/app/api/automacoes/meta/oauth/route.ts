@@ -3,6 +3,7 @@ import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardAutomationsApi, jsonError } from "@/app/api/crm/_http";
 import { publicRequestOrigin } from "@/lib/crm/inbound-token";
 import {
+  META_OAUTH_CALLBACK_ALIAS_PATH,
   metaConfigured,
   metaOAuthRedirectUri,
   metaOAuthUrl,
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
   }
   const origin = publicRequestOrigin(req);
   const url = metaOAuthUrl(
-    metaOAuthRedirectUri(origin),
+    metaOAuthRedirectUri(origin, META_OAUTH_CALLBACK_ALIAS_PATH),
     signMetaOAuthState(gated.userId),
   );
   return NextResponse.redirect(url);

@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   META_GRAPH_VERSION,
   META_LEADGEN_WEBHOOK_PATH,
+  META_OAUTH_CALLBACK_ALIAS_PATH,
   META_OAUTH_CALLBACK_PATH,
   META_OAUTH_RETURN_PATH,
   META_OAUTH_SCOPES,
+  isMetaOAuthCallbackPath,
   metaConfigured,
   metaLeadgenWebhookUrl,
   metaOAuthRedirectUri,
@@ -23,11 +25,18 @@ describe("meta API structure", () => {
     expect(META_GRAPH_VERSION).toBe("v21.0");
     expect(META_OAUTH_SCOPES).toContain("leads_retrieval");
     expect(META_OAUTH_CALLBACK_PATH).toBe("/api/automacoes/meta/callback");
+    expect(META_OAUTH_CALLBACK_ALIAS_PATH).toBe("/api/automacaoes/meta/callback");
     expect(META_OAUTH_RETURN_PATH).toBe("/integracoes");
     expect(META_LEADGEN_WEBHOOK_PATH).toBe("/api/webhooks/meta/leads");
     expect(metaOAuthRedirectUri("https://grid.example")).toBe(
       "https://grid.example/api/automacoes/meta/callback",
     );
+    expect(
+      metaOAuthRedirectUri("https://grid.example", META_OAUTH_CALLBACK_ALIAS_PATH),
+    ).toBe("https://grid.example/api/automacaoes/meta/callback");
+    expect(isMetaOAuthCallbackPath("/api/automacoes/meta/callback")).toBe(true);
+    expect(isMetaOAuthCallbackPath("/api/automacaoes/meta/callback/")).toBe(true);
+    expect(isMetaOAuthCallbackPath("/api/other")).toBe(false);
     expect(metaLeadgenWebhookUrl("https://grid.example/")).toBe(
       "https://grid.example/api/webhooks/meta/leads",
     );

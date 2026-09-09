@@ -17,9 +17,21 @@ export const META_OAUTH_SCOPES = [
 ] as const;
 
 export const META_OAUTH_CALLBACK_PATH = "/api/automacoes/meta/callback";
+/** Misspelling already saved in the Meta app OAuth allowlist. */
+export const META_OAUTH_CALLBACK_ALIAS_PATH = "/api/automacaoes/meta/callback";
 export const META_OAUTH_RETURN_PATH = "/integracoes";
 export const META_LEADGEN_WEBHOOK_PATH = "/api/webhooks/meta/leads";
 export const META_LEADGEN_FIELD = "leadgen";
+
+const META_OAUTH_CALLBACK_PATHS = new Set([
+  META_OAUTH_CALLBACK_PATH,
+  META_OAUTH_CALLBACK_ALIAS_PATH,
+]);
+
+export function isMetaOAuthCallbackPath(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return META_OAUTH_CALLBACK_PATHS.has(path);
+}
 
 export function metaAppId(): string {
   return process.env.META_APP_ID?.trim() ?? "";
@@ -46,8 +58,14 @@ export function metaJoinUrl(origin: string, path: string): string {
   return `${origin.replace(/\/$/, "")}${path}`;
 }
 
-export function metaOAuthRedirectUri(origin: string): string {
-  return metaJoinUrl(origin, META_OAUTH_CALLBACK_PATH);
+export function metaOAuthRedirectUri(
+  origin: string,
+  pathname: string = META_OAUTH_CALLBACK_PATH,
+): string {
+  const path = isMetaOAuthCallbackPath(pathname)
+    ? pathname.replace(/\/+$/, "")
+    : META_OAUTH_CALLBACK_PATH;
+  return metaJoinUrl(origin, path);
 }
 
 export function metaLeadgenWebhookUrl(origin: string): string {
