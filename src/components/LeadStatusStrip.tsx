@@ -14,6 +14,7 @@ export function LeadStatusStrip({
   crm,
   searchSaved,
   wasQualified = false,
+  hasSearch,
   notas,
   onStage,
   onNotasBlur,
@@ -22,6 +23,7 @@ export function LeadStatusStrip({
   crm: LeadCrmState | null;
   searchSaved: boolean;
   wasQualified?: boolean;
+  hasSearch?: boolean;
   notas: string | null;
   onStage: (key: FichaMoveKey) => void;
   onNotasBlur: (notas: string) => void;
@@ -34,13 +36,16 @@ export function LeadStatusStrip({
     hasDeal: Boolean(crm),
     searchSaved,
     wasQualified,
+    hasSearch,
   });
   const promptCopy =
     prompt === "entering"
       ? COPY.crmEnteringPista
       : prompt === "save"
         ? COPY.crmSaveListToEnter
-        : COPY.crmQualifyToEnter;
+        : prompt === "enter"
+          ? COPY.empresasEnterCrmHint
+          : COPY.crmQualifyToEnter;
 
   return (
     <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-4 hover:translate-y-0">

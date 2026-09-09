@@ -88,3 +88,14 @@ export function rememberRecentCompany(
   storage.setItem(RECENT_COMPANIES_KEY, JSON.stringify(next));
   return next;
 }
+
+export function forgetRecentCompany(
+  cnpj: string,
+  storage: RecentStorage | null = getLocalStorage(),
+): RecentCompany[] {
+  if (!storage) return [];
+  const digits = cnpj.replace(/\D/g, "").padStart(14, "0");
+  const next = readRecentCompanies(storage).filter((item) => item.cnpj !== digits);
+  storage.setItem(RECENT_COMPANIES_KEY, JSON.stringify(next));
+  return next;
+}

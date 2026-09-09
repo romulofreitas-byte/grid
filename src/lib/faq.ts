@@ -88,7 +88,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "O que é qualificar?",
     answer:
-      `Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). No Treino livre você tem 25 por mês. Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da ligação. O resultado é da sua conta: outra conta não herda. Em lista salva, a partir do Plano Piloto, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Se pulou esse passo, o botão Qualificar também está na ficha da empresa.`,
+      `Qualificar busca site, redes e Google e confere com o cadastro da Receita (1 crédito). No Treino livre você tem 25 por mês. Telefone e nome saem mais confiáveis, e os cards mostram o que a empresa tem — ou falta — online. Isso muda a abordagem; não é o briefing da ligação. O resultado é da sua conta: outra conta não herda. Em lista salva, a partir do Plano Piloto, cada CNPJ que você qualificar entra sozinho no CRM do nicho — a lista inteira, não só os 10 ou 20 primeiros, e sem abrir a ficha. Na busca de uma empresa, o GRID mostra se ela já está numa lista ou no CRM. Se ainda não está, você coloca no CRM do nicho — sem criar uma lista de um lead. Qualificar também está na ficha da empresa.`,
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
@@ -96,7 +96,7 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Lista e contato",
     question: "Como o CRM entra no GRID?",
     answer:
-      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Os leads qualificados entram no CRM só depois que você salva a lista. Na busca de uma empresa, salvar no CRM cria essa lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Excluir uma lista não apaga o CRM nem a qualificação; dá para tirar só quem ainda está em Entrada. Apagar o nicho só vale se ninguém avançou — senão você transfere os negócios. Import e formulário ficam no quadro: são seus. Na ficha você move o card até Reunião Agendada e pode mandar para outro nicho; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
+      "O CRM do GRID é o quadro do nicho. Ele entra a partir do Plano Piloto. Os leads qualificados entram no CRM só depois que você salva a lista. Na busca de uma empresa, o GRID mostra se ela já está numa lista ou no CRM. Se ainda não está, você coloca no CRM do nicho — sem criar uma lista de um lead. Qualifique e os leads entram em Entrada de Lista, no lote inteiro, sem abrir cada ficha. Se o nicho ainda não tem quadro, o GRID cria. Quem você já tinha qualificado nesta conta entra ao abrir o app, sem gastar crédito de novo. Excluir uma lista não apaga o CRM nem a qualificação; dá para tirar só quem ainda está em Entrada. Apagar o nicho só vale se ninguém avançou — senão você transfere os negócios. Import e formulário ficam no quadro: são seus. Na ficha você move o card até Reunião Agendada e pode mandar para outro nicho; o restante — R1, proposta, fechamento — fica no quadro. Descartado também sai da ficha.",
     links: [
       { href: "/crm", label: "Abrir CRM" },
       { href: "/listas", label: "Abrir listas" },

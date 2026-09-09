@@ -4,22 +4,31 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Flag, Search } from "lucide-react";
+import { ChevronDown, Flag, Search, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AddCompanyToCrmDialog } from "@/components/crm/AddCompanyToCrmDialog";
 import { GlassCard } from "@/components/GlassCard";
-import { SaveToCrmTelemetry } from "@/components/SaveToCrmTelemetry";
 import { SectionTitle } from "@/components/SectionTitle";
+import { Badge } from "@/components/ui/Badge";
 import { Button, buttonClassName } from "@/components/ui/Button";
-import { gridHref, largadaIntentHref } from "@/lib/back";
+import { crmHref, largadaIntentHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
+import { CRM_ACTIVITY_KIND_LABELS } from "@/lib/crm/activity";
+import { digitsCnpj } from "@/lib/crm/bridge";
 import { matchActivitySuggestion } from "@/lib/activity-suggestion";
 import {
   canSearchCompanies,
   isFullCnpjQuery,
 } from "@/lib/data/company-search";
+import {
+  asCompanySearchHit,
+  companyGridAction,
+  type CompanyGridContext,
+} from "@/lib/empresas/context";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatCnpj, formatPhone } from "@/lib/format";
 import {
+  forgetRecentCompany,
   readRecentCompanies,
   rememberRecentCompany,
   type RecentCompany,
@@ -54,20 +63,38 @@ function formatHitPhone(raw: string | null | undefined): string | null {
   return formatPhone(digits.slice(0, 2), digits.slice(2)) || raw;
 }
 
+function useCompanyGridContext(cnpjs: string[]) {
+  const key = cnpjs.join(",");
+  return useQuery({
+    queryKey: ["empresas-contexto", key],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({ cnpjs: key });
+      const res = await fetch(`/api/empresas/contexto?${params}`, { signal });
+      if (!res.ok) throw new Error("Não foi possível ler o Grid");
+      const json = (await res.json()) as { items: CompanyGridContext[] };
+      return json.items;
+    },
+    enabled: cnpjs.length > 0,
+  });
+}
+
 function CompanyRow({
   hit,
+  context,
   onOpen,
-  onSaveToPista,
-  saving,
+  onEnterCrm,
+  onForget,
 }: {
   hit: CompanySearchHit | RecentCompany;
+  context?: CompanyGridContext;
   onOpen: () => void;
-  onSaveToPista: (hit: CompanySearchHit | RecentCompany) => void;
-  saving: boolean;
+  onEnterCrm: (hit: CompanySearchHit) => void;
+  onForget?: () => void;
 }) {
   const qc = useQueryClient();
   const phone =
     "telefone" in hit ? formatHitPhone(hit.telefone) : null;
+  const action = companyGridAction(context);
   function warm() {
     qc.setQueryData(leadPreviewKey(hit.cnpj), companyHitToPreview(hit));
     void qc.prefetchQuery({
@@ -76,8 +103,53 @@ function CompanyRow({
       staleTime: 30_000,
     });
   }
+  const crmLabel = context?.crm
+    ? [context.crm.pipelineNome, context.crm.stageNome]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+  const nextLabel = context?.crm?.nextKind
+    ? CRM_ACTIVITY_KIND_LABELS[context.crm.nextKind]
+    : null;
+  const ctaClass = "min-h-11 w-full shrink-0 sm:min-h-0 sm:w-auto";
+  const cta =
+    action.type === "open_crm" ? (
+      <Link
+        href={action.href}
+        className={buttonClassName({
+          variant: "secondary",
+          size: "sm",
+          className: ctaClass,
+        })}
+      >
+        {COPY.crmOpenDeal}
+      </Link>
+    ) : action.type === "open_list" ? (
+      <Link
+        href={action.href}
+        className={buttonClassName({
+          variant: "secondary",
+          size: "sm",
+          className: ctaClass,
+        })}
+      >
+        {COPY.empresasAbrirLista}
+      </Link>
+    ) : (
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={() => onEnterCrm(asCompanySearchHit(hit))}
+        className={ctaClass}
+      >
+        <Flag className="h-3 w-3" />
+        {COPY.empresasEntrarCrm}
+      </Button>
+    );
+
   return (
-    <GlassCard className="flex flex-col gap-3 px-3 py-3 hover:translate-y-0 hover:bg-white/[0.03] sm:flex-row sm:items-center">
+    <GlassCard className="group flex flex-col gap-3 px-3 py-3 hover:translate-y-0 hover:bg-white/[0.03] sm:flex-row sm:items-center">
       <Link
         href={`/lead/${hit.cnpj}?from=empresas`}
         onClick={() => {
@@ -88,14 +160,9 @@ function CompanyRow({
         onFocus={warm}
         className="min-w-0 flex-1"
       >
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 truncate text-sm font-semibold text-podium-white">
-            {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
-          </p>
-          <p className="shrink-0 text-[11px] text-podium-muted">
-            {hit.municipio}/{hit.uf}
-          </p>
-        </div>
+        <p className="min-w-0 truncate text-sm font-semibold text-podium-white">
+          {displayCompanyName(hit.nomeFantasia, hit.razaoSocial)}
+        </p>
         {hit.nomeFantasia ? (
           <p className="mt-0.5 truncate text-[11px] text-podium-muted">
             {hit.razaoSocial}
@@ -108,18 +175,46 @@ function CompanyRow({
             <span> · {hit.decisorNome}</span>
           ) : null}
         </p>
+        {context ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {crmLabel ? (
+              <Badge variant="accent">{crmLabel}</Badge>
+            ) : null}
+            {context.list ? (
+              <Badge>{context.list.nome}</Badge>
+            ) : null}
+            {context.qualified ? (
+              <Badge variant="success">{COPY.gridQualified}</Badge>
+            ) : null}
+            {context.called ? (
+              <Badge>{COPY.gridCalledToday}</Badge>
+            ) : nextLabel ? (
+              <Badge variant="warning">{nextLabel}</Badge>
+            ) : null}
+          </div>
+        ) : null}
       </Link>
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        disabled={saving}
-        onClick={() => onSaveToPista(hit)}
-        className="min-h-11 w-full shrink-0 sm:min-h-0 sm:w-auto"
-      >
-        <Flag className="h-3 w-3" />
-        {saving ? "Salvando…" : COPY.salvarNaPista}
-      </Button>
+      <div className="flex w-full flex-col items-end gap-1.5 sm:w-auto">
+        <p className="text-[11px] text-podium-muted">
+          {hit.municipio}/{hit.uf}
+        </p>
+        {cta}
+        {onForget ? (
+          <button
+            type="button"
+            aria-label={COPY.empresasForgetRecent}
+            onClick={onForget}
+            className={cn(
+              "inline-flex h-7 w-7 items-center justify-center rounded-md text-podium-muted opacity-0 transition",
+              "hover:bg-white/10 hover:text-podium-white",
+              "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
+              "group-hover:opacity-100 group-focus-within:opacity-100",
+            )}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
     </GlassCard>
   );
 }
@@ -132,8 +227,7 @@ export default function EmpresasPage() {
   const [soMatriz, setSoMatriz] = useState(false);
   const [ufOpen, setUfOpen] = useState(false);
   const [recent, setRecent] = useState<RecentCompany[]>([]);
-  const [savingCnpj, setSavingCnpj] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [addHit, setAddHit] = useState<CompanySearchHit | null>(null);
   const debounced = useDebounced(draft, 300);
   const q = (immediate ?? debounced).trim();
   const ready = canSearchCompanies(q);
@@ -174,27 +268,21 @@ export default function EmpresasPage() {
     ? largadaIntentHref(activity.query, { uf: ufs.length === 1 ? ufs[0] : undefined })
     : null;
 
-  async function saveToPista(hit: { cnpj: string }) {
-    setSaveError(null);
-    setSavingCnpj(hit.cnpj);
-    try {
-      const res = await fetch("/api/empresas/pista", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cnpj: hit.cnpj }),
-      });
-      const json = (await res.json()) as { searchId?: string; error?: string };
-      if (!res.ok || !json.searchId) {
-        throw new Error(json.error ?? "Não foi possível salvar no CRM");
-      }
-      router.push(gridHref(json.searchId, "empresas"));
-    } catch (err) {
-      setSavingCnpj(null);
-      setSaveError(
-        err instanceof Error ? err.message : "Não foi possível salvar no CRM",
-      );
+  const shownCnpjs = useMemo(
+    () =>
+      (ready ? hits.map((hit) => hit.cnpj) : recent.map((hit) => hit.cnpj)).map(
+        digitsCnpj,
+      ),
+    [hits, ready, recent],
+  );
+  const contextQuery = useCompanyGridContext(shownCnpjs);
+  const contextByCnpj = useMemo(() => {
+    const map = new Map<string, CompanyGridContext>();
+    for (const item of contextQuery.data ?? []) {
+      map.set(digitsCnpj(item.cnpj), item);
     }
-  }
+    return map;
+  }, [contextQuery.data]);
 
   return (
     <AppShell title="Empresas" back={{ href: "/painel", label: "Voltar ao Painel" }}>
@@ -225,6 +313,9 @@ export default function EmpresasPage() {
           Buscar
         </Button>
       </form>
+      <p className="mt-2 text-pretty text-xs text-podium-muted">
+        {COPY.empresasHint}
+      </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         <button
@@ -319,10 +410,6 @@ export default function EmpresasPage() {
         </GlassCard>
       ) : hits.length > 0 ? (
         <div className="mt-4 space-y-1">
-          <SaveToCrmTelemetry cta={COPY.salvarNaPista} />
-          {saveError ? (
-            <p className="text-sm text-podium-yellow">{saveError}</p>
-          ) : null}
           {query.isFetching ? (
             <p className="text-xs text-podium-muted">Buscando…</p>
           ) : null}
@@ -330,9 +417,9 @@ export default function EmpresasPage() {
             <CompanyRow
               key={h.cnpj}
               hit={h}
+              context={contextByCnpj.get(digitsCnpj(h.cnpj))}
               onOpen={() => openCompany(h)}
-              onSaveToPista={saveToPista}
-              saving={savingCnpj === h.cnpj}
+              onEnterCrm={setAddHit}
             />
           ))}
         </div>
@@ -345,21 +432,30 @@ export default function EmpresasPage() {
       {!ready && recent.length > 0 ? (
         <section className="mt-6">
           <SectionTitle>Recentes</SectionTitle>
-          {saveError ? (
-            <p className="mt-1.5 text-sm text-podium-yellow">{saveError}</p>
-          ) : null}
           <div className="mt-3 space-y-1">
             {recent.map((h) => (
               <CompanyRow
                 key={h.cnpj}
                 hit={h}
+                context={contextByCnpj.get(digitsCnpj(h.cnpj))}
                 onOpen={() => openCompany(h)}
-                onSaveToPista={saveToPista}
-                saving={savingCnpj === h.cnpj}
+                onEnterCrm={setAddHit}
+                onForget={() => setRecent(forgetRecentCompany(h.cnpj))}
               />
             ))}
           </div>
         </section>
+      ) : null}
+
+      {addHit ? (
+        <AddCompanyToCrmDialog
+          company={addHit}
+          onClose={() => setAddHit(null)}
+          onCreated={(deal) => {
+            setAddHit(null);
+            router.push(crmHref({ pipeline: deal.pipelineId, deal: deal.id }));
+          }}
+        />
       ) : null}
     </AppShell>
   );

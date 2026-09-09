@@ -88,6 +88,7 @@ export function CrmAddDealDialog({
   currentPipelineId,
   currentStages,
   currentDeals,
+  initialHit,
 }: {
   onClose: () => void;
   onCreate: (input: CrmAddDealInput) => Promise<void>;
@@ -97,14 +98,25 @@ export function CrmAddDealDialog({
   currentPipelineId: string;
   currentStages: CrmStage[];
   currentDeals: Array<{ id: string; cnpj: string | null }>;
+  initialHit?: CompanySearchHit | null;
 }) {
+  const seed = initialHit ? dealFieldsFromCompanyHit(initialHit) : null;
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
-  const [company, setCompany] = useState("");
-  const [contact, setContact] = useState("");
+  const [company, setCompany] = useState(seed?.company_name ?? "");
+  const [contact, setContact] = useState(seed?.contact_name ?? "");
   const [secretary, setSecretary] = useState("");
-  const [phones, setPhones] = useState<string[]>([]);
-  const [selected, setSelected] = useState<AddDealSelectedCompany | null>(null);
+  const [phones, setPhones] = useState<string[]>(seed?.phones ?? []);
+  const [selected, setSelected] = useState<AddDealSelectedCompany | null>(
+    seed
+      ? {
+          cnpj: seed.cnpj,
+          municipio: seed.municipio,
+          uf: seed.uf,
+          cnaeDescricao: seed.cnaeDescricao,
+        }
+      : null,
+  );
   const [socios, setSocios] = useState<AddDealSocio[] | null>(null);
   const [listOpen, setListOpen] = useState(false);
   const [saving, setSaving] = useState(false);

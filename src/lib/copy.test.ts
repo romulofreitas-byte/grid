@@ -143,6 +143,13 @@ describe("COPY automações", () => {
     expect(COPY.integracoesTitle).toBe("Integrações");
     expect(COPY.telefoniaTitle).toBe("Telefonia");
     expect(COPY.integracoesFacebookTitle).toBe("Meta API");
+    expect(COPY.integracoesLead.toLowerCase()).toMatch(/página|pagina/);
+    expect(COPY.integracoesGuideContinueFacebook.toLowerCase()).toMatch(/facebook/);
+    expect(COPY.integracoesGuideNotConfigured.toLowerCase()).not.toMatch(
+      /oauth|graph/,
+    );
+    expect(COPY.integracoesGuideHandoff.toLowerCase()).toMatch(/automações/);
+    expect(COPY.integracoesGuideStepChain).toBe("Cadeia");
     expect(COPY.automacoesHint.toLowerCase()).not.toMatch(/make/);
     expect(COPY.automacoesPayloadLead.toLowerCase()).not.toMatch(/make/);
     expect(COPY.lockedAutomationsHighlight2.toLowerCase()).not.toMatch(/make/);
@@ -336,6 +343,11 @@ describe("COPY empresas", () => {
     expect(COPY.empresasMinChars.toLowerCase()).toMatch(/cnpj/);
     expect(COPY.empresasListaCta).toMatch(/\{nicho\}/);
     expect(COPY.empresasListaHint.toLowerCase()).toMatch(/atividade/);
+    expect(COPY.empresasHint.toLowerCase()).toMatch(/lista/);
+    expect(COPY.empresasHint.toLowerCase()).toMatch(/crm/);
+    expect(COPY.empresasEntrarCrm.toLowerCase()).toMatch(/crm/);
+    expect(COPY.empresasAbrirLista.toLowerCase()).toMatch(/lista/);
+    expect(COPY.empresasForgetRecent.toLowerCase()).toMatch(/recentes/);
   });
 });
 

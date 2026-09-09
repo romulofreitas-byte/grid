@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECENT_COMPANIES_KEY,
   RECENT_COMPANIES_MAX,
+  forgetRecentCompany,
   readRecentCompanies,
   rememberRecentCompany,
   type RecentStorage,
@@ -53,5 +54,14 @@ describe("recent companies", () => {
     expect(recent).toHaveLength(2);
     expect(recent[0]?.cnpj).toBe("12345678000190");
     expect(recent[0]?.razaoSocial).toBe("Primeira de novo");
+  });
+
+  it("removes a company from recents", () => {
+    const storage = memoryStorage();
+    rememberRecentCompany(hit("12345678000190", "Primeira"), storage, 1);
+    rememberRecentCompany(hit("12345678000191", "Segunda"), storage, 2);
+    const next = forgetRecentCompany("12.345.678/0001-90", storage);
+    expect(next.map((r) => r.cnpj)).toEqual(["12345678000191"]);
+    expect(readRecentCompanies(storage)).toHaveLength(1);
   });
 });

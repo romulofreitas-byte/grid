@@ -38,7 +38,13 @@ import { crmMockMethods } from "@/lib/data/crm-mock";
 import { metasMockMethods } from "@/lib/data/metas-mock";
 import { catchupMockMethods } from "@/lib/data/catchup-mock";
 import { listMemoryBilledCnpjs } from "@/lib/billing/memory-store";
+import { earliestOpenActivity } from "@/lib/crm/activity";
 import { digitsCnpj } from "@/lib/crm/bridge";
+import {
+  asCrmActivityKind,
+  emptyCompanyPlacement,
+  uniqueCompanyCnpjs,
+} from "@/lib/empresas/context";
 import {
   compareEnrichmentClaimOrder,
   enrichJobPriority,
@@ -1223,6 +1229,80 @@ export const mockRepo: GridRepo = {
       });
     });
     return search;
+  },
+
+  async listCompanyGridContext(userId, cnpjs) {
+    const unique = uniqueCompanyCnpjs(cnpjs);
+    if (unique.length === 0) return [];
+    const store = getMockStore();
+    const ownedPipes = new Set(
+      store.crm_pipelines
+        .filter((row) => row.user_id === userId)
+        .map((row) => row.id),
+    );
+    const pipeById = new Map(
+      store.crm_pipelines.map((row) => [row.id, row]),
+    );
+    const stageById = new Map(store.crm_stages.map((row) => [row.id, row]));
+    return unique.map((cnpj) => {
+      const leads = store.saved_leads.filter(
+        (lead) => lead.user_id === userId && digitsCnpj(lead.cnpj) === cnpj,
+      );
+      const called = leads.some(
+        (lead) => lead.status === "ligando" || lead.status === "reuniao",
+      );
+      const ranked = [...leads].sort((a, b) => {
+        const savedA = store.searches.find((row) => row.id === a.search_id)
+          ?.saved
+          ? 1
+          : 0;
+        const savedB = store.searches.find((row) => row.id === b.search_id)
+          ?.saved
+          ? 1
+          : 0;
+        if (savedA !== savedB) return savedB - savedA;
+        return b.created_at.localeCompare(a.created_at);
+      });
+      const lead = ranked[0];
+      const search = lead
+        ? store.searches.find(
+            (row) => row.id === lead.search_id && row.user_id === userId,
+          )
+        : undefined;
+      const deals = store.crm_deals
+        .filter(
+          (deal) => deal.cnpj === cnpj && ownedPipes.has(deal.pipeline_id),
+        )
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+      const deal = deals[0];
+      const pipeline = deal ? pipeById.get(deal.pipeline_id) : undefined;
+      const stage = deal ? stageById.get(deal.stage_id) : undefined;
+      const next = deal
+        ? earliestOpenActivity(
+            store.crm_activities.filter(
+              (row) => row.deal_id === deal.id && row.status === "open",
+            ),
+          )
+        : null;
+      return {
+        ...emptyCompanyPlacement(cnpj),
+        called,
+        list: search
+          ? { searchId: search.id, nome: search.nome, saved: search.saved }
+          : null,
+        crm:
+          deal && pipeline
+            ? {
+                dealId: deal.id,
+                pipelineId: pipeline.id,
+                pipelineNome: pipeline.nome,
+                stageNome: stage?.nome ?? "",
+                nextKind: asCrmActivityKind(next?.kind),
+                nextDueAt: next?.due_at ?? null,
+              }
+            : null,
+      };
+    });
   },
 
   async listCompanyBriefs(cnpjs: string[]) {

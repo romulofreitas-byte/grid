@@ -9,6 +9,17 @@ describe("fichaCrmPrompt", () => {
     ).toBe("save");
   });
 
+  it("asks to enter CRM when there is no list", () => {
+    expect(
+      fichaCrmPrompt({
+        hasDeal: false,
+        searchSaved: false,
+        wasQualified: false,
+        hasSearch: false,
+      }),
+    ).toBe("enter");
+  });
+
   it("does not ask to qualify when already audited but missing from CRM", () => {
     expect(
       fichaCrmPrompt({ hasDeal: false, searchSaved: true, wasQualified: true }),

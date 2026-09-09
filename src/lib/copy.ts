@@ -409,6 +409,11 @@ export const COPY = {
   empresasMinChars: "Digite nome, fantasia ou CNPJ.",
   empresasListaCta: "Buscar {nicho} na lista",
   empresasListaHint: "Monta a lista por atividade, com telefone e quem decide.",
+  empresasHint: "A busca mostra se a empresa já está numa lista ou no CRM.",
+  empresasEntrarCrm: "Entrar no CRM",
+  empresasAbrirLista: "Abrir na lista",
+  empresasEnterCrmHint: "Coloque esta empresa no CRM do nicho.",
+  empresasForgetRecent: "Tirar dos recentes",
   tirarDasListas: "Tirar das listas",
   listasNaoSalvas: "Não salvas",
   listasRascunho: "Rascunho",
@@ -633,7 +638,7 @@ export const COPY = {
   notFoundFaq: "Ver dúvidas",
   integracoesTitle: "Integrações",
   integracoesLead:
-    "Meta API, campanhas, planilha e ligação. Cada uma no seu lugar.",
+    "Conecte a Página. Campanha, planilha e ligação ficam nas badges.",
   integracoesFacebookTitle: "Meta API",
   integracoesFacebookBody:
     "Conecte a Página. O Formulário Instantâneo cai no quadro nas Automações.",
@@ -648,6 +653,32 @@ export const COPY = {
   integracoesOpenImportacoes: "Abrir Importações",
   integracoesOpenTelefonia: "Abrir Telefonia",
   integracoesProCta: "Assinar o Piloto Pro",
+  integracoesGuideStepChain: "Cadeia",
+  integracoesGuideStepFacebook: "Facebook",
+  integracoesGuideStepPages: "Páginas",
+  integracoesGuideChainPage: "Página",
+  integracoesGuideChainPageHint: "A Página que recebe o anúncio.",
+  integracoesGuideChainForm: "Formulário Instantâneo",
+  integracoesGuideChainFormHint:
+    "O formulário do anúncio. Destino fica em Automações.",
+  integracoesGuideChainBoard: "Quadro",
+  integracoesGuideChainBoardHint: "O lead cai no CRM sozinho.",
+  integracoesGuideStart: "Começar",
+  integracoesGuideFacebookLogin: "Entrar",
+  integracoesGuideFacebookLoginHint:
+    "O Facebook pede a conta que administra a Página.",
+  integracoesGuideFacebookPages: "Escolher Páginas",
+  integracoesGuideFacebookPagesHint:
+    "Marque as Páginas que vão mandar lead para o GRID.",
+  integracoesGuideFacebookForm: "Liberar o formulário",
+  integracoesGuideFacebookFormHint:
+    "Sem isso o Formulário Instantâneo não chega no quadro.",
+  integracoesGuideContinueFacebook: "Continuar no Facebook",
+  integracoesGuideNotConfigured: "A Meta ainda não está ligada neste GRID.",
+  integracoesGuidePagesError: "Não foi possível ler as Páginas.",
+  integracoesGuideRetry: "Tentar de novo",
+  integracoesGuideHandoff:
+    "O Formulário Instantâneo e a campanha ficam em Automações.",
   equipeTitle: "Equipe",
   equipeLead:
     "O mural da semana — quem ligou, qualificou e fechou — vive em Operações, para gestores. Aqui você deixa a foto pronta e pede vaga para o time na mesma conta.",

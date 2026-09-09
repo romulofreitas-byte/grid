@@ -26,6 +26,7 @@ describe("crm-nativo FAQ", () => {
     expect(item?.answer).toMatch(/Plano Piloto/);
     expect(item?.answer).toMatch(/Excluir uma lista não apaga o CRM/);
     expect(item?.answer).toMatch(/Transfira os negócios|transfere os negócios/);
+    expect(item?.answer).toMatch(/sem criar uma lista de um lead/);
   });
 });
 
@@ -34,6 +35,7 @@ describe("qualificar FAQ", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "qualificar");
     expect(item?.answer).toMatch(/25 por mês/);
     expect(item?.answer).toMatch(/Plano Piloto/);
+    expect(item?.answer).toMatch(/sem criar uma lista de um lead/);
   });
 });
 

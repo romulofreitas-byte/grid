@@ -107,6 +107,11 @@ import {
   type ListPerformance,
 } from "@/lib/listas/performance";
 import { unsavedIdsToPrune } from "@/lib/searches";
+import {
+  asCrmActivityKind,
+  emptyCompanyPlacement,
+  uniqueCompanyCnpjs,
+} from "@/lib/empresas/context";
 import type {
   IntegrationConnectionRecord,
   IntegrationJobRecord,
@@ -3242,6 +3247,98 @@ export const supabaseRepo: GridRepo = {
       );
     }
     return search;
+  },
+
+  async listCompanyGridContext(userId, cnpjs) {
+    const unique = uniqueCompanyCnpjs(cnpjs);
+    if (unique.length === 0) return [];
+    const [listRes, calledRes, crmRes] = await Promise.all([
+      query(
+        `select distinct on (sl.cnpj)
+                sl.cnpj,
+                s.id as search_id,
+                s.nome,
+                s.saved
+           from saved_leads sl
+           join searches s on s.id = sl.search_id
+          where sl.user_id = $1
+            and s.user_id = $1
+            and sl.cnpj = any($2::char(14)[])
+          order by sl.cnpj, s.saved desc, sl.created_at desc`,
+        [userId, unique],
+      ),
+      query(
+        `select distinct cnpj
+           from saved_leads
+          where user_id = $1
+            and cnpj = any($2::char(14)[])
+            and status in ('ligando', 'reuniao')`,
+        [userId, unique],
+      ),
+      query(
+        `select distinct on (d.cnpj)
+                d.cnpj,
+                d.id as deal_id,
+                p.id as pipeline_id,
+                p.nome as pipeline_nome,
+                s.nome as stage_nome,
+                a.kind as next_kind,
+                a.due_at as next_due_at
+           from crm_deals d
+           join crm_pipelines p on p.id = d.pipeline_id
+           join crm_stages s on s.id = d.stage_id
+           left join lateral (
+             select kind, due_at
+               from crm_activities
+              where deal_id = d.id and status = 'open'
+              order by due_at, created_at
+              limit 1
+           ) a on true
+          where p.user_id = $1
+            and d.cnpj = any($2::text[])
+          order by d.cnpj, d.updated_at desc`,
+        [userId, unique],
+      ),
+    ]);
+    const called = new Set(
+      calledRes.rows.map((row) => String(row.cnpj).trim()),
+    );
+    const listByCnpj = new Map<
+      string,
+      { searchId: string; nome: string; saved: boolean }
+    >();
+    for (const row of listRes.rows) {
+      const cnpj = String(row.cnpj).trim();
+      listByCnpj.set(cnpj, {
+        searchId: String(row.search_id),
+        nome: String(row.nome),
+        saved: Boolean(row.saved),
+      });
+    }
+    const crmByCnpj = new Map(
+      crmRes.rows.map((row) => {
+        const cnpj = String(row.cnpj).trim();
+        return [
+          cnpj,
+          {
+            dealId: String(row.deal_id),
+            pipelineId: String(row.pipeline_id),
+            pipelineNome: String(row.pipeline_nome),
+            stageNome: String(row.stage_nome ?? ""),
+            nextKind: asCrmActivityKind(row.next_kind),
+            nextDueAt: row.next_due_at
+              ? new Date(String(row.next_due_at)).toISOString()
+              : null,
+          },
+        ] as const;
+      }),
+    );
+    return unique.map((cnpj) => ({
+      ...emptyCompanyPlacement(cnpj),
+      called: called.has(cnpj),
+      list: listByCnpj.get(cnpj) ?? null,
+      crm: crmByCnpj.get(cnpj) ?? null,
+    }));
   },
 
   async listCompanyBriefs(cnpjs) {

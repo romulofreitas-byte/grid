@@ -17,8 +17,9 @@ import {
 import { FichaCollapse } from "@/components/FichaCollapse";
 import { GlassCard } from "@/components/GlassCard";
 import { LeadCompanyCard } from "@/components/LeadCompanyCard";
+import { AddCompanyToCrmDialog } from "@/components/crm/AddCompanyToCrmDialog";
 import { SaveListDialog } from "@/components/SaveListDialog";
-import { leadBack, leadHref, parseGridFrom, crmHref } from "@/lib/back";
+import { leadBack, crmHref } from "@/lib/back";
 import { COPY } from "@/lib/copy";
 import {
   blockQualifyIfFree,
@@ -29,6 +30,7 @@ import { BILLING_ME_QUERY_KEY, useBillingMe } from "@/hooks/useBillingMe";
 import { usePaywall } from "@/components/PaywallDialog";
 import { formatPhone, toE164, yearsSince } from "@/lib/format";
 import type {
+  CompanySearchHit,
   ContactInfo,
   EnrichmentJobStatus,
   LeadDossier,
@@ -36,6 +38,7 @@ import type {
   PilotStats,
 } from "@/lib/types";
 import { fichaCrmPrompt } from "@/lib/crm/ficha-prompt";
+import { asCompanySearchHit } from "@/lib/empresas/context";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { displayCompanyName, leadMapsHref } from "@/lib/enrichment/company-name";
@@ -128,7 +131,6 @@ export default function LeadPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchId = searchParams.get("searchId") ?? undefined;
-  const from = parseGridFrom(searchParams.get("from"));
   const back = leadBack(searchId, searchParams.get("from"));
   const qc = useQueryClient();
   const { openPaywall } = usePaywall();
@@ -139,6 +141,7 @@ export default function LeadPage() {
   const [correctError, setCorrectError] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const [savingPista, setSavingPista] = useState(false);
+  const [addHit, setAddHit] = useState<CompanySearchHit | null>(null);
   const [saveListOpen, setSaveListOpen] = useState(false);
   const [saveListName, setSaveListName] = useState("");
   const [saveListError, setSaveListError] = useState<string | null>(null);
@@ -154,6 +157,7 @@ export default function LeadPage() {
     setCorrectError(null);
     setCalling(false);
     setSavingPista(false);
+    setAddHit(null);
     setSaveListOpen(false);
     setSaveListError(null);
     heldCompleteRef.current = null;
@@ -620,29 +624,25 @@ export default function LeadPage() {
     hasDeal: Boolean(d.crm),
     searchSaved: Boolean(d.searchSaved),
     wasQualified: Boolean(displayEnrichment) || Boolean(d.wasQualified),
+    hasSearch: Boolean(searchId),
   });
 
-  function saveStandaloneLead() {
-    setSavingPista(true);
-    void fetch("/api/empresas/pista", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cnpj: params.cnpj }),
-    })
-      .then(async (res) => {
-        const json = (await res.json()) as {
-          searchId?: string;
-          error?: string;
-        };
-        if (!res.ok || !json.searchId) {
-          throw new Error(json.error ?? "Não foi possível salvar");
-        }
-        router.push(leadHref(params.cnpj, json.searchId, from));
-      })
-      .catch((err: Error) => {
-        setSavingPista(false);
-        setQualifyError(err.message);
-      });
+  function enterStandaloneCrm() {
+    const primaryContact = pickPrimary(d.contacts);
+    setAddHit(
+      asCompanySearchHit({
+        cnpj: est.cnpj,
+        razaoSocial: company.razao_social,
+        nomeFantasia: est.nome_fantasia,
+        municipio: d.municipioNome,
+        uf: est.uf,
+        cnaeDescricao: d.cnaeDescricao,
+        telefone: primaryContact?.telefone
+          ? `${primaryContact.ddd ?? ""}${primaryContact.telefone}`
+          : null,
+        decisorNome: d.decisor?.nome ?? null,
+      }),
+    );
   }
 
   function openSaveList() {
@@ -700,9 +700,18 @@ export default function LeadPage() {
               pendingLabel: "Salvando…",
               pending: savingPista,
               title: COPY.crmSaveListToEnter,
-              onClick: searchId ? openSaveList : saveStandaloneLead,
+              onClick: openSaveList,
             }
-          : undefined;
+          : crmPrompt === "enter"
+            ? {
+                type: "cta" as const,
+                label: COPY.empresasEntrarCrm,
+                pendingLabel: COPY.empresasEntrarCrm,
+                pending: Boolean(addHit),
+                title: COPY.empresasEnterCrmHint,
+                onClick: enterStandaloneCrm,
+              }
+            : undefined;
 
   const auditProps = {
     enrichment: displayEnrichment,
@@ -974,6 +983,19 @@ export default function LeadPage() {
           void submitSaveList();
         }}
       />
+      {addHit ? (
+        <AddCompanyToCrmDialog
+          company={addHit}
+          onClose={() => setAddHit(null)}
+          onCreated={(deal) => {
+            setAddHit(null);
+            void qc.invalidateQueries({
+              queryKey: leadQueryKey(params.cnpj, searchId),
+            });
+            router.push(crmHref({ pipeline: deal.pipelineId, deal: deal.id }));
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 }
