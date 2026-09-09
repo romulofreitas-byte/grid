@@ -659,27 +659,14 @@ export const COPY = {
   integracoesOpenImportacoes: "Abrir Importações",
   integracoesOpenTelefonia: "Abrir Telefonia",
   integracoesProCta: "Assinar o Piloto Pro",
-  integracoesGuideStepChain: "Cadeia",
   integracoesGuideStepFacebook: "Facebook",
   integracoesGuideStepPages: "Páginas",
-  integracoesGuideChainPage: "Página",
-  integracoesGuideChainPageHint: "A Página que recebe o anúncio.",
-  integracoesGuideChainForm: "Formulário Instantâneo",
-  integracoesGuideChainFormHint:
-    "O formulário do anúncio. Destino fica na campanha Meta.",
-  integracoesGuideChainBoard: "Quadro",
-  integracoesGuideChainBoardHint: "O lead cai no CRM sozinho.",
-  integracoesGuideStart: "Começar",
-  integracoesGuideFacebookLogin: "Entrar",
-  integracoesGuideFacebookLoginHint:
-    "O Facebook pede a conta que administra a Página.",
-  integracoesGuideFacebookPages: "Escolher Páginas",
-  integracoesGuideFacebookPagesHint:
-    "Marque as Páginas que vão mandar lead para o GRID.",
-  integracoesGuideFacebookForm: "Liberar o formulário",
-  integracoesGuideFacebookFormHint:
-    "Sem isso o Formulário Instantâneo não chega no quadro.",
   integracoesGuideContinueFacebook: "Continuar no Facebook",
+  integracoesGuidePickPages:
+    "Marque as Páginas que vão mandar lead para o GRID.",
+  integracoesGuideSavePages: "Salvar Páginas",
+  integracoesGuideSelectAtLeastOne: "Escolha ao menos uma Página.",
+  integracoesGuideSaveError: "Não foi possível ligar as Páginas.",
   integracoesGuideNotConfigured: "A Meta ainda não está ligada neste GRID.",
   integracoesGuidePagesError: "Não foi possível ler as Páginas.",
   integracoesGuideRetry: "Tentar de novo",

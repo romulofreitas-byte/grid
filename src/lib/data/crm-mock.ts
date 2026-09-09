@@ -76,6 +76,20 @@ function id(): string {
   return crypto.randomUUID();
 }
 
+function publicMockMetaConnection(
+  row: CrmMetaConnectionRecord,
+): CrmMetaConnection {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    page_id: row.page_id,
+    page_name: row.page_name,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 function cleanList(values: string[] | undefined): string[] {
   return (values ?? []).map((value) => value.trim()).filter(Boolean);
 }
@@ -1265,15 +1279,31 @@ export const crmMockMethods = {
       .crm_meta_connections.filter(
         (row) => row.user_id === userId && row.status === "active",
       )
-      .map((row) => ({
-        id: row.id,
-        user_id: row.user_id,
-        page_id: row.page_id,
-        page_name: row.page_name,
-        status: row.status,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-      }));
+      .map(publicMockMetaConnection)
+      .sort((a, b) => a.page_name.localeCompare(b.page_name));
+  },
+
+  async listCrmMetaPendingConnections(
+    userId: string,
+  ): Promise<CrmMetaConnection[]> {
+    return getMockStore()
+      .crm_meta_connections.filter(
+        (row) => row.user_id === userId && row.status === "pending",
+      )
+      .map(publicMockMetaConnection)
+      .sort((a, b) => a.page_name.localeCompare(b.page_name));
+  },
+
+  async listCrmMetaSelectableRecords(
+    userId: string,
+  ): Promise<CrmMetaConnectionRecord[]> {
+    return getMockStore()
+      .crm_meta_connections.filter(
+        (row) =>
+          row.user_id === userId &&
+          (row.status === "pending" || row.status === "active"),
+      )
+      .sort((a, b) => a.page_name.localeCompare(b.page_name));
   },
 
   async getCrmMetaConnection(
@@ -1304,6 +1334,7 @@ export const crmMockMethods = {
       pageName: string;
       credentialsCiphertext: string;
       credentialsNonce: string;
+      status?: "pending" | "active";
     },
   ): Promise<CrmMetaConnectionRecord | null> {
     const store = getMockStore();
@@ -1311,9 +1342,10 @@ export const crmMockMethods = {
       (row) => row.user_id === userId && row.page_id === input.pageId,
     );
     const now = nowIso();
+    const nextStatus = input.status ?? "pending";
     if (existing) {
       existing.page_name = input.pageName;
-      existing.status = "active";
+      if (existing.status !== "active") existing.status = nextStatus;
       existing.credentials_ciphertext = input.credentialsCiphertext;
       existing.credentials_nonce = input.credentialsNonce;
       existing.updated_at = now;
@@ -1324,13 +1356,27 @@ export const crmMockMethods = {
       user_id: userId,
       page_id: input.pageId,
       page_name: input.pageName,
-      status: "active",
+      status: nextStatus,
       credentials_ciphertext: input.credentialsCiphertext,
       credentials_nonce: input.credentialsNonce,
       created_at: now,
       updated_at: now,
     };
     store.crm_meta_connections.push(row);
+    return row;
+  },
+
+  async updateCrmMetaConnectionStatus(
+    userId: string,
+    pageId: string,
+    status: "pending" | "active" | "error" | "revoked",
+  ): Promise<CrmMetaConnectionRecord | null> {
+    const row = getMockStore().crm_meta_connections.find(
+      (item) => item.user_id === userId && item.page_id === pageId,
+    );
+    if (!row) return null;
+    row.status = status;
+    row.updated_at = nowIso();
     return row;
   },
 

@@ -152,7 +152,10 @@ describe("COPY automações", () => {
       /oauth|graph/,
     );
     expect(COPY.integracoesGuideHandoff.toLowerCase()).toMatch(/destino/);
-    expect(COPY.integracoesGuideStepChain).toBe("Cadeia");
+    expect(COPY.integracoesGuideStepFacebook).toBe("Facebook");
+    expect(COPY.integracoesGuideStepPages).toBe("Páginas");
+    expect(COPY.integracoesGuidePickPages.toLowerCase()).toMatch(/página|pagina/);
+    expect(COPY.integracoesGuideSavePages.toLowerCase()).toMatch(/página|pagina/);
     expect(COPY.automacoesHint.toLowerCase()).not.toMatch(/make/);
     expect(COPY.automacoesCaptarHint.toLowerCase()).not.toMatch(
       /make|token|json|header/,

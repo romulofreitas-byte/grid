@@ -480,6 +480,10 @@ export type GridRepo = {
   ): Promise<CrmInboundEvent[]>;
   listCrmInboundLastEvents(userId: string): Promise<CrmInboundEvent[]>;
   listCrmMetaConnections(userId: string): Promise<CrmMetaConnection[]>;
+  listCrmMetaPendingConnections(userId: string): Promise<CrmMetaConnection[]>;
+  listCrmMetaSelectableRecords(
+    userId: string,
+  ): Promise<CrmMetaConnectionRecord[]>;
   getCrmMetaConnection(
     userId: string,
     connectionId: string,
@@ -494,7 +498,13 @@ export type GridRepo = {
       pageName: string;
       credentialsCiphertext: string;
       credentialsNonce: string;
+      status?: "pending" | "active";
     },
+  ): Promise<CrmMetaConnectionRecord | null>;
+  updateCrmMetaConnectionStatus(
+    userId: string,
+    pageId: string,
+    status: "pending" | "active" | "error" | "revoked",
   ): Promise<CrmMetaConnectionRecord | null>;
   createCrmImportRun(
     userId: string,

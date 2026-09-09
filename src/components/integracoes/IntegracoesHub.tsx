@@ -15,8 +15,11 @@ import { useBillingMe } from "@/hooks/useBillingMe";
 
 type MetaPagesResponse = {
   pages: CrmMetaConnection[];
+  pending?: CrmMetaConnection[];
   configured?: boolean;
 };
+
+const EMPTY_PAGES: CrmMetaConnection[] = [];
 
 export function IntegracoesHub() {
   const billing = useBillingMe();
@@ -62,7 +65,8 @@ export function IntegracoesHub() {
       <IntegracoesCategoryChips current="conectar" />
       <p className="max-w-3xl text-sm text-podium-muted">{COPY.integracoesLead}</p>
       <MetaConnectGuide
-        pages={pagesQuery.data?.pages ?? []}
+        pages={pagesQuery.data?.pages ?? EMPTY_PAGES}
+        pending={pagesQuery.data?.pending ?? EMPTY_PAGES}
         configured={
           pagesQuery.isSuccess && pagesQuery.data.configured !== false
         }

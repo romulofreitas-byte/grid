@@ -12,7 +12,6 @@ import {
   exchangeMetaCode,
   listMetaPages,
   parseMetaOAuthState,
-  subscribePageToLeadgen,
 } from "@/lib/crm/meta-leads";
 
 export async function GET(req: Request) {
@@ -41,17 +40,13 @@ export async function GET(req: Request) {
     const repo = getRepo();
     let saved = 0;
     for (const page of pages) {
-      try {
-        await subscribePageToLeadgen(page.access_token, page.id);
-      } catch (err) {
-        console.error("meta_subscribe_failed", page.id, err);
-      }
       const packed = encryptPageToken(page.access_token);
       const row = await repo.upsertCrmMetaConnection(parsed.userId, {
         pageId: page.id,
         pageName: page.name,
         credentialsCiphertext: packed.ciphertext,
         credentialsNonce: packed.nonce,
+        status: "pending",
       });
       if (row) saved += 1;
       else console.error("meta_upsert_failed", page.id);

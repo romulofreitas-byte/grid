@@ -2112,6 +2112,40 @@ export const crmPgMethods = {
     }
   },
 
+  async listCrmMetaPendingConnections(
+    userId: string,
+  ): Promise<CrmMetaConnection[]> {
+    try {
+      const { rows } = await query(
+        `select * from crm_meta_connections
+          where user_id = $1 and status = 'pending'
+          order by page_name asc`,
+        [userId],
+      );
+      return rows.map((row) => publicMetaConnection(mapMetaConnection(row)));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
+  async listCrmMetaSelectableRecords(
+    userId: string,
+  ): Promise<CrmMetaConnectionRecord[]> {
+    try {
+      const { rows } = await query(
+        `select * from crm_meta_connections
+          where user_id = $1 and status in ('pending', 'active')
+          order by page_name asc`,
+        [userId],
+      );
+      return rows.map((row) => mapMetaConnection(row));
+    } catch (err) {
+      if (isUndefinedTableError(err)) return [];
+      throw err;
+    }
+  },
+
   async getCrmMetaConnection(
     userId: string,
     connectionId: string,
@@ -2152,16 +2186,20 @@ export const crmPgMethods = {
       pageName: string;
       credentialsCiphertext: string;
       credentialsNonce: string;
+      status?: "pending" | "active";
     },
   ): Promise<CrmMetaConnectionRecord | null> {
     try {
       const { rows } = await query(
         `insert into crm_meta_connections (
            user_id, page_id, page_name, status, credentials_ciphertext, credentials_nonce
-         ) values ($1, $2, $3, 'active', $4, $5)
+         ) values ($1, $2, $3, $4, $5, $6)
          on conflict (user_id, page_id) do update set
            page_name = excluded.page_name,
-           status = 'active',
+           status = case
+             when crm_meta_connections.status = 'active' then 'active'
+             else excluded.status
+           end,
            credentials_ciphertext = excluded.credentials_ciphertext,
            credentials_nonce = excluded.credentials_nonce,
            updated_at = now()
@@ -2170,9 +2208,30 @@ export const crmPgMethods = {
           userId,
           input.pageId,
           input.pageName,
+          input.status ?? "pending",
           input.credentialsCiphertext,
           input.credentialsNonce,
         ],
+      );
+      return rows[0] ? mapMetaConnection(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      throw err;
+    }
+  },
+
+  async updateCrmMetaConnectionStatus(
+    userId: string,
+    pageId: string,
+    status: "pending" | "active" | "error" | "revoked",
+  ): Promise<CrmMetaConnectionRecord | null> {
+    try {
+      const { rows } = await query(
+        `update crm_meta_connections
+            set status = $3, updated_at = now()
+          where user_id = $1 and page_id = $2
+          returning *`,
+        [userId, pageId, status],
       );
       return rows[0] ? mapMetaConnection(rows[0]) : null;
     } catch (err) {
