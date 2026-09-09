@@ -15,7 +15,13 @@ const IntegracaoSetup = dynamic(
   },
 );
 
-export function TelefoniaSetup({ kind }: { kind: "voip" | "dialer" }) {
-  return <IntegracaoSetup key={kind} kind={kind} />;
+export function TelefoniaSetup({
+  kind,
+  provider,
+}: {
+  kind: "voip" | "dialer";
+  provider?: string;
+}) {
+  return <IntegracaoSetup key={kind} kind={kind} provider={provider} />;
 }
 

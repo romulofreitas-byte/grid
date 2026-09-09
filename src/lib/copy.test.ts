@@ -142,11 +142,13 @@ describe("COPY automações", () => {
     expect(COPY.automacoesEmptyPane.toLowerCase()).toMatch(/integrações|integracoes/);
     expect(COPY.integracoesTitle).toBe("Integrações");
     expect(COPY.telefoniaTitle).toBe("Telefonia");
-    expect(COPY.integracoesFacebookTitle).toBe("Meta API");
+    expect(COPY.integracoesFacebookTitle).toBe("Meta Lead Ads");
     expect(COPY.integracoesCatConectar).toBe("Conectar conta");
     expect(COPY.integracoesCatCaptar).toBe("Captar leads");
     expect(COPY.integracoesCatAvancado).toBe("Avançado");
-    expect(COPY.integracoesLead.toLowerCase()).toMatch(/página|pagina/);
+    expect(COPY.integracoesLead.toLowerCase()).toMatch(/plataforma/);
+    expect(COPY.integracoesCtaIntegrar).toBe("Integrar");
+    expect(COPY.integracoesHubBack).toBe("Hub");
     expect(COPY.integracoesGuideContinueFacebook.toLowerCase()).toMatch(/facebook/);
     expect(COPY.integracoesGuideNotConfigured.toLowerCase()).not.toMatch(
       /oauth|graph/,

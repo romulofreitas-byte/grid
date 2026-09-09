@@ -75,6 +75,7 @@ describe("shell footer nav", () => {
     expect(isFooterAccordion(integracoes!)).toBe(true);
     expect(integracoes?.href).toBeUndefined();
     expect(integracoes?.children?.map((child) => child.label)).toEqual([
+      "Hub",
       "Conectar conta",
       "Captar leads",
       "Avançado",
@@ -83,6 +84,7 @@ describe("shell footer nav", () => {
     ]);
     expect(integracoes?.children?.map((child) => child.href)).toEqual([
       "/integracoes",
+      "/integracoes/meta",
       "/automacoes",
       "/automacoes/avancado",
       "/importacoes",
@@ -127,8 +129,11 @@ describe("isShellChildActive", () => {
   const importacoes = integracoes?.children?.find(
     (child) => child.href === "/importacoes",
   );
-  const facebook = integracoes?.children?.find(
+  const hub = integracoes?.children?.find(
     (child) => child.href === "/integracoes",
+  );
+  const facebook = integracoes?.children?.find(
+    (child) => child.href === "/integracoes/meta",
   );
   const captar = integracoes?.children?.find(
     (child) => child.href === "/automacoes",
@@ -141,9 +146,16 @@ describe("isShellChildActive", () => {
     expect(
       telefonia && isShellChildActive(telefonia, "/integracoes/telefonia", null),
     ).toBe(true);
+    expect(hub && isShellChildActive(hub, "/integracoes", null)).toBe(true);
+    expect(hub && isShellChildActive(hub, "/integracoes/meta", null)).toBe(
+      false,
+    );
+    expect(
+      facebook && isShellChildActive(facebook, "/integracoes/meta", null),
+    ).toBe(true);
     expect(
       facebook && isShellChildActive(facebook, "/integracoes", null),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       facebook && isShellChildActive(facebook, "/integracoes/telefonia", null),
     ).toBe(false);

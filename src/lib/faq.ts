@@ -168,7 +168,8 @@ export const FAQ_ITEMS: FaqItem[] = [
     answer:
       "No Piloto Pro você capta pelo formulário no site, conecta a Página do Meta para o Formulário Instantâneo cair no quadro, ou usa origem avançada (Make, Zapier, desenvolvedor). No Piloto você importa a planilha e liga pelo CRM.",
     links: [
-      { href: "/integracoes", label: "Conectar conta" },
+      { href: "/integracoes", label: "Integrações" },
+      { href: "/integracoes/meta", label: "Conectar conta" },
       { href: "/automacoes", label: "Captar leads" },
       { href: "/automacoes/avancado", label: "Avançado" },
       { href: "/pagar?sku=piloto_pro", label: "Assinar o Piloto Pro" },

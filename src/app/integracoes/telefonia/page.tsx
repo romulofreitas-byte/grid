@@ -6,10 +6,12 @@ import { redirect } from "next/navigation";
 export default async function IntegracoesTelefoniaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; provider?: string }>;
 }) {
   const session = await requireSession();
   if (!session) redirect("/entrar");
-  const { tab } = await searchParams;
-  return <TelefoniaPanel tab={parseTelefoniaTab(tab)} />;
+  const { tab, provider } = await searchParams;
+  return (
+    <TelefoniaPanel tab={parseTelefoniaTab(tab)} provider={provider} />
+  );
 }

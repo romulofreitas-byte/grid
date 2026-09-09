@@ -7,6 +7,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { usePaywall } from "@/components/PaywallDialog";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
+import { IntegracoesFocusHeader } from "@/components/integracoes/IntegracoesFocusHeader";
+import { IntegrationFocusPanel } from "@/components/integracoes/IntegrationFocusPanel";
 import { ImportHistory, IMPORT_RUNS_QUERY_KEY } from "@/components/importacoes/ImportHistory";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -15,6 +17,7 @@ import { ENRICH_CREDIT_COST, creditsPhrase, planHasFeature } from "@/lib/billing
 import { isBillingGateError, throwIfBillingGate } from "@/lib/billing/paywall";
 import { httpErrorMessage, readResponseJson } from "@/lib/api-json";
 import { COPY } from "@/lib/copy";
+import { getHubItem } from "@/lib/integrations/hub";
 import { QUALIFY_LIST_MAX } from "@/lib/enrichment/jobs";
 import {
   guessImportMapping,
@@ -34,11 +37,6 @@ import { IMPORT_MAX_ROWS } from "@/lib/crm/schema";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import { useBillingMe } from "@/hooks/useBillingMe";
 import { cn } from "@/lib/utils";
-import {
-  workSplitClass,
-  workSplitPaneClass,
-  workSplitRailClass,
-} from "@/lib/work-split";
 
 const NEW_PIPELINE = "__new__";
 
@@ -73,49 +71,6 @@ function Field({
       {label}
       <div className="mt-1.5">{children}</div>
     </label>
-  );
-}
-
-function StepStrip({
-  items,
-}: {
-  items: Array<{
-    n: number;
-    title: string;
-    status: "todo" | "current" | "done";
-  }>;
-}) {
-  return (
-    <ol className="flex gap-1">
-      {items.map((item) => (
-        <li
-          key={item.n}
-          className={cn(
-            "flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-[11px]",
-            item.status === "done" && "bg-podium-yellow/10 text-podium-white",
-            item.status === "current" && "bg-white/[0.06] text-podium-white",
-            item.status === "todo" && "text-podium-muted",
-          )}
-        >
-          <span
-            className={cn(
-              "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold",
-              item.status === "done" && "bg-podium-yellow text-podium-navy",
-              item.status === "current" &&
-                "border border-podium-yellow/70 text-podium-yellow",
-              item.status === "todo" && "border border-white/15",
-            )}
-          >
-            {item.status === "done" ? (
-              <Check className="h-2.5 w-2.5" strokeWidth={3} aria-hidden />
-            ) : (
-              item.n
-            )}
-          </span>
-          <span className="truncate">{item.title}</span>
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -396,19 +351,24 @@ export function ImportacoesPanel({
       ? "current"
       : "todo";
 
+  const planilha = getHubItem("planilha");
+
   return (
-    <div className={workSplitClass}>
-      <div className={cn(workSplitRailClass, "space-y-3 lg:w-[28rem]")}>
-        <GlassCard className="space-y-3 p-3 hover:translate-y-0">
-          <StepStrip
-            items={[
-              { n: 1, title: "Arquivo", status: step1 },
-              { n: 2, title: "Campos", status: step2 },
-              { n: 3, title: "Destino", status: step3 },
-              { n: 4, title: "Importar", status: step4 },
-            ]}
-          />
-          <Hint>{COPY.importacoesFileHint}</Hint>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain">
+      <IntegracoesFocusHeader
+        item={planilha}
+        title={COPY.importacoesTitle}
+        status={COPY.importacoesLead}
+      />
+      <IntegrationFocusPanel
+        steps={[
+          { id: "1", title: "Arquivo", status: step1 },
+          { id: "2", title: "Campos", status: step2 },
+          { id: "3", title: "Destino", status: step3 },
+          { id: "4", title: "Importar", status: step4 },
+        ]}
+        help={<Hint>{COPY.importacoesFileHint}</Hint>}
+      >
 
           <label
             className={cn(
@@ -668,10 +628,8 @@ export function ImportacoesPanel({
               </a>
             </Hint>
           ) : null}
-        </GlassCard>
-      </div>
+        </IntegrationFocusPanel>
 
-      <div className={cn(workSplitPaneClass, "space-y-3")}>
         <GlassCard className="space-y-3 p-3 hover:translate-y-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
             Preview
@@ -764,7 +722,7 @@ export function ImportacoesPanel({
             </div>
           ) : (
             <p className="text-sm text-podium-muted">
-              Escolha o arquivo à esquerda para ver as linhas.
+              Escolha o arquivo acima para ver as linhas.
             </p>
           )}
         </GlassCard>
@@ -779,7 +737,6 @@ export function ImportacoesPanel({
             </Link>
           </p>
         ) : null}
-      </div>
     </div>
   );
 }

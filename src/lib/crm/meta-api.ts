@@ -20,7 +20,7 @@ export const META_OAUTH_SCOPES = [
 export const META_OAUTH_CALLBACK_PATH = "/api/automacoes/meta/callback";
 /** Misspelling already saved in the Meta app OAuth allowlist. */
 export const META_OAUTH_CALLBACK_ALIAS_PATH = "/api/automacaoes/meta/callback";
-export const META_OAUTH_RETURN_PATH = "/integracoes";
+export const META_OAUTH_RETURN_PATH = "/integracoes/meta";
 export const META_LEADGEN_WEBHOOK_PATH = "/api/webhooks/meta/leads";
 export const META_LEADGEN_FIELD = "leadgen";
 

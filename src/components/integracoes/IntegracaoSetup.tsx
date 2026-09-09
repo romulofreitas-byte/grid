@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
+import { IntegrationHubCard } from "@/components/integracoes/IntegrationHubCard";
+import { IntegrationFocusPanel } from "@/components/integracoes/IntegrationFocusPanel";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { TestRamalButton } from "@/components/TestRamalButton";
 import { Badge } from "@/components/ui/Badge";
@@ -27,10 +28,8 @@ import type {
 import { voipSetup, type VoipField } from "@/lib/integrations/voip-setup";
 import { dialerSetup, type DialerField } from "@/lib/integrations/dialer-setup";
 import { CONNECTIONS_STANDBY } from "@/lib/integrations/standby";
-import { planHasFeature } from "@/lib/billing/catalog";
 import { COPY } from "@/lib/copy";
-import { useBillingMe } from "@/hooks/useBillingMe";
-import { cn } from "@/lib/utils";
+import { getHubItem } from "@/lib/integrations/hub";
 
 type CreateResponse = {
   connection: IntegrationConnectionPublic;
@@ -201,12 +200,22 @@ const PAGE = {
   },
 } as const;
 
-export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
+export function IntegracaoSetup({
+  kind,
+  provider,
+}: {
+  kind: IntegracaoKind;
+  provider?: string;
+}) {
   const qc = useQueryClient();
-  const billing = useBillingMe();
   const formRef = useRef<HTMLDivElement>(null);
   const copy = PAGE[kind];
-  const [selectedId, setSelectedId] = useState<string>(copy.defaultId);
+  const catalogItems = catalogItemsByKind(kind);
+  const initialId =
+    provider && catalogItems.some((item) => item.id === provider)
+      ? provider
+      : copy.defaultId;
+  const [selectedId, setSelectedId] = useState<string>(initialId);
   const [fields, setFields] = useState(emptyFields);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<IntegrationConnectionPublic | null>(null);
@@ -216,7 +225,6 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
   const setup = kind === "voip" ? voipSetup(selected.id) : null;
   const dialer = kind === "dialer" ? dialerSetup(selected.id) : null;
   const live = catalogAvailability(selected) === "live";
-  const catalogItems = catalogItemsByKind(kind);
 
   const list = useQuery({
     queryKey: ["integration-connections"],
@@ -370,12 +378,12 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
   }
 
   useEffect(() => {
-    setSelectedId(copy.defaultId);
+    setSelectedId(initialId);
     setFields(emptyFields());
     setCampaigns([]);
     setError(null);
     setCreated(null);
-  }, [copy.defaultId]);
+  }, [initialId]);
 
   const canSubmitVoip =
     live &&
@@ -395,204 +403,144 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
     Boolean(fields.api_token.trim()) &&
     Boolean(fields.campaign_id.trim());
   const canSubmit = kind === "dialer" ? canSubmitDialer : canSubmitVoip;
+  const selectedConnections = sortedConnections.filter(
+    (connection) => (connection.catalog_id ?? connection.provider) === selected.id,
+  );
 
   return (
-    <>
+    <div className="space-y-6">
       {CONNECTIONS_STANDBY ? (
         <p
           role="status"
-          className="mt-3 text-pretty rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-3 py-2 text-xs text-podium-yellow"
+          className="text-pretty rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-3 py-2 text-xs text-podium-yellow"
         >
           {COPY.conexoesStandbyBanner}
         </p>
-      ) : (
-        <p className="mt-2 max-w-3xl text-pretty text-sm text-podium-muted">
-          {copy.lead}
-        </p>
-      )}
-      {planHasFeature(billing.data?.balance.plano, "automations") ? (
-        <p className="mt-3 max-w-3xl text-pretty text-sm text-podium-gray">
-          {COPY.conexoesInboundHint}{" "}
-          <Link href="/integracoes" className="font-semibold text-podium-yellow">
-            Abrir Integrações
-          </Link>
-        </p>
       ) : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <div className="min-w-0 space-y-4">
-          <section>
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
-                  Conectadas
-                </h3>
-                <p className="mt-1 text-sm text-podium-gray">
-                  Só aparece aqui o que já passou no teste de token.
-                </p>
-              </div>
-              <Badge variant="neutral">
-                {connections.filter((c) => c.status === "active").length} ativas
-              </Badge>
-            </div>
-            <div className="mt-3 space-y-3">
-              {list.isLoading ? (
-                <div className="h-16 animate-pulse rounded-md bg-white/5" />
-              ) : sortedConnections.length === 0 ? (
-                <p className="rounded-md border border-dashed border-white/15 px-3 py-4 text-xs text-podium-muted">
-                  {CONNECTIONS_STANDBY ? COPY.conexoesStandbyEmpty : copy.empty}
-                </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {catalogItems.map((item) => {
+          const hub = getHubItem(item.id);
+          if (!hub) return null;
+          const n = connections.filter(
+            (connection) =>
+              (connection.catalog_id ?? connection.provider) === item.id &&
+              connection.status === "active",
+          ).length;
+          const status =
+            catalogAvailability(item) === "soon" || CONNECTIONS_STANDBY
+              ? COPY.integracoesStatusSoon
+              : n > 0
+                ? item.kind === "dialer"
+                  ? COPY.integracoesStatusConnected
+                  : n === 1
+                    ? COPY.integracoesStatusVoipOne
+                    : COPY.integracoesStatusVoipMany.replace("{n}", String(n))
+                : COPY.integracoesStatusNone;
+          return (
+            <IntegrationHubCard
+              key={item.id}
+              item={{
+                ...hub,
+                availability:
+                  CONNECTIONS_STANDBY || catalogAvailability(item) === "soon"
+                    ? "soon"
+                    : "live",
+                href:
+                  CONNECTIONS_STANDBY || catalogAvailability(item) === "soon"
+                    ? null
+                    : hub.href,
+              }}
+              status={status}
+              selected={selectedId === item.id}
+              onSelect={
+                catalogAvailability(item) === "live" && !CONNECTIONS_STANDBY
+                  ? () => pickTool(item)
+                  : undefined
+              }
+            />
+          );
+        })}
+      </div>
+
+      <div ref={formRef}>
+        <IntegrationFocusPanel
+          help={
+            <ol className="space-y-1.5">
+              {CONNECTIONS_STANDBY ? (
+                <>
+                  <li>A ligação pela internet ainda não está nesta versão.</li>
+                  <li>Ligar na ficha abre o telefone do aparelho.</li>
+                </>
+              ) : kind === "dialer" ? (
+                <>
+                  <li>Cole o domínio da 3C Plus, o token de gestor e a campanha.</li>
+                  <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
+                  <li>Envie a lista no Grid. Ligar na ficha usa o token de agente.</li>
+                </>
               ) : (
-                sortedConnections.map((c) => (
-                  <ConnectionCard
-                    key={c.id}
-                    connection={c}
-                    lastError={lastErrorByConnection.get(c.id)}
-                    removing={remove.isPending}
-                    onRemove={() => remove.mutate(c.id)}
-                  />
-                ))
+                <>
+                  <li>Cole o token do VoIP e o ramal.</li>
+                  <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
+                  <li>Testar ligação toca o Webphone. Na ficha, Ligar dispara a chamada.</li>
+                </>
               )}
+            </ol>
+          }
+        >
+          <div className="flex items-center gap-3">
+            <IntegrationLogo item={selected} size="lg" active />
+            <div>
+              <p className="text-sm font-semibold text-podium-white">
+                Conectar {selected.name}
+              </p>
+              <p className="text-[11px] text-podium-muted">
+                {CONNECTIONS_STANDBY
+                  ? COPY.integracoesStatusSoon
+                  : live && dialer
+                    ? "Domínio + token de gestor + campanha"
+                    : live && setup
+                      ? "Token + ramal · teste na hora"
+                      : COPY.integracoesStatusSoon}
+              </p>
             </div>
-          </section>
-
-          <section>
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-podium-muted">
-              {copy.title}
-            </h3>
-            <p className="mt-1 text-sm text-podium-gray">
-              {CONNECTIONS_STANDBY ? copy.leadStandby : copy.lead}
-            </p>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7">
-              {catalogItems.map((item) => {
-                const on = selectedId === item.id;
-                const available =
-                  catalogAvailability(item) === "live" && !CONNECTIONS_STANDBY;
-                const already = connections.some(
-                  (c) => c.catalog_id === item.id && c.status === "active",
-                );
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={on}
-                    disabled={!available}
-                    onClick={() => pickTool(item)}
-                    className={cn(
-                      "group relative flex flex-col items-center gap-2 rounded-md border px-2 py-2 text-center transition",
-                      !available
-                        ? "cursor-not-allowed border-white/5 bg-white/[0.015] opacity-55"
-                        : on
-                          ? "border-white/25 bg-white/[0.07]"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20",
-                    )}
-                  >
-                    {already ? (
-                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-podium-success" />
-                    ) : null}
-                    <IntegrationLogo item={item} active={on && available} />
-                    <span
-                      className={cn(
-                        "text-[11px] font-semibold leading-tight",
-                        on && available ? "text-podium-white" : "text-podium-gray",
-                      )}
-                    >
-                      {item.name}
-                    </span>
-                    {!available ? (
-                      <span className="text-[9px] uppercase tracking-wide text-podium-muted">
-                        Em breve
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+          </div>
+          {selectedConnections.length > 0 ? (
+            <div className="space-y-3">
+              {selectedConnections.map((connection) => (
+                <ConnectionCard
+                  key={connection.id}
+                  connection={connection}
+                  lastError={lastErrorByConnection.get(connection.id)}
+                  removing={remove.isPending}
+                  onRemove={() => remove.mutate(connection.id)}
+                />
+              ))}
             </div>
-          </section>
-
-          <GlassCard
-            className="space-y-3 border-white/10 bg-white/[0.03] p-3 hover:translate-y-0"
-            highlight
-          >
-            <div ref={formRef} className="flex items-center gap-3">
-              <IntegrationLogo item={selected} active />
-              <div>
-                <p className="text-sm font-semibold text-podium-white">
-                  Conectar {selected.name}
-                </p>
-                <p className="text-[11px] text-podium-muted">
-                  {CONNECTIONS_STANDBY
-                    ? "Em breve"
-                    : live && dialer
-                      ? "Domínio + token de gestor + campanha"
-                      : live && setup
-                        ? "Token + ramal · teste na hora"
-                        : "Em breve"}
-                </p>
-              </div>
-            </div>
-            {CONNECTIONS_STANDBY ? (
-              <p className="text-sm text-podium-muted">{COPY.conexoesStandbyForm}</p>
-            ) : live && dialer ? (
-              <>
-                {dialer.fields.map((field: DialerField) => (
-                  <Field key={field.id} label={field.label}>
-                    {field.id === "campaign_id" && campaigns.length > 0 ? (
-                      <Select
-                        value={fields.campaign_id}
-                        onChange={(campaign_id) =>
-                          setFields((prev) => ({ ...prev, campaign_id }))
-                        }
-                        placeholder="Escolha a campanha"
-                        className="w-full"
-                        options={[
-                          { value: "", label: "Escolha a campanha" },
-                          ...campaigns.map((campaign) => ({
-                            value: campaign.id,
-                            label: campaign.name,
-                          })),
-                        ]}
-                      />
-                    ) : (
-                      <input
-                        value={fields[field.id] ?? ""}
-                        onChange={(e) =>
-                          setFields((prev) => ({ ...prev, [field.id]: e.target.value }))
-                        }
-                        placeholder={field.placeholder}
-                        type={field.secret ? "password" : "text"}
-                        autoComplete="off"
-                        className={INPUT}
-                      />
-                    )}
-                    {field.hint ? <Hint className="mt-1.5">{field.hint}</Hint> : null}
-                  </Field>
-                ))}
-                <Button
-                  variant="secondary"
-                  disabled={
-                    !fields.domain.trim() ||
-                    !fields.api_token.trim() ||
-                    loadCampaigns.isPending
-                  }
-                  onClick={() => loadCampaigns.mutate()}
-                >
-                  {loadCampaigns.isPending ? "Buscando…" : "Buscar campanhas"}
-                </Button>
-                {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
-                <Button
-                  variant="primary"
-                  disabled={!canSubmit || create.isPending}
-                  onClick={() => create.mutate()}
-                >
-                  {create.isPending ? "Validando token…" : `Conectar ${selected.name}`}
-                </Button>
-                <Hint>{dialer.inboundHint}</Hint>
-              </>
-            ) : live && setup ? (
-              <>
-                {setup.fields.map((field: VoipField) => (
-                  <Field key={field.id} label={field.label}>
+          ) : null}
+          {CONNECTIONS_STANDBY ? (
+            <p className="text-sm text-podium-muted">{COPY.conexoesStandbyForm}</p>
+          ) : live && dialer ? (
+            <>
+              {dialer.fields.map((field: DialerField) => (
+                <Field key={field.id} label={field.label}>
+                  {field.id === "campaign_id" && campaigns.length > 0 ? (
+                    <Select
+                      value={fields.campaign_id}
+                      onChange={(campaign_id) =>
+                        setFields((prev) => ({ ...prev, campaign_id }))
+                      }
+                      placeholder="Escolha a campanha"
+                      className="w-full"
+                      options={[
+                        { value: "", label: "Escolha a campanha" },
+                        ...campaigns.map((campaign) => ({
+                          value: campaign.id,
+                          label: campaign.name,
+                        })),
+                      ]}
+                    />
+                  ) : (
                     <input
                       value={fields[field.id] ?? ""}
                       onChange={(e) =>
@@ -603,29 +551,66 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
                       autoComplete="off"
                       className={INPUT}
                     />
-                    {field.hint ? <Hint className="mt-1.5">{field.hint}</Hint> : null}
-                  </Field>
-                ))}
-                {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
-                <Button
-                  variant="primary"
-                  disabled={!canSubmit || create.isPending}
-                  onClick={() => create.mutate()}
-                >
-                  {create.isPending ? "Validando token…" : `Conectar ${selected.name}`}
-                </Button>
-                <Hint>{setup.inboundHint}</Hint>
-              </>
-            ) : (
-              <p className="text-sm text-podium-muted">
-                Este PBX precisa de um conector na rede local. Ainda não está nesta
-                versão.
-              </p>
-            )}
-          </GlassCard>
-
+                  )}
+                  {field.hint ? <Hint className="mt-1.5">{field.hint}</Hint> : null}
+                </Field>
+              ))}
+              <Button
+                variant="secondary"
+                disabled={
+                  !fields.domain.trim() ||
+                  !fields.api_token.trim() ||
+                  loadCampaigns.isPending
+                }
+                onClick={() => loadCampaigns.mutate()}
+              >
+                {loadCampaigns.isPending ? "Buscando…" : "Buscar campanhas"}
+              </Button>
+              {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
+              <Button
+                variant="primary"
+                disabled={!canSubmit || create.isPending}
+                onClick={() => create.mutate()}
+              >
+                {create.isPending ? "Validando token…" : `Conectar ${selected.name}`}
+              </Button>
+              <Hint>{dialer.inboundHint}</Hint>
+            </>
+          ) : live && setup ? (
+            <>
+              {setup.fields.map((field: VoipField) => (
+                <Field key={field.id} label={field.label}>
+                  <input
+                    value={fields[field.id] ?? ""}
+                    onChange={(e) =>
+                      setFields((prev) => ({ ...prev, [field.id]: e.target.value }))
+                    }
+                    placeholder={field.placeholder}
+                    type={field.secret ? "password" : "text"}
+                    autoComplete="off"
+                    className={INPUT}
+                  />
+                  {field.hint ? <Hint className="mt-1.5">{field.hint}</Hint> : null}
+                </Field>
+              ))}
+              {error ? <p className="text-sm text-podium-alert">{error}</p> : null}
+              <Button
+                variant="primary"
+                disabled={!canSubmit || create.isPending}
+                onClick={() => create.mutate()}
+              >
+                {create.isPending ? "Validando token…" : `Conectar ${selected.name}`}
+              </Button>
+              <Hint>{setup.inboundHint}</Hint>
+            </>
+          ) : (
+            <p className="text-sm text-podium-muted">
+              Este PBX precisa de um conector na rede local. Ainda não está nesta
+              versão.
+            </p>
+          )}
           {created ? (
-            <GlassCard className="space-y-3 border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
+            <div className="space-y-3 rounded-md border border-podium-yellow/20 bg-podium-yellow/5 p-3">
               <p className="flex items-center gap-2 text-sm font-semibold text-podium-yellow">
                 <Check className="h-4 w-4" />
                 {created.kind === "dialer"
@@ -646,39 +631,10 @@ export function IntegracaoSetup({ kind }: { kind: IntegracaoKind }) {
                   ramal logado na campanha.
                 </p>
               )}
-            </GlassCard>
+            </div>
           ) : null}
-        </div>
-
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <GlassCard className="border-white/10 bg-white/[0.03] p-3 hover:translate-y-0">
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-              Como funciona
-            </p>
-            <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs leading-relaxed text-podium-gray">
-              {CONNECTIONS_STANDBY ? (
-                <>
-                  <li>A ligação pela internet ainda não está nesta versão.</li>
-                  <li>Ligar na ficha abre o telefone do aparelho.</li>
-                  <li>Quando a montagem voltar, você cola o token e o ramal aqui.</li>
-                </>
-              ) : kind === "dialer" ? (
-                <>
-                  <li>Cole o domínio da 3C Plus, o token de gestor e a campanha.</li>
-                  <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
-                  <li>Envie a lista no Grid. Ligar na ficha usa o token de agente.</li>
-                </>
-              ) : (
-                <>
-                  <li>Cole o token do VoIP e o ramal.</li>
-                  <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
-                  <li>Testar ligação toca o Webphone. Na ficha, Ligar dispara a chamada.</li>
-                </>
-              )}
-            </ol>
-          </GlassCard>
-        </aside>
+        </IntegrationFocusPanel>
       </div>
-    </>
+    </div>
   );
 }

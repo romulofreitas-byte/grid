@@ -22,6 +22,7 @@ export function largadaIntentHref(intent: string, opts?: { uf?: string }) {
 export type ConexoesKind = "crm" | "dialer" | "voip" | "webhook";
 
 export const INTEGRACOES = "/integracoes";
+export const INTEGRACOES_META = "/integracoes/meta";
 export const INTEGRACOES_TELEFONIA = "/integracoes/telefonia";
 
 export function integracoesHref(kind: "voip" | "dialer" = "voip") {

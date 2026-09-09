@@ -640,25 +640,40 @@ export const COPY = {
   notFoundHome: "Ir ao Painel",
   notFoundFaq: "Ver dúvidas",
   integracoesTitle: "Integrações",
-  integracoesLead:
-    "Conecte a Página, capte pelo site ou use origem avançada.",
+  integracoesLead: "Plataformas que mandam lead e ligação para o GRID.",
+  integracoesSearch: "Buscar integração",
+  integracoesHubBack: "Hub",
+  integracoesSectionCaptacao: "Captação",
+  integracoesSectionAutomacoes: "Automações",
+  integracoesSectionTelefonia: "Telefonia",
+  integracoesStatusNone: "Nenhuma conta",
+  integracoesStatusSoon: "Em breve",
+  integracoesStatusConnected: "Conectado",
+  integracoesStatusPagesOne: "1 Página",
+  integracoesStatusPagesMany: "{n} Páginas",
+  integracoesStatusOriginsOne: "1 origem",
+  integracoesStatusOriginsMany: "{n} origens",
+  integracoesStatusVoipOne: "1 ramal",
+  integracoesStatusVoipMany: "{n} ramais",
+  integracoesCtaIntegrar: "Integrar",
+  integracoesCtaOpen: "Abrir",
+  integracoesCtaSoon: "Em breve",
   integracoesCatConectar: "Conectar conta",
   integracoesCatCaptar: "Captar leads",
   integracoesCatAvancado: "Avançado",
-  integracoesFacebookTitle: "Meta API",
+  integracoesFacebookTitle: "Meta Lead Ads",
   integracoesFacebookBody:
-    "Conecte a Página. O Formulário Instantâneo cai no quadro.",
+    "Autorize o Facebook e escolha as Páginas. O Formulário Instantâneo cai no quadro.",
   integracoesAutomacoesBody:
     "Formulário no site, anúncio Meta ou origem avançada.",
   telefoniaTitle: "Telefonia",
-  telefoniaLead:
-    "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
-  integracoesTelefoniaBody:
-    "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
+  telefoniaLead: "VoIP na ficha ou discador na lista.",
+  integracoesTelefoniaBody: "VoIP na ficha ou discador na lista.",
   integracoesOpenAutomacoes: "Definir destino",
   integracoesOpenImportacoes: "Abrir Importações",
   integracoesOpenTelefonia: "Abrir Telefonia",
   integracoesProCta: "Assinar o Piloto Pro",
+  integracoesFocusBack: "Voltar",
   integracoesGuideStepFacebook: "Facebook",
   integracoesGuideStepPages: "Páginas",
   integracoesGuideContinueFacebook: "Continuar no Facebook",
@@ -744,8 +759,7 @@ export const COPY = {
   conexoesInboundHint:
     "Aqui o GRID envia lista e ligação para fora. Meta API e campanhas ficam em Integrações.",
   importacoesTitle: "Importações",
-  importacoesLead:
-    "Planilha entra no quadro. CNPJ também vai para Minhas listas.",
+  importacoesLead: "Planilha entra no quadro.",
   importacoesFileHint:
     "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:

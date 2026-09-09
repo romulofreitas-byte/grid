@@ -8,7 +8,7 @@ export default function ImportacoesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.painel}>
+    <AppShell fill wide lockHeight title={COPY.importacoesTitle} back={BACK.integracoes}>
       {children}
     </AppShell>
   );

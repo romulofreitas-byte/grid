@@ -5,22 +5,22 @@ import {
   Check,
   ChevronDown,
   Copy,
-  Link2,
-  Megaphone,
-  Settings,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { IntegracoesCategoryChips } from "@/components/integracoes/IntegracoesCategoryChips";
+import { IntegracoesFocusHeader } from "@/components/integracoes/IntegracoesFocusHeader";
+import { IntegrationFocusPanel } from "@/components/integracoes/IntegrationFocusPanel";
+import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { Button, type ButtonVariant } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { ChoiceTile } from "@/components/ui/ChoiceTile";
 import { Select } from "@/components/ui/Select";
 import { MetaConnectCard } from "@/components/integracoes/MetaConnectCard";
 import { COPY } from "@/lib/copy";
+import { getHubItem } from "@/lib/integrations/hub";
 import { publicFormEmbedSnippet } from "@/lib/crm/inbound-token";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { crmFetch } from "@/lib/crm/client";
@@ -45,11 +45,6 @@ import {
   type CrmStage,
 } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
-import {
-  workSplitClass,
-  workSplitPaneClass,
-  workSplitRailClass,
-} from "@/lib/work-split";
 
 const INPUT =
   "w-full rounded-md border border-white/10 bg-podium-panel px-2.5 py-1.5 text-xs text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40";
@@ -241,11 +236,16 @@ function categoryDeleteBody(category: AutomacoesCategory): string {
   return COPY.automacoesDeleteBodyMeta;
 }
 
-function chipCurrent(
-  category: AutomacoesCategory,
-): "conectar" | "captar" | "avancado" {
-  if (category === "meta") return "conectar";
-  return category;
+function hubItemForCategory(category: AutomacoesCategory) {
+  if (category === "captar") return getHubItem("site");
+  if (category === "meta") return getHubItem("meta");
+  return getHubItem("webhook");
+}
+
+function categoryTitle(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.integracoesCatCaptar;
+  if (category === "avancado") return COPY.integracoesCatAvancado;
+  return COPY.automacoesMetaTitle;
 }
 
 export function AutomacoesPanel({
@@ -487,139 +487,97 @@ export function AutomacoesPanel({
     matchesAutomacoesCategory(row.channel, category),
   );
   const atCap = allEndpoints.length >= (listQuery.data?.limit ?? AUTOMATION_LIMIT);
-  const openEndpoint = endpoints.find((row) => row.id === openId) ?? null;
   const metaPages = pagesQuery.data?.pages ?? [];
   const metaAppReady = pagesQuery.data?.configured;
-
-  useEffect(() => {
-    if (formOpen) return;
-    if (openId && endpoints.some((row) => row.id === openId)) return;
-    setOpenId(endpoints[0]?.id ?? null);
-  }, [endpoints, formOpen, openId]);
+  const hubItem = hubItemForCategory(category);
+  const openEndpoint = endpoints.find((row) => row.id === openId) ?? null;
+  const focus = formOpen || Boolean(openEndpoint);
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div className="shrink-0">
-          <IntegracoesCategoryChips current={chipCurrent(category)} />
-        </div>
-        <div className={workSplitClass}>
-          <div className={cn(workSplitRailClass, "space-y-3")}>
-            <div className="flex shrink-0 items-center justify-between gap-2">
-              <p className="text-[11px] text-podium-muted">
-                {allEndpoints.length} de {listQuery.data?.limit ?? AUTOMATION_LIMIT}
-              </p>
-              <Button
-                variant="primary"
-                disabled={atCap || formOpen}
-                onClick={() => {
-                  setCreatedNome(null);
-                  setFormOpen(true);
-                }}
-              >
-                {atCap ? "Limite de 10 atingido" : categoryNewCta(category)}
-              </Button>
-            </div>
-            {createdNome && !formOpen ? (
-              <p className="text-sm text-podium-gray">
-                {categoryReady(category, createdNome)}
-              </p>
-            ) : null}
-            {metaFlash ? (
-              <p className="text-sm text-podium-gray">{metaFlash}</p>
-            ) : null}
-            {listQuery.isPending ? (
-              <p className="text-sm text-podium-muted">{COPY.automacoesOpening}</p>
-            ) : endpoints.length > 0 ? (
-              <div className="space-y-1">
-                {endpoints.map((endpoint) => (
-                  <CampaignRow
-                    key={endpoint.id}
-                    endpoint={endpoint}
-                    pipelineName={
-                      pipelines.find(
-                        (pipeline) => pipeline.id === endpoint.pipeline_id,
-                      )?.nome ?? "lista"
-                    }
-                    selected={!formOpen && openId === endpoint.id}
-                    busy={deleteCampaign.isPending || patchCampaign.isPending}
-                    onSelect={() => {
-                      setFormOpen(false);
-                      setOpenId(endpoint.id);
-                    }}
-                    onDelete={() => setPendingDelete(endpoint)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-podium-muted">
-                {categoryEmptyList(category)}
-              </p>
-            )}
-            {listQuery.isError ? (
-              <p className="text-sm text-podium-alert">
-                Não foi possível carregar as campanhas.
-              </p>
-            ) : null}
-          </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain">
+        <IntegracoesFocusHeader
+          item={hubItem}
+          title={categoryTitle(category)}
+          status={`${allEndpoints.length} de ${listQuery.data?.limit ?? AUTOMATION_LIMIT}`}
+        />
+        {createdNome && !formOpen ? (
+          <p className="text-sm text-podium-gray">
+            {categoryReady(category, createdNome)}
+          </p>
+        ) : null}
+        {metaFlash ? (
+          <p className="text-sm text-podium-gray">{metaFlash}</p>
+        ) : null}
 
-          <div className={cn(workSplitPaneClass, "space-y-3")}>
+        {focus ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              className="text-[11px] font-medium text-podium-muted hover:text-podium-yellow"
+              onClick={() => {
+                setFormOpen(false);
+                setOpenId(null);
+              }}
+            >
+              {COPY.integracoesFocusBack}
+            </button>
             {formOpen ? (
-              <GlassCard className="space-y-4 p-3 hover:translate-y-0">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-podium-white">
-                    {categoryCreateTitle(category)}
-                  </p>
-                  <button
-                    type="button"
-                    aria-label="Fechar"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-white"
-                    onClick={() => setFormOpen(false)}
+              <IntegrationFocusPanel
+                actions={
+                  <Button
+                    variant="primary"
+                    disabled={
+                      createCampaign.isPending ||
+                      atCap ||
+                      !nome.trim() ||
+                      (category === "meta" && !metaConnectionId)
+                    }
+                    onClick={() => createCampaign.mutate()}
                   >
-                    <ChevronDown className="h-4 w-4 rotate-180" />
-                  </button>
+                    {createCampaign.isPending
+                      ? "Criando…"
+                      : atCap
+                        ? "Limite de 10 atingido"
+                        : categoryNewCta(category)}
+                  </Button>
+                }
+                help={<Hint>{categoryHint(category)}</Hint>}
+              >
+                <p className="text-sm font-semibold text-podium-white">
+                  {categoryCreateTitle(category)}
+                </p>
+                <div className="space-y-1">
+                  <p className="text-xs text-podium-gray">Tipo de lead</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <ChoiceTile
+                      selected={leadKind === "company"}
+                      density="compact"
+                      onClick={() => setLeadKind("company")}
+                    >
+                      Empresa
+                    </ChoiceTile>
+                    <ChoiceTile
+                      selected={leadKind === "person"}
+                      density="compact"
+                      onClick={() => setLeadKind("person")}
+                    >
+                      Pessoa
+                    </ChoiceTile>
+                  </div>
                 </div>
-                <Hint>{categoryHint(category)}</Hint>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {category === "captar" ? (
-                    <Field label="Tipo de lead">
-                      <Select
-                        value={leadKind}
-                        onChange={(value) => setLeadKind(value as CrmLeadKind)}
-                        className="w-full"
-                        options={[
-                          { value: "company", label: "Empresa" },
-                          { value: "person", label: "Pessoa" },
-                        ]}
-                      />
-                    </Field>
-                  ) : null}
-                  <Field label="Nome">
-                    <input
-                      className={INPUT}
-                      value={nome}
-                      maxLength={80}
-                      placeholder={categoryPlaceholder(category)}
-                      onChange={(event) => {
-                        setCreatedNome(null);
-                        setNome(event.target.value);
-                      }}
-                    />
-                  </Field>
-                  {category !== "captar" ? (
-                    <Field label="Tipo de lead">
-                      <Select
-                        value={leadKind}
-                        onChange={(value) => setLeadKind(value as CrmLeadKind)}
-                        className="w-full"
-                        options={[
-                          { value: "company", label: "Empresa" },
-                          { value: "person", label: "Pessoa" },
-                        ]}
-                      />
-                    </Field>
-                  ) : null}
-                </div>
+                <Field label="Nome">
+                  <input
+                    className={INPUT}
+                    value={nome}
+                    maxLength={80}
+                    placeholder={categoryPlaceholder(category)}
+                    onChange={(event) => {
+                      setCreatedNome(null);
+                      setNome(event.target.value);
+                    }}
+                  />
+                </Field>
                 <DestinationFields
                   pipelines={pipelines}
                   stages={stages}
@@ -646,7 +604,7 @@ export function AutomacoesPanel({
                   </label>
                 ) : null}
                 {category === "meta" ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-3">
                     <Field label="Página do Meta">
                       <Select
                         value={metaConnectionId}
@@ -675,31 +633,13 @@ export function AutomacoesPanel({
                         ]}
                       />
                     </Field>
-                    <div className="sm:col-span-2">
-                      <MetaConnectCard
-                        compact
-                        pages={metaPages}
-                        configured={metaAppReady}
-                      />
-                    </div>
+                    <MetaConnectCard
+                      compact
+                      pages={metaPages}
+                      configured={metaAppReady}
+                    />
                   </div>
                 ) : null}
-                <Button
-                  variant="primary"
-                  disabled={
-                    createCampaign.isPending ||
-                    atCap ||
-                    !nome.trim() ||
-                    (category === "meta" && !metaConnectionId)
-                  }
-                  onClick={() => createCampaign.mutate()}
-                >
-                  {createCampaign.isPending
-                    ? "Criando…"
-                    : atCap
-                      ? "Limite de 10 atingido"
-                      : categoryNewCta(category)}
-                </Button>
                 {category === "avancado" ? (
                   <div className="rounded-md border border-dashed border-white/15 bg-black/20 px-4 py-3 text-sm text-podium-muted">
                     {COPY.automacoesUnlockBar}
@@ -715,7 +655,7 @@ export function AutomacoesPanel({
                     {(createCampaign.error as Error).message}
                   </p>
                 ) : null}
-              </GlassCard>
+              </IntegrationFocusPanel>
             ) : openEndpoint ? (
               <CampaignDetail
                 endpoint={openEndpoint}
@@ -740,21 +680,69 @@ export function AutomacoesPanel({
                   })
                 }
               />
-            ) : (
+            ) : null}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-podium-muted">
-                {categoryEmptyPane(category)}{" "}
-                {category === "meta" ? (
-                  <Link
-                    href="/integracoes"
-                    className="font-semibold text-podium-yellow"
-                  >
-                    {COPY.integracoesCatConectar}
-                  </Link>
+                {listQuery.isPending
+                  ? COPY.automacoesOpening
+                  : endpoints.length === 0
+                    ? `${categoryEmptyList(category)} ${categoryEmptyPane(category)}`
+                    : null}
+                {category === "meta" && endpoints.length === 0 ? (
+                  <>
+                    {" "}
+                    <Link
+                      href="/integracoes/meta"
+                      className="font-semibold text-podium-yellow"
+                    >
+                      {COPY.integracoesCatConectar}
+                    </Link>
+                  </>
                 ) : null}
               </p>
-            )}
+              <Button
+                variant="primary"
+                disabled={atCap}
+                onClick={() => {
+                  setCreatedNome(null);
+                  setOpenId(null);
+                  setFormOpen(true);
+                }}
+              >
+                {atCap ? "Limite de 10 atingido" : categoryNewCta(category)}
+              </Button>
+            </div>
+            {listQuery.isError ? (
+              <p className="text-sm text-podium-alert">
+                Não foi possível carregar as campanhas.
+              </p>
+            ) : null}
+            {endpoints.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {endpoints.map((endpoint) => (
+                  <CampaignRow
+                    key={endpoint.id}
+                    endpoint={endpoint}
+                    pipelineName={
+                      pipelines.find(
+                        (pipeline) => pipeline.id === endpoint.pipeline_id,
+                      )?.nome ?? "lista"
+                    }
+                    busy={deleteCampaign.isPending || patchCampaign.isPending}
+                    onSelect={() => {
+                      setFormOpen(false);
+                      setOpenId(endpoint.id);
+                    }}
+                    onDelete={() => setPendingDelete(endpoint)}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
-        </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -786,68 +774,60 @@ export function AutomacoesPanel({
   );
 }
 
-function channelIcon(channel: CrmFormChannel) {
-  if (channel === "meta") return Megaphone;
-  if (channel === "webhook" || channel === "ads") return Settings;
-  return Link2;
+function hubItemForChannel(channel: CrmFormChannel) {
+  if (channel === "meta") return getHubItem("meta");
+  if (channel === "webhook" || channel === "ads") return getHubItem("webhook");
+  return getHubItem("site");
 }
 
 function CampaignRow({
   endpoint,
   pipelineName,
-  selected,
   busy,
   onSelect,
   onDelete,
 }: {
   endpoint: PublicEndpoint;
   pipelineName: string;
-  selected: boolean;
   busy: boolean;
   onSelect: () => void;
   onDelete: () => void;
 }) {
-  const Icon = channelIcon(endpoint.channel);
+  const item = hubItemForChannel(endpoint.channel);
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-3 py-2",
-        selected && "border-podium-yellow/40 bg-podium-yellow/10",
-      )}
-    >
+    <div className="relative flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.04] p-4 transition hover:border-podium-yellow/35">
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        className="flex min-w-0 flex-1 flex-col items-start text-left"
         onClick={onSelect}
       >
-        <Icon
-          className="h-3.5 w-3.5 shrink-0 text-podium-yellow"
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-podium-white">
-            {endpoint.nome}
-          </p>
-          <p className="mt-0.5 truncate text-[11px] text-podium-muted">
-            {pipelineName}
-            {" · "}
-            {formChannelLabel(endpoint.channel)}
-            {endpoint.last_event
-              ? ` · ${lastEventLabel(endpoint.last_event.status)}`
-              : ""}
-          </p>
-        </div>
+        {item ? <IntegrationLogo item={item} size="lg" active /> : null}
+        <p className="mt-3 truncate text-sm font-semibold text-podium-white">
+          {endpoint.nome}
+        </p>
+        <p className="mt-1 truncate text-[11px] text-podium-muted">
+          {pipelineName}
+          {" · "}
+          {formChannelLabel(endpoint.channel)}
+        </p>
         {endpoint.last_event ? (
-          <Badge variant={inboundEventTone(endpoint.last_event.status)}>
+          <Badge
+            variant={inboundEventTone(endpoint.last_event.status)}
+            className="mt-3"
+          >
             {lastEventLabel(endpoint.last_event.status)}
           </Badge>
-        ) : null}
+        ) : (
+          <p className="mt-3 text-[11px] text-podium-muted">
+            {COPY.integracoesStatusNone}
+          </p>
+        )}
       </button>
       <button
         type="button"
         aria-label={`Apagar ${endpoint.nome}`}
         className={cn(
-          "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-alert",
+          "absolute right-2 top-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-alert",
           busy && "opacity-50",
         )}
         disabled={busy}
@@ -969,7 +949,7 @@ function CampaignDetail({
   const bearer = token ? `Bearer ${token}` : "";
 
   return (
-    <GlassCard className="space-y-4 p-3 hover:translate-y-0">
+    <IntegrationFocusPanel>
       <div>
         <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           {pipelineName}
@@ -1069,7 +1049,7 @@ function CampaignDetail({
         endpointId={endpoint.id}
         showPayload={isWebhook}
       />
-    </GlassCard>
+    </IntegrationFocusPanel>
   );
 }
 
