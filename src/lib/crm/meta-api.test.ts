@@ -24,6 +24,7 @@ describe("meta API structure", () => {
   it("exposes the Graph version, OAuth scopes and dashboard paths", () => {
     expect(META_GRAPH_VERSION).toBe("v21.0");
     expect(META_OAUTH_SCOPES).toContain("leads_retrieval");
+    expect(META_OAUTH_SCOPES).toContain("business_management");
     expect(META_OAUTH_CALLBACK_PATH).toBe("/api/automacoes/meta/callback");
     expect(META_OAUTH_CALLBACK_ALIAS_PATH).toBe("/api/automacaoes/meta/callback");
     expect(META_OAUTH_RETURN_PATH).toBe("/integracoes");
@@ -54,6 +55,7 @@ describe("meta API structure", () => {
 
   it("builds the Facebook OAuth dialog with the app id and scopes", () => {
     vi.stubEnv("META_APP_ID", "app-9");
+    vi.stubEnv("META_LOGIN_CONFIG_ID", "");
     const url = new URL(
       metaOAuthUrl("https://grid.example/api/automacoes/meta/callback", "state-1"),
     );
@@ -62,6 +64,20 @@ describe("meta API structure", () => {
     expect(url.searchParams.get("client_id")).toBe("app-9");
     expect(url.searchParams.get("state")).toBe("state-1");
     expect(url.searchParams.get("scope")).toContain("leads_retrieval");
+    expect(url.searchParams.get("scope")).toContain("business_management");
+    expect(url.searchParams.get("auth_type")).toBe("rerequest");
+    expect(url.searchParams.get("config_id")).toBeNull();
+  });
+
+  it("uses Login for Business config_id instead of scope when set", () => {
+    vi.stubEnv("META_APP_ID", "app-9");
+    vi.stubEnv("META_LOGIN_CONFIG_ID", "config-77");
+    const url = new URL(
+      metaOAuthUrl("https://grid.example/api/automacoes/meta/callback", "state-1"),
+    );
+    expect(url.searchParams.get("config_id")).toBe("config-77");
+    expect(url.searchParams.get("scope")).toBeNull();
+    expect(url.searchParams.get("auth_type")).toBe("rerequest");
   });
 
   it("verifies X-Hub-Signature-256 against the app secret", () => {

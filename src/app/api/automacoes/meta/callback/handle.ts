@@ -39,6 +39,7 @@ export async function GET(req: Request) {
     const userToken = await exchangeMetaCode(code, redirectUri);
     const pages = await listMetaPages(userToken);
     const repo = getRepo();
+    let saved = 0;
     for (const page of pages) {
       try {
         await subscribePageToLeadgen(page.access_token, page.id);
@@ -46,12 +47,21 @@ export async function GET(req: Request) {
         console.error("meta_subscribe_failed", page.id, err);
       }
       const packed = encryptPageToken(page.access_token);
-      await repo.upsertCrmMetaConnection(parsed.userId, {
+      const row = await repo.upsertCrmMetaConnection(parsed.userId, {
         pageId: page.id,
         pageName: page.name,
         credentialsCiphertext: packed.ciphertext,
         credentialsNonce: packed.nonce,
       });
+      if (row) saved += 1;
+      else console.error("meta_upsert_failed", page.id);
+    }
+    console.info("meta_oauth_pages", { listed: pages.length, saved });
+    if (saved === 0) {
+      const flash = pages.length > 0 ? "error" : "nopages";
+      return NextResponse.redirect(
+        new URL(`${META_OAUTH_RETURN_PATH}?meta=${flash}`, req.url),
+      );
     }
     return NextResponse.redirect(new URL(`${META_OAUTH_RETURN_PATH}?meta=ok`, req.url));
   } catch (err) {

@@ -282,6 +282,7 @@ export function AutomacoesPanel({
     if (meta === "ok") setMetaFlash(COPY.automacoesMetaConnected);
     else if (meta === "denied") setMetaFlash(COPY.automacoesMetaDenied);
     else if (meta === "error") setMetaFlash(COPY.automacoesMetaError);
+    else if (meta === "nopages") setMetaFlash(COPY.automacoesMetaNoPages);
     if (meta) {
       params.delete("meta");
       const next = `${window.location.pathname}${params.size ? `?${params}` : ""}`;

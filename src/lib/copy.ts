@@ -935,6 +935,8 @@ export const COPY = {
   automacoesMetaConnected: "Página do Meta conectada.",
   automacoesMetaDenied: "Conexão com o Meta cancelada.",
   automacoesMetaError: "Não foi possível conectar o Meta.",
+  automacoesMetaNoPages:
+    "O Facebook entrou, mas nenhuma Página veio. Marque a Página (precisa ser admin) e conecte de novo.",
   publicFormEyebrow: "GRID",
   publicFormSubmit: "Enviar",
   publicFormThanks: "Recebemos. Em breve alguém fala com você.",

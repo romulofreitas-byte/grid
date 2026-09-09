@@ -29,7 +29,7 @@ export function IntegracoesHub() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const meta = params.get("meta");
-    if (meta === "ok" || meta === "denied" || meta === "error") {
+    if (meta === "ok" || meta === "denied" || meta === "error" || meta === "nopages") {
       setFlash(meta);
     }
     if (meta) {

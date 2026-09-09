@@ -14,6 +14,7 @@ export const META_OAUTH_SCOPES = [
   "pages_manage_metadata",
   "leads_retrieval",
   "pages_read_engagement",
+  "business_management",
 ] as const;
 
 export const META_OAUTH_CALLBACK_PATH = "/api/automacoes/meta/callback";
@@ -43,6 +44,11 @@ export function metaAppSecret(): string {
 
 export function metaWebhookVerifyToken(): string {
   return process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() ?? "";
+}
+
+/** Facebook Login for Business configuration. When set, replaces `scope` in the dialog. */
+export function metaLoginConfigId(): string {
+  return process.env.META_LOGIN_CONFIG_ID?.trim() ?? "";
 }
 
 /** OAuth + Graph calls. Webhook subscribe still needs META_WEBHOOK_VERIFY_TOKEN. */
@@ -78,8 +84,14 @@ export function metaOAuthUrl(redirectUri: string, state: string): string {
     redirect_uri: redirectUri,
     state,
     response_type: "code",
-    scope: META_OAUTH_SCOPES.join(","),
+    auth_type: "rerequest",
   });
+  const configId = metaLoginConfigId();
+  if (configId) {
+    params.set("config_id", configId);
+  } else {
+    params.set("scope", META_OAUTH_SCOPES.join(","));
+  }
   return `${META_OAUTH_DIALOG}?${params.toString()}`;
 }
 
@@ -111,6 +123,33 @@ export async function metaGraphGet<T>(
     }
   }
   return readGraphJson<T>(await fetch(url));
+}
+
+type MetaGraphList<T> = {
+  data?: T[];
+  paging?: { cursors?: { after?: string } };
+};
+
+export async function metaGraphGetAll<T>(
+  path: string,
+  token: string,
+  params?: Record<string, string>,
+  maxPages = 10,
+): Promise<T[]> {
+  const out: T[] = [];
+  let after: string | undefined;
+  for (let i = 0; i < maxPages; i++) {
+    const json = await metaGraphGet<MetaGraphList<T>>(path, token, {
+      limit: "100",
+      ...params,
+      ...(after ? { after } : {}),
+    });
+    const batch = json.data ?? [];
+    out.push(...batch);
+    after = json.paging?.cursors?.after;
+    if (!after || batch.length === 0) break;
+  }
+  return out;
 }
 
 export async function metaGraphPost<T>(

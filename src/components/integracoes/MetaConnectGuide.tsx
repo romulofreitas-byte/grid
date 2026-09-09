@@ -19,7 +19,7 @@ import type { CrmMetaConnection } from "@/lib/crm/types";
 import { cn } from "@/lib/utils";
 
 type Scene = 1 | 2 | 3;
-export type MetaOAuthFlash = "ok" | "denied" | "error";
+export type MetaOAuthFlash = "ok" | "denied" | "error" | "nopages";
 
 const CHAIN = [
   {
@@ -267,21 +267,28 @@ export function MetaConnectGuide({
   const [fbSeen, setFbSeen] = useState<Set<string>>(() => new Set([FACEBOOK[0].id]));
 
   useEffect(() => {
-    if (loading && flash !== "ok") return;
+    if (loading) return;
     setScene((current) => {
       if (current !== null) return current;
       if (locked) return 1;
-      if (pages.length > 0 || flash === "ok") return 3;
-      if (flash === "denied" || flash === "error") return 2;
+      if (pages.length > 0) return 3;
+      if (flash === "denied" || flash === "error" || flash === "nopages") return 2;
       return 1;
     });
   }, [flash, loading, locked, pages.length]);
+
+  useEffect(() => {
+    if (flash !== "denied" && flash !== "error" && flash !== "nopages") return;
+    setChainSeen(new Set(CHAIN.map((item) => item.id)));
+    setFbSeen(new Set(FACEBOOK.map((item) => item.id)));
+    setFbActive("pages");
+  }, [flash]);
 
   const chainHint = CHAIN.find((item) => item.id === chainActive)?.hint ?? "";
   const fbHint = FACEBOOK.find((item) => item.id === fbActive)?.hint ?? "";
   const chainReady = chainSeen.size === CHAIN.length;
   const fbReady = fbSeen.size === FACEBOOK.length;
-  const pagesReady = pages.length > 0 || flash === "ok";
+  const pagesReady = pages.length > 0;
 
   function openChain(id: (typeof CHAIN)[number]["id"]) {
     setChainActive(id);
@@ -330,7 +337,9 @@ export function MetaConnectGuide({
         ? COPY.automacoesMetaDenied
         : flash === "error"
           ? COPY.automacoesMetaError
-          : null;
+          : flash === "nopages"
+            ? COPY.automacoesMetaNoPages
+            : null;
 
   return (
     <GlassCard

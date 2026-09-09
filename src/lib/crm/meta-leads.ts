@@ -5,6 +5,7 @@ import {
   metaAppId,
   metaAppSecret,
   metaGraphGet,
+  metaGraphGetAll,
   metaGraphPost,
 } from "@/lib/crm/meta-api";
 
@@ -135,11 +136,109 @@ export async function exchangeMetaCode(code: string, redirectUri: string): Promi
 
 export type MetaPage = { id: string; name: string; access_token: string };
 
+type GraphPage = { id?: string; name?: string; access_token?: string };
+type GraphBusiness = { id?: string };
+
+const PAGE_FIELDS = "id,name,access_token";
+
+async function graphListOrEmpty<T>(
+  path: string,
+  token: string,
+  params?: Record<string, string>,
+): Promise<T[]> {
+  try {
+    return await metaGraphGetAll<T>(path, token, params);
+  } catch (err) {
+    console.warn("meta_graph_list_failed", path, err);
+    return [];
+  }
+}
+
+function ingestPages(
+  byId: Map<string, { id: string; name: string; access_token?: string }>,
+  rows: GraphPage[],
+) {
+  for (const row of rows) {
+    if (!row.id) continue;
+    const prev = byId.get(row.id);
+    byId.set(row.id, {
+      id: row.id,
+      name: row.name?.trim() || prev?.name || row.id,
+      access_token: row.access_token || prev?.access_token,
+    });
+  }
+}
+
+async function pageTokenFallback(
+  pageId: string,
+  userToken: string,
+): Promise<{ name?: string; access_token?: string } | null> {
+  try {
+    return await metaGraphGet<GraphPage>(`/${pageId}`, userToken, {
+      fields: PAGE_FIELDS,
+    });
+  } catch (err) {
+    console.warn("meta_page_token_failed", pageId, err);
+    return null;
+  }
+}
+
+/**
+ * Pages the user can use for Instant Forms.
+ * `/me/accounts` hides Business Manager Pages without `business_management`
+ * (Graph v17+). Also tries assigned Pages and BM owned/client Pages.
+ */
 export async function listMetaPages(userToken: string): Promise<MetaPage[]> {
-  const json = await metaGraphGet<{ data?: MetaPage[] }>("/me/accounts", userToken, {
-    fields: "id,name,access_token",
+  const byId = new Map<string, { id: string; name: string; access_token?: string }>();
+  const [accounts, assigned] = await Promise.all([
+    metaGraphGetAll<GraphPage>("/me/accounts", userToken, { fields: PAGE_FIELDS }),
+    graphListOrEmpty<GraphPage>("/me/assigned_pages", userToken, {
+      fields: PAGE_FIELDS,
+    }),
+  ]);
+  ingestPages(byId, accounts);
+  ingestPages(byId, assigned);
+
+  const businesses = await graphListOrEmpty<GraphBusiness>("/me/businesses", userToken, {
+    fields: "id",
   });
-  return (json.data ?? []).filter((page) => page.id && page.access_token);
+  for (const biz of businesses.slice(0, 20)) {
+    if (!biz.id) continue;
+    const [owned, client] = await Promise.all([
+      graphListOrEmpty<GraphPage>(`/${biz.id}/owned_pages`, userToken, {
+        fields: PAGE_FIELDS,
+      }),
+      graphListOrEmpty<GraphPage>(`/${biz.id}/client_pages`, userToken, {
+        fields: PAGE_FIELDS,
+      }),
+    ]);
+    ingestPages(byId, owned);
+    ingestPages(byId, client);
+  }
+
+  const usable: MetaPage[] = [];
+  let skipped = 0;
+  for (const page of byId.values()) {
+    let token = page.access_token;
+    let name = page.name;
+    if (!token) {
+      const detail = await pageTokenFallback(page.id, userToken);
+      token = detail?.access_token;
+      if (detail?.name?.trim()) name = detail.name.trim();
+    }
+    if (token) {
+      usable.push({ id: page.id, name, access_token: token });
+    } else {
+      skipped += 1;
+      console.warn("meta_page_skipped_no_token", page.id, name);
+    }
+  }
+  console.info("meta_pages_listed", {
+    found: byId.size,
+    usable: usable.length,
+    skipped,
+  });
+  return usable;
 }
 
 export async function subscribePageToLeadgen(pageToken: string, pageId: string): Promise<void> {
