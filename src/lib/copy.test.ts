@@ -222,6 +222,8 @@ describe("COPY crm", () => {
     expect(COPY.callAskConfirm).toBe("Ligar");
     expect(COPY.callAskCancel).toBe("Cancelar");
     expect(COPY.callAskTitle).toMatch(/ligar/i);
+    expect(COPY.callAskCopyPhone).toBe("Copiar telefone");
+    expect(COPY.callAskCopied).toBe("Copiado");
     expect(COPY.callDialHint).toMatch(/confirme/i);
     expect(COPY.gridCalledToday).toBe("Ligou");
     expect(COPY.crmHistoryTitle).toMatch(/histórico/i);
