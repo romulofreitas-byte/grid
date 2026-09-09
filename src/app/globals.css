@@ -109,9 +109,11 @@ body {
   color: var(--podium-navy);
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 input,
