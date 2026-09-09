@@ -19,7 +19,9 @@ function TourPainelMock() {
     <div className="space-y-4" data-tour="painel">
       <div>
         <SectionTitle>{COPY.painelTitle}</SectionTitle>
-        <Hint className="mt-1 max-w-xl">{COPY.painelHint}</Hint>
+        <p className="mt-1 text-[1.09375rem] font-semibold tracking-tight text-podium-white">
+          {COPY.painelHint}
+        </p>
       </div>
 
       <div className="grid items-stretch gap-3 lg:grid-cols-2">

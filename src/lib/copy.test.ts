@@ -219,6 +219,7 @@ describe("COPY crm", () => {
     expect(COPY.boxQualify).toBe("Qualificação");
     expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
     expect(COPY.painelOpenBox).toMatch(/box/i);
+    expect(COPY.painelHint).toBe("Aqui, o esforço aparece.");
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.metasOpening).toMatch(/Meta/);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);

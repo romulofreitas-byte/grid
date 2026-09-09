@@ -601,8 +601,7 @@ export const COPY = {
   crmBoxCta: "Abrir CRM",
   crmPistaPrefix: "CRM",
   painelTitle: "Painel",
-  painelHint:
-    "Ligações e sequência são de hoje. Faturado e win rate seguem o recorte. Pipeline e follow-ups são o\u00a0agora.",
+  painelHint: "Aqui, o esforço aparece.",
   tourSkip: "Pular",
   tourNext: "Próximo",
   tourBack: "Voltar",

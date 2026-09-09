@@ -1,8 +1,10 @@
 "use client";
 
+import { AnimatedNumber, MountFade, useMountFill } from "@/components/AnimatedNumber";
 import { ChartEmpty } from "@/components/charts/ChartCard";
 import { CHART, formatInt, proportionalWidthPct, shortDay } from "@/components/charts/chartTheme";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "framer-motion";
 
 function polar(cx: number, cy: number, r: number, angle: number): [number, number] {
   const rad = ((angle - 90) * Math.PI) / 180;
@@ -56,7 +58,7 @@ export function ChartDonut({
       return { ...row, start, end: Math.min(end, start + 359.99) };
     });
   return (
-    <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-center">
+    <MountFade className="flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-center">
       <svg viewBox="0 0 120 120" className="h-28 w-28 shrink-0 sm:h-44 sm:w-44">
         {slices.map((row) => (
           <path
@@ -111,13 +113,17 @@ export function ChartDonut({
               />
               <span className="truncate">{row.name}</span>
               <span className="ml-auto shrink-0 font-semibold tabular-nums text-podium-white">
-                {format(row.value)}
+                {asMoney ? (
+                  <AnimatedNumber value={row.value} format="brl" />
+                ) : (
+                  <AnimatedNumber value={row.value} format="int" />
+                )}
               </span>
             </button>
           </li>
         ))}
       </ul>
-    </div>
+    </MountFade>
   );
 }
 
@@ -132,6 +138,8 @@ export function ChartHBar({
   activeId?: string;
   color?: string;
 }) {
+  const filled = useMountFill();
+  const reduce = useReducedMotion();
   if (data.length === 0 || data.every((row) => row.value <= 0)) {
     return <ChartEmpty />;
   }
@@ -139,7 +147,7 @@ export function ChartHBar({
   return (
     <ul className="space-y-2">
       {data.map((row) => {
-        const width = Math.max(4, (row.value / max) * 100);
+        const width = Math.max(4, (row.value / max) * 100) * (filled ? 1 : 0);
         const active = activeId === row.id;
         const inner = (
           <>
@@ -148,12 +156,12 @@ export function ChartHBar({
                 {row.name}
               </span>
               <span className="shrink-0 font-semibold text-podium-white">
-                {formatInt(row.value)}
+                <AnimatedNumber value={row.value} format="int" />
               </span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-white/5">
               <div
-                className="h-full rounded-full"
+                className={cn("h-full rounded-full", !reduce && "transition-[width] duration-700 ease-out")}
                 style={{
                   width: `${width}%`,
                   backgroundColor: color,
@@ -329,12 +337,14 @@ export function ChartFunnel({
 }: {
   steps: { id: string; label: string; count: number }[];
 }) {
+  const filled = useMountFill();
+  const reduce = useReducedMotion();
   const max = Math.max(...steps.map((step) => step.count), 0);
   if (max <= 0) return <ChartEmpty />;
   return (
     <ul className="space-y-2">
       {steps.map((step, index) => {
-        const width = proportionalWidthPct(step.count, max);
+        const width = proportionalWidthPct(step.count, max) * (filled ? 1 : 0);
         const prev = index === 0 ? null : steps[index - 1]!.count;
         const conv =
           prev != null && prev > 0 ? Math.round((step.count / prev) * 100) : null;
@@ -348,7 +358,7 @@ export function ChartFunnel({
             </span>
             <div className="h-8 overflow-hidden rounded-md bg-white/5">
               <div
-                className="h-full rounded-md"
+                className={cn("h-full rounded-md", !reduce && "transition-[width] duration-700 ease-out")}
                 style={{
                   width: `${width}%`,
                   backgroundColor: CHART.active,
@@ -357,7 +367,7 @@ export function ChartFunnel({
               />
             </div>
             <span className="text-right text-xs font-bold tabular-nums text-podium-white">
-              {formatInt(step.count)}
+              <AnimatedNumber value={step.count} format="int" />
             </span>
             <span
               className="hidden text-right text-[10px] font-semibold tabular-nums text-podium-muted md:block"
@@ -383,38 +393,61 @@ export function ChartSplitBar({
   left: { name: string; value: number; color: string };
   right: { name: string; value: number; color: string };
 }) {
+  const filled = useMountFill();
+  const reduce = useReducedMotion();
   const total = left.value + right.value;
-  if (total <= 0) return <ChartEmpty />;
+  if (total <= 0) {
+    return (
+      <div>
+        <div className="h-10 rounded-lg bg-white/5" />
+        <p className="mt-2 text-[11px] leading-4 text-podium-muted">Nada neste recorte.</p>
+      </div>
+    );
+  }
   const leftPct = Math.round((left.value / total) * 100);
   const rightPct = 100 - leftPct;
+  const grow = (value: number) => (filled ? value : 0);
+  const barTransition = reduce ? undefined : "flex-grow 0.7s ease-out";
   return (
     <div>
       <div className="flex h-10 overflow-hidden rounded-lg">
         {left.value > 0 ? (
           <div
-            className="flex min-w-[2.5rem] items-center justify-center px-2 text-xs font-extrabold text-podium-navy"
-            style={{ flex: left.value, backgroundColor: left.color }}
+            className="flex min-w-0 items-center justify-center overflow-hidden px-2 text-xs font-extrabold text-podium-navy"
+            style={{
+              flexGrow: grow(left.value),
+              flexShrink: 1,
+              flexBasis: 0,
+              backgroundColor: left.color,
+              transition: barTransition,
+            }}
           >
-            {formatInt(left.value)}
+            <AnimatedNumber value={left.value} format="int" />
           </div>
         ) : null}
         {right.value > 0 ? (
           <div
-            className="flex min-w-[2.5rem] items-center justify-center px-2 text-xs font-extrabold text-white"
-            style={{ flex: right.value, backgroundColor: right.color }}
+            className="flex min-w-0 items-center justify-center overflow-hidden px-2 text-xs font-extrabold text-white"
+            style={{
+              flexGrow: grow(right.value),
+              flexShrink: 1,
+              flexBasis: 0,
+              backgroundColor: right.color,
+              transition: barTransition,
+            }}
           >
-            {formatInt(right.value)}
+            <AnimatedNumber value={right.value} format="int" />
           </div>
         ) : null}
       </div>
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-podium-gray">
         <li className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: left.color }} />
-          {left.name} · {leftPct}%
+          {left.name} · <AnimatedNumber value={leftPct} format="pct" />
         </li>
         <li className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full" style={{ backgroundColor: right.color }} />
-          {right.name} · {rightPct}%
+          {right.name} · <AnimatedNumber value={rightPct} format="pct" />
         </li>
       </ul>
     </div>
@@ -431,7 +464,7 @@ export function ChartHeatstrip({
   if (data.length === 0) return <ChartEmpty />;
   const hits = data.filter((row) => goal > 0 && row.calls >= goal).length;
   return (
-    <div>
+    <MountFade>
       <div className="flex gap-[3px]">
         {data.map((row) => {
           const hit = goal > 0 && row.calls >= goal;
@@ -457,10 +490,12 @@ export function ChartHeatstrip({
           {shortDay(data[0]!.day)} → {shortDay(data[data.length - 1]!.day)}
         </span>
         <span className="font-semibold text-podium-gray">
-          {formatInt(hits)}/{formatInt(data.length)} dias na meta
+          <AnimatedNumber value={hits} format="int" />
+          /
+          <AnimatedNumber value={data.length} format="int" /> dias na meta
         </span>
       </div>
-    </div>
+    </MountFade>
   );
 }
 

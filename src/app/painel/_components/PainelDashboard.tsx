@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Flame, Phone } from "lucide-react";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { ChartCard } from "@/components/charts/ChartCard";
 import {
   ChartDonut,
@@ -36,11 +38,6 @@ import { ProductTour } from "@/components/tour/ProductTour";
 import { Select } from "@/components/ui/Select";
 import { buttonClassName } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-
-function formatPct(part: number, whole: number): string {
-  if (!whole) return "—";
-  return `${Math.round((part / whole) * 100)}%`;
-}
 
 function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
   const copy = paywallCopy({
@@ -75,6 +72,7 @@ function TaskList({
   allNiches,
   kind,
   wide = false,
+  fadeKey,
 }: {
   title: string;
   empty: string;
@@ -82,51 +80,71 @@ function TaskList({
   allNiches: boolean;
   kind: "overdue" | "won";
   wide?: boolean;
+  fadeKey?: string;
 }) {
+  const reduce = useReducedMotion();
+  const body =
+    rows.length === 0 ? (
+      <p className="mt-3 text-sm text-podium-muted">{empty}</p>
+    ) : (
+      <ul
+        className={cn(
+          "mt-3 flex-1",
+          wide
+            ? "grid sm:grid-cols-2 sm:gap-x-6"
+            : "divide-y divide-white/5",
+        )}
+      >
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className="flex items-center justify-between gap-3 border-b border-white/5 py-2 last:border-b-0"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.companyName}</p>
+              <p
+                className={cn(
+                  "truncate text-[11px]",
+                  kind === "overdue" ? "text-podium-alert" : "text-podium-muted",
+                )}
+              >
+                {kind === "won"
+                  ? row.amountCents != null
+                    ? formatBrl(row.amountCents)
+                    : "Sem valor"
+                  : row.subtitle}
+                {allNiches && row.pipelineNome ? ` · ${row.pipelineNome}` : ""}
+              </p>
+            </div>
+            <Link
+              href={kind === "overdue" ? "/box" : `/crm?deal=${row.dealId}&pipeline=${row.pipelineId}`}
+              className="shrink-0 text-[11px] font-medium text-podium-yellow hover:underline"
+            >
+              {kind === "overdue" ? COPY.painelOpenBox : COPY.painelOpenCrm}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+
   return (
     <GlassCard className="flex h-full min-h-[240px] flex-col p-3" hover={false}>
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-podium-muted">{title}</p>
-      {rows.length === 0 ? (
-        <p className="mt-3 text-sm text-podium-muted">{empty}</p>
+      {fadeKey == null ? (
+        body
       ) : (
-        <ul
-          className={cn(
-            "mt-3 flex-1",
-            wide
-              ? "grid sm:grid-cols-2 sm:gap-x-6"
-              : "divide-y divide-white/5",
-          )}
-        >
-          {rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex items-center justify-between gap-3 border-b border-white/5 py-2 last:border-b-0"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{row.companyName}</p>
-                <p
-                  className={cn(
-                    "truncate text-[11px]",
-                    kind === "overdue" ? "text-podium-alert" : "text-podium-muted",
-                  )}
-                >
-                  {kind === "won"
-                    ? row.amountCents != null
-                      ? formatBrl(row.amountCents)
-                      : "Sem valor"
-                    : row.subtitle}
-                  {allNiches && row.pipelineNome ? ` · ${row.pipelineNome}` : ""}
-                </p>
-              </div>
-              <Link
-                href={kind === "overdue" ? "/box" : `/crm?deal=${row.dealId}&pipeline=${row.pipelineId}`}
-                className="shrink-0 text-[11px] font-medium text-podium-yellow hover:underline"
-              >
-                {kind === "overdue" ? COPY.painelOpenBox : COPY.painelOpenCrm}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={fadeKey}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduce ? undefined : { opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-1 flex-col"
+          >
+            {body}
+          </motion.div>
+        </AnimatePresence>
       )}
     </GlassCard>
   );
@@ -160,6 +178,7 @@ export function PainelDashboard() {
       if (!res.ok) throw new Error(data.error ?? "Falha ao carregar");
       return data as PainelMetrics;
     },
+    placeholderData: keepPreviousData,
     ...LIVE_STATS_QUERY_OPTIONS,
   });
 
@@ -181,6 +200,9 @@ export function PainelDashboard() {
   const rangeBadge = painelRangeLabel(filters.range);
   const allNiches = !filters.pipelineId;
   const crmHref = filters.pipelineId ? `/crm?pipeline=${filters.pipelineId}` : "/crm";
+  const periodRefreshing = query.isFetching && query.isPlaceholderData;
+  const winPct =
+    crm && k && winWhole > 0 ? Math.round((k.wonPeriod / winWhole) * 100) : null;
 
   const followupDonut = (m?.followups ?? [])
     .filter((row) => row.id !== "none")
@@ -219,7 +241,9 @@ export function PainelDashboard() {
     <div className="space-y-5" data-tour="painel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <Hint className="hidden max-w-xl md:block">{COPY.painelHint}</Hint>
+          <p className="hidden text-[1.09375rem] font-semibold tracking-tight text-podium-white md:block">
+            {COPY.painelHint}
+          </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">
@@ -240,7 +264,7 @@ export function PainelDashboard() {
             ))}
           </div>
           {(m?.pipelines.length ?? 0) > 1 ? (
-            <label className="block min-w-0 sm:min-w-[220px]">
+            <label className="block min-w-0 sm:w-[220px] sm:min-w-[220px]">
               <span className="sr-only">Nicho</span>
               <Select
                 value={filters.pipelineId ?? PAINEL_PIPELINE_ALL}
@@ -323,7 +347,13 @@ export function PainelDashboard() {
           </div>
         </GlassCard>
 
-        <GlassCard className="flex h-full flex-col p-3" hover={false}>
+        <GlassCard
+          className={cn(
+            "flex h-full flex-col p-3 transition-opacity duration-200",
+            periodRefreshing && "opacity-70",
+          )}
+          hover={false}
+        >
           <div className="flex items-start justify-between gap-2">
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
               Resultado
@@ -338,7 +368,13 @@ export function PainelDashboard() {
                 Faturado
               </p>
               <p className="mt-1 truncate text-xl font-semibold tracking-tight">
-                {!m ? "—" : crm && k ? formatBrl(k.billedPeriodCents) : "—"}
+                {!m ? (
+                  "—"
+                ) : crm && k ? (
+                  <AnimatedNumber value={k.billedPeriodCents} format="brl" />
+                ) : (
+                  "—"
+                )}
               </p>
               <Hint className="mt-1">
                 {!m
@@ -357,7 +393,13 @@ export function PainelDashboard() {
                 Pipeline
               </p>
               <p className="mt-1 truncate text-xl font-semibold tracking-tight">
-                {!m ? "—" : crm && k ? formatBrl(k.pipelineOpenCents) : "—"}
+                {!m ? (
+                  "—"
+                ) : crm && k ? (
+                  <AnimatedNumber value={k.pipelineOpenCents} format="brl" />
+                ) : (
+                  "—"
+                )}
               </p>
               <Hint className="mt-1">
                 {!m
@@ -370,28 +412,31 @@ export function PainelDashboard() {
           </div>
           <div className="mt-5 flex-1">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-podium-muted">
-              Win rate {crm && k ? formatPct(k.wonPeriod, winWhole) : "—"}
+              Win rate{" "}
+              {winPct != null ? <AnimatedNumber value={winPct} format="pct" /> : "—"}
             </p>
-            {m && crm ? (
-              <ChartSplitBar
-                left={{
-                  name: "Ganho",
-                  value: k?.wonPeriod ?? 0,
-                  color: CHART.won,
-                }}
-                right={{
-                  name: "Perdido",
-                  value: k?.lostPeriod ?? 0,
-                  color: CHART.lost,
-                }}
-              />
-            ) : (
-              <Hint>
-                {!m
-                  ? "Carregando o recorte…"
-                  : "Libere o CRM para ver ganhos e perdidos."}
-              </Hint>
-            )}
+            <div className="min-h-16">
+              {m && crm ? (
+                <ChartSplitBar
+                  left={{
+                    name: "Ganho",
+                    value: k?.wonPeriod ?? 0,
+                    color: CHART.won,
+                  }}
+                  right={{
+                    name: "Perdido",
+                    value: k?.lostPeriod ?? 0,
+                    color: CHART.lost,
+                  }}
+                />
+              ) : (
+                <Hint>
+                  {!m
+                    ? "Carregando o recorte…"
+                    : "Libere o CRM para ver ganhos e perdidos."}
+                </Hint>
+              )}
+            </div>
           </div>
         </GlassCard>
       </div>
@@ -449,14 +494,15 @@ export function PainelDashboard() {
                 kind="overdue"
               />
               <div className="lg:col-span-2">
-                <TaskList
-                  title={COPY.painelTasksWon}
-                  empty={COPY.painelNoWins}
-                  rows={wonTasks}
-                  allNiches={allNiches}
-                  kind="won"
-                  wide
-                />
+              <TaskList
+                title={COPY.painelTasksWon}
+                empty={COPY.painelNoWins}
+                rows={wonTasks}
+                allNiches={allNiches}
+                kind="won"
+                wide
+                fadeKey={wonTasks.map((row) => row.id).join("|")}
+              />
               </div>
             </div>
           </div>
@@ -488,20 +534,38 @@ export function PainelDashboard() {
             <dl className="mt-4 space-y-3">
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Geradas</dt>
-                <dd className="text-lg font-semibold tabular-nums">
-                  {m ? formatInt(m.lists.generated) : "—"}
+                <dd
+                  className={cn(
+                    "text-lg font-semibold tabular-nums transition-opacity duration-200",
+                    periodRefreshing && "opacity-70",
+                  )}
+                >
+                  {m ? <AnimatedNumber value={m.lists.generated} format="int" /> : "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Salvas</dt>
-                <dd className="text-lg font-semibold tabular-nums">
-                  {m ? formatInt(m.lists.saved) : "—"}
+                <dd
+                  className={cn(
+                    "text-lg font-semibold tabular-nums transition-opacity duration-200",
+                    periodRefreshing && "opacity-70",
+                  )}
+                >
+                  {m ? <AnimatedNumber value={m.lists.saved} format="int" /> : "—"}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-2">
                 <dt className="text-xs text-podium-muted">Em ação / na fila</dt>
                 <dd className="text-lg font-semibold tabular-nums">
-                  {m ? `${formatInt(leadsWorking)} / ${formatInt(leadsQueue)}` : "—"}
+                  {m ? (
+                    <>
+                      <AnimatedNumber value={leadsWorking} format="int" />
+                      {" / "}
+                      <AnimatedNumber value={leadsQueue} format="int" />
+                    </>
+                  ) : (
+                    "—"
+                  )}
                 </dd>
               </div>
             </dl>
