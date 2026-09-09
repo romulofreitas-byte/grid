@@ -9,6 +9,9 @@ import {
   isBoxQueueKind,
   isColdProspectingStage,
   pickBoxQueueTab,
+  resolveBoxQueueTab,
+  rowsForBoxTab,
+  boxQueueTabCount,
   type BoxQueueItem,
   type BoxQueueSource,
 } from "./queue";
@@ -268,27 +271,68 @@ describe("buildBoxQueue", () => {
 });
 
 describe("pickBoxQueueTab", () => {
-  it("picks the first non-empty time bucket", () => {
-    expect(
-      pickBoxQueueTab({
-        overdue: 0,
-        today: 2,
-        tomorrow: 1,
-        week: 0,
-        later: 0,
-        total: 3,
-      }),
-    ).toBe("today");
-    expect(
-      pickBoxQueueTab({
-        overdue: 1,
-        today: 2,
-        tomorrow: 0,
-        week: 0,
-        later: 0,
-        total: 3,
-      }),
-    ).toBe("overdue");
+  it("defaults to the full Fila, not the first overdue bucket", () => {
+    expect(pickBoxQueueTab()).toBe("all");
+  });
+});
+
+describe("resolveBoxQueueTab", () => {
+  const mixed = {
+    overdue: 1,
+    today: 2,
+    tomorrow: 0,
+    week: 0,
+    later: 1,
+    total: 4,
+  };
+
+  it("keeps Fila even when some time buckets are empty", () => {
+    expect(resolveBoxQueueTab("all", mixed)).toBe("all");
+  });
+
+  it("hops an emptied time filter back to Fila", () => {
+    expect(resolveBoxQueueTab("tomorrow", mixed)).toBe("all");
+    expect(resolveBoxQueueTab("week", mixed)).toBe("all");
+  });
+
+  it("stays on a time filter that still has rows", () => {
+    expect(resolveBoxQueueTab("overdue", mixed)).toBe("overdue");
+    expect(resolveBoxQueueTab("today", mixed)).toBe("today");
+  });
+});
+
+describe("rowsForBoxTab", () => {
+  it("returns every scheduled row on Fila, in bucket order", () => {
+    const queue = buildBoxQueue(
+      [
+        source({
+          activityId: "later",
+          companyName: "Depois",
+          dueAt: "2026-09-15T11:00:00-03:00",
+        }),
+        source({
+          activityId: "today",
+          companyName: "Hoje",
+          dueAt: "2026-09-08T18:00:00-03:00",
+        }),
+        source({
+          activityId: "over",
+          companyName: "Atraso",
+          dueAt: "2026-08-20T10:00:00-03:00",
+        }),
+      ],
+      now,
+    );
+    expect(rowsForBoxTab(queue, "all").map((row) => row.id)).toEqual([
+      "over",
+      "today",
+      "later",
+    ]);
+    expect(rowsForBoxTab(queue, "today").map((row) => row.id)).toEqual([
+      "today",
+    ]);
+    expect(boxQueueTabCount(boxQueueCounts(queue), "all")).toBe(3);
+    expect(boxQueueTabCount(boxQueueCounts(queue), "overdue")).toBe(1);
   });
 });
 

@@ -319,6 +319,9 @@ export const COPY = {
   boxComplete: "Concluir",
   boxSnooze: "Reagendar",
   boxQualify: "Qualificação",
+  boxConfirmMeeting: "Confirmar reunião",
+  boxMeetingDue: "Horário da reunião",
+  boxSaveMeeting: "Agendar reunião",
   boxNoPhone: "Sem telefone",
   boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
   boxSprintEmptyHasCrm:

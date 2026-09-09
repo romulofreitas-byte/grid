@@ -16,6 +16,9 @@ export const BOX_QUEUE_BUCKETS = [
 ] as const;
 export type BoxQueueBucket = (typeof BOX_QUEUE_BUCKETS)[number];
 
+export const BOX_QUEUE_DEFAULT_TAB = "all";
+export type BoxQueueTab = typeof BOX_QUEUE_DEFAULT_TAB | BoxQueueBucket;
+
 export type BoxQueueSource = {
   activityId: string;
   dealId: string;
@@ -195,6 +198,20 @@ export function flattenBoxQueue(queue: BoxQueue): BoxQueueItem[] {
   return BOX_QUEUE_BUCKETS.flatMap((id) => queue[id]);
 }
 
+export function rowsForBoxTab(
+  queue: BoxQueue,
+  tab: BoxQueueTab,
+): BoxQueueItem[] {
+  return tab === "all" ? flattenBoxQueue(queue) : queue[tab];
+}
+
+export function boxQueueTabCount(
+  counts: BoxQueueCounts,
+  tab: BoxQueueTab,
+): number {
+  return tab === "all" ? counts.total : counts[tab];
+}
+
 export function boxQueueCounts(queue: BoxQueue): BoxQueueCounts {
   return {
     overdue: queue.overdue.length,
@@ -211,11 +228,18 @@ export function boxQueueCounts(queue: BoxQueue): BoxQueueCounts {
   };
 }
 
-export function pickBoxQueueTab(counts: BoxQueueCounts): BoxQueueBucket {
-  for (const id of BOX_QUEUE_BUCKETS) {
-    if (counts[id] > 0) return id;
-  }
-  return "overdue";
+export function pickBoxQueueTab(): BoxQueueTab {
+  return BOX_QUEUE_DEFAULT_TAB;
+}
+
+/** Time filters hop back to Fila when empty; Fila itself stays put. */
+export function resolveBoxQueueTab(
+  tab: BoxQueueTab,
+  counts: BoxQueueCounts,
+): BoxQueueTab {
+  if (tab === "all") return "all";
+  if (counts[tab] === 0 && counts.total > 0) return "all";
+  return tab;
 }
 
 export function boxQueueShowsCrmIdle(

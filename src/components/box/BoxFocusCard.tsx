@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
-import { BoxScheduleForm } from "@/components/box/BoxScheduleForm";
+import {
+  BoxMeetingForm,
+  BoxScheduleForm,
+} from "@/components/box/BoxScheduleForm";
 import {
   formatBoxPhoneDisplay,
   pickBoxTel,
@@ -17,6 +20,7 @@ import {
   formatPlannedActivity,
   toDatetimeLocal,
 } from "@/lib/crm/activity";
+import { bookBoxMeeting } from "@/lib/box/book-meeting";
 import { crmFetch } from "@/lib/crm/client";
 import {
   isColdProspectingStage,
@@ -52,7 +56,9 @@ export function BoxFocusCard({
   onCalled?: () => void;
   onDone: () => Promise<void>;
 }) {
-  const [mode, setMode] = useState<"idle" | "complete" | "snooze">("idle");
+  const [mode, setMode] = useState<"idle" | "complete" | "snooze" | "meeting">(
+    "idle",
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const callConnection = pickCallConnection(connections);
@@ -92,6 +98,29 @@ export function BoxFocusCard({
       await onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não concluiu.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function bookMeeting(dueAt: string) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await bookBoxMeeting(
+        {
+          activityId: item.id,
+          dealId: item.dealId,
+          pipelineId: item.pipelineId,
+          canonicalKey: item.canonicalKey,
+          dueAt,
+        },
+        crmFetch,
+      );
+      setMode("idle");
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não agendou a reunião.");
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +236,25 @@ export function BoxFocusCard({
             <button
               type="button"
               disabled={locked}
+              aria-expanded={mode === "meeting"}
+              className={cn(
+                "inline-flex h-6 items-center rounded-full border px-2 text-[10px] font-medium",
+                mode === "meeting"
+                  ? "border-podium-yellow/50 bg-podium-yellow/10 text-podium-yellow"
+                  : "border-white/15 bg-white/[0.04] text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white",
+              )}
+              onClick={() => {
+                setError(null);
+                setMode((current) =>
+                  current === "meeting" ? "idle" : "meeting",
+                );
+              }}
+            >
+              {COPY.boxConfirmMeeting}
+            </button>
+            <button
+              type="button"
+              disabled={locked}
               className={textLink}
               onClick={() => {
                 setError(null);
@@ -258,6 +306,15 @@ export function BoxFocusCard({
           submitLabel={COPY.crmSaveHistory}
           onCancel={() => setMode("idle")}
           onSubmit={snooze}
+        />
+      ) : null}
+      {mode === "meeting" ? (
+        <BoxMeetingForm
+          defaultDue={defaultNextDueLocal()}
+          submitting={locked}
+          error={error}
+          onCancel={() => setMode("idle")}
+          onSubmit={bookMeeting}
         />
       ) : null}
     </article>

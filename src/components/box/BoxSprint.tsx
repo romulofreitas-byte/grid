@@ -11,10 +11,13 @@ import { BoxRhythmStrip } from "@/components/box/BoxRhythmStrip";
 import { BoxTaskList } from "@/components/box/BoxTaskList";
 import type { BoxSlot } from "@/lib/box-estrutura";
 import {
+  BOX_QUEUE_DEFAULT_TAB,
   boxQueueShowsCrmIdle,
-  pickBoxQueueTab,
-  type BoxQueueBucket,
+  boxQueueTabCount,
+  resolveBoxQueueTab,
+  rowsForBoxTab,
   type BoxQueuePayload,
+  type BoxQueueTab,
 } from "@/lib/box/queue";
 import { gridHref, largadaNovaHref } from "@/lib/back";
 import { planosHref } from "@/lib/billing/href";
@@ -34,12 +37,13 @@ import {
 import { cn } from "@/lib/utils";
 
 const TABS: Array<{
-  id: BoxQueueBucket;
+  id: BoxQueueTab;
   label: string;
   empty: string;
   alert?: boolean;
   optional?: boolean;
 }> = [
+  { id: "all", label: COPY.boxQueue, empty: COPY.boxSprintEmpty },
   { id: "overdue", label: COPY.boxOverdue, empty: COPY.boxTabEmptyOverdue, alert: true },
   { id: "today", label: COPY.boxToday, empty: COPY.boxTabEmptyToday },
   { id: "tomorrow", label: COPY.boxTomorrow, empty: COPY.boxTabEmptyTomorrow },
@@ -92,9 +96,7 @@ export function BoxSprint({
       originateCallJobsPollInterval(q.state.data?.jobs ?? []),
   });
   const hadOriginateJob = useRef(false);
-  const [tab, setTab] = useState<BoxQueueBucket>(() =>
-    pickBoxQueueTab(initialQueue.counts),
-  );
+  const [tab, setTab] = useState<BoxQueueTab>(BOX_QUEUE_DEFAULT_TAB);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [openDeal, setOpenDeal] = useState<{
     dealId: string;
@@ -106,14 +108,11 @@ export function BoxSprint({
     snapshotRef.current === initialQueue
       ? (queueQuery.data ?? initialQueue)
       : initialQueue;
-  const resolvedTab =
-    queue.counts[tab] === 0 && queue.counts.total > 0
-      ? pickBoxQueueTab(queue.counts)
-      : tab;
+  const resolvedTab = resolveBoxQueueTab(tab, queue.counts);
   if (resolvedTab !== tab) setTab(resolvedTab);
-  const rows = queue[resolvedTab];
+  const rows = rowsForBoxTab(queue, resolvedTab);
   const visibleTabs = TABS.filter(
-    (item) => !item.optional || queue.counts[item.id] > 0,
+    (item) => !item.optional || boxQueueTabCount(queue.counts, item.id) > 0,
   );
   const tabMeta =
     visibleTabs.find((item) => item.id === resolvedTab) ?? TABS[0]!;
@@ -148,7 +147,7 @@ export function BoxSprint({
     }
   }
 
-  function selectTab(next: BoxQueueBucket) {
+  function selectTab(next: BoxQueueTab) {
     setTab(next);
     setFocusId(null);
   }
@@ -180,7 +179,7 @@ export function BoxSprint({
           </p>
           <div className="flex min-w-0 flex-1 gap-1 md:flex-none md:justify-end">
             {visibleTabs.map((item) => {
-              const count = queue.counts[item.id];
+              const count = boxQueueTabCount(queue.counts, item.id);
               const active = resolvedTab === item.id;
               return (
                 <button
