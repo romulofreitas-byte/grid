@@ -186,9 +186,9 @@ describe("COPY crm", () => {
     expect(COPY.crmScheduleHint).toMatch(/não substitui/i);
     expect(COPY.crmScheduleHintFollowup).toMatch(/não entra no Box/i);
     expect(COPY.crmComposerHint).toMatch(/histórico/i);
-    expect(COPY.crmComposerNeedOne).toMatch(/agendar/i);
+    expect(COPY.crmComposerHint).toMatch(/não cria próxima ação/i);
+    expect(COPY.crmComposerNeedOne).toMatch(/nota/i);
     expect(COPY.crmRescheduleHint).toMatch(/não conta/i);
-    expect(COPY.crmScheduleDesktop).toBe("Agendar próxima ação");
     expect(COPY.crmSaveHistory).toBe("Salvar");
     expect(COPY.boxSnooze).toBe("Reagendar");
     expect(COPY.confirmEyebrow).toBe("Confirmar");

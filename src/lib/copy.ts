@@ -472,15 +472,13 @@ export const COPY = {
   crmAdjustCadence: "Ajustar cadência",
   crmImport: "Importar",
   crmNoActivity: "Sem próxima ação",
-  crmSchedule: "Agendar",
-  crmScheduleDesktop: "Agendar próxima ação",
   crmScheduleHint:
     "Cria uma próxima ação. Não substitui as que já existem.",
   crmScheduleHintFollowup:
     "Follow-up no CRM não entra no Box. Agende Ligar ou WhatsApp para cair na fila.",
   crmComposerHint:
-    "Salvar grava a nota no histórico. Marque Agendar para criar uma próxima ação. Não conta na meta.",
-  crmComposerNeedOne: "Escreva o que aconteceu ou marque Agendar.",
+    "Salvar grava a nota no histórico. Não cria próxima ação e não conta na meta.",
+  crmComposerNeedOne: "Escreva a nota.",
   crmRescheduleHint:
     "Muda a data desta ação. Não conta como feita e não entra no histórico.",
   crmComposerPlaceholder: "O que considerar nesta ação?",

@@ -13,10 +13,10 @@ export const CRM_COMPOSER_KINDS = [
   "nota",
   "ligar",
   "whatsapp",
-  "email",
-  "reuniao",
   "followup",
+  "reuniao",
   "proposta",
+  "email",
 ] as const;
 
 export type CrmComposerKind = (typeof CRM_COMPOSER_KINDS)[number];

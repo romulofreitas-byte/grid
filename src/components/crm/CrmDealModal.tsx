@@ -95,10 +95,10 @@ const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
   nota: StickyNote,
   ligar: Phone,
   whatsapp: MessageCircle,
-  email: Mail,
-  reuniao: Calendar,
   followup: Repeat,
+  reuniao: Calendar,
   proposta: FileText,
+  email: Mail,
 };
 
 const DEAL_MODAL_EASE = [0.16, 1, 0.3, 1] as const;
@@ -107,10 +107,10 @@ const COMPOSER_TAB_LABELS: Record<CrmComposerKind, string> = {
   nota: "Nota",
   ligar: "Ligar",
   whatsapp: "WhatsApp",
-  email: "E-mail",
-  reuniao: "Reunião",
   followup: "Follow-up",
+  reuniao: "Reunião",
   proposta: "Proposta",
+  email: "E-mail",
 };
 
 function formatPhoneDisplay(raw: string): string {
@@ -383,7 +383,6 @@ export function CrmDealModal({
     {},
   );
   const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
-  const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callPrompt, setCallPrompt] = useState<{ phone: string } | null>(null);
@@ -448,7 +447,6 @@ export function CrmDealModal({
     setComposerKind("ligar");
     setComposerOpen(true);
     setDueLocal(defaultNextDueLocal());
-    setScheduleEnabled(false);
     setExpandedEventId(null);
     setExpandedActionId(null);
     setDrafts({});
@@ -751,8 +749,9 @@ export function CrmDealModal({
 
   async function saveComposer() {
     const note = body.trim();
-    const next = scheduleEnabled ? nextPayload() : null;
-    if (scheduleEnabled && !next) {
+    const schedule = composerKind !== "nota";
+    const next = schedule ? nextPayload() : null;
+    if (schedule && !next) {
       setError("Escolha a ação e o horário.");
       return;
     }
@@ -785,7 +784,6 @@ export function CrmDealModal({
         onChange(scheduled.deal);
       }
       setBody("");
-      setScheduleEnabled(false);
       setDueLocal(defaultNextDueLocal());
       void invalidateLiveStats(qc);
     } catch (err) {
@@ -1172,22 +1170,7 @@ export function CrmDealModal({
                       placeholder={COPY.crmComposerPlaceholder}
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-podium-muted hover:text-podium-gray">
-                        <input
-                          type="checkbox"
-                          checked={scheduleEnabled}
-                          disabled={saving}
-                          onChange={(event) =>
-                            setScheduleEnabled(event.target.checked)
-                          }
-                          className="h-3 w-3 rounded-sm border-white/20 text-podium-yellow accent-podium-yellow disabled:opacity-50"
-                        />
-                        <span className="md:hidden">{COPY.crmSchedule}</span>
-                        <span className="hidden md:inline">
-                          {COPY.crmScheduleDesktop}
-                        </span>
-                      </label>
-                      {scheduleEnabled ? (
+                      {composerKind !== "nota" ? (
                         <CrmDateTimePicker
                           value={dueLocal || defaultNextDueLocal()}
                           onChange={setDueLocal}
@@ -1197,11 +1180,11 @@ export function CrmDealModal({
                         type="button"
                         disabled={saving}
                         title={
-                          composerKind === "followup" && scheduleEnabled
+                          composerKind === "followup"
                             ? COPY.crmScheduleHintFollowup
-                            : scheduleEnabled
-                              ? COPY.crmScheduleHint
-                              : COPY.crmComposerHint
+                            : composerKind === "nota"
+                              ? COPY.crmComposerHint
+                              : COPY.crmScheduleHint
                         }
                         onClick={() => void saveComposer()}
                         className="ml-auto rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
@@ -1209,7 +1192,7 @@ export function CrmDealModal({
                         {COPY.crmSaveHistory}
                       </button>
                     </div>
-                    {composerKind === "followup" && scheduleEnabled ? (
+                    {composerKind === "followup" ? (
                       <p className="mt-1.5 text-[10px] text-podium-muted">
                         {COPY.crmScheduleHintFollowup}
                       </p>
