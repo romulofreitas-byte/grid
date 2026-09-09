@@ -143,15 +143,26 @@ describe("COPY automações", () => {
     expect(COPY.integracoesTitle).toBe("Integrações");
     expect(COPY.telefoniaTitle).toBe("Telefonia");
     expect(COPY.integracoesFacebookTitle).toBe("Meta API");
+    expect(COPY.integracoesCatConectar).toBe("Conectar conta");
+    expect(COPY.integracoesCatCaptar).toBe("Captar leads");
+    expect(COPY.integracoesCatAvancado).toBe("Avançado");
     expect(COPY.integracoesLead.toLowerCase()).toMatch(/página|pagina/);
     expect(COPY.integracoesGuideContinueFacebook.toLowerCase()).toMatch(/facebook/);
     expect(COPY.integracoesGuideNotConfigured.toLowerCase()).not.toMatch(
       /oauth|graph/,
     );
-    expect(COPY.integracoesGuideHandoff.toLowerCase()).toMatch(/automações/);
+    expect(COPY.integracoesGuideHandoff.toLowerCase()).toMatch(/destino/);
     expect(COPY.integracoesGuideStepChain).toBe("Cadeia");
     expect(COPY.automacoesHint.toLowerCase()).not.toMatch(/make/);
+    expect(COPY.automacoesCaptarHint.toLowerCase()).not.toMatch(
+      /make|token|json|header/,
+    );
+    expect(COPY.automacoesEmptyCaptarPane.toLowerCase()).not.toMatch(
+      /make|token|json|header/,
+    );
     expect(COPY.automacoesPayloadLead.toLowerCase()).not.toMatch(/make/);
+    expect(COPY.automacoesAvancadoHint.toLowerCase()).toMatch(/make/);
+    expect(COPY.automacoesNewCaptarCta.toLowerCase()).toMatch(/formulário|formulario/);
     expect(COPY.lockedAutomationsHighlight2.toLowerCase()).not.toMatch(/make/);
   });
 });

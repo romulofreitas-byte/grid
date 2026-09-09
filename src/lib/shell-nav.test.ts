@@ -75,14 +75,16 @@ describe("shell footer nav", () => {
     expect(isFooterAccordion(integracoes!)).toBe(true);
     expect(integracoes?.href).toBeUndefined();
     expect(integracoes?.children?.map((child) => child.label)).toEqual([
-      "Meta API",
-      "Automações",
+      "Conectar conta",
+      "Captar leads",
+      "Avançado",
       "Importações",
       "Telefonia",
     ]);
     expect(integracoes?.children?.map((child) => child.href)).toEqual([
       "/integracoes",
       "/automacoes",
+      "/automacoes/avancado",
       "/importacoes",
       "/integracoes/telefonia",
     ]);
@@ -128,6 +130,12 @@ describe("isShellChildActive", () => {
   const facebook = integracoes?.children?.find(
     (child) => child.href === "/integracoes",
   );
+  const captar = integracoes?.children?.find(
+    (child) => child.href === "/automacoes",
+  );
+  const avancado = integracoes?.children?.find(
+    (child) => child.href === "/automacoes/avancado",
+  );
 
   it("lights Integrações children from path", () => {
     expect(
@@ -151,6 +159,22 @@ describe("isShellChildActive", () => {
     expect(
       importacoes && isShellChildActive(importacoes, "/automacoes", null),
     ).toBe(false);
+    expect(captar && isShellChildActive(captar, "/automacoes", null)).toBe(true);
+    expect(
+      captar && isShellChildActive(captar, "/automacoes/avancado", null),
+    ).toBe(false);
+    expect(
+      captar && isShellChildActive(captar, "/automacoes/meta", null),
+    ).toBe(false);
+    expect(
+      avancado && isShellChildActive(avancado, "/automacoes/avancado", null),
+    ).toBe(true);
+    expect(
+      facebook && isShellChildActive(facebook, "/automacoes/meta", null),
+    ).toBe(true);
+    expect(
+      isShellFooterGroupActive(integracoes!, "/automacoes/meta", null),
+    ).toBe(true);
   });
 });
 

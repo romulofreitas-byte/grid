@@ -72,8 +72,9 @@ export const SHELL_FOOTER_NAV: readonly ShellFooterItem[] = [
     label: "Integrações",
     icon: Cable,
     children: [
-      { href: "/integracoes", label: "Meta API" },
-      { href: "/automacoes", label: "Automações" },
+      { href: "/integracoes", label: "Conectar conta" },
+      { href: "/automacoes", label: "Captar leads" },
+      { href: "/automacoes/avancado", label: "Avançado" },
       { href: "/importacoes", label: "Importações" },
       { href: INTEGRACOES_TELEFONIA, label: "Telefonia" },
     ],
@@ -101,7 +102,10 @@ export function isShellChildActive(
   _searchKind: string | null,
 ): boolean {
   const path = child.href.split("?")[0] ?? child.href;
-  if (path === "/integracoes") return pathname === "/integracoes";
+  if (path === "/integracoes") {
+    return pathname === "/integracoes" || pathname === "/automacoes/meta";
+  }
+  if (path === "/automacoes") return pathname === "/automacoes";
   return isShellNavActive(path, pathname);
 }
 

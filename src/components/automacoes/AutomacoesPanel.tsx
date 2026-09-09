@@ -1,13 +1,22 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Copy, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Link2,
+  Megaphone,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
-import { Button } from "@/components/ui/Button";
+import { IntegracoesCategoryChips } from "@/components/integracoes/IntegracoesCategoryChips";
+import { Button, type ButtonVariant } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { MetaConnectCard } from "@/components/integracoes/MetaConnectCard";
@@ -16,10 +25,6 @@ import { publicFormEmbedSnippet } from "@/lib/crm/inbound-token";
 import { pickEntradaStage } from "@/lib/crm/cadence";
 import { crmFetch } from "@/lib/crm/client";
 import {
-  INBOUND_COMPANY_EXAMPLE,
-  INBOUND_PERSON_EXAMPLE,
-} from "@/lib/crm/inbound-examples";
-import {
   inboundEventTone,
   inboundPayloadLine,
   type PublicInboundEvent,
@@ -27,7 +32,10 @@ import {
 } from "@/lib/crm/inbound-events";
 import {
   AUTOMATION_LIMIT,
+  channelForCategory,
   formChannelLabel,
+  matchesAutomacoesCategory,
+  type AutomacoesCategory,
   type CrmBoard,
   type CrmFormChannel,
   type CrmFormFields,
@@ -87,35 +95,32 @@ function Field({
   );
 }
 
-function CopyField({
+function CopyButton({
   value,
-  ariaLabel,
+  label,
+  variant = "primary",
 }: {
   value: string;
-  ariaLabel: string;
+  label: string;
+  variant?: ButtonVariant;
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex min-h-8 items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-1.5">
-      <p className="min-w-0 flex-1 truncate font-mono text-[11px] text-podium-gray">
-        {value}
-      </p>
-      <button
-        type="button"
-        aria-label={copied ? "Copiado" : ariaLabel}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-white"
-        onClick={() => {
-          void navigator.clipboard.writeText(value);
-          setCopied(true);
-        }}
-      >
-        {copied ? (
-          <Check className="h-3.5 w-3.5 text-podium-yellow" />
-        ) : (
-          <Copy className="h-3.5 w-3.5" />
-        )}
-      </button>
-    </div>
+    <Button
+      variant={copied ? "secondary" : variant}
+      disabled={!value}
+      onClick={() => {
+        void navigator.clipboard.writeText(value);
+        setCopied(true);
+      }}
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+      {copied ? COPY.automacoesCopied : label}
+    </Button>
   );
 }
 
@@ -184,15 +189,76 @@ function DestinationFields({
   );
 }
 
+function categoryHint(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesCaptarHint;
+  if (category === "avancado") return COPY.automacoesAvancadoHint;
+  return COPY.automacoesMetaDestHint;
+}
+
+function categoryNewCta(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesNewCaptarCta;
+  if (category === "avancado") return COPY.automacoesNewAvancadoCta;
+  return COPY.automacoesNewMetaCta;
+}
+
+function categoryCreateTitle(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesCreateCaptarTitle;
+  if (category === "avancado") return COPY.automacoesCreateAvancadoTitle;
+  return COPY.automacoesCreateMetaTitle;
+}
+
+function categoryPlaceholder(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesPlaceholderCaptar;
+  if (category === "avancado") return COPY.automacoesPlaceholderAvancado;
+  return COPY.automacoesPlaceholderMeta;
+}
+
+function categoryReady(category: AutomacoesCategory, nome: string): string {
+  const template =
+    category === "captar"
+      ? COPY.automacoesReadyCaptar
+      : category === "avancado"
+        ? COPY.automacoesReadyAvancado
+        : COPY.automacoesReadyMeta;
+  return template.replace("{nome}", nome);
+}
+
+function categoryEmptyList(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesEmptyCaptarList;
+  if (category === "avancado") return COPY.automacoesEmptyAvancadoList;
+  return COPY.automacoesEmptyMetaList;
+}
+
+function categoryEmptyPane(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesEmptyCaptarPane;
+  if (category === "avancado") return COPY.automacoesEmptyAvancadoPane;
+  return COPY.automacoesEmptyMetaPane;
+}
+
+function categoryDeleteBody(category: AutomacoesCategory): string {
+  if (category === "captar") return COPY.automacoesDeleteBodyCaptar;
+  if (category === "avancado") return COPY.automacoesDeleteBodyAvancado;
+  return COPY.automacoesDeleteBodyMeta;
+}
+
+function chipCurrent(
+  category: AutomacoesCategory,
+): "conectar" | "captar" | "avancado" {
+  if (category === "meta") return "conectar";
+  return category;
+}
+
 export function AutomacoesPanel({
   initialPipelines,
+  category,
 }: {
   initialPipelines: CrmPipelineSummary[];
+  category: AutomacoesCategory;
 }) {
   const qc = useQueryClient();
+  const channel = channelForCategory(category);
   const [pipelines, setPipelines] = useState(initialPipelines);
   const [nome, setNome] = useState("");
-  const [channel, setChannel] = useState<CrmFormChannel>("site");
   const [leadKind, setLeadKind] = useState<CrmLeadKind>("company");
   const [dest, setDest] = useState(NEW_PIPELINE);
   const [pipelineNome, setPipelineNome] = useState("");
@@ -234,11 +300,10 @@ export function AutomacoesPanel({
 
   const pagesQuery = useQuery({
     queryKey: ["crm-meta-pages"],
+    enabled: category === "meta",
     queryFn: async () => {
       const res = await fetch("/api/automacoes/meta/pages");
-      if (!res.ok) {
-        return { pages: [] as CrmMetaConnection[], configured: false };
-      }
+      if (!res.ok) throw new Error("pages");
       return (await res.json()) as {
         pages: CrmMetaConnection[];
         configured: boolean;
@@ -248,7 +313,7 @@ export function AutomacoesPanel({
 
   const formsQuery = useQuery({
     queryKey: ["crm-meta-forms", metaConnectionId],
-    enabled: channel === "meta" && Boolean(metaConnectionId),
+    enabled: category === "meta" && Boolean(metaConnectionId),
     queryFn: async () => {
       const res = await fetch(
         `/api/automacoes/meta/forms?connection=${encodeURIComponent(metaConnectionId)}`,
@@ -316,7 +381,8 @@ export function AutomacoesPanel({
           channel,
           form_fields:
             channel === "site" ? { company: includeCompany } : undefined,
-          meta_connection_id: channel === "meta" && metaConnectionId ? metaConnectionId : undefined,
+          meta_connection_id:
+            channel === "meta" && metaConnectionId ? metaConnectionId : undefined,
           meta_form_id:
             channel === "meta" && metaFormId ? metaFormId : undefined,
         }),
@@ -349,7 +415,6 @@ export function AutomacoesPanel({
       }
       setFormOpen(false);
       setNome("");
-      setChannel("site");
       setLeadKind("company");
       setMetaConnectionId("");
       setMetaFormId("");
@@ -416,15 +481,14 @@ export function AutomacoesPanel({
     },
   });
 
-  const endpoints = listQuery.data?.endpoints ?? [];
-  const atCap = endpoints.length >= (listQuery.data?.limit ?? AUTOMATION_LIMIT);
+  const allEndpoints = listQuery.data?.endpoints ?? [];
+  const endpoints = allEndpoints.filter((row) =>
+    matchesAutomacoesCategory(row.channel, category),
+  );
+  const atCap = allEndpoints.length >= (listQuery.data?.limit ?? AUTOMATION_LIMIT);
   const openEndpoint = endpoints.find((row) => row.id === openId) ?? null;
   const metaPages = pagesQuery.data?.pages ?? [];
   const metaAppReady = pagesQuery.data?.configured;
-  const payloadKind = openEndpoint?.lead_kind ?? leadKind;
-  const payloadChannel = openEndpoint?.channel ?? channel;
-  const payloadExample =
-    payloadKind === "person" ? INBOUND_PERSON_EXAMPLE : INBOUND_COMPANY_EXAMPLE;
 
   useEffect(() => {
     if (formOpen) return;
@@ -434,266 +498,263 @@ export function AutomacoesPanel({
 
   return (
     <>
-    <div className={workSplitClass}>
-      <div className={cn(workSplitRailClass, "space-y-3")}>
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          <p className="text-[11px] text-podium-muted">
-            {endpoints.length} de {listQuery.data?.limit ?? AUTOMATION_LIMIT}
-          </p>
-          <Button
-            variant="primary"
-            disabled={atCap || formOpen}
-            onClick={() => {
-              setCreatedNome(null);
-              setFormOpen(true);
-            }}
-          >
-            {atCap ? "Limite de 10 atingido" : COPY.automacoesNewCta}
-          </Button>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <div className="shrink-0">
+          <IntegracoesCategoryChips current={chipCurrent(category)} />
         </div>
-            {createdNome && !formOpen ? (
-          <p className="text-sm text-podium-gray">
-            {COPY.automacoesReadyBar.replace("{nome}", createdNome)}
-          </p>
-        ) : null}
-        {metaFlash ? (
-          <p className="text-sm text-podium-gray">{metaFlash}</p>
-        ) : null}
-        {endpoints.length > 0 ? (
-          <div className="space-y-1">
-            {endpoints.map((endpoint) => (
-              <CampaignRow
-                key={endpoint.id}
-                endpoint={endpoint}
-                pipelineName={
-                  pipelines.find(
-                    (pipeline) => pipeline.id === endpoint.pipeline_id,
-                  )?.nome ?? "lista"
-                }
-                selected={!formOpen && openId === endpoint.id}
-                busy={deleteCampaign.isPending || patchCampaign.isPending}
-                onSelect={() => {
-                  setFormOpen(false);
-                  setOpenId(endpoint.id);
+        <div className={workSplitClass}>
+          <div className={cn(workSplitRailClass, "space-y-3")}>
+            <div className="flex shrink-0 items-center justify-between gap-2">
+              <p className="text-[11px] text-podium-muted">
+                {allEndpoints.length} de {listQuery.data?.limit ?? AUTOMATION_LIMIT}
+              </p>
+              <Button
+                variant="primary"
+                disabled={atCap || formOpen}
+                onClick={() => {
+                  setCreatedNome(null);
+                  setFormOpen(true);
                 }}
-                onDelete={() => setPendingDelete(endpoint)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-podium-muted">{COPY.automacoesHint}</p>
-        )}
-        {listQuery.isError ? (
-          <p className="text-sm text-podium-alert">
-            Não foi possível carregar as campanhas.
-          </p>
-        ) : null}
-      </div>
-
-      <div className={cn(workSplitPaneClass, "space-y-3")}>
-        {formOpen ? (
-          <GlassCard className="space-y-4 p-3 hover:translate-y-0">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-semibold text-podium-white">
-                Nova automação
-              </p>
-              <button
-                type="button"
-                aria-label="Fechar nova automação"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-white"
-                onClick={() => setFormOpen(false)}
               >
-                <ChevronDown className="h-4 w-4 rotate-180" />
-              </button>
+                {atCap ? "Limite de 10 atingido" : categoryNewCta(category)}
+              </Button>
             </div>
-            <Hint>{COPY.automacoesHint}</Hint>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nome da campanha">
-                <input
-                  className={INPUT}
-                  value={nome}
-                  maxLength={80}
-                  placeholder="Meta Lead Ads · cliente X"
-                  onChange={(event) => {
-                    setCreatedNome(null);
-                    setNome(event.target.value);
-                  }}
-                />
-              </Field>
-              <Field label="Origem">
-                <Select
-                  value={channel}
-                  onChange={(value) => setChannel(value as CrmFormChannel)}
-                  className="w-full"
-                  options={[
-                    { value: "site", label: COPY.automacoesOriginSite },
-                    { value: "meta", label: COPY.automacoesOriginMeta },
-                    { value: "webhook", label: COPY.automacoesOriginWebhook },
-                  ]}
-                />
-              </Field>
-              <p className="text-xs text-podium-muted sm:col-span-2">
-                {channel === "site"
-                  ? COPY.automacoesPayloadSite
-                  : channel === "meta"
-                    ? COPY.automacoesPayloadAds
-                    : COPY.automacoesPayloadLead}
+            {createdNome && !formOpen ? (
+              <p className="text-sm text-podium-gray">
+                {categoryReady(category, createdNome)}
               </p>
-              <Field label="Tipo de lead">
-                <Select
-                  value={leadKind}
-                  onChange={(value) => setLeadKind(value as CrmLeadKind)}
-                  className="w-full"
-                  options={[
-                    { value: "company", label: "Empresa" },
-                    { value: "person", label: "Pessoa" },
-                  ]}
-                />
-              </Field>
-            </div>
-            <DestinationFields
-              pipelines={pipelines}
-              stages={stages}
-              pipelineValue={dest}
-              pipelineNome={pipelineNome}
-              stageId={resolvedStageId}
-              onPipeline={(value) => {
-                setDest(value);
-                setStageId("");
-              }}
-              onNome={setPipelineNome}
-              onStage={setStageId}
-            />
-            {channel === "site" ? (
-              <label className="flex items-center gap-2 text-xs text-podium-gray">
-                <input
-                  type="checkbox"
-                  checked={includeCompany}
-                  onChange={(event) => setIncludeCompany(event.target.checked)}
-                />
-                Pedir nome da empresa
-              </label>
             ) : null}
-            {channel === "meta" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Página do Meta">
-                  <Select
-                    value={metaConnectionId}
-                    onChange={setMetaConnectionId}
-                    className="w-full"
-                    options={[
-                      { value: "", label: "Escolha a Página" },
-                      ...(pagesQuery.data?.pages ?? []).map((page) => ({
-                        value: page.id,
-                        label: page.page_name,
-                      })),
-                    ]}
+            {metaFlash ? (
+              <p className="text-sm text-podium-gray">{metaFlash}</p>
+            ) : null}
+            {listQuery.isPending ? (
+              <p className="text-sm text-podium-muted">{COPY.automacoesOpening}</p>
+            ) : endpoints.length > 0 ? (
+              <div className="space-y-1">
+                {endpoints.map((endpoint) => (
+                  <CampaignRow
+                    key={endpoint.id}
+                    endpoint={endpoint}
+                    pipelineName={
+                      pipelines.find(
+                        (pipeline) => pipeline.id === endpoint.pipeline_id,
+                      )?.nome ?? "lista"
+                    }
+                    selected={!formOpen && openId === endpoint.id}
+                    busy={deleteCampaign.isPending || patchCampaign.isPending}
+                    onSelect={() => {
+                      setFormOpen(false);
+                      setOpenId(endpoint.id);
+                    }}
+                    onDelete={() => setPendingDelete(endpoint)}
                   />
-                </Field>
-                <Field label="Formulário Instantâneo">
-                  <Select
-                    value={metaFormId}
-                    onChange={setMetaFormId}
-                    className="w-full"
-                    options={[
-                      { value: "", label: COPY.automacoesAllMetaForms },
-                      ...(formsQuery.data?.forms ?? []).map((form) => ({
-                        value: form.id,
-                        label: form.name,
-                      })),
-                    ]}
-                  />
-                </Field>
-                <div className="sm:col-span-2">
-                  <MetaConnectCard
-                    compact
-                    pages={metaPages}
-                    configured={metaAppReady}
-                  />
-                </div>
+                ))}
               </div>
-            ) : null}
-            <Button
-              variant="primary"
-              disabled={
-                createCampaign.isPending ||
-                atCap ||
-                !nome.trim() ||
-                (channel === "meta" && !metaConnectionId)
-              }
-              onClick={() => createCampaign.mutate()}
-            >
-              {createCampaign.isPending
-                ? "Criando…"
-                : atCap
-                  ? "Limite de 10 atingido"
-                  : "Criar campanha"}
-            </Button>
-            <div className="rounded-md border border-dashed border-white/15 bg-black/20 px-4 py-3 text-sm text-podium-muted">
-              {COPY.automacoesUnlockBar}
-            </div>
-            {atCap ? (
+            ) : (
+              <p className="text-sm text-podium-muted">
+                {categoryEmptyList(category)}
+              </p>
+            )}
+            {listQuery.isError ? (
               <p className="text-sm text-podium-alert">
-                Apague uma campanha parada ou fale com a gente.
+                Não foi possível carregar as campanhas.
               </p>
             ) : null}
-            {createCampaign.isError ? (
-              <p className="text-sm text-podium-alert">
-                {(createCampaign.error as Error).message}
-              </p>
-            ) : null}
-          </GlassCard>
-        ) : openEndpoint ? (
-          <CampaignDetail
-            endpoint={openEndpoint}
-            pipelines={pipelines}
-            token={plainTokens[openEndpoint.id]}
-            publicToken={publicTokens[openEndpoint.id]}
-            busy={deleteCampaign.isPending || patchCampaign.isPending}
-            onRotate={() =>
-              patchCampaign.mutate({ id: openEndpoint.id, rotate: true })
-            }
-            onRotatePublic={() =>
-              patchCampaign.mutate({ id: openEndpoint.id, rotate_public: true })
-            }
-            onDestination={(pipeline_id, stage_id) =>
-              patchCampaign.mutate({
-                id: openEndpoint.id,
-                pipeline_id,
-                stage_id,
-              })
-            }
-          />
-        ) : (
-          <p className="text-sm text-podium-muted">
-            {COPY.automacoesEmptyPane}{" "}
-            <Link href="/integracoes" className="font-semibold text-podium-yellow">
-              {COPY.integracoesTitle}
-            </Link>
-          </p>
-        )}
-
-        {payloadChannel === "webhook" || payloadChannel === "ads" ? (
-        <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
-            <span>Payload</span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-          </summary>
-          <div className="space-y-3 px-3 pb-3">
-            <Hint>{COPY.automacoesPayloadLead}</Hint>
-            <p className="text-[11px] text-podium-muted">
-              {payloadKind === "person"
-                ? "Cria um cartão no nome da pessoa, sem CNPJ."
-                : "Cria um cartão com razão social, contato e CNPJ."}
-            </p>
-            <pre className="overflow-x-auto rounded-md border border-white/10 bg-black/20 p-3 text-[11px] text-podium-muted">
-              {JSON.stringify(payloadExample, null, 2)}
-            </pre>
           </div>
-        </details>
-        ) : null}
+
+          <div className={cn(workSplitPaneClass, "space-y-3")}>
+            {formOpen ? (
+              <GlassCard className="space-y-4 p-3 hover:translate-y-0">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-podium-white">
+                    {categoryCreateTitle(category)}
+                  </p>
+                  <button
+                    type="button"
+                    aria-label="Fechar"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-podium-muted hover:bg-white/5 hover:text-podium-white"
+                    onClick={() => setFormOpen(false)}
+                  >
+                    <ChevronDown className="h-4 w-4 rotate-180" />
+                  </button>
+                </div>
+                <Hint>{categoryHint(category)}</Hint>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {category === "captar" ? (
+                    <Field label="Tipo de lead">
+                      <Select
+                        value={leadKind}
+                        onChange={(value) => setLeadKind(value as CrmLeadKind)}
+                        className="w-full"
+                        options={[
+                          { value: "company", label: "Empresa" },
+                          { value: "person", label: "Pessoa" },
+                        ]}
+                      />
+                    </Field>
+                  ) : null}
+                  <Field label="Nome">
+                    <input
+                      className={INPUT}
+                      value={nome}
+                      maxLength={80}
+                      placeholder={categoryPlaceholder(category)}
+                      onChange={(event) => {
+                        setCreatedNome(null);
+                        setNome(event.target.value);
+                      }}
+                    />
+                  </Field>
+                  {category !== "captar" ? (
+                    <Field label="Tipo de lead">
+                      <Select
+                        value={leadKind}
+                        onChange={(value) => setLeadKind(value as CrmLeadKind)}
+                        className="w-full"
+                        options={[
+                          { value: "company", label: "Empresa" },
+                          { value: "person", label: "Pessoa" },
+                        ]}
+                      />
+                    </Field>
+                  ) : null}
+                </div>
+                <DestinationFields
+                  pipelines={pipelines}
+                  stages={stages}
+                  pipelineValue={dest}
+                  pipelineNome={pipelineNome}
+                  stageId={resolvedStageId}
+                  onPipeline={(value) => {
+                    setDest(value);
+                    setStageId("");
+                  }}
+                  onNome={setPipelineNome}
+                  onStage={setStageId}
+                />
+                {category === "captar" ? (
+                  <label className="flex items-center gap-2 text-xs text-podium-gray">
+                    <input
+                      type="checkbox"
+                      checked={includeCompany}
+                      onChange={(event) =>
+                        setIncludeCompany(event.target.checked)
+                      }
+                    />
+                    Pedir nome da empresa
+                  </label>
+                ) : null}
+                {category === "meta" ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Página do Meta">
+                      <Select
+                        value={metaConnectionId}
+                        onChange={setMetaConnectionId}
+                        className="w-full"
+                        options={[
+                          { value: "", label: "Escolha a Página" },
+                          ...(pagesQuery.data?.pages ?? []).map((page) => ({
+                            value: page.id,
+                            label: page.page_name,
+                          })),
+                        ]}
+                      />
+                    </Field>
+                    <Field label="Formulário Instantâneo">
+                      <Select
+                        value={metaFormId}
+                        onChange={setMetaFormId}
+                        className="w-full"
+                        options={[
+                          { value: "", label: COPY.automacoesAllMetaForms },
+                          ...(formsQuery.data?.forms ?? []).map((form) => ({
+                            value: form.id,
+                            label: form.name,
+                          })),
+                        ]}
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <MetaConnectCard
+                        compact
+                        pages={metaPages}
+                        configured={metaAppReady}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <Button
+                  variant="primary"
+                  disabled={
+                    createCampaign.isPending ||
+                    atCap ||
+                    !nome.trim() ||
+                    (category === "meta" && !metaConnectionId)
+                  }
+                  onClick={() => createCampaign.mutate()}
+                >
+                  {createCampaign.isPending
+                    ? "Criando…"
+                    : atCap
+                      ? "Limite de 10 atingido"
+                      : categoryNewCta(category)}
+                </Button>
+                {category === "avancado" ? (
+                  <div className="rounded-md border border-dashed border-white/15 bg-black/20 px-4 py-3 text-sm text-podium-muted">
+                    {COPY.automacoesUnlockBar}
+                  </div>
+                ) : null}
+                {atCap ? (
+                  <p className="text-sm text-podium-alert">
+                    Apague uma campanha parada ou fale com a gente.
+                  </p>
+                ) : null}
+                {createCampaign.isError ? (
+                  <p className="text-sm text-podium-alert">
+                    {(createCampaign.error as Error).message}
+                  </p>
+                ) : null}
+              </GlassCard>
+            ) : openEndpoint ? (
+              <CampaignDetail
+                endpoint={openEndpoint}
+                pipelines={pipelines}
+                token={plainTokens[openEndpoint.id]}
+                publicToken={publicTokens[openEndpoint.id]}
+                busy={deleteCampaign.isPending || patchCampaign.isPending}
+                onRotate={() =>
+                  patchCampaign.mutate({ id: openEndpoint.id, rotate: true })
+                }
+                onRotatePublic={() =>
+                  patchCampaign.mutate({
+                    id: openEndpoint.id,
+                    rotate_public: true,
+                  })
+                }
+                onDestination={(pipeline_id, stage_id) =>
+                  patchCampaign.mutate({
+                    id: openEndpoint.id,
+                    pipeline_id,
+                    stage_id,
+                  })
+                }
+              />
+            ) : (
+              <p className="text-sm text-podium-muted">
+                {categoryEmptyPane(category)}{" "}
+                {category === "meta" ? (
+                  <Link
+                    href="/integracoes"
+                    className="font-semibold text-podium-yellow"
+                  >
+                    {COPY.integracoesCatConectar}
+                  </Link>
+                ) : null}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}
@@ -701,7 +762,7 @@ export function AutomacoesPanel({
           "{nome}",
           pendingDelete?.nome ?? "",
         )}
-        body={COPY.automacoesDeleteBody}
+        body={categoryDeleteBody(category)}
         confirmLabel={COPY.automacoesDeleteConfirm}
         pendingLabel={COPY.automacoesDeletePending}
         pending={deleteCampaign.isPending}
@@ -724,6 +785,12 @@ export function AutomacoesPanel({
   );
 }
 
+function channelIcon(channel: CrmFormChannel) {
+  if (channel === "meta") return Megaphone;
+  if (channel === "webhook" || channel === "ads") return Settings;
+  return Link2;
+}
+
 function CampaignRow({
   endpoint,
   pipelineName,
@@ -739,6 +806,7 @@ function CampaignRow({
   onSelect: () => void;
   onDelete: () => void;
 }) {
+  const Icon = channelIcon(endpoint.channel);
   return (
     <div
       className={cn(
@@ -751,6 +819,10 @@ function CampaignRow({
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
         onClick={onSelect}
       >
+        <Icon
+          className="h-3.5 w-3.5 shrink-0 text-podium-yellow"
+          aria-hidden
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-podium-white">
             {endpoint.nome}
@@ -893,6 +965,7 @@ function CampaignDetail({
   const isWebhook =
     endpoint.channel === "webhook" || endpoint.channel === "ads";
   const isMeta = endpoint.channel === "meta";
+  const bearer = token ? `Bearer ${token}` : "";
 
   return (
     <GlassCard className="space-y-4 p-3 hover:translate-y-0">
@@ -917,86 +990,73 @@ function CampaignDetail({
         onSave={onDestination}
       />
       {isSite ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div>
-            <p className="mb-1.5 text-[11px] text-podium-muted">
-              {COPY.automacoesFormLink}
-            </p>
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
             {formUrl ? (
-              <CopyField value={formUrl} ariaLabel="Copiar link do formulário" />
-            ) : (
-              <div className="flex min-h-[2.5rem] items-center rounded-md border border-white/10 bg-black/20 px-3 py-2">
-                <p className="text-[11px] text-podium-muted">
-                  {COPY.automacoesFormHidden}
-                </p>
-              </div>
-            )}
-            <div className="mt-1.5 flex justify-end">
-              <button
-                type="button"
-                className="shrink-0 text-[11px] text-podium-muted underline-offset-2 hover:text-podium-gray hover:underline disabled:opacity-50"
-                disabled={busy}
-                onClick={onRotatePublic}
-              >
-                {COPY.automacoesRotatePublic}
-              </button>
-            </div>
-          </div>
-          <div>
-            <p className="mb-1.5 text-[11px] text-podium-muted">
-              {COPY.automacoesEmbed}
-            </p>
+              <CopyButton value={formUrl} label={COPY.automacoesCopyLink} />
+            ) : null}
             {embed ? (
-              <CopyField value={embed} ariaLabel="Copiar embed" />
-            ) : (
-              <p className="text-[11px] text-podium-muted">
-                {COPY.automacoesFormHidden}
-              </p>
-            )}
+              <CopyButton
+                value={embed}
+                label={COPY.automacoesCopyEmbed}
+                variant="secondary"
+              />
+            ) : null}
+          </div>
+          {formUrl ? (
+            <p className="truncate font-mono text-[11px] text-podium-muted">
+              {formUrl}
+            </p>
+          ) : (
+            <p className="text-[11px] text-podium-muted">
+              {COPY.automacoesFormHidden}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="shrink-0 text-[11px] text-podium-muted underline-offset-2 hover:text-podium-gray hover:underline disabled:opacity-50"
+              disabled={busy}
+              onClick={onRotatePublic}
+            >
+              {COPY.automacoesRotatePublic}
+            </button>
           </div>
         </div>
       ) : null}
       {isWebhook ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div>
-            <p className="mb-1.5 text-[11px] text-podium-muted">Endereço</p>
-            <CopyField value={endpoint.url} ariaLabel="Copiar endereço" />
-            <p className="mt-1.5 text-[11px] text-podium-muted">
-              {COPY.automacoesWebhookUrlHint}
-            </p>
-          </div>
-          <div>
-            <p className="mb-1.5 text-[11px] text-podium-muted">
-              Authorization · token
-            </p>
-            {token ? (
-              <CopyField
-                value={`Bearer ${token}`}
-                ariaLabel="Copiar valor do header"
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <CopyButton value={endpoint.url} label={COPY.automacoesCopyUrl} />
+            {bearer ? (
+              <CopyButton
+                value={bearer}
+                label={COPY.automacoesCopyBearer}
+                variant="secondary"
               />
-            ) : (
-              <div className="flex min-h-[2.5rem] items-center rounded-md border border-white/10 bg-black/20 px-3 py-2">
-                <p className="text-[11px] text-podium-muted">
-                  Chave oculta. Se perdeu, gere outra — a antiga para de
-                  funcionar.
-                </p>
-              </div>
-            )}
-            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-podium-muted">
-                {token
-                  ? "Guarde agora. O Grid não mostra de novo."
-                  : COPY.automacoesWebhookUrlHint}
-              </p>
-              <button
-                type="button"
-                className="shrink-0 text-[11px] text-podium-muted underline-offset-2 hover:text-podium-gray hover:underline disabled:opacity-50"
-                disabled={busy}
-                onClick={onRotate}
-              >
-                {COPY.automacoesRotateBearer}
-              </button>
-            </div>
+            ) : null}
+          </div>
+          <p className="truncate font-mono text-[11px] text-podium-muted">
+            {endpoint.url}
+          </p>
+          {bearer ? (
+            <p className="text-[11px] text-podium-muted">
+              Guarde agora. O Grid não mostra de novo.
+            </p>
+          ) : (
+            <p className="text-[11px] text-podium-muted">
+              Chave oculta. Se perdeu, gere outra — a antiga para de funcionar.
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="shrink-0 text-[11px] text-podium-muted underline-offset-2 hover:text-podium-gray hover:underline disabled:opacity-50"
+              disabled={busy}
+              onClick={onRotate}
+            >
+              {COPY.automacoesRotateBearer}
+            </button>
           </div>
         </div>
       ) : null}
@@ -1004,7 +1064,10 @@ function CampaignDetail({
         <p className="text-sm text-podium-gray">{COPY.automacoesPayloadAds}</p>
       ) : null}
       <CampaignHelp endpoint={endpoint} token={token} />
-      <CampaignEvents endpointId={endpoint.id} />
+      <CampaignEvents
+        endpointId={endpoint.id}
+        showPayload={isWebhook}
+      />
     </GlassCard>
   );
 }
@@ -1051,7 +1114,13 @@ function snapshotLine(event: PublicInboundEvent): string {
     .join(" · ");
 }
 
-function CampaignEvents({ endpointId }: { endpointId: string }) {
+function CampaignEvents({
+  endpointId,
+  showPayload = true,
+}: {
+  endpointId: string;
+  showPayload?: boolean;
+}) {
   const query = useQuery({
     queryKey: ["crm-inbound-events", endpointId],
     queryFn: async () => {
@@ -1104,7 +1173,7 @@ function CampaignEvents({ endpointId }: { endpointId: string }) {
                 {event.message}
                 {snapshotLine(event) ? ` · ${snapshotLine(event)}` : ""}
               </p>
-              {inboundPayloadLine(event.payload) ? (
+              {showPayload && inboundPayloadLine(event.payload) ? (
                 <p className="mt-0.5 truncate font-mono text-[10px] text-podium-muted">
                   {inboundPayloadLine(event.payload)}
                 </p>
@@ -1131,8 +1200,8 @@ function CampaignHelp({
     endpoint.lead_kind,
   );
 
-  if (endpoint.channel === "site") {
-    return (
+  const steps =
+    endpoint.channel === "site" ? (
       <ol className="space-y-1.5 text-sm text-podium-gray">
         <li>
           <span className="font-semibold text-podium-white">1. </span>
@@ -1140,18 +1209,14 @@ function CampaignHelp({
         </li>
         <li>
           <span className="font-semibold text-podium-white">2. </span>
-          Campanha de tráfego aponta para essa URL.
+          Quem preencher aparece no quadro.
         </li>
         <li>
           <span className="font-semibold text-podium-white">3. </span>
-          O envio cai no quadro e aparece em Últimos envios.
+          O envio aparece em Últimos envios.
         </li>
       </ol>
-    );
-  }
-
-  if (endpoint.channel === "meta") {
-    return (
+    ) : endpoint.channel === "meta" ? (
       <ol className="space-y-1.5 text-sm text-podium-gray">
         <li>
           <span className="font-semibold text-podium-white">1. </span>
@@ -1166,47 +1231,54 @@ function CampaignHelp({
           Cada lead aparece em Últimos envios.
         </li>
       </ol>
+    ) : (
+      <div className="space-y-3">
+        <ol className="space-y-1.5 text-sm text-podium-gray">
+          <li>
+            <span className="font-semibold text-podium-white">1. </span>
+            POST no endereço desta campanha.
+          </li>
+          <li>
+            <span className="font-semibold text-podium-white">2. </span>
+            Header Authorization com o token (já vem com Bearer).
+          </li>
+          <li>
+            <span className="font-semibold text-podium-white">3. </span>
+            Body em JSON. {COPY.automacoesJsonBelow}
+          </li>
+        </ol>
+        <details
+          className="rounded-md border border-white/10 bg-black/20"
+          onClick={(event) => event.stopPropagation()}
+          onToggle={(event) => event.stopPropagation()}
+        >
+          <summary
+            className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-[11px] font-semibold text-podium-white [&::-webkit-details-marker]:hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            Exemplo de JSON
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-podium-muted" />
+          </summary>
+          <div className="space-y-2 px-3 pb-3">
+            <div className="flex justify-end">
+              <SnippetCopy value={snippet} />
+            </div>
+            <pre className="overflow-x-auto text-[11px] text-podium-muted">
+              {snippet}
+            </pre>
+          </div>
+        </details>
+      </div>
     );
-  }
 
   return (
-    <div className="space-y-3">
-      <ol className="space-y-1.5 text-sm text-podium-gray">
-        <li>
-          <span className="font-semibold text-podium-white">1. </span>
-          POST no endereço desta campanha.
-        </li>
-        <li>
-          <span className="font-semibold text-podium-white">2. </span>
-          Header Authorization com o token (já vem com Bearer).
-        </li>
-        <li>
-          <span className="font-semibold text-podium-white">3. </span>
-          Body em JSON. {COPY.automacoesJsonBelow}
-        </li>
-      </ol>
-      <details
-        className="rounded-md border border-white/10 bg-black/20"
-        onClick={(event) => event.stopPropagation()}
-        onToggle={(event) => event.stopPropagation()}
-      >
-        <summary
-          className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-[11px] font-semibold text-podium-white [&::-webkit-details-marker]:hidden"
-          onClick={(event) => event.stopPropagation()}
-        >
-          Exemplo de JSON
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-podium-muted" />
-        </summary>
-        <div className="space-y-2 px-3 pb-3">
-          <div className="flex justify-end">
-            <SnippetCopy value={snippet} />
-          </div>
-          <pre className="overflow-x-auto text-[11px] text-podium-muted">
-            {snippet}
-          </pre>
-        </div>
-      </details>
-    </div>
+    <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+        <span>{COPY.automacoesHowItWorks}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+      </summary>
+      <div className="px-3 pb-3">{steps}</div>
+    </details>
   );
 }
 

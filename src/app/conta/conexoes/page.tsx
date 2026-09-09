@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 function kindSetupHref(kind: IntegrationKind): string | null {
   if (kind === "voip") return integracoesHref("voip");
   if (kind === "dialer") return integracoesHref("dialer");
-  if (kind === "webhook") return "/automacoes";
+  if (kind === "webhook") return "/automacoes/avancado";
   return null;
 }
 
@@ -53,7 +53,7 @@ export default function ContaConexoesPage() {
           </Link>
           <span className="text-podium-muted">·</span>
           <Link href="/automacoes" className="text-podium-yellow">
-            Automações
+            Captar leads
           </Link>
         </div>
         <div className="mt-4 space-y-2">

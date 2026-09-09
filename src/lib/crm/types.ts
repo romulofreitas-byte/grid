@@ -105,9 +105,28 @@ export function normalizeFormChannel(raw: string | null | undefined): CrmFormCha
   return "site";
 }
 
+export type AutomacoesCategory = "captar" | "avancado" | "meta";
+
+export function channelForCategory(
+  category: AutomacoesCategory,
+): CrmFormChannel {
+  if (category === "captar") return "site";
+  if (category === "avancado") return "webhook";
+  return "meta";
+}
+
+export function matchesAutomacoesCategory(
+  channel: CrmFormChannel,
+  category: AutomacoesCategory,
+): boolean {
+  if (category === "captar") return channel === "site";
+  if (category === "avancado") return channel === "webhook" || channel === "ads";
+  return channel === "meta";
+}
+
 export function formChannelLabel(channel: CrmFormChannel): string {
-  if (channel === "meta" || channel === "ads") return "anúncio Meta";
-  if (channel === "webhook") return "webhook";
+  if (channel === "meta") return "anúncio Meta";
+  if (channel === "webhook" || channel === "ads") return "webhook";
   return "link no site";
 }
 

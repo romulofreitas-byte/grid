@@ -166,11 +166,12 @@ export const FAQ_ITEMS: FaqItem[] = [
     category: "Créditos",
     question: "O que é o Piloto Pro e as Automações?",
     answer:
-      "Automações — link ou embed no site e Formulário Instantâneo do Meta alimentando o quadro — entram no Piloto Pro. No Piloto você importa a planilha e liga pelo CRM.",
+      "No Piloto Pro você capta pelo formulário no site, conecta a Página do Meta para o Formulário Instantâneo cair no quadro, ou usa origem avançada (Make, Zapier, desenvolvedor). No Piloto você importa a planilha e liga pelo CRM.",
     links: [
-      { href: "/integracoes", label: "Abrir Integrações" },
+      { href: "/integracoes", label: "Conectar conta" },
+      { href: "/automacoes", label: "Captar leads" },
+      { href: "/automacoes/avancado", label: "Avançado" },
       { href: "/pagar?sku=piloto_pro", label: "Assinar o Piloto Pro" },
-      { href: "/automacoes", label: "Abrir Automações" },
     ],
   },
   {

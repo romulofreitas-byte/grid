@@ -638,18 +638,21 @@ export const COPY = {
   notFoundFaq: "Ver dúvidas",
   integracoesTitle: "Integrações",
   integracoesLead:
-    "Conecte a Página. Campanha, planilha e ligação ficam nas badges.",
+    "Conecte a Página, capte pelo site ou use origem avançada.",
+  integracoesCatConectar: "Conectar conta",
+  integracoesCatCaptar: "Captar leads",
+  integracoesCatAvancado: "Avançado",
   integracoesFacebookTitle: "Meta API",
   integracoesFacebookBody:
-    "Conecte a Página. O Formulário Instantâneo cai no quadro nas Automações.",
+    "Conecte a Página. O Formulário Instantâneo cai no quadro.",
   integracoesAutomacoesBody:
-    "Campanhas: link no site, anúncio Meta ou outra origem.",
+    "Formulário no site, anúncio Meta ou origem avançada.",
   telefoniaTitle: "Telefonia",
   telefoniaLead:
     "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
   integracoesTelefoniaBody:
     "Cole o token do VoIP para ligar da ficha, ou envie a lista ranqueada à campanha do discador.",
-  integracoesOpenAutomacoes: "Abrir Automações",
+  integracoesOpenAutomacoes: "Definir destino",
   integracoesOpenImportacoes: "Abrir Importações",
   integracoesOpenTelefonia: "Abrir Telefonia",
   integracoesProCta: "Assinar o Piloto Pro",
@@ -660,7 +663,7 @@ export const COPY = {
   integracoesGuideChainPageHint: "A Página que recebe o anúncio.",
   integracoesGuideChainForm: "Formulário Instantâneo",
   integracoesGuideChainFormHint:
-    "O formulário do anúncio. Destino fica em Automações.",
+    "O formulário do anúncio. Destino fica na campanha Meta.",
   integracoesGuideChainBoard: "Quadro",
   integracoesGuideChainBoardHint: "O lead cai no CRM sozinho.",
   integracoesGuideStart: "Começar",
@@ -678,7 +681,7 @@ export const COPY = {
   integracoesGuidePagesError: "Não foi possível ler as Páginas.",
   integracoesGuideRetry: "Tentar de novo",
   integracoesGuideHandoff:
-    "O Formulário Instantâneo e a campanha ficam em Automações.",
+    "O Formulário Instantâneo cai no quadro. Defina o destino na campanha Meta.",
   equipeTitle: "Equipe",
   equipeLead:
     "O mural da semana — quem ligou, qualificou e fechou — vive em Operações, para gestores. Aqui você deixa a foto pronta e pede vaga para o time na mesma conta.",
@@ -754,7 +757,7 @@ export const COPY = {
   importacoesFileHint:
     "Cabeçalho bagunçado serve. Casa as colunas do arquivo com o Grid — anotações viram notas do cartão.",
   importacoesInboundHint:
-    "Link no site e anúncio do Meta ficam em Automações, cada campanha com o próprio destino.",
+    "Link no site fica em Captar leads. Anúncio do Meta, em Conectar conta.",
   importacoesHistoryTitle: "Última importação",
   importacoesHistoryOlder: "Anteriores",
   importacoesHistoryShowMore: "Abrir mais ({n})",
@@ -834,32 +837,62 @@ export const COPY = {
 
   automacoesTitle: "Automações",
   automacoesLead:
-    "Link no site, anúncio do Meta ou outra origem. Cada campanha cai no quadro.",
+    "Formulário no site, anúncio do Meta ou origem avançada. Cada um cai no quadro.",
   automacoesHint:
-    "Até 10 campanhas. O lead entra no CRM sozinho.",
+    "Até 10 no total. O lead entra no CRM sozinho.",
+  automacoesCaptarHint:
+    "Formulário de captação — empresa ou pessoa. Copie o link ou o embed.",
+  automacoesAvancadoHint:
+    "Para quem já usa Make, Zapier ou tem um desenvolvedor.",
+  automacoesMetaDestHint:
+    "Escolha a Página e o Formulário Instantâneo. O lead cai no quadro.",
   automacoesUnlockBar:
-    "Crie a campanha para liberar o endereço e a chave.",
+    "Crie a origem para liberar o endereço e a chave.",
   automacoesReadyBar:
-    "Endereço e chave de {nome} já estão em Suas campanhas — a primeira linha, aberta.",
+    "Endereço e chave de {nome} já estão na lista — a primeira linha, aberta.",
+  automacoesReadyCaptar:
+    "Link de {nome} está na lista — a primeira linha, aberta.",
+  automacoesReadyAvancado:
+    "Endereço e chave de {nome} já estão na lista — a primeira linha, aberta.",
+  automacoesReadyMeta:
+    "Destino de {nome} está na lista — a primeira linha, aberta.",
   automacoesNewCta: "Nova automação",
+  automacoesNewCaptarCta: "Criar formulário de captação",
+  automacoesNewAvancadoCta: "Nova origem avançada",
+  automacoesNewMetaCta: "Definir destino",
+  automacoesCreateCaptarTitle: "Formulário de captação",
+  automacoesCreateAvancadoTitle: "Origem avançada",
+  automacoesCreateMetaTitle: "Destino do anúncio",
+  automacoesPlaceholderCaptar: "Formulário do site",
+  automacoesPlaceholderAvancado: "Make · cliente X",
+  automacoesPlaceholderMeta: "Meta Lead Ads · cliente X",
   automacoesListHint:
-    "Abra a campanha para copiar o endereço e a chave. Cada uma tem o seu par — não misture.",
+    "Abra o item para copiar o que precisa. Cada um tem o seu — não misture.",
   automacoesEventsTitle: "Últimos envios",
   automacoesEventsEmpty: "Ainda não chegou nada nesta campanha.",
-  automacoesEventsHint:
-    "Cada envio do formulário, do Meta ou do webhook aparece aqui.",
+  automacoesEventsHint: "Cada envio aparece aqui.",
   automacoesLastCreated: "Entrou",
   automacoesLastSkipped: "Já no quadro",
   automacoesLastError: "Recusado",
   automacoesPayloadLead:
     "Origem avançada: POST no endereço, header Authorization com o token, JSON no body.",
   automacoesPayloadSite:
-    "Use o link do formulário ou cole o embed no site. Campanha de tráfego do Meta aponta para essa URL.",
+    "Use o link do formulário ou cole o embed no site.",
   automacoesPayloadAds:
     "Conecte a Página. O Formulário Instantâneo do Meta cai no quadro sozinho.",
   automacoesJsonBelow: "O JSON está no bloco abaixo.",
+  automacoesHowItWorks: "Como funciona",
+  automacoesCopyLink: "Copiar link",
+  automacoesCopyEmbed: "Copiar embed",
+  automacoesCopyUrl: "Copiar endereço",
+  automacoesCopyBearer: "Copiar token",
+  automacoesCopied: "Copiado",
   automacoesDeleteTitle: "Apagar {nome}?",
   automacoesDeleteBody: "O endereço e a chave param de funcionar.",
+  automacoesDeleteBodyCaptar: "O link e o embed param de funcionar.",
+  automacoesDeleteBodyAvancado: "O endereço e a chave param de funcionar.",
+  automacoesDeleteBodyMeta:
+    "Os leads deste anúncio deixam de cair neste quadro.",
   automacoesDeleteConfirm: "Apagar",
   automacoesDeletePending: "Apagando…",
   automacoesOriginSite: "Link ou embed no site",
@@ -869,9 +902,20 @@ export const COPY = {
   automacoesConnectMetaAgain: "Conectar outra Página",
   automacoesMetaTitle: "Anúncio Meta",
   automacoesMetaHint:
-    "Conecte a Página. O Formulário Instantâneo do anúncio cai no quadro. Depois crie a campanha com origem Anúncio Meta.",
+    "Conecte a Página. O Formulário Instantâneo do anúncio cai no quadro. Depois defina o destino.",
   automacoesEmptyPane:
-    "Conecte a Meta API em Integrações, ou crie uma campanha para o link no site.",
+    "Conecte a Meta API em Integrações e defina o destino do Formulário Instantâneo.",
+  automacoesEmptyCaptarList:
+    "Nenhum formulário ainda. Crie um para copiar o link.",
+  automacoesEmptyAvancadoList:
+    "Nenhuma origem avançada. Use se já tem Make, Zapier ou um desenvolvedor.",
+  automacoesEmptyMetaList: "Nenhum destino Meta ainda.",
+  automacoesEmptyCaptarPane:
+    "Crie um formulário de captação para copiar o link ou o embed.",
+  automacoesEmptyAvancadoPane:
+    "Para quem já usa Make, Zapier ou tem um desenvolvedor.",
+  automacoesEmptyMetaPane:
+    "Conecte a Página em Integrações e defina o destino do Formulário Instantâneo.",
   automacoesMetaNotConfigured:
     "A Meta API ainda não está ligada neste GRID.",
   automacoesMetaPagesEmpty: "Nenhuma Página conectada ainda.",

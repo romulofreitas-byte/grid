@@ -773,9 +773,9 @@ export function ImportacoesPanel({
 
         {planHasFeature(billing.data?.balance.plano, "automations") ? (
           <p className="text-sm text-podium-muted">
-            Formulário no site ou anúncio do Meta?{" "}
+            Formulário no site?{" "}
             <Link href="/automacoes" className="font-semibold text-podium-yellow">
-              Abrir Automações
+              {COPY.integracoesCatCaptar}
             </Link>
           </p>
         ) : null}

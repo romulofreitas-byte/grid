@@ -1,15 +1,10 @@
-import { AppShell } from "@/components/AppShell";
-import { BACK } from "@/lib/back";
-import { COPY } from "@/lib/copy";
+import type { ReactNode } from "react";
+import { AutomacoesAppShell } from "./AutomacoesAppShell";
 
 export default function AutomacoesLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  return (
-    <AppShell fill wide lockHeight title={COPY.automacoesTitle} back={BACK.integracoes}>
-      {children}
-    </AppShell>
-  );
+  return <AutomacoesAppShell>{children}</AutomacoesAppShell>;
 }
