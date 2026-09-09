@@ -336,6 +336,10 @@ export type GridRepo = {
     pipelineId: string,
     stageIds: string[],
   ): Promise<boolean>;
+  applyCrmCadenceToOthers(
+    userId: string,
+    sourcePipelineId: string,
+  ): Promise<{ applied: number } | null>;
   createCrmDeal(
     userId: string,
     input: CrmDealCreateInput,

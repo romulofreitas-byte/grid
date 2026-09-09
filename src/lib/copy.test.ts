@@ -177,9 +177,12 @@ describe("COPY crm", () => {
     expect(COPY.crmDeadlineLabel).toBe("Prazo");
     expect(COPY.crmTimeLabel).toBe("Horário");
     expect(COPY.crmWeekLater).toMatch(/semana/i);
-    expect(COPY.crmCadenceHint).toMatch(/etapa/i);
-    expect(COPY.crmCadenceHint).toMatch(/nicho/i);
-    expect(COPY.crmCadenceHint).toMatch(/outras pipelines/i);
+    expect(COPY.crmFirstMileLocked).toMatch(/ficha/i);
+    expect(COPY.crmFirstMileLocked).toMatch(/renomear/i);
+    expect(COPY.crmCadenceApplyOthers).toMatch(/outros nichos/i);
+    expect(COPY.crmCadenceApplyHint).toMatch(/não apaga/i);
+    expect(COPY.crmCadenceApplyConfirm).toBe("Aplicar");
+    expect(COPY.crmDeleteStage).toBe("Excluir etapa");
     expect(COPY.crmDeletePipelineTransferTo).toBe("Mover para");
     expect(COPY.crmDeletePipelineConfirm).toBe("Excluir");
     expect(COPY.crmDeletePipelineTransfer).toBe("Excluir");

@@ -13,6 +13,7 @@ import {
   isCrmStageKey,
   pickCreateStage,
 } from "@/lib/crm/cadence";
+import { applyCadenceToOtherPipelines } from "@/lib/crm/cadence-apply";
 import {
   DEAL_SEARCH_MIN_CHARS,
   DEAL_SEARCH_MIN_DIGITS,
@@ -785,6 +786,26 @@ export const crmPgMethods = {
       }
       return true;
     });
+  },
+
+  async applyCrmCadenceToOthers(
+    userId: string,
+    sourcePipelineId: string,
+  ): Promise<{ applied: number } | null> {
+    return applyCadenceToOtherPipelines(
+      {
+        listPipelines: () => crmPgMethods.listCrmPipelines(userId),
+        listStages: (pipelineId) =>
+          crmPgMethods.listCrmStages(userId, pipelineId),
+        updateStageNome: (stageId, nome) =>
+          crmPgMethods.updateCrmStage(userId, stageId, { nome }),
+        createStage: (pipelineId, nome) =>
+          crmPgMethods.createCrmStage(userId, pipelineId, nome),
+        reorderStages: (pipelineId, stageIds) =>
+          crmPgMethods.reorderCrmStages(userId, pipelineId, stageIds),
+      },
+      sourcePipelineId,
+    );
   },
 
   async createCrmDeal(

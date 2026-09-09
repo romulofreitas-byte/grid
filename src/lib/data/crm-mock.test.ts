@@ -550,6 +550,58 @@ describe("crm mock board", () => {
     expect(boardAAfter!.stages).toHaveLength(snapshotB.length);
   });
 
+  it("applies cadence names and order to other nichos without deleting extras or moving deals", async () => {
+    const a = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const b = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    const extraB = await mockRepo.createCrmStage(USER, b.id, "Só no B");
+    const parked = await mockRepo.createCrmDeal(USER, {
+      pipelineId: b.id,
+      company_name: "Lead no extra",
+      stage_id: extraB!.id,
+    });
+    expect(parked?.stage_id).toBe(extraB!.id);
+
+    const boardA = await mockRepo.getCrmBoard(USER, a.id);
+    const tentando = boardA!.stages.find(
+      (stage) => stage.canonical_key === "tentando_contato",
+    )!;
+    expect(
+      await mockRepo.updateCrmStage(USER, tentando.id, { nome: "Ligando" }),
+    ).toBeTruthy();
+    const extraA = await mockRepo.createCrmStage(USER, a.id, "Pós-contrato");
+    const ids = (await mockRepo.getCrmBoard(USER, a.id))!.stages.map(
+      (stage) => stage.id,
+    );
+    const withoutExtra = ids.filter((id) => id !== extraA!.id);
+    const tentandoIndex = withoutExtra.indexOf(tentando.id);
+    expect(
+      await mockRepo.reorderCrmStages(USER, a.id, [
+        ...withoutExtra.slice(0, tentandoIndex + 1),
+        extraA!.id,
+        ...withoutExtra.slice(tentandoIndex + 1),
+      ]),
+    ).toBe(true);
+
+    expect(await mockRepo.applyCrmCadenceToOthers(USER, "missing")).toBeNull();
+    expect(await mockRepo.applyCrmCadenceToOthers(USER, a.id)).toEqual({
+      applied: 1,
+    });
+
+    const boardB = await mockRepo.getCrmBoard(USER, b.id);
+    const names = boardB!.stages.map((stage) => stage.nome);
+    expect(
+      boardB!.stages.find((stage) => stage.canonical_key === "tentando_contato")
+        ?.nome,
+    ).toBe("Ligando");
+    expect(names).toContain("Pós-contrato");
+    expect(boardB!.stages.some((stage) => stage.id === extraB!.id)).toBe(true);
+    expect(names.indexOf("Pós-contrato")).toBe(names.indexOf("Ligando") + 1);
+    expect(names.at(-1)).toBe("Só no B");
+    expect(
+      boardB!.deals.find((deal) => deal.id === parked!.id)?.stage_id,
+    ).toBe(extraB!.id);
+  });
+
   it("rejects incomplete or foreign pipeline reorder lists", async () => {
     const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
     const second = await mockRepo.createCrmPipeline(USER, "Nicho B");

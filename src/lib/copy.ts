@@ -552,9 +552,6 @@ export const COPY = {
   crmSecretaryLabel: "Secretária",
   crmSecretaryName: "Nome da secretária",
   crmAddSecretary: "Adicionar secretária",
-  crmCadenceTitle: "Cadência",
-  crmCadenceHint:
-    "Só este nicho muda — as outras pipelines ficam como estão. Você pode renomear ou reordenar as etapas. As etapas da ficha e Descartado não saem do quadro: dá para mudar o nome, não\u00a0apagar.",
   crmAddStage: "Nova etapa",
   crmDeleteStage: "Excluir etapa",
   crmMoveDealsTo: "Mover negócios para",
@@ -594,7 +591,11 @@ export const COPY = {
   crmCatchUpToastOne: "1 lead das suas listas salvas entrou no CRM.",
   crmCatchUpToastMany: "{n} leads das suas listas salvas entraram no CRM.",
   crmPastFirstMile: "Daqui em diante você acompanha só no quadro, não na ficha.",
-  crmFirstMileLocked: "Etapa da ficha — dá para renomear, não apagar.",
+  crmFirstMileLocked: "Na ficha — dá para renomear, não apagar.",
+  crmCadenceApplyOthers: "Usar nos outros nichos",
+  crmCadenceApplyHint:
+    "Renomeia e reordena as etapas padrão em {n} {nichoWord}. Não apaga etapa de ninguém.",
+  crmCadenceApplyConfirm: "Aplicar",
   crmBoxTitle: "Abra o CRM",
   crmBoxBody:
     "Com a lista salva, os leads que você qualificar entram sozinhos no CRM do nicho. Na ficha você avança até a reunião; o restante das etapas fica no quadro.",

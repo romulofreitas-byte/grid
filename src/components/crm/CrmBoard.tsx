@@ -830,6 +830,9 @@ export function CrmBoard({
           pipelineNome={board.pipeline.nome}
           stages={board.stages}
           deals={board.deals}
+          otherNichoCount={
+            pipelines.filter((row) => row.id !== board.pipeline.id).length
+          }
           onClose={() => setCadenceOpen(false)}
           onRename={async (stageId, nome) => {
             const pipelineId = board.pipeline.id;
@@ -888,6 +891,17 @@ export function CrmBoard({
             setBoard((current) =>
               current?.pipeline.id === pipelineId ? res.board : current,
             );
+          }}
+          onApplyToOthers={async () => {
+            const pipelineId = board.pipeline.id;
+            await crmFetch(`/api/crm/pipelines/${pipelineId}/cadence/apply`, {
+              method: "POST",
+            });
+            for (const row of pipelines) {
+              if (row.id === pipelineId) continue;
+              cacheRef.current.delete(row.id);
+              fetchedAtRef.current.delete(row.id);
+            }
           }}
         />
       ) : null}

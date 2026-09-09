@@ -1,5 +1,6 @@
 import { earliestOpenActivity, sortOpenActivities } from "@/lib/crm/activity";
 import { digitsCnpj } from "@/lib/crm/bridge";
+import { applyCadenceToOtherPipelines } from "@/lib/crm/cadence-apply";
 import { cloneDefaultCadenceEntries, pickCreateStage } from "@/lib/crm/cadence";
 import {
   briefingAssetsFromFields,
@@ -468,6 +469,26 @@ export const crmMockMethods = {
       if (stage) stage.position = position;
     });
     return true;
+  },
+
+  async applyCrmCadenceToOthers(
+    userId: string,
+    sourcePipelineId: string,
+  ): Promise<{ applied: number } | null> {
+    return applyCadenceToOtherPipelines(
+      {
+        listPipelines: () => crmMockMethods.listCrmPipelines(userId),
+        listStages: (pipelineId) =>
+          crmMockMethods.listCrmStages(userId, pipelineId),
+        updateStageNome: (stageId, nome) =>
+          crmMockMethods.updateCrmStage(userId, stageId, { nome }),
+        createStage: (pipelineId, nome) =>
+          crmMockMethods.createCrmStage(userId, pipelineId, nome),
+        reorderStages: (pipelineId, stageIds) =>
+          crmMockMethods.reorderCrmStages(userId, pipelineId, stageIds),
+      },
+      sourcePipelineId,
+    );
   },
 
   async createCrmDeal(
