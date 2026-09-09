@@ -620,6 +620,9 @@ export default function LeadPage() {
   }
 
   const cityLine = [d.municipioNome, est.uf].filter(Boolean).join(" · ");
+  const municipioNome = d.municipioNome;
+  const cnaeDescricao = d.cnaeDescricao;
+  const decisorNome = d.decisor?.nome ?? null;
   const crmPrompt = fichaCrmPrompt({
     hasDeal: Boolean(d.crm),
     searchSaved: Boolean(d.searchSaved),
@@ -628,19 +631,18 @@ export default function LeadPage() {
   });
 
   function enterStandaloneCrm() {
-    const primaryContact = pickPrimary(d.contacts);
     setAddHit(
       asCompanySearchHit({
         cnpj: est.cnpj,
         razaoSocial: company.razao_social,
         nomeFantasia: est.nome_fantasia,
-        municipio: d.municipioNome,
+        municipio: municipioNome,
         uf: est.uf,
-        cnaeDescricao: d.cnaeDescricao,
-        telefone: primaryContact?.telefone
-          ? `${primaryContact.ddd ?? ""}${primaryContact.telefone}`
+        cnaeDescricao,
+        telefone: primary?.telefone
+          ? `${primary.ddd ?? ""}${primary.telefone}`
           : null,
-        decisorNome: d.decisor?.nome ?? null,
+        decisorNome,
       }),
     );
   }
