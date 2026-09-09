@@ -82,7 +82,10 @@ function cleanList(values: string[] | undefined): string[] {
 function pipelinesOf(store: MockStore, userId: string): CrmPipeline[] {
   return store.crm_pipelines
     .filter((row) => row.user_id === userId)
-    .sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at));
+    .sort(
+      (a, b) =>
+        a.position - b.position || b.created_at.localeCompare(a.created_at),
+    );
 }
 
 function stagesOf(store: MockStore, pipelineId: string): CrmStage[] {
@@ -203,18 +206,26 @@ function insertEvent(
   return row;
 }
 
+function compactPipelinePositions(store: MockStore, userId: string): void {
+  pipelinesOf(store, userId).forEach((row, index) => {
+    row.position = index;
+  });
+}
+
 function createPipelineWithCadence(
   store: MockStore,
   userId: string,
   nome: string,
 ): CrmPipeline {
-  const siblings = pipelinesOf(store, userId);
+  for (const sibling of store.crm_pipelines) {
+    if (sibling.user_id === userId) sibling.position += 1;
+  }
   const created = nowIso();
   const pipeline: CrmPipeline = {
     id: id(),
     user_id: userId,
     nome,
-    position: siblings.length,
+    position: 0,
     created_at: created,
   };
   store.crm_pipelines.push(pipeline);
@@ -367,6 +378,7 @@ export const crmMockMethods = {
     store.crm_pipelines = store.crm_pipelines.filter(
       (row) => row.id !== pipelineId,
     );
+    compactPipelinePositions(store, userId);
     return true;
   },
 

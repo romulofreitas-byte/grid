@@ -402,21 +402,39 @@ async function insertCadence(
   }
 }
 
+async function compactPipelinePositions(
+  q: SqlQuery,
+  userId: string,
+): Promise<void> {
+  await q(
+    `with ranked as (
+       select id,
+              row_number() over (order by position, created_at desc) - 1 as new_position
+         from crm_pipelines
+        where user_id = $1
+     )
+     update crm_pipelines p
+        set position = ranked.new_position
+       from ranked
+      where p.id = ranked.id`,
+    [userId],
+  );
+}
+
 async function createPipelineRow(
   q: SqlQuery,
   userId: string,
   nome: string,
 ): Promise<CrmPipeline> {
-  const count = await q(
-    `select count(*)::int as n from crm_pipelines where user_id = $1`,
+  await q(
+    `update crm_pipelines set position = position + 1 where user_id = $1`,
     [userId],
   );
-  const position = Number(count.rows[0]?.n ?? 0);
   const inserted = await q(
     `insert into crm_pipelines (user_id, nome, position)
-     values ($1, $2, $3)
+     values ($1, $2, 0)
      returning *`,
-    [userId, nome, position],
+    [userId, nome],
   );
   const pipeline = mapPipeline(inserted.rows[0]!);
   await insertCadence(q, pipeline.id);
@@ -425,7 +443,7 @@ async function createPipelineRow(
 
 async function listPipelineRows(userId: string): Promise<CrmPipeline[]> {
   const { rows } = await query(
-    `select * from crm_pipelines where user_id = $1 order by position, created_at`,
+    `select * from crm_pipelines where user_id = $1 order by position, created_at desc`,
     [userId],
   );
   return rows.map(mapPipeline);
@@ -551,7 +569,7 @@ export const crmPgMethods = {
             group by d.pipeline_id
          ) c on c.pipeline_id = p.id
         where p.user_id = $1
-        order by p.position, p.created_at`,
+        order by p.position, p.created_at desc`,
       [userId],
     );
     return rows.map((row) => ({
@@ -638,6 +656,7 @@ export const crmPgMethods = {
         pipelineId,
         userId,
       ]);
+      await compactPipelinePositions(q, userId);
       return true;
     });
   },

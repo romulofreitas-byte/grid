@@ -90,7 +90,7 @@ async function loadPainelMetricsPg(
          left join crm_deals d on d.pipeline_id = p.id
         where p.user_id = $1
         group by p.id, p.nome, p.position, p.created_at
-        order by p.position, p.created_at`,
+        order by p.position, p.created_at desc`,
       [userId],
     ),
     optionalQuery<{

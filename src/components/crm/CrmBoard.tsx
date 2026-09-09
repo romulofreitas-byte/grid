@@ -675,8 +675,8 @@ export function CrmBoard({
               body: JSON.stringify({ nome }),
             });
             setPipelines((current) => [
-              ...current,
               { ...res.pipeline, deal_count: 0 },
+              ...current,
             ]);
             setBoard(res.board);
             setSelectedPipelineId(res.board.pipeline.id);
@@ -902,7 +902,7 @@ export function CrmBoard({
             setPipelines((current) =>
               current.some((row) => row.id === pipeline.id)
                 ? current
-                : [...current, { ...pipeline, deal_count: 0 }],
+                : [{ ...pipeline, deal_count: 0 }, ...current],
             );
             cacheRef.current.set(nextBoard.pipeline.id, nextBoard);
             fetchedAtRef.current.set(nextBoard.pipeline.id, Date.now());

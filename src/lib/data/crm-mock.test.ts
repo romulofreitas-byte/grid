@@ -460,6 +460,25 @@ describe("crm mock board", () => {
     expect(afterEvents).toHaveLength(beforeEvents!.length);
   });
 
+  it("lists newly created pipelines first", async () => {
+    const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const second = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    const listed = await mockRepo.listCrmPipelines(USER);
+    expect(listed.map((row) => row.id)).toEqual([second.id, first.id]);
+    expect(listed.map((row) => row.position)).toEqual([0, 1]);
+  });
+
+  it("puts a new pipeline on top after deleting one in the middle", async () => {
+    const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
+    const second = await mockRepo.createCrmPipeline(USER, "Nicho B");
+    const third = await mockRepo.createCrmPipeline(USER, "Nicho C");
+    expect(await mockRepo.deleteCrmPipeline(USER, second.id)).toBe(true);
+    const created = await mockRepo.createCrmPipeline(USER, "Nicho D");
+    const listed = await mockRepo.listCrmPipelines(USER);
+    expect(listed.map((row) => row.id)).toEqual([created.id, third.id, first.id]);
+    expect(listed.map((row) => row.position)).toEqual([0, 1, 2]);
+  });
+
   it("reorders pipelines and lists them in the new order", async () => {
     const first = await mockRepo.createCrmPipeline(USER, "Nicho A");
     const second = await mockRepo.createCrmPipeline(USER, "Nicho B");
@@ -543,8 +562,8 @@ describe("crm mock board", () => {
       ]),
     ).toBe(false);
     expect((await mockRepo.listCrmPipelines(USER)).map((row) => row.id)).toEqual([
-      first.id,
       second.id,
+      first.id,
     ]);
   });
 });
