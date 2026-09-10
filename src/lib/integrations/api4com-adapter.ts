@@ -161,6 +161,9 @@ export function parseApi4comInbound(rawBody: string): OutcomeEvent | null {
   const recordingUrl =
     pickString(nested, ["recordUrl", "record_url", "recording_url"]) ??
     pickString(root, ["recordUrl", "record_url"]);
+  const dealId =
+    pickString(metadata, ["deal_id", "dealId"]) ??
+    pickString(root, ["deal_id", "dealId"]);
   return {
     cnpj: pickCnpj(metadata),
     e164: calledToE164(to),
@@ -172,6 +175,7 @@ export function parseApi4comInbound(rawBody: string): OutcomeEvent | null {
       pickString(root, ["id", "call_id", "uuid"]),
     notes: api4comHangupNote(cause),
     recordingUrl,
+    dealId,
   };
 }
 
@@ -199,6 +203,7 @@ export function createApi4comAdapter(): IntegrationAdapter {
             cnpj: call.cnpj || undefined,
             search_id: call.searchId,
             connection_id: ctx.connectionId,
+            deal_id: call.dealId || undefined,
           },
         }),
       });

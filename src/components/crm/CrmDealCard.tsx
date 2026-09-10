@@ -221,6 +221,7 @@ function DealCardFace({
             cnpj={deal.cnpj}
             searchId={deal.meta.searchId}
             to={phone}
+            dealId={deal.id}
             titleHint={COPY.crmCallNow}
             companyName={displayCrmName(deal.company_name)}
             phoneLabel={formatPhoneDisplay(phone)}

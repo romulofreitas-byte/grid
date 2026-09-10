@@ -806,6 +806,7 @@ export function CrmBoard({
             deal={openDeal}
             stages={board.stages}
             pipelineNome={board.pipeline.nome}
+            connection={callConnection}
             onClose={() => openDealCard(null)}
             onChange={replaceDeal}
             onMoveStage={(stageId) => {

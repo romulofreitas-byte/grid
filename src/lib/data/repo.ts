@@ -433,6 +433,7 @@ export type GridRepo = {
     dealId: string,
     eventId: string,
     body: string,
+    meta?: CrmEvent["meta"],
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
   setCrmDealOutcome(
     userId: string,

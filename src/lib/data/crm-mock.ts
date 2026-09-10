@@ -1012,6 +1012,7 @@ export const crmMockMethods = {
     dealId: string,
     eventId: string,
     body: string,
+    meta?: CrmEvent["meta"],
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);
@@ -1021,6 +1022,7 @@ export const crmMockMethods = {
     );
     if (!event) return null;
     event.body = body;
+    if (meta) event.meta = { ...event.meta, ...meta };
     event.updated_at = nowIso();
     if (body.trim()) deal.notes = body;
     deal.updated_at = event.updated_at;

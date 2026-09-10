@@ -16,10 +16,11 @@ const schema = z
       .optional(),
     searchId: z.string().uuid().nullable().optional(),
     to: z.string().max(32).optional(),
+    dealId: z.string().uuid().optional(),
     test: z.boolean().optional(),
   })
-  .refine((body) => body.test || Boolean(body.cnpj), {
-    message: "cnpj or test is required",
+  .refine((body) => body.test || Boolean(body.cnpj) || Boolean(body.to?.trim()), {
+    message: "cnpj, to, or test is required",
   });
 
 function jobExternalId(job: IntegrationJobRecord): string | null {
@@ -69,7 +70,11 @@ export async function POST(req: Request) {
     search_id: parsed.data.searchId ?? null,
     verb: "originate_call",
     provider: connection.provider,
-    payload: { cnpj: parsed.data.cnpj, to: parsed.data.to ?? null },
+    payload: {
+      cnpj: parsed.data.cnpj ?? "",
+      to: parsed.data.to ?? null,
+      dealId: parsed.data.dealId ?? null,
+    },
   });
   await drainIntegrationJobs(4);
   const settled =

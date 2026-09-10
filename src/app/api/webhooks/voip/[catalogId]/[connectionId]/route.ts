@@ -83,6 +83,7 @@ export async function POST(
     durationSec: parsed.durationSec,
     externalId: parsed.externalId,
     recordingUrl: parsed.recordingUrl,
+    dealId: parsed.dealId,
     forceStatus: "ligando",
   });
   return NextResponse.json(result);

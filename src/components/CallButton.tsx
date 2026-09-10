@@ -9,7 +9,10 @@ import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { buttonClassName } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import { resolveCatalogItem } from "@/lib/integrations/catalog";
-import { type CallConnectionPick } from "@/lib/integrations/call-target";
+import {
+  canPlaceVoipCall,
+  type CallConnectionPick,
+} from "@/lib/integrations/call-target";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
@@ -53,13 +56,17 @@ export function CallButton({
   phoneLabel,
   skipRecord = false,
   iconOnly = false,
+  dealId,
+  disabled = false,
+  onConfirmOpenChange,
 }: {
   telHref: string | null;
   connection: CallConnectionPick | null;
   cnpj?: string | null;
   searchId?: string | null;
   to?: string;
-  variant?: "grid" | "ficha" | "cockpit" | "card";
+  dealId?: string | null;
+  variant?: "grid" | "ficha" | "cockpit" | "card" | "crm" | "inline";
   label?: string;
   onCalled?: () => void;
   className?: string;
@@ -69,6 +76,8 @@ export function CallButton({
   /** CRM cards record via complete/log themselves. */
   skipRecord?: boolean;
   iconOnly?: boolean;
+  disabled?: boolean;
+  onConfirmOpenChange?: (open: boolean) => void;
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -77,7 +86,12 @@ export function CallButton({
     externalId: string;
   } | null>(null);
   const dialCnpj = usableCnpj(cnpj);
-  const originate = Boolean(connection && dialCnpj);
+  const originate = canPlaceVoipCall(connection, { cnpj: dialCnpj, to });
+
+  function setConfirmOpen(next: boolean) {
+    setOpen(next);
+    onConfirmOpenChange?.(next);
+  }
 
   useEffect(() => {
     if (!liveCall) return;
@@ -100,15 +114,16 @@ export function CallButton({
 
   const callMutation = useMutation({
     mutationFn: async () => {
-      if (originate && connection && dialCnpj) {
+      if (originate && connection) {
         const res = await fetch("/api/integrations/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             connectionId: connection.id,
-            cnpj: dialCnpj,
+            cnpj: dialCnpj ?? undefined,
             searchId: searchId ?? null,
             to,
+            dealId: dealId ?? undefined,
           }),
         });
         const body = (await res.json()) as {
@@ -129,7 +144,7 @@ export function CallButton({
       return { hangup: false as const };
     },
     onSuccess: (result) => {
-      setOpen(false);
+      setConfirmOpen(false);
       if (result.hangup && connection) {
         setLiveCall({ connectionId: connection.id, externalId: result.externalId });
       }
@@ -158,10 +173,11 @@ export function CallButton({
   const live = Boolean(liveCall);
   const idleLabel = live ? COPY.callHangup : (label ?? "Ligar");
   const hideLabel = iconOnly || variant === "card";
-  const catalogItem =
-    originate && connection && !hideLabel && !live
-      ? resolveCatalogItem(connection.catalog_id, connection.display_name)
-      : undefined;
+  const showCatalog =
+    originate && connection && !hideLabel && !live && variant !== "crm" && variant !== "inline";
+  const catalogItem = showCatalog
+    ? resolveCatalogItem(connection!.catalog_id, connection!.display_name)
+    : undefined;
   const pending = live ? hangupMutation.isPending : callMutation.isPending;
   const actionError = live ? hangupMutation.error : callMutation.error;
 
@@ -174,13 +190,23 @@ export function CallButton({
           "disabled:opacity-40",
           className,
         )
-      : variant === "cockpit"
-        ? buttonClassName({
-            variant: "primary",
-            size: "md",
-            className: cn("w-full gap-2", className),
-          })
-        : buttonClassName({ variant: "secondary", size: "sm", className });
+      : variant === "crm"
+        ? cn(
+            "inline-flex min-h-11 items-center gap-1 rounded-md bg-podium-yellow px-3 text-sm font-medium text-podium-navy hover:brightness-110 disabled:opacity-50 md:min-h-0 md:px-2.5 md:py-1 md:text-[11px]",
+            className,
+          )
+        : variant === "inline"
+          ? cn(
+              "inline-flex items-center gap-0.5 text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50",
+              className,
+            )
+          : variant === "cockpit"
+            ? buttonClassName({
+                variant: "primary",
+                size: "md",
+                className: cn("w-full gap-2", className),
+              })
+            : buttonClassName({ variant: "secondary", size: "sm", className });
 
   const title = actionError
     ? actionError.message
@@ -200,13 +226,13 @@ export function CallButton({
       >
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || disabled}
           onClick={() => {
             if (live) {
               hangupMutation.mutate();
               return;
             }
-            setOpen(true);
+            setConfirmOpen(true);
           }}
           aria-label={title}
           title={title}
@@ -247,7 +273,7 @@ export function CallButton({
               error={callMutation.error?.message ?? null}
               onClose={() => {
                 if (callMutation.isPending) return;
-                setOpen(false);
+                setConfirmOpen(false);
               }}
               onConfirm={() => callMutation.mutate()}
             />,

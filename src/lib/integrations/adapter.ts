@@ -26,6 +26,7 @@ export type OriginateInput = {
   from?: string | null;
   cnpj: string;
   searchId: string | null;
+  dealId?: string | null;
 };
 
 export type CallResult = {
@@ -43,6 +44,7 @@ export type OutcomeEvent = {
   externalId?: string;
   occurredAt?: string;
   recordingUrl?: string;
+  dealId?: string;
 };
 
 export type IntegrationAdapter = {

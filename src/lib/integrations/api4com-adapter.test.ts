@@ -199,6 +199,20 @@ describe("parseApi4comInbound", () => {
     expect(parsed?.e164).toBe("+554833328530");
     expect(parsed?.externalId).toBe("2ee13fa4-975c-499d-bbb8-5177ff418316");
     expect(parsed?.recordingUrl).toContain("2ee13fa4-975c-499d-bbb8-5177ff418316.mp3");
+    expect(parsed?.dealId).toBeUndefined();
+  });
+
+  it("reads deal_id from hangup metadata", () => {
+    const parsed = parseApi4comInbound(
+      JSON.stringify({
+        ...OFFICIAL_HANGUP,
+        metadata: {
+          ...OFFICIAL_HANGUP.metadata,
+          deal_id: "22222222-2222-4222-8222-222222222222",
+        },
+      }),
+    );
+    expect(parsed?.dealId).toBe("22222222-2222-4222-8222-222222222222");
   });
 
   it("ignores channel-answer", () => {

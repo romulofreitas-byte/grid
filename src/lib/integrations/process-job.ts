@@ -14,6 +14,7 @@ import { toLeadOutbound } from "./lead-outbound";
 import { appOrigin, inboundWebhookPath } from "./records";
 import type { IntegrationJobRecord } from "./records";
 import type { IntegrationProvider } from "./schema";
+import { resolveOriginateTarget } from "./originate-target";
 import { toLeadDialE164 } from "./voip-dial";
 
 /** Originate and inbound outcomes never debit. push_list is billed in the API via debitExport. */
@@ -150,12 +151,14 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       });
       return;
     }
-    const cnpj = String(job.payload?.cnpj ?? "");
-    const dossier = await repo.getDossier(cnpj, job.search_id ?? undefined);
-    if (!dossier) throw new Error("lead not found");
-    const primary = dossier.contacts[0];
+    const target = resolveOriginateTarget(job.payload);
+    const dossier = target.cnpj
+      ? await repo.getDossier(target.cnpj, job.search_id ?? undefined)
+      : null;
+    if (!target.skipLeadRecord && !dossier) throw new Error("lead not found");
+    const primary = dossier?.contacts[0];
     const rawTo =
-      String(job.payload?.to ?? "") ||
+      target.rawTo ||
       (primary
         ? normalizePhoneBR(`${primary.ddd ?? ""}${primary.telefone ?? ""}`, primary.ddd)
             ?.e164 ?? `+${toE164(primary.ddd, primary.telefone)}`
@@ -166,8 +169,9 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       {
         toE164: to,
         from: connection.caller_id,
-        cnpj,
+        cnpj: target.cnpj,
         searchId: job.search_id,
+        dealId: target.dealId,
       },
       ctx,
     );
@@ -177,23 +181,25 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       job_id: job.id,
       direction: "outbound",
       event_type: "call.originated",
-      cnpj,
+      cnpj: target.cnpj || null,
       e164: to,
       external_id: result.externalId ?? null,
       disposition: null,
       lead_status: "ligando",
-      payload_summary: { accepted: result.accepted },
+      payload_summary: { accepted: result.accepted, deal_id: target.dealId },
     });
-    await recordCompletedCall(repo, {
-      userId: job.user_id,
-      cnpj,
-      savedLeadId: dossier.savedLeadId,
-      search: job.search_id
-        ? ((await repo.getSearch(job.search_id)) ?? null)
-        : null,
-      source: "dialer",
-      completeOpenLigar: false,
-    });
+    if (!target.skipLeadRecord && dossier) {
+      await recordCompletedCall(repo, {
+        userId: job.user_id,
+        cnpj: target.cnpj,
+        savedLeadId: dossier.savedLeadId,
+        search: job.search_id
+          ? ((await repo.getSearch(job.search_id)) ?? null)
+          : null,
+        source: "dialer",
+        completeOpenLigar: false,
+      });
+    }
     await repo.updateIntegrationJob(job.id, {
       status: "done",
       result: { accepted: result.accepted, externalId: result.externalId ?? null },

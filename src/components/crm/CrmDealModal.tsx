@@ -22,7 +22,7 @@ import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { GridPresenceIcons } from "@/components/GridPresenceIcons";
-import { CallConfirmDialog } from "@/components/CallConfirmDialog";
+import { CallButton } from "@/components/CallButton";
 import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
 import { formatNichoCidade } from "@/lib/nicho-cidade";
@@ -63,6 +63,7 @@ import {
   waHrefFromPhone,
 } from "@/lib/crm/dial";
 import {
+  CRM_CALL_RECORDING_LABEL,
   CRM_COMPOSER_KINDS,
   eventTitle,
   formatEventWhen,
@@ -88,6 +89,7 @@ import type {
 import { formatCentsInput, maskDealAmountTyping, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
+import type { CallConnectionPick } from "@/lib/integrations/call-target";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
@@ -337,11 +339,13 @@ export function CrmDealModal({
   onDeleted,
   onTransferred,
   onMoveStage,
+  connection = null,
 }: {
   deal: CrmDealCard;
   stages: CrmStage[];
   pipelineNome: string;
   pipelines?: CrmPipelineSummary[];
+  connection?: CallConnectionPick | null;
   onClose: () => void;
   onChange: (deal: CrmDealCard) => void;
   onDeleted: (dealId: string) => void;
@@ -385,7 +389,7 @@ export function CrmDealModal({
   const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [callPrompt, setCallPrompt] = useState<{ phone: string } | null>(null);
+  const [callDialogOpen, setCallDialogOpen] = useState(false);
   const [celebrateCompany, setCelebrateCompany] = useState<string | null>(
     null,
   );
@@ -522,12 +526,12 @@ export function CrmDealModal({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
-      if (celebrateCompany || callPrompt) return;
+      if (celebrateCompany || callDialogOpen) return;
       onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, celebrateCompany, callPrompt]);
+  }, [onClose, celebrateCompany, callDialogOpen]);
 
   async function patch(payload: Record<string, unknown>) {
     const res = await crmFetch<{ deal: CrmDealCard }>(
@@ -661,46 +665,6 @@ export function CrmDealModal({
         person.phone.trim() ? [person.phone] : [],
       ),
     ]);
-  }
-
-  function dialPhone(raw: string | null) {
-    if (!raw) {
-      companyPhoneRef.current?.focus();
-      setError(COPY.crmNoPhone);
-      return false;
-    }
-    const href = telHrefFromPhone(raw);
-    if (!href) {
-      setError(COPY.crmNoPhone);
-      return false;
-    }
-    launchHref(href);
-    return true;
-  }
-
-  function askCall(phone?: string) {
-    setError(null);
-    const target = phone ?? firstDialablePhone(dialTargets());
-    if (!target) {
-      companyPhoneRef.current?.focus();
-      setError(COPY.crmNoPhone);
-      return;
-    }
-    const href = telHrefFromPhone(target);
-    if (!href) {
-      setError(COPY.crmNoPhone);
-      return;
-    }
-    setCallPrompt({ phone: target });
-  }
-
-  function confirmCall() {
-    const phone = callPrompt?.phone;
-    if (!phone) return;
-    setError(null);
-    setCallPrompt(null);
-    if (!dialPhone(phone)) return;
-    void recordCallAfterDial();
   }
 
   async function recordCallAfterDial() {
@@ -1091,15 +1055,34 @@ export function CrmDealModal({
                 {headerContact}
               </span>
             ) : null}
-            <button
-              type="button"
-              disabled={saving || !headerPhone}
-              onClick={() => askCall(headerPhone ?? undefined)}
-              className="inline-flex min-h-11 items-center gap-1 rounded-md bg-podium-yellow px-3 text-sm font-medium text-podium-navy hover:brightness-110 disabled:opacity-50 md:min-h-0 md:px-2.5 md:py-1 md:text-[11px]"
-            >
-              <Phone className="h-4 w-4 md:h-3.5 md:w-3.5" />
-              {COPY.crmCallNow}
-            </button>
+            {headerPhone ? (
+              <CallButton
+                variant="crm"
+                skipRecord
+                disabled={saving}
+                telHref={telHrefFromPhone(headerPhone)}
+                connection={connection}
+                cnpj={deal.cnpj}
+                searchId={deal.meta.searchId}
+                to={headerPhone}
+                dealId={deal.id}
+                label={COPY.crmCallNow}
+                titleHint={COPY.crmCallNow}
+                companyName={deal.company_name}
+                phoneLabel={formatPhoneDisplay(headerPhone)}
+                onConfirmOpenChange={setCallDialogOpen}
+                onCalled={() => void recordCallAfterDial()}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex min-h-11 items-center gap-1 rounded-md bg-podium-yellow px-3 text-sm font-medium text-podium-navy opacity-50 md:min-h-0 md:px-2.5 md:py-1 md:text-[11px]"
+              >
+                <Phone className="h-4 w-4 md:h-3.5 md:w-3.5" />
+                {COPY.crmCallNow}
+              </button>
+            )}
             <button
               type="button"
               disabled={saving || !headerPhone}
@@ -1267,15 +1250,34 @@ export function CrmDealModal({
                           />
                         </button>
                         {activity.kind === "ligar" ? (
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => askCall()}
-                            className="inline-flex items-center gap-0.5 text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50"
-                          >
-                            <Phone className="h-3 w-3" />
-                            {COPY.crmCallNow}
-                          </button>
+                          headerPhone ? (
+                            <CallButton
+                              variant="inline"
+                              skipRecord
+                              disabled={saving}
+                              telHref={telHrefFromPhone(headerPhone)}
+                              connection={connection}
+                              cnpj={deal.cnpj}
+                              searchId={deal.meta.searchId}
+                              to={headerPhone}
+                              dealId={deal.id}
+                              label={COPY.crmCallNow}
+                              titleHint={COPY.crmCallNow}
+                              companyName={deal.company_name}
+                              phoneLabel={formatPhoneDisplay(headerPhone)}
+                              onConfirmOpenChange={setCallDialogOpen}
+                              onCalled={() => void recordCallAfterDial()}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center gap-0.5 text-[10px] text-podium-muted opacity-50"
+                            >
+                              <Phone className="h-3 w-3" />
+                              {COPY.crmCallNow}
+                            </button>
+                          )
                         ) : activity.kind === "whatsapp" ? (
                           <button
                             type="button"
@@ -1400,6 +1402,15 @@ export function CrmDealModal({
                           <p className="mt-1 font-mono text-[10px] text-podium-muted">
                             {event.meta.phone}
                           </p>
+                        ) : null}
+                        {event.meta.record_url ? (
+                          <audio
+                            className="mt-2 w-full"
+                            controls
+                            preload="none"
+                            src={event.meta.record_url}
+                            aria-label={CRM_CALL_RECORDING_LABEL}
+                          />
                         ) : null}
                       </article>
                     );
@@ -1643,14 +1654,6 @@ export function CrmDealModal({
         </div>
       </motion.div>
     </motion.div>
-      <CallConfirmDialog
-        open={Boolean(callPrompt)}
-        companyName={deal.company_name}
-        phoneLabel={callPrompt ? formatPhoneDisplay(callPrompt.phone) : null}
-        pending={false}
-        onClose={() => setCallPrompt(null)}
-        onConfirm={() => confirmCall()}
-      />
     </>
   );
 }

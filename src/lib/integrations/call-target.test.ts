@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   callViaLabel,
+  canPlaceVoipCall,
   pickCallConnection,
   testCallDestination,
   type CallConnectionPick,
@@ -78,6 +79,22 @@ describe("pickCallConnection", () => {
         conn({ id: "pending", kind: "voip", status: "pending" }),
       ]),
     ).toBeNull();
+  });
+});
+
+describe("canPlaceVoipCall", () => {
+  const voip = conn({
+    id: "v",
+    kind: "voip",
+    provider: "api4com",
+    display_name: "API4COM",
+  });
+
+  it("accepts a number without CNPJ", () => {
+    expect(canPlaceVoipCall(voip, { to: "3134113893" })).toBe(true);
+    expect(canPlaceVoipCall(voip, { cnpj: "12345678000190" })).toBe(true);
+    expect(canPlaceVoipCall(voip, {})).toBe(false);
+    expect(canPlaceVoipCall(null, { to: "3134113893" })).toBe(false);
   });
 });
 

@@ -223,6 +223,9 @@ function mapEventMeta(value: unknown): CrmEvent["meta"] {
   if (raw.outcome === "open" || raw.outcome === "won" || raw.outcome === "lost") {
     meta.outcome = raw.outcome;
   }
+  if (typeof raw.record_url === "string" && raw.record_url.startsWith("https://")) {
+    meta.record_url = raw.record_url;
+  }
   return meta;
 }
 
@@ -1746,15 +1749,21 @@ export const crmPgMethods = {
     dealId: string,
     eventId: string,
     body: string,
+    meta?: CrmEvent["meta"],
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
       const updated = await q(
         `update crm_events
-            set body = $3, updated_at = now()
+            set body = $3,
+                meta = case
+                  when $4::jsonb is null then meta
+                  else coalesce(meta, '{}'::jsonb) || $4::jsonb
+                end,
+                updated_at = now()
           where id = $1 and deal_id = $2
           returning *`,
-        [eventId, dealId, body],
+        [eventId, dealId, body, meta ? JSON.stringify(meta) : null],
       );
       if (!updated.rows[0]) return null;
       if (body.trim()) {

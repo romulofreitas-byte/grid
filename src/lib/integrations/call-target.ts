@@ -19,6 +19,17 @@ function canPlaceCall(provider: IntegrationProvider): boolean {
   );
 }
 
+/** VoIP click-to-call: CNPJ or a destination number is enough. */
+export function canPlaceVoipCall(
+  connection: CallConnectionPick | null | undefined,
+  input: { cnpj?: string | null; to?: string | null },
+): boolean {
+  if (!connection) return false;
+  const digits = (input.cnpj ?? "").replace(/\D/g, "");
+  if (digits.length === 14) return true;
+  return Boolean(input.to?.trim());
+}
+
 /** Active discador/VoIP/webhook for click-to-call. Never CRM. */
 export function pickCallConnection(
   connections: readonly CallConnectionPick[],

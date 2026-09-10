@@ -9,6 +9,8 @@ import type {
 
 export const CRM_EVENT_HISTORY_LIMIT = 50;
 
+export const CRM_CALL_RECORDING_LABEL = "Gravação da ligação";
+
 export const CRM_COMPOSER_KINDS = [
   "nota",
   "ligar",

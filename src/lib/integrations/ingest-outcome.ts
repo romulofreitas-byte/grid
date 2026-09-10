@@ -1,5 +1,6 @@
 import type { LeadStatus } from "@/lib/types";
 import { crmAllowed } from "@/lib/billing/service";
+import { attachCallRecordingToDeal } from "@/lib/crm/attach-recording";
 import { getRepo } from "@/lib/data";
 import { advanceCrmOnDisposition } from "@/lib/crm/lead-sync";
 import type { IntegrationConnectionRecord } from "./records";
@@ -15,6 +16,7 @@ export async function ingestCallOutcome(input: {
   durationSec?: number;
   externalId?: string;
   recordingUrl?: string;
+  dealId?: string;
   /** VoIP hangup only confirms the call — never reunião/descarte. */
   forceStatus?: LeadStatus | null;
 }): Promise<{ ok: true; status: LeadStatus | null; matched: boolean }> {
@@ -28,13 +30,15 @@ export async function ingestCallOutcome(input: {
     e164: input.e164,
   });
 
+  const mayWriteCrm = await crmAllowed(input.connection.user_id);
+
   if (lead && status) {
     await repo.updateLead(lead.id, {
       status,
       ...(input.notes ? { notas: input.notes } : {}),
     });
     try {
-      if (await crmAllowed(input.connection.user_id)) {
+      if (mayWriteCrm) {
         await advanceCrmOnDisposition(repo, {
           userId: input.connection.user_id,
           cnpj: lead.cnpj,
@@ -45,6 +49,20 @@ export async function ingestCallOutcome(input: {
     } catch {
       // Disposition still landed on saved_leads.
     }
+  }
+
+  try {
+    if (mayWriteCrm) {
+      await attachCallRecordingToDeal(repo, {
+        userId: input.connection.user_id,
+        dealId: input.dealId,
+        cnpj: input.cnpj ?? lead?.cnpj ?? null,
+        recordingUrl: input.recordingUrl,
+        phone: input.e164,
+      });
+    }
+  } catch {
+    // Recording still sits on integration_events.
   }
 
   await repo.insertIntegrationEvent({

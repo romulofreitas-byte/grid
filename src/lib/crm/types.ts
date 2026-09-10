@@ -290,6 +290,7 @@ export type CrmDeal = {
 export type CrmEventMeta = {
   phone?: string;
   outcome?: CrmOutcome;
+  record_url?: string;
 };
 
 export type CrmEvent = {
