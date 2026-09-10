@@ -65,10 +65,12 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano pelo que destrava no dia",
   landingPlansBody:
-    "No Treino livre você sente a lista. O Piloto libera o CRM, a meta do dia e importar a planilha. O Pro traz Automações: o lead do site e do anúncio cai no quadro.",
+    "No Treino livre você sente a lista. O Piloto libera o CRM, o VoIP, o Box de ligação e importar a planilha. O Pro traz Automações: o lead do site e do anúncio cai no quadro.",
   landingPlansPayHint: "Pix, cartão ou boleto no checkout.",
   planosCreditNote:
     "Qualificar custa 1 crédito. O crédito do plano zera no mês.",
+  planosRecargaBody:
+    "Acabou no meio do mês. Não expira e soma no saldo — não substitui o plano.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",
@@ -78,6 +80,7 @@ export const COPY = {
     "Ainda não está à venda. Entre na lista e a gente avisa quando abrir.",
   landingPlansProEyebrow: "Lista de espera",
   landingPlansFeatured: "Mais escolhido",
+  landingPlansPackFeatured: "Mais usado",
   landingPlansShowAll: "Ver tudo",
   landingPlansShowLess: "Ver menos",
   landingFinalTitle: "Comece pela lista. Ligue no mesmo\u00a0dia.",

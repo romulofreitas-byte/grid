@@ -367,11 +367,15 @@ describe("COPY landing", () => {
     expect(COPY.landingPlansTitle).toMatch(/destrava/i);
     expect(COPY.landingPlansBody).toMatch(/Treino livre/);
     expect(COPY.landingPlansBody).toMatch(/Piloto libera o CRM/);
+    expect(COPY.landingPlansBody).toMatch(/VoIP/);
+    expect(COPY.landingPlansBody).toMatch(/Box de ligação/);
     expect(COPY.landingPlansBody).toMatch(/importar a planilha/);
     expect(COPY.landingPlansBody).toMatch(/Automações/);
     expect(COPY.landingPlansBody).not.toMatch(/export/i);
     expect(COPY.landingPlansPayHint).toMatch(/Pix/i);
     expect(COPY.planosCreditNote).toMatch(/1 crédito/i);
+    expect(COPY.planosRecargaBody).toMatch(/não substitui o plano/i);
+    expect(COPY.landingPlansPackFeatured).toBe("Mais usado");
     expect(COPY.landingPlansShowAll).toBe("Ver tudo");
     expect(COPY.landingPlansShowLess).toBe("Ver menos");
   });

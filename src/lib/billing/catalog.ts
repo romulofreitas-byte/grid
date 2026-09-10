@@ -47,7 +47,10 @@ export type PackDefinition = {
   tagline: string;
   priceCents: number;
   credits: number;
+  badges: PlanBadge[];
   highlights: string[];
+  details: string[];
+  notes?: string[];
 };
 
 export type CatalogItem = PlanDefinition | PackDefinition;
@@ -105,9 +108,9 @@ export const PLANS: PlanDefinition[] = [
     audience: "Para quem liga toda semana",
     tagline: "A lista vira o dia — não uma planilha.",
     badges: [
-      { label: "Toda semana", tone: "muted" },
       { label: "CRM", tone: "yellow" },
-      { label: "Box", tone: "yellow" },
+      { label: "Box de ligação", tone: "yellow" },
+      { label: "VoIP", tone: "sky" },
     ],
     priceCents: 9_700,
     credits: 900,
@@ -115,14 +118,14 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "Qualificou: o lote cai no CRM",
-      "Meta do dia no Box",
+      "Liga pelo VoIP na ficha",
+      "Meta do dia no Box de ligação",
       "Importa a planilha e liga no mesmo quadro",
-      "Follow-up e reunião sem planilha paralela",
     ],
     details: [
       "900 créditos / mês",
-      "Pipeline do nicho até reunião",
-      "Ligar agora pelo Painel",
+      "API4COM, Zenvia, Twilio e Telnyx",
+      "Follow-up e reunião sem planilha paralela",
       "Qualificar: site, redes e Google",
     ],
   },
@@ -186,6 +189,7 @@ export const PLANS: PlanDefinition[] = [
     tagline: "Nível Piloto incluído por 30 dias na assinatura Mundo Pódium.",
     badges: [
       { label: "30 dias", tone: "yellow" },
+      { label: "VoIP", tone: "sky" },
       { label: "Nível Piloto", tone: "muted" },
     ],
     priceCents: 0,
@@ -194,8 +198,8 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "Qualificou: o lote cai no CRM",
-      "Meta do dia no Box",
-      "Importa a planilha e liga no mesmo quadro",
+      "Liga pelo VoIP na ficha",
+      "Meta do dia no Box de ligação",
     ],
     details: [
       "900 créditos nos 30 dias",
@@ -212,7 +216,13 @@ export const PACKS: PackDefinition[] = [
     tagline: "Créditos que não expiram.",
     priceCents: 4_700,
     credits: 100,
+    badges: [
+      { label: "Não expira", tone: "success" },
+      { label: "Extra", tone: "muted" },
+    ],
     highlights: ["100 créditos", "Não expiram", "Extra no meio do mês"],
+    details: ["Soma no saldo da conta", "Serve quando o mês aperta"],
+    notes: ["Não substitui o plano. Não reabre o CRM."],
   },
   {
     sku: "pack_500",
@@ -221,7 +231,13 @@ export const PACKS: PackDefinition[] = [
     tagline: "Créditos extras no meio do mês.",
     priceCents: 16_700,
     credits: 500,
+    badges: [
+      { label: "Não expira", tone: "success" },
+      { label: "Soma no saldo", tone: "yellow" },
+    ],
     highlights: ["500 créditos", "Não expiram", "Somam no saldo da conta"],
+    details: ["Extra no meio do mês", "Fica na conta quando o plano zera"],
+    notes: ["Não substitui o plano. Não reabre o CRM."],
   },
   {
     sku: "pack_2000",
@@ -230,7 +246,13 @@ export const PACKS: PackDefinition[] = [
     tagline: "Volume extra para campanha pesada.",
     priceCents: 49_700,
     credits: 2_000,
+    badges: [
+      { label: "Não expira", tone: "success" },
+      { label: "Campanha", tone: "sky" },
+    ],
     highlights: ["2.000 créditos", "Não expiram", "Volume para campanha pesada"],
+    details: ["Volume para campanha pesada", "Soma no saldo da conta"],
+    notes: ["Não substitui o plano. Não reabre o CRM."],
   },
 ];
 

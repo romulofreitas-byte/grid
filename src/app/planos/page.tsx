@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
 import { PlanCard } from "@/components/billing/PlanCard";
+import { PackCard } from "@/components/billing/PackCard";
 import { PilotoProWaitlistCta } from "@/components/billing/PilotoProWaitlistCta";
 import { GlassCard } from "@/components/GlassCard";
 import { PublicPage } from "@/components/PublicPage";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SupportWhatsAppButton } from "@/components/SupportWhatsAppButton";
 import { COPY } from "@/lib/copy";
-import { formatBrl, isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
+import { isSkuOnSale, PACKS, PLANS } from "@/lib/billing/catalog";
 import { billingReturn, pagarHref } from "@/lib/billing/href";
 import { getBalance } from "@/lib/billing/service";
 import { requireSession } from "@/lib/auth/session";
@@ -105,39 +105,39 @@ export default async function PlanosPage({
 
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
-        <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-          Extra no meio do mês. Não expira e soma no saldo da conta.
+        <p className="mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
+          {COPY.planosRecargaBody}
         </p>
         <div className="mt-6 grid items-stretch gap-4 md:grid-cols-3">
-          {PACKS.map((pack) => (
-            <GlassCard key={pack.sku} className="flex h-full flex-col p-3">
-              <h3 className="text-sm font-semibold">{pack.nome}</h3>
-              <p className="mt-1 min-h-8 text-xs leading-5 text-podium-muted">
-                {pack.tagline}
-              </p>
-              <p className="mt-3 text-lg font-semibold text-podium-yellow">
-                {formatBrl(pack.priceCents)}
-              </p>
-              <ul className="mt-3 min-h-[4.75rem] flex-1 space-y-2 text-sm text-podium-gray">
-                {pack.highlights.map((h) => (
-                  <li key={h} className="flex gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-podium-yellow" />
-                    {h}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href={pagarHref(pack.sku, from)}
-                className={buttonClassName({
-                  variant: "secondary",
-                  size: "md",
-                  className: "mt-4 w-full",
-                })}
-              >
-                Recarregar
-              </Link>
-            </GlassCard>
-          ))}
+          {PACKS.map((pack) => {
+            const featured = pack.sku === "pack_500";
+            return (
+              <PackCard
+                key={pack.sku}
+                pack={pack}
+                featured={featured}
+                eyebrow={
+                  featured
+                    ? COPY.landingPlansPackFeatured
+                    : pack.sku === "pack_2000"
+                      ? "Volume"
+                      : "Avulsa"
+                }
+                cta={
+                  <Link
+                    href={pagarHref(pack.sku, from)}
+                    className={buttonClassName({
+                      variant: featured ? "primary" : "secondary",
+                      size: "md",
+                      className: "w-full",
+                    })}
+                  >
+                    Recarregar
+                  </Link>
+                }
+              />
+            );
+          })}
         </div>
       </div>
 

@@ -5,7 +5,10 @@ import { Check, ChevronDown } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { PlanPill } from "@/components/billing/PlanPill";
 import { COPY } from "@/lib/copy";
-import { formatBrl, type PlanDefinition } from "@/lib/billing/catalog";
+import {
+  formatBrl,
+  type PackDefinition,
+} from "@/lib/billing/catalog";
 import { cn } from "@/lib/utils";
 
 function BenefitItem({ text }: { text: string }) {
@@ -20,36 +23,38 @@ function BenefitItem({ text }: { text: string }) {
   );
 }
 
-export function PlanCard({
-  plan,
+export function PackCard({
+  pack,
   featured = false,
   eyebrow,
   cta,
-  variant = "glass",
 }: {
-  plan: PlanDefinition;
+  pack: PackDefinition;
   featured?: boolean;
   eyebrow: string;
   cta: ReactNode;
-  variant?: "glass" | "landing";
 }) {
   const [open, setOpen] = useState(false);
   const detailsId = useId();
   const expandable =
-    plan.details.length > 0 || (plan.notes?.length ?? 0) > 0;
-  const price =
-    plan.priceCents === 0 ? "Grátis" : formatBrl(plan.priceCents);
+    pack.details.length > 0 || (pack.notes?.length ?? 0) > 0;
 
-  const inner = (
-    <>
+  return (
+    <GlassCard
+      highlight={featured}
+      className={cn(
+        "flex h-full flex-col p-3 transition",
+        featured && "ring-1 ring-podium-yellow/30",
+      )}
+    >
       <PlanPill
         label={eyebrow}
         tone={featured ? "yellow" : "muted"}
         className="self-start"
       />
-      <h3 className="mt-2 text-base font-semibold">{plan.nome}</h3>
+      <h3 className="mt-2 text-base font-semibold">{pack.nome}</h3>
       <div className="mt-2 flex min-h-5 flex-wrap gap-1">
-        {plan.badges.map((badge) => (
+        {pack.badges.map((badge) => (
           <PlanPill
             key={badge.label}
             label={badge.label}
@@ -58,16 +63,11 @@ export function PlanCard({
         ))}
       </div>
       <p className="mt-3 flex min-h-8 items-baseline whitespace-nowrap text-xl font-semibold text-podium-yellow">
-        {price}
-        {plan.priceCents > 0 ? (
-          <span className="text-sm font-medium text-podium-muted">/mês</span>
-        ) : null}
+        {formatBrl(pack.priceCents)}
       </p>
-      <ul className="mt-4 min-h-[11rem] space-y-2 text-sm text-podium-gray">
-        {plan.highlights.map((line) => (
-          <BenefitItem key={line} text={line} />
-        ))}
-      </ul>
+      <p className="mt-1 text-sm text-podium-muted">
+        {pack.credits.toLocaleString("pt-BR")} créditos
+      </p>
       {expandable ? (
         <button
           type="button"
@@ -88,21 +88,21 @@ export function PlanCard({
       ) : null}
       {open && expandable ? (
         <div id={detailsId} className="mt-3">
-          {plan.details.length > 0 ? (
+          {pack.details.length > 0 ? (
             <ul className="space-y-2 text-sm text-podium-gray">
-              {plan.details.map((line) => (
+              {pack.details.map((line) => (
                 <BenefitItem key={line} text={line} />
               ))}
             </ul>
           ) : null}
-          {plan.notes?.length ? (
+          {pack.notes?.length ? (
             <ul
               className={cn(
                 "space-y-2 text-sm text-podium-muted",
-                plan.details.length > 0 && "mt-2",
+                pack.details.length > 0 && "mt-2",
               )}
             >
-              {plan.notes.map((note) => (
+              {pack.notes.map((note) => (
                 <li key={note}>{note}</li>
               ))}
             </ul>
@@ -110,33 +110,6 @@ export function PlanCard({
         </div>
       ) : null}
       <div className="mt-auto pt-3">{cta}</div>
-    </>
-  );
-
-  if (variant === "landing") {
-    return (
-      <article
-        className={cn(
-          "flex h-full flex-col rounded-md border bg-white/[0.03] p-3",
-          featured
-            ? "border-podium-yellow/40 ring-1 ring-podium-yellow/25"
-            : "border-white/[0.08]",
-        )}
-      >
-        {inner}
-      </article>
-    );
-  }
-
-  return (
-    <GlassCard
-      highlight={featured}
-      className={cn(
-        "flex h-full flex-col p-3",
-        featured && "ring-1 ring-podium-yellow/30",
-      )}
-    >
-      {inner}
     </GlassCard>
   );
 }

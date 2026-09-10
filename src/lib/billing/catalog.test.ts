@@ -68,12 +68,18 @@ describe("catalog", () => {
     );
   });
 
-  it("lists native CRM, Box and spreadsheet import on Piloto", () => {
+  it("lists native CRM, Box de ligação, VoIP and spreadsheet import on Piloto", () => {
     const piloto = asPlan("piloto");
     const face = piloto.highlights.join(" ");
     expect(face).toMatch(/CRM/i);
-    expect(face).toMatch(/Box/);
+    expect(face).toMatch(/Box de ligação/);
+    expect(face).toMatch(/VoIP/);
     expect(face).toMatch(/planilha/i);
+    expect(piloto.badges.map((b) => b.label)).toEqual([
+      "CRM",
+      "Box de ligação",
+      "VoIP",
+    ]);
     expect(piloto.details.join(" ")).toMatch(/900 créditos/i);
     expect(catalogBenefitLines(piloto).join(" ")).not.toMatch(/automaç/i);
   });
@@ -122,6 +128,9 @@ describe("catalog", () => {
       const lines = pack.highlights.join(" ");
       expect(lines).toMatch(/não expiram/i);
       expect(lines).not.toMatch(/não reabre|não substitui|custo por crédito/i);
+      expect(pack.badges.length).toBeGreaterThanOrEqual(2);
+      expect(pack.badges.some((b) => /não expira/i.test(b.label))).toBe(true);
+      expect(pack.details.length).toBeGreaterThan(0);
     }
   });
 
