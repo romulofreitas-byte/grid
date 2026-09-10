@@ -10,6 +10,8 @@ import {
   focusSprintRemainingMs,
   formatFocusSprintClock,
 } from "@/lib/focus-mode";
+import { SHELL_FOCUS_BADGE_BOTTOM, SHELL_Z } from "@/lib/shell-chrome";
+import { cn } from "@/lib/utils";
 
 export function FocusBadge() {
   const { on, startedAt, exit } = useFocusMode();
@@ -45,7 +47,11 @@ export function FocusBadge() {
             delay: reduce ? 0 : 0.15,
             ease: "easeOut",
           }}
-          className="fixed right-4 bottom-4 z-50 hidden md:block"
+          className={cn(
+            "fixed right-4",
+            SHELL_FOCUS_BADGE_BOTTOM,
+            SHELL_Z.toast,
+          )}
         >
           <FocusSwitch
             on

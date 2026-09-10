@@ -8,6 +8,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { ShellRail, useShellRailOpen } from "@/components/ShellRail";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import { COPY } from "@/lib/copy";
+import { SHELL_TAB_PAD_LOCK, SHELL_Z } from "@/lib/shell-chrome";
 import { shellRailWidthClass } from "@/lib/shell-rail";
 import type { Profile } from "@/lib/types";
 import type { TourScene } from "@/lib/tour";
@@ -59,7 +60,12 @@ export function TourChrome({
           />
         </Suspense>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-          <header className="sticky top-0 z-40 shrink-0 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl">
+          <header
+            className={cn(
+              "sticky top-0 shrink-0 border-b border-white/10 bg-podium-navy/80 backdrop-blur-xl",
+              SHELL_Z.header,
+            )}
+          >
             <div className="flex h-12 items-center gap-3 px-3 md:px-4">
               <Link
                 href={home}
@@ -78,13 +84,21 @@ export function TourChrome({
               </div>
             </div>
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] pt-5 md:pb-8">
+          <main
+            className={cn(
+              "mx-auto w-full max-w-7xl flex-1 px-4 pt-5",
+              SHELL_TAB_PAD_LOCK,
+            )}
+          >
             {children}
           </main>
         </div>
       </div>
 
-      <MobileTabBar staticNav moreActive={scene === "painel"} />
+      <MobileTabBar
+        staticNav
+        activeHref={scene === "painel" ? "/painel" : undefined}
+      />
     </div>
   );
 }

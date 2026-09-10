@@ -7,6 +7,7 @@ import { useFocusMode } from "@/components/FocusModeProvider";
 import { CATCHUP_SESSION_KEY } from "@/lib/catchup/constants";
 import { COPY } from "@/lib/copy";
 import { invalidateLiveStats } from "@/lib/live-stats";
+import { SHELL_TOAST_BOTTOM, SHELL_Z } from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 
 function toastCopy(created: number): string {
@@ -78,7 +79,9 @@ export function CatchUpRunner() {
     <div
       role="status"
       className={cn(
-        "fixed right-4 bottom-20 z-50 max-w-sm rounded-md border border-white/15 bg-podium-navy/80 px-3 py-2.5 text-sm text-podium-white shadow-2xl backdrop-blur-2xl md:bottom-6",
+        "fixed right-4 max-w-sm rounded-md border border-white/15 bg-podium-navy/80 px-3 py-2.5 text-sm text-podium-white shadow-2xl backdrop-blur-2xl",
+        SHELL_TOAST_BOTTOM,
+        SHELL_Z.toast,
         focusOn && "md:bottom-16",
       )}
     >

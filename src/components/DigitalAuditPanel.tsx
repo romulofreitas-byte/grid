@@ -700,7 +700,7 @@ function PresenceIconButton({
       {labeled ? (
         <span
           className={cn(
-            "max-w-[7.5rem] truncate text-[10px] font-medium",
+            "hidden min-w-0 text-[11px] font-medium sm:inline sm:max-w-[7.5rem] sm:truncate",
             scanning
               ? "text-podium-yellow"
               : live

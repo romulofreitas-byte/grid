@@ -18,6 +18,11 @@ import {
   useShellRailOpen,
 } from "@/components/ShellRail";
 import { shellRailWidthClass } from "@/lib/shell-rail";
+import {
+  SHELL_TAB_PAD,
+  SHELL_TAB_PAD_LOCK,
+  SHELL_Z,
+} from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 
 function RailSlot(props: {
@@ -68,11 +73,6 @@ export function AppShell(props: AppShellProps) {
   );
 }
 
-const TAB_PAD =
-  "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-16";
-const TAB_PAD_LOCK =
-  "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-8";
-
 function AppShellFrame({
   children,
   title,
@@ -111,7 +111,8 @@ function AppShellFrame({
         >
           <header
             className={cn(
-              "sticky top-0 z-40 shrink-0 overflow-hidden border-b bg-podium-navy/80 backdrop-blur-xl",
+              "sticky top-0 shrink-0 overflow-hidden border-b bg-podium-navy/80 backdrop-blur-xl",
+              SHELL_Z.header,
               "transition-[max-height,opacity,border-color]",
               chromeSlide,
               focusOn
@@ -156,9 +157,9 @@ function AppShellFrame({
               lockHeight
                 ? cn(
                     "min-h-0 flex-1 overflow-hidden",
-                    focusOn ? "pb-6" : TAB_PAD_LOCK,
+                    focusOn ? "pb-6" : SHELL_TAB_PAD_LOCK,
                   )
-                : cn("grow", focusOn ? "pb-6" : TAB_PAD),
+                : cn("grow", focusOn ? "pb-6" : SHELL_TAB_PAD),
               wide ? "max-w-none px-3 pt-3 md:pt-4" : "max-w-7xl px-4 pt-4 md:pt-5",
             )}
           >

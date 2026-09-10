@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId } from "react";
 import { X } from "lucide-react";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import {
   isShellNavActive,
   SHELL_MORE_NAV,
@@ -32,7 +33,12 @@ export function MobileMoreSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center md:hidden">
+    <div
+      className={cn(
+        "fixed inset-0 flex items-end justify-center md:hidden",
+        SHELL_Z.modal,
+      )}
+    >
       <button
         type="button"
         aria-label="Fechar"

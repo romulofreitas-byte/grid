@@ -32,14 +32,14 @@ describe("shell work nav", () => {
 });
 
 describe("shell mobile nav", () => {
-  it("keeps four phone destinations: Ligar, CRM, Listas, and Mais", () => {
+  it("keeps Painel on the tab bar; Meta, Nova lista, and Empresas stay in Mais", () => {
     expect(SHELL_MOBILE_NAV.map((item) => item.href)).toEqual([
+      "/painel",
       "/box",
       "/crm",
       "/listas",
     ]);
     expect(SHELL_MORE_NAV.map((item) => item.href)).toEqual([
-      "/painel",
       "/metas",
       "/largada",
       "/empresas",
@@ -49,8 +49,8 @@ describe("shell mobile nav", () => {
     );
   });
 
-  it("lights Mais on Painel, Nova lista, Empresas, and Meta", () => {
-    expect(isShellMoreActive("/painel")).toBe(true);
+  it("lights Mais on Meta, Nova lista, and Empresas — not Painel", () => {
+    expect(isShellMoreActive("/painel")).toBe(false);
     expect(isShellMoreActive("/largada")).toBe(true);
     expect(isShellMoreActive("/empresas")).toBe(true);
     expect(isShellMoreActive("/metas")).toBe(true);

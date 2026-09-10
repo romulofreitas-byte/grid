@@ -31,6 +31,7 @@ import { Select } from "@/components/ui/Select";
 import { useConnections } from "@/hooks/useConnections";
 import { useMdUp } from "@/hooks/useMinWidth";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import { crmFetch } from "@/lib/crm/client";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import { closedDealCount, visibleKanbanDeals } from "@/lib/crm/events";
@@ -566,7 +567,7 @@ export function CrmBoard({
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden md:inline">{COPY.crmAddDeal}</span>
           </Button>
-          <div className="relative md:hidden">
+          <div className="md:hidden">
             <Button
               type="button"
               size="sm"
@@ -579,36 +580,58 @@ export function CrmBoard({
               <MoreHorizontal className="h-4 w-4" />
             </Button>
             {toolsOpen ? (
-              <div className="absolute right-0 z-30 mt-1 w-48 overflow-hidden rounded-lg border border-white/10 bg-podium-navy py-1 shadow-xl">
+              <div
+                className={cn(
+                  "fixed inset-0 flex items-end justify-center",
+                  SHELL_Z.modal,
+                )}
+              >
                 <button
                   type="button"
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
-                  onClick={() => {
-                    setShowClosed((current) => !current);
-                    setToolsOpen(false);
-                  }}
-                >
-                  {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
-                  {closedCount > 0 ? ` · ${closedCount}` : ""}
-                </button>
-                <button
-                  type="button"
-                  disabled={!board}
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
-                  onClick={() => {
-                    setCadenceOpen(true);
-                    setToolsOpen(false);
-                  }}
-                >
-                  {COPY.crmAdjustCadence}
-                </button>
-                <Link
-                  href="/importacoes"
-                  className="flex w-full px-3 py-2.5 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
+                  aria-label="Fechar"
+                  className="absolute inset-0 bg-black/45"
                   onClick={() => setToolsOpen(false)}
+                />
+                <div
+                  role="dialog"
+                  aria-label="Mais ações"
+                  className="relative w-full overflow-hidden rounded-t-2xl border border-white/15 bg-podium-navy pb-[env(safe-area-inset-bottom,0px)] shadow-2xl"
                 >
-                  {COPY.crmImport}
-                </Link>
+                  <p className="px-4 pt-3 text-sm font-medium text-podium-white">
+                    Mais ações
+                  </p>
+                  <div className="px-2 py-2">
+                    <button
+                      type="button"
+                      className="flex min-h-11 w-full items-center px-3 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
+                      onClick={() => {
+                        setShowClosed((current) => !current);
+                        setToolsOpen(false);
+                      }}
+                    >
+                      {showClosed ? COPY.crmHideClosed : COPY.crmShowClosed}
+                      {closedCount > 0 ? ` · ${closedCount}` : ""}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!board}
+                      className="flex min-h-11 w-full items-center px-3 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white disabled:opacity-40"
+                      onClick={() => {
+                        setCadenceOpen(true);
+                        setToolsOpen(false);
+                      }}
+                    >
+                      {COPY.crmAdjustCadence}
+                    </button>
+                    <Link
+                      href="/importacoes"
+                      className="flex min-h-11 w-full items-center px-3 text-left text-sm text-podium-gray hover:bg-white/5 hover:text-podium-white"
+                      onClick={() => setToolsOpen(false)}
+                    >
+                      {COPY.crmImport}
+                    </Link>
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>

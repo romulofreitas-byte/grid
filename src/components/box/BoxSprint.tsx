@@ -173,7 +173,7 @@ export function BoxSprint({
       <BoxRhythmStrip rhythm={queue.rhythm} overdueCount={queue.counts.overdue} />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
-        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-white/10 px-2 py-1.5 md:flex-wrap md:justify-end md:px-3 md:py-2">
+        <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-white/10 px-2 py-1.5 [mask-image:linear-gradient(to_right,black_88%,transparent)] md:flex-wrap md:justify-end md:px-3 md:py-2 md:[mask-image:none]">
           <div className="flex min-w-0 flex-1 gap-1 md:flex-none md:justify-end">
             {visibleTabs.map((item) => {
               const count = boxQueueTabCount(queue.counts, item.id);

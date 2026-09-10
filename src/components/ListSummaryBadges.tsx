@@ -8,6 +8,7 @@ import {
   segmentNameMap,
   type NicheTreeLike,
 } from "@/lib/filter-summary";
+import { COPY } from "@/lib/copy";
 import type { SearchFilters } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export function ListSummaryBadges({
   className,
   sticky = false,
   includeSemContabil = false,
+  compactOnMobile = false,
 }: {
   filters: SearchFilters;
   municipioNames?: Record<number, string>;
@@ -31,6 +33,7 @@ export function ListSummaryBadges({
   sticky?: boolean;
   /** Show “Sem contábil” only on Qualidade (step 3). */
   includeSemContabil?: boolean;
+  compactOnMobile?: boolean;
 }) {
   const treeQuery = useQuery({
     queryKey: ["niche-tree"],
@@ -54,20 +57,35 @@ export function ListSummaryBadges({
 
   if (badges.length === 0) return null;
 
+  const chip = COPY.gridFiltersChip.replace("{n}", String(badges.length));
+  const wrapClass = cn(
+    "flex flex-wrap gap-1.5",
+    sticky &&
+      "sticky top-0 z-10 -mx-1 border-b border-white/10 bg-podium-navy/95 px-1 py-2 backdrop-blur-sm",
+    className,
+  );
+
   return (
-    <div
-      className={cn(
-        "flex flex-wrap gap-1.5",
-        sticky &&
-          "sticky top-0 z-10 -mx-1 border-b border-white/10 bg-podium-navy/95 px-1 py-2 backdrop-blur-sm",
-        className,
-      )}
-    >
-      {badges.map((b) => (
-        <Badge key={b.key} variant={BADGE_VARIANT[b.key]} title={b.label}>
-          {b.label}
-        </Badge>
-      ))}
-    </div>
+    <>
+      {compactOnMobile && badges.length > 1 ? (
+        <div className={cn(wrapClass, "md:hidden")}>
+          <Badge variant="neutral" title={badges.map((b) => b.label).join(" · ")}>
+            {chip}
+          </Badge>
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          wrapClass,
+          compactOnMobile && badges.length > 1 && "hidden md:flex",
+        )}
+      >
+        {badges.map((b) => (
+          <Badge key={b.key} variant={BADGE_VARIANT[b.key]} title={b.label}>
+            {b.label}
+          </Badge>
+        ))}
+      </div>
+    </>
   );
 }

@@ -38,6 +38,11 @@ import {
 } from "@/lib/calculadora/money";
 import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
 import { dropPainelMetricsCache, invalidateLiveStats } from "@/lib/live-stats";
+import {
+  SHELL_CONTEXT_BOTTOM,
+  SHELL_CONTEXT_SPACER,
+  SHELL_Z,
+} from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 import {
   workSplitClass,
@@ -980,7 +985,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
       </motion.div>
 
       <div id="meta-funil" className={workSplitPaneClass}>
-        <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 border-b border-white/10 bg-podium-navy/95 py-2 backdrop-blur-xl">
+        <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 border-b border-white/10 bg-podium-navy/95 py-2 backdrop-blur-xl md:static md:z-auto">
           <div className="min-w-[5.5rem] px-1">
             <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
               {COPY.calculadoraPorDia}
@@ -1011,7 +1016,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                 : "Não foi possível salvar."}
             </span>
           ) : null}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="ml-auto hidden flex-wrap items-center gap-2 md:flex">
             <Button
               type="button"
               variant="primary"
@@ -1391,6 +1396,39 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
           ))}
         </div>
       </details>
+        </div>
+      </div>
+
+      <div className={cn(SHELL_CONTEXT_SPACER, "md:hidden")} aria-hidden />
+      <div
+        className={cn(
+          "fixed inset-x-0 border-t border-white/10 bg-podium-navy/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-xl md:hidden",
+          SHELL_CONTEXT_BOTTOM,
+          SHELL_Z.context,
+        )}
+      >
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            disabled={!canSave}
+            title={COPY.metasSalvarHint}
+            onClick={() => save.mutate({ list: true })}
+            className="min-h-11 flex-1"
+          >
+            {COPY.metasSalvar}
+          </Button>
+          <Button
+            type="button"
+            variant="accent"
+            size="md"
+            disabled={!canSaveAndApply}
+            onClick={() => save.mutate({ apply: true })}
+            className="min-h-11 flex-1"
+          >
+            {COPY.metasSalvarEUsar}
+          </Button>
         </div>
       </div>
 

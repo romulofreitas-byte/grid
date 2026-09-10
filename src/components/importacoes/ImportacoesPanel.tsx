@@ -685,7 +685,26 @@ export function ImportacoesPanel({
               ) : null}
               {readyCount > 0 ? (
                 <div className="overflow-x-auto rounded-md border border-white/10">
-                  <table className="min-w-full text-left text-[11px] text-podium-muted">
+                  <ul className="space-y-2 p-2 md:hidden">
+                    {mappedPreview.slice(0, 12).map((row, index) => (
+                      <li
+                        key={index}
+                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs"
+                      >
+                        <p className="truncate text-sm font-medium text-podium-white">
+                          {row.ok ? row.lead.company_name : "—"}
+                        </p>
+                        <p className="mt-1 truncate text-podium-muted">
+                          {row.ok
+                            ? [row.lead.contact_name, row.lead.phones[0], row.lead.cnpj || "CNPJ a achar"]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : "—"}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  <table className="hidden min-w-full text-left text-xs text-podium-muted md:table">
                     <thead>
                       <tr>
                         <th className="px-3 py-1.5 font-medium">Empresa</th>

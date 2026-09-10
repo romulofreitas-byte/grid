@@ -18,6 +18,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { buttonClassName } from "@/components/ui/Button";
 import { StartingLights } from "@/components/StartingLights";
 import { pathWithSearch, withFrom } from "@/lib/billing/href";
+import { SHELL_Z } from "@/lib/shell-chrome";
+import { cn } from "@/lib/utils";
 import {
   paywallCopy,
   type PaywallCopy,
@@ -104,7 +106,12 @@ function PaywallDialog({
   if (!state || !copy) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center p-4 sm:items-center">
+    <div
+      className={cn(
+        "fixed inset-0 flex items-end justify-center p-4 sm:items-center",
+        SHELL_Z.modal,
+      )}
+    >
       <button
         type="button"
         aria-label="Fechar"

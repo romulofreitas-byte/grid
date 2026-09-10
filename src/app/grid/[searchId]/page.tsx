@@ -67,6 +67,12 @@ import { qualifyCrmHint, type PublicCrmBridge } from "@/lib/crm/bridge";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
+import {
+  SHELL_CONTEXT_BOTTOM,
+  SHELL_CONTEXT_MARGIN,
+  SHELL_CONTEXT_SPACER,
+  SHELL_Z,
+} from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 
 async function fetchPage(
@@ -1016,7 +1022,7 @@ export default function GridPage() {
             onChange={(value) => applyRowFilter(value as GridRowFilter)}
             size="sm"
             aria-label="Filtrar linhas"
-            className="w-[11rem]"
+            className="w-full min-w-0 max-w-[11rem]"
             options={[
               { value: "all", label: COPY.gridFilterAll },
               { value: "qualificadas", label: COPY.gridFilterQualified },
@@ -1032,7 +1038,8 @@ export default function GridPage() {
             <ListSummaryBadges
               filters={search.filtros}
               includeSemContabil
-              className="contents"
+              compactOnMobile
+              className="max-md:w-full md:contents"
             />
           ) : null}
         </div>
@@ -1328,7 +1335,9 @@ export default function GridPage() {
           onClick={() => query.fetchNextPage()}
           className={cn(
             "mt-6 w-full rounded-md border border-white/15 py-2 text-xs font-medium text-podium-gray",
-            selectedCount > 0 || unaudited > 0 ? "mb-24" : undefined,
+            selectedCount > 0 || unaudited > 0
+              ? SHELL_CONTEXT_MARGIN
+              : undefined,
           )}
         >
           Carregar mais
@@ -1337,10 +1346,18 @@ export default function GridPage() {
         </>
       )}
 
-      {unaudited > 0 ? <div className="h-24" aria-hidden /> : null}
+      {unaudited > 0 ? (
+        <div className={SHELL_CONTEXT_SPACER} aria-hidden />
+      ) : null}
 
       {unaudited > 0 ? (
-        <div className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 border-t border-white/10 bg-podium-navy/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-xl lg:bottom-0 lg:pb-2">
+        <div
+          className={cn(
+            "fixed inset-x-0 border-t border-white/10 bg-podium-navy/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-xl md:pb-2",
+            SHELL_CONTEXT_BOTTOM,
+            SHELL_Z.context,
+          )}
+        >
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-podium-gray">
               {selectedCount > 0 ? (

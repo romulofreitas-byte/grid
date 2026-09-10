@@ -20,7 +20,7 @@ describe("tour steps", () => {
     expect(TOUR_STEPS.slice(4).every((step) => step.scene === "grid")).toBe(true);
     expect(firstIndexForScene("grid")).toBe(4);
     expect(TOUR_STEPS.find((step) => step.id === "painel-new-list")?.placement).toBe(
-      "right",
+      "top",
     );
   });
 });

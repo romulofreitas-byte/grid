@@ -37,6 +37,7 @@ import {
   type SearchFilters,
 } from "@/lib/types";
 import { runSearchJob } from "@/lib/search-run-client";
+import { SHELL_CONTEXT_BOTTOM, SHELL_Z } from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/niches";
 import {
@@ -932,7 +933,7 @@ function LargadaWizard() {
                 </BackLink>
               </div>
             ) : null}
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {(
                 [
                   [1, "Nicho"],
@@ -950,6 +951,7 @@ function LargadaWizard() {
                     }
                     onClick={() => setStep(n)}
                     className={cn(
+                      "shrink-0",
                       step !== n &&
                         filled &&
                         "border-podium-yellow/30 text-podium-yellow",
@@ -965,6 +967,7 @@ function LargadaWizard() {
               municipioNames={municipioNames}
               sticky
               includeSemContabil={step === 3}
+              compactOnMobile
               className="mt-3"
             />
           </div>
@@ -1577,7 +1580,11 @@ function LargadaWizard() {
             />
           ) : null}
           <GlassCard
-            className="fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-30 mx-3 overflow-hidden p-0 md:static md:mx-0 md:p-3"
+            className={cn(
+              "fixed inset-x-0 mx-3 overflow-hidden p-0 md:static md:mx-0 md:p-3",
+              SHELL_CONTEXT_BOTTOM,
+              SHELL_Z.context,
+            )}
             highlight
           >
             <div className="md:hidden">

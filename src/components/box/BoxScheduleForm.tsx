@@ -42,9 +42,9 @@ export function BoxScheduleForm({
         onSubmit(kind, dueAt);
       }}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="min-w-[8rem] max-w-[12rem] flex-1">
-          <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <label className="min-w-0 w-full sm:max-w-[12rem] sm:flex-1">
+          <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-podium-muted">
             {COPY.boxNextKind}
           </span>
           <Select
@@ -55,7 +55,7 @@ export function BoxScheduleForm({
             className="mt-1 w-full"
           />
         </label>
-        <div className="min-w-[14rem] flex-1">
+        <div className="min-w-0 w-full sm:flex-1">
           <CrmDateTimePicker
             value={dueAt}
             onChange={setDueAt}

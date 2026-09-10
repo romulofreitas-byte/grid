@@ -135,13 +135,13 @@ function SeasonCalendar({
 
   return (
     <div className="mt-4 border-t border-white/10 pt-3">
-      <ol className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-12">
+      <ol className="flex gap-1.5 overflow-x-auto pb-1 md:grid md:grid-cols-12 md:overflow-visible md:pb-0">
         {MES_CURTO.map((label, index) => {
           const month = index + 1;
           const inSeason = peaks.includes(month);
           const isNow = month === current;
           return (
-            <li key={month}>
+            <li key={month} className="min-w-[3.25rem] md:min-w-0">
               <span
                 title={MES_NOME[index]}
                 className={cn(
@@ -158,19 +158,19 @@ function SeasonCalendar({
                   !inSeason && !isNow && "border-white/10 text-podium-muted",
                 )}
               >
-                <span className="text-[10px] font-semibold uppercase">
+                <span className="text-[11px] font-semibold uppercase">
                   {label}
                 </span>
                 {inSeason ? (
-                  <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-80">
+                  <span className="mt-0.5 text-[10px] font-semibold uppercase opacity-80">
                     pico
                   </span>
                 ) : isNow ? (
-                  <span className="mt-0.5 text-[8px] font-semibold uppercase opacity-70">
+                  <span className="mt-0.5 text-[10px] font-semibold uppercase opacity-70">
                     agora
                   </span>
                 ) : (
-                  <span className="mt-0.5 text-[8px] opacity-0">·</span>
+                  <span className="mt-0.5 text-[10px] opacity-0">·</span>
                 )}
               </span>
             </li>

@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import { CRM_FIELD } from "@/lib/crm/client";
 import {
   DEAL_SEARCH_DEBOUNCE_MS,
@@ -161,7 +162,7 @@ export function CrmDealSearch({
         type="button"
         size="sm"
         variant="ghost"
-        className="w-7 px-0"
+        className="min-h-11 w-11 px-0 md:min-h-0 md:h-7 md:w-7"
         aria-label={COPY.crmSearchDealsAria}
         aria-expanded={open}
         title={COPY.crmSearchDeals}
@@ -244,7 +245,12 @@ export function CrmDealSearch({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: reduce ? 0.01 : 0.16, ease: EASE }}
-            className="absolute right-0 top-full z-20 mt-1 max-h-56 w-72 overflow-y-auto rounded-md border border-white/10 bg-podium-panel shadow-xl"
+            className={cn(
+              "max-h-56 overflow-y-auto border border-white/10 bg-podium-panel shadow-xl",
+              "max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[50vh] max-md:rounded-t-2xl max-md:pb-[env(safe-area-inset-bottom,0px)]",
+              SHELL_Z.modal,
+              "md:absolute md:right-0 md:top-full md:z-20 md:mt-1 md:w-72 md:rounded-md",
+            )}
           >
             {search.isError && localHits.length === 0 ? (
               <p className="px-2.5 py-2 text-xs text-podium-muted">

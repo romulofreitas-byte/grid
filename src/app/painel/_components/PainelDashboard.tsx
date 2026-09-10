@@ -37,6 +37,7 @@ import type { PainelMetrics, PainelRange, PainelTaskRow } from "@/lib/painel/typ
 import { ProductTour } from "@/components/tour/ProductTour";
 import { Select } from "@/components/ui/Select";
 import { buttonClassName } from "@/components/ui/Button";
+import { useMdUp } from "@/hooks/useMinWidth";
 import { cn } from "@/lib/utils";
 
 function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
@@ -154,6 +155,7 @@ export function PainelDashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const mdUp = useMdUp();
   const urlFilters = useMemo(
     () => parsePainelFilters(searchParams),
     [searchParams],
@@ -418,7 +420,7 @@ export function PainelDashboard() {
                   "—"
                 )}
               </p>
-              <Hint className="mt-1">
+              <Hint className="mt-1 hidden md:block">
                 {!m
                   ? "Carregando o recorte…"
                   : crm && k && k.wonWithoutAmount > 0
@@ -443,7 +445,7 @@ export function PainelDashboard() {
                   "—"
                 )}
               </p>
-              <Hint className="mt-1">
+              <Hint className="mt-1 hidden md:block">
                 {!m
                   ? "Carregando o pipeline…"
                   : crm && k
@@ -483,6 +485,107 @@ export function PainelDashboard() {
         </GlassCard>
       </div>
 
+      {!mdUp && crm && m ? (
+        <TaskList
+          title={COPY.painelTasksOverdue}
+          empty={COPY.painelNoOverdue}
+          rows={overdueTasks.slice(0, 5)}
+          allNiches={allNiches}
+          kind="overdue"
+        />
+      ) : null}
+      {!mdUp ? (
+        <Link
+          href="/largada"
+          className={buttonClassName({
+            variant: "secondary",
+            size: "md",
+            className: "min-h-11 w-full",
+          })}
+        >
+          Nova lista
+        </Link>
+      ) : null}
+
+      {mdUp ? (
+        <PainelNumbersBlock
+          m={m}
+          crm={crm}
+          crmHref={crmHref}
+          overdueTasks={overdueTasks}
+          wonTasks={wonTasks}
+          allNiches={allNiches}
+          followupDonut={followupDonut}
+          noneFollowups={noneFollowups}
+          callGoal={callGoal}
+          periodRefreshing={periodRefreshing}
+          leadsWorking={leadsWorking}
+          leadsQueue={leadsQueue}
+          router={router}
+        />
+      ) : (
+        <details className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-1">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-medium text-podium-white [&::-webkit-details-marker]:hidden">
+            {COPY.painelVerNumeros}
+          </summary>
+          <div className="mt-3 space-y-5 pb-2">
+            <PainelNumbersBlock
+              m={m}
+              crm={crm}
+              crmHref={crmHref}
+              overdueTasks={overdueTasks}
+              wonTasks={wonTasks}
+              allNiches={allNiches}
+              followupDonut={followupDonut}
+              noneFollowups={noneFollowups}
+              callGoal={callGoal}
+              periodRefreshing={periodRefreshing}
+              leadsWorking={leadsWorking}
+              leadsQueue={leadsQueue}
+              router={router}
+              hideOverdue
+            />
+          </div>
+        </details>
+      )}
+      <ProductTour surface="painel" />
+    </div>
+  );
+}
+
+function PainelNumbersBlock({
+  m,
+  crm,
+  crmHref,
+  overdueTasks,
+  wonTasks,
+  allNiches,
+  followupDonut,
+  noneFollowups,
+  callGoal,
+  periodRefreshing,
+  leadsWorking,
+  leadsQueue,
+  router,
+  hideOverdue = false,
+}: {
+  m: PainelMetrics | undefined;
+  crm: boolean;
+  crmHref: string;
+  overdueTasks: PainelTaskRow[];
+  wonTasks: PainelTaskRow[];
+  allNiches: boolean;
+  followupDonut: { id: string; name: string; value: number; fill: string }[];
+  noneFollowups: number;
+  callGoal: number;
+  periodRefreshing: boolean;
+  leadsWorking: number;
+  leadsQueue: number;
+  router: ReturnType<typeof useRouter>;
+  hideOverdue?: boolean;
+}) {
+  return (
+    <>
       {!m ? null : !crm ? (
         <CrmLocked trialExpired={Boolean(m.trialExpired)} />
       ) : (
@@ -528,6 +631,7 @@ export function PainelDashboard() {
                   </p>
                 ) : null}
               </ChartCard>
+              {hideOverdue ? null : (
               <TaskList
                 title={COPY.painelTasksOverdue}
                 empty={COPY.painelNoOverdue}
@@ -535,6 +639,7 @@ export function PainelDashboard() {
                 allNiches={allNiches}
                 kind="overdue"
               />
+              )}
               <div className="lg:col-span-2">
               <TaskList
                 title={COPY.painelTasksWon}
@@ -624,7 +729,6 @@ export function PainelDashboard() {
           </GlassCard>
         </div>
       </div>
-      <ProductTour surface="painel" />
-    </div>
+    </>
   );
 }

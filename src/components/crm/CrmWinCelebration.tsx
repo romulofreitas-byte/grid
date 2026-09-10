@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { StartingLights, type LightsPhase } from "@/components/StartingLights";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
+import { cn } from "@/lib/utils";
 
 const AUTO_DISMISS_MS = 5200;
 const REDUCE_DISMISS_MS = 8000;
@@ -146,7 +148,10 @@ function WinOverlay({
       </p>
       <motion.div
         aria-hidden
-        className="fixed inset-0 z-[90] flex cursor-pointer flex-col overflow-hidden bg-podium-navy"
+        className={cn(
+          "fixed inset-0 flex cursor-pointer flex-col overflow-hidden bg-podium-navy",
+          SHELL_Z.celebration,
+        )}
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}

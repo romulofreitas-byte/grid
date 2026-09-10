@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import {
   clampRectToViewport,
   inflateRect,
@@ -131,7 +132,12 @@ export function TourOverlay({
     .replace("{total}", String(TOUR_STEP_COUNT));
 
   return (
-    <div className="fixed inset-0 z-[70] overflow-hidden" role="dialog" aria-modal="true" aria-label={step.title}>
+    <div
+      className={cn("fixed inset-0 overflow-hidden", SHELL_Z.modal)}
+      role="dialog"
+      aria-modal="true"
+      aria-label={step.title}
+    >
       {highlight ? (
         <div
           aria-hidden

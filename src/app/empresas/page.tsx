@@ -205,10 +205,9 @@ function CompanyRow({
             aria-label={COPY.empresasForgetRecent}
             onClick={onForget}
             className={cn(
-              "inline-flex h-7 w-7 items-center justify-center rounded-md text-podium-muted opacity-0 transition",
+              "inline-flex h-9 w-9 items-center justify-center rounded-md text-podium-muted transition",
               "hover:bg-white/10 hover:text-podium-white",
-              "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
-              "group-hover:opacity-100 group-focus-within:opacity-100",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-podium-yellow/40",
             )}
           >
             <Trash2 className="h-3.5 w-3.5" />

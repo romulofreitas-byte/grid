@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Lock, Plus, Trash2, X } from "lucide-react";
 import { useId, useState } from "react";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import { isLockedStageKey } from "@/lib/crm/cadence";
 import { CRM_FIELD, CRM_LABEL, sectorLabel } from "@/lib/crm/client";
 import type { CrmDealCard, CrmStage } from "@/lib/crm/types";
@@ -93,14 +94,19 @@ export function CrmCadencePanel({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div
+      className={cn(
+        "fixed inset-0 flex items-end justify-center md:items-stretch md:justify-end",
+        SHELL_Z.toast,
+      )}
+    >
       <button
         type="button"
         aria-label="Fechar"
         className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
-      <aside className="relative flex h-full w-full max-w-md flex-col border-l border-white/10 bg-podium-navy shadow-2xl">
+      <aside className="relative flex max-h-[85dvh] w-full flex-col rounded-t-2xl border border-white/10 bg-podium-navy shadow-2xl md:h-full md:max-h-none md:max-w-md md:rounded-none md:border-l md:border-t-0">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-3 py-3">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold">{COPY.crmAdjustCadence}</h2>

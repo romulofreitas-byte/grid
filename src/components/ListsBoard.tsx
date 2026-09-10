@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookmarkMinus, BookmarkPlus, Plus } from "lucide-react";
+import { BookmarkMinus, BookmarkPlus, ChevronLeft, Plus } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { ListPerformanceBoard } from "@/components/ListPerformanceBoard";
 import { ListSearchMenu } from "@/components/ListSearchMenu";
@@ -11,6 +11,7 @@ import { ListTile } from "@/components/ListTile";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { pistaNomeForSearch } from "@/lib/crm/bridge";
 import { COPY } from "@/lib/copy";
+import { useLgUp } from "@/hooks/useMinWidth";
 import { formatRelativeShort } from "@/lib/format";
 import { gridHref, largadaEditHref, largadaNovaHref } from "@/lib/back";
 import type { ListPerformance } from "@/lib/listas/performance";
@@ -45,6 +46,8 @@ export function ListsBoard({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<ListFilter>("salvas");
+  const lgUp = useLgUp();
+  const [mobileDetail, setMobileDetail] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const { saved, unsaved } = partitionSearches(initial);
     return saved[0]?.id ?? unsaved[0]?.id ?? null;
@@ -65,11 +68,12 @@ export function ListsBoard({
   );
 
   useEffect(() => {
+    if (!lgUp) return;
     if (selectedId && searches.some((row) => row.id === selectedId)) return;
     const next =
       (filter === "salvas" ? saved : unsaved)[0] ?? saved[0] ?? unsaved[0];
     setSelectedId(next?.id ?? null);
-  }, [filter, searches, selectedId, saved, unsaved]);
+  }, [filter, searches, selectedId, saved, unsaved, lgUp]);
 
   function clearError(searchId: string) {
     setErrors((current) => {
@@ -108,7 +112,10 @@ export function ListsBoard({
   function onDeleted(searchId: string) {
     setSearches((current) => removeSearch(current, searchId));
     clearError(searchId);
-    if (selectedId === searchId) setSelectedId(null);
+    if (selectedId === searchId) {
+      setSelectedId(null);
+      setMobileDetail(false);
+    }
   }
 
   const emptyList =
@@ -151,7 +158,7 @@ export function ListsBoard({
 
   return (
     <div className={workSplitClass}>
-      <div className={workSplitRailClass}>
+      <div className={cn(workSplitRailClass, !lgUp && mobileDetail && "hidden")}>
         <div className="flex shrink-0 items-center gap-2">
           {leadsTotal > 0 ? (
             <button
@@ -221,13 +228,32 @@ export function ListsBoard({
                   performance={
                     item.saved ? performanceById[item.id] : undefined
                   }
-                  onSelect={() => setSelectedId(item.id)}
+                  onSelect={() => {
+                    setSelectedId(item.id);
+                    if (!lgUp) setMobileDetail(true);
+                  }}
                 />
               ))}
         </div>
       </div>
 
-      <div className={cn(workSplitPaneClass, "space-y-3")}>
+      <div
+        className={cn(
+          workSplitPaneClass,
+          "space-y-3",
+          !lgUp && !mobileDetail && "hidden",
+        )}
+      >
+        {!lgUp && selected ? (
+          <button
+            type="button"
+            onClick={() => setMobileDetail(false)}
+            className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-podium-yellow"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {COPY.listasBackToList}
+          </button>
+        ) : null}
         {selected ? (
           <ListDetail
             search={selected}
@@ -254,7 +280,7 @@ export function ListsBoard({
           />
         ) : (
           <p className="px-1 py-6 text-sm text-podium-muted">
-            Escolha uma lista à esquerda, ou faça uma{" "}
+            {COPY.listasPickHint}{" "}
             <Link href={largadaNovaHref} className="text-podium-yellow">
               {COPY.novaLista.toLowerCase()}
             </Link>

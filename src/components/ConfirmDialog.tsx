@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
+import { SHELL_Z } from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 
 export function ConfirmDialog({
@@ -58,7 +59,12 @@ export function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center p-4 sm:items-center">
+    <div
+      className={cn(
+        "fixed inset-0 flex items-end justify-center p-4 sm:items-center",
+        SHELL_Z.confirm,
+      )}
+    >
       <button
         type="button"
         aria-label={typeof cancelLabel === "string" ? cancelLabel : COPY.confirmCancel}

@@ -42,7 +42,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "painel-new-list",
     scene: "painel",
     target: "nova-lista",
-    placement: "right",
+    placement: "top",
     title: COPY.tourStepPainelNewListTitle,
     body: COPY.tourStepPainelNewListBody,
   },
