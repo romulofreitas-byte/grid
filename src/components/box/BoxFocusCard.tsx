@@ -28,6 +28,7 @@ import {
   type BoxQueueKind,
 } from "@/lib/box/queue";
 import { COPY } from "@/lib/copy";
+import type { CrmOutcome } from "@/lib/crm/types";
 import { pickCallConnection } from "@/lib/integrations/call-target";
 import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { cn } from "@/lib/utils";
@@ -56,9 +57,9 @@ export function BoxFocusCard({
   onCalled?: () => void;
   onDone: () => Promise<void>;
 }) {
-  const [mode, setMode] = useState<"idle" | "complete" | "snooze" | "meeting">(
-    "idle",
-  );
+  const [mode, setMode] = useState<
+    "idle" | "complete" | "snooze" | "meeting" | "outcome"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const callConnection = pickCallConnection(connections);
@@ -143,6 +144,23 @@ export function BoxFocusCard({
     }
   }
 
+  async function setOutcome(outcome: Extract<CrmOutcome, "won" | "lost">) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await crmFetch(`/api/crm/deals/${item.dealId}/outcome`, {
+        method: "POST",
+        body: JSON.stringify({ outcome }),
+      });
+      setMode("idle");
+      await onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não atualizou o status.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   const callAction =
     item.kind === "whatsapp" ? (
       waHref ? (
@@ -186,6 +204,16 @@ export function BoxFocusCard({
             >
               {item.companyName}
             </button>
+            {qualifyHref ? (
+              <Link
+                href={qualifyHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-5 shrink-0 items-center rounded-full border border-white/15 bg-white/[0.04] px-2 text-[10px] font-medium text-podium-gray hover:border-podium-yellow/35 hover:text-podium-white"
+              >
+                {COPY.boxQualify}
+              </Link>
+            ) : null}
           </div>
           <p className="mt-1 truncate font-mono text-sm text-podium-gray md:text-[12px]">
             {phoneLabel}
@@ -274,16 +302,23 @@ export function BoxFocusCard({
             >
               {COPY.boxSnooze}
             </button>
-            {qualifyHref ? (
-              <Link
-                href={qualifyHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={textLink}
-              >
-                {COPY.boxQualify}
-              </Link>
-            ) : null}
+            <button
+              type="button"
+              disabled={locked}
+              aria-expanded={mode === "outcome"}
+              className={cn(
+                textLink,
+                mode === "outcome" && "text-podium-yellow",
+              )}
+              onClick={() => {
+                setError(null);
+                setMode((current) =>
+                  current === "outcome" ? "idle" : "outcome",
+                );
+              }}
+            >
+              {COPY.boxOutcome}
+            </button>
           </div>
         </div>
       </div>
@@ -316,6 +351,29 @@ export function BoxFocusCard({
           onCancel={() => setMode("idle")}
           onSubmit={bookMeeting}
         />
+      ) : null}
+      {mode === "outcome" ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => void setOutcome("lost")}
+            className="inline-flex h-7 items-center rounded-full border border-red-400/30 bg-red-400/10 px-2.5 text-[11px] font-medium text-red-400 hover:border-red-400/50 hover:bg-red-400/15 disabled:opacity-40"
+          >
+            {COPY.crmOutcomeLost}
+          </button>
+          <button
+            type="button"
+            disabled={locked}
+            onClick={() => void setOutcome("won")}
+            className="inline-flex h-7 items-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 text-[11px] font-medium text-emerald-400 hover:border-emerald-400/50 hover:bg-emerald-400/15 disabled:opacity-40"
+          >
+            {COPY.crmOutcomeWon}
+          </button>
+          {error ? (
+            <p className="text-[11px] text-podium-alert">{error}</p>
+          ) : null}
+        </div>
       ) : null}
     </article>
   );

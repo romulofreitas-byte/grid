@@ -319,6 +319,7 @@ export const COPY = {
   boxComplete: "Concluir",
   boxSnooze: "Reagendar",
   boxQualify: "Qualificação",
+  boxOutcome: "Perdido/ganho",
   boxConfirmMeeting: "Confirmar reunião",
   boxMeetingDue: "Horário da reunião",
   boxSaveMeeting: "Agendar reunião",
