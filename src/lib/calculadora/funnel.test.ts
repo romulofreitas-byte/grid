@@ -21,6 +21,7 @@ describe("calculateFunnel", () => {
     expect(result.negociacoes).toBe(12);
     expect(result.r2).toBe(15);
     expect(result.r1).toBe(22);
+    expect(result.reunioesAgendadas).toBe(110);
     expect(result.ligacoesDecisor).toBe(110);
     expect(result.ready).toBe(false);
     expect(result.ligacoesPorDia).toBe(0);
@@ -37,6 +38,7 @@ describe("calculateFunnel", () => {
       prazoMeses: 3,
       now: new Date("2026-09-03T12:00:00.000Z"),
     });
+    expect(result.reunioesAgendadas).toBe(110);
     expect(result.ligacoesDecisor).toBe(110);
     expect(result.ligacoesTotais).toBe(330);
     expect(result.semanas).toBe(13);
@@ -92,6 +94,46 @@ describe("calculateFunnel", () => {
     });
     expect(withZero.ligacoesDecisor).toBe(withDefault.ligacoesDecisor);
   });
+
+  it("doubles decision-maker contacts when booking conversion is 50%", () => {
+    const result = calculateFunnel({
+      metaFaturamento: 80_000,
+      ticket: 15_000,
+      taxaContato: 50,
+      taxa1: 20,
+      taxa2: 70,
+      taxa3: 80,
+      taxa4: 50,
+      prazoMeses: 3,
+      now: new Date("2026-09-03T12:00:00.000Z"),
+    });
+    expect(result.reunioesAgendadas).toBe(110);
+    expect(result.ligacoesDecisor).toBe(220);
+    expect(result.ligacoesTotais).toBe(660);
+  });
+
+  it("treats a missing booking rate as 100%", () => {
+    const omitted = calculateFunnel({
+      metaFaturamento: 80_000,
+      ticket: 15_000,
+      taxa1: 20,
+      taxa2: 70,
+      taxa3: 80,
+      taxa4: 50,
+      prazoMeses: 0,
+    });
+    const explicit = calculateFunnel({
+      metaFaturamento: 80_000,
+      ticket: 15_000,
+      taxaContato: 100,
+      taxa1: 20,
+      taxa2: 70,
+      taxa3: 80,
+      taxa4: 50,
+      prazoMeses: 0,
+    });
+    expect(omitted.ligacoesDecisor).toBe(explicit.ligacoesDecisor);
+  });
 });
 
 describe("parseFunnelPlan", () => {
@@ -110,6 +152,7 @@ describe("parseFunnelPlan", () => {
       appliedAt: "2026-09-03T12:00:00.000Z",
     });
     expect(parsed?.taxasOrigem).toBe("crm");
+    expect(parsed?.taxaContato).toBe(100);
     expect(parsed?.metaFaturamento).toBe(80_000);
     expect(funnelPlanApplied(parsed)).toBe(true);
     expect(funnelPlanApplied(defaultFunnelPlan())).toBe(false);

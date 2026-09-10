@@ -1,6 +1,7 @@
 import {
   calculateFunnel,
   defaultFunnelPlan,
+  DEFAULT_TAXAS,
   sanitizeFunnelPlanPatch,
   TAXAS_ORIGEM,
   type FunnelPlan,
@@ -19,6 +20,7 @@ export type MetaInput = {
   metaFaturamento: number;
   ticket: number;
   prazoMeses: number;
+  taxaContato: number;
   taxa1: number;
   taxa2: number;
   taxa3: number;
@@ -52,6 +54,7 @@ export function defaultMetaInput(): MetaInput {
     metaFaturamento: plan.metaFaturamento,
     ticket: plan.ticket,
     prazoMeses: plan.prazoMeses,
+    taxaContato: plan.taxaContato,
     taxa1: plan.taxa1,
     taxa2: plan.taxa2,
     taxa3: plan.taxa3,
@@ -65,6 +68,7 @@ export function funnelFromMeta(meta: MetaInput): FunnelPlan {
     metaFaturamento: meta.metaFaturamento,
     ticket: meta.ticket,
     prazoMeses: meta.prazoMeses,
+    taxaContato: meta.taxaContato || DEFAULT_TAXAS.taxaContato,
     taxa1: meta.taxa1,
     taxa2: meta.taxa2,
     taxa3: meta.taxa3,
@@ -96,6 +100,7 @@ export function sanitizeMetaCreate(
       metaFaturamento: plan.metaFaturamento,
       ticket: plan.ticket,
       prazoMeses: plan.prazoMeses,
+      taxaContato: plan.taxaContato,
       taxa1: plan.taxa1,
       taxa2: plan.taxa2,
       taxa3: plan.taxa3,
@@ -120,6 +125,7 @@ export function sanitizeMetaUpdate(body: unknown): Partial<MetaInput> {
     "metaFaturamento",
     "ticket",
     "prazoMeses",
+    "taxaContato",
     "taxa1",
     "taxa2",
     "taxa3",
@@ -135,6 +141,7 @@ export function sanitizeMetaUpdate(body: unknown): Partial<MetaInput> {
     if ("metaFaturamento" in row) patch.metaFaturamento = plan.metaFaturamento;
     if ("ticket" in row) patch.ticket = plan.ticket;
     if ("prazoMeses" in row) patch.prazoMeses = plan.prazoMeses;
+    if ("taxaContato" in row) patch.taxaContato = plan.taxaContato;
     if ("taxa1" in row) patch.taxa1 = plan.taxa1;
     if ("taxa2" in row) patch.taxa2 = plan.taxa2;
     if ("taxa3" in row) patch.taxa3 = plan.taxa3;

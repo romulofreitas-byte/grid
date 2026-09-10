@@ -340,6 +340,7 @@ create table if not exists metas (
   meta_faturamento numeric not null default 0,
   ticket           numeric not null default 0,
   prazo_meses      int not null default 0,
+  taxa_contato     numeric not null default 100,
   taxa1            numeric not null default 20,
   taxa2            numeric not null default 70,
   taxa3            numeric not null default 80,

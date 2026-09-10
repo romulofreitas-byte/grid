@@ -21,6 +21,7 @@ describe("suggestCrmRates", () => {
         deal({ canonical_key: "contrato_fechado", outcome: "won", amount_cents: 1_500_000 }),
       ],
     });
+    expect(suggestions.taxaContato).toBeNull();
     expect(suggestions.taxa1).toBeNull();
     expect(suggestions.taxa2).toBeNull();
     expect(suggestions.taxa3).toBeNull();
@@ -28,7 +29,7 @@ describe("suggestCrmRates", () => {
     expect(suggestions.ticket).toBeNull();
   });
 
-  it("computes percents from realized stages, not dials or scheduled meetings", () => {
+  it("computes percents from booked meetings onward, not dial attempts", () => {
     const deals: CrmRateDeal[] = [
       ...Array.from({ length: 20 }, () => deal({ canonical_key: "tentando_contato" })),
       ...Array.from({ length: 8 }, () => deal({ canonical_key: "reuniao_agendada" })),
@@ -53,10 +54,15 @@ describe("suggestCrmRates", () => {
       }),
     ];
     const suggestions = suggestCrmRates({ deals });
+    expect(suggestions.taxaContato).toEqual({
+      percent: 75,
+      numerador: 30,
+      denominador: 40,
+    });
     expect(suggestions.taxa1).toEqual({
-      percent: 69,
+      percent: 73,
       numerador: 22,
-      denominador: 32,
+      denominador: 30,
     });
     expect(suggestions.taxa2).toEqual({
       percent: 64,
@@ -79,10 +85,11 @@ describe("suggestCrmRates", () => {
   it("does not fall back to attempts when decision-maker sample is thin", () => {
     const deals: CrmRateDeal[] = [
       ...Array.from({ length: 10 }, () => deal({ canonical_key: "tentando_contato" })),
-      ...Array.from({ length: 4 }, () => deal({ canonical_key: "reuniao_agendada" })),
-      ...Array.from({ length: 2 }, () => deal({ canonical_key: "reuniao_realizada" })),
+      ...Array.from({ length: 3 }, () => deal({ canonical_key: "reuniao_agendada" })),
+      ...Array.from({ length: 1 }, () => deal({ canonical_key: "reuniao_realizada" })),
     ];
     const suggestions = suggestCrmRates({ deals });
+    expect(suggestions.taxaContato).toBeNull();
     expect(suggestions.taxa1).toBeNull();
     expect(suggestions.taxa2).toBeNull();
   });
@@ -99,6 +106,7 @@ describe("suggestCrmRates", () => {
 
   it("exposes an empty suggestion payload for deferred CRM rates", () => {
     expect(EMPTY_CRM_RATE_SUGGESTIONS).toEqual({
+      taxaContato: null,
       taxa1: null,
       taxa2: null,
       taxa3: null,

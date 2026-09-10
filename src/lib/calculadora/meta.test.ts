@@ -7,6 +7,7 @@ const ready = {
   metaFaturamento: 80_000,
   ticket: 15_000,
   prazoMeses: 3,
+  taxaContato: 100,
   taxa1: 20,
   taxa2: 70,
   taxa3: 80,
@@ -25,7 +26,14 @@ describe("sanitizeMetaCreate", () => {
     if (parsed.ok) {
       expect(parsed.value.nome).toBe("Clínicas SP");
       expect(parsed.value.tipo_empresa).toHaveLength(80);
+      expect(parsed.value.taxaContato).toBe(100);
     }
+  });
+
+  it("keeps an explicit booking rate", () => {
+    const parsed = sanitizeMetaCreate({ ...ready, taxaContato: 50 });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.value.taxaContato).toBe(50);
   });
 });
 
@@ -34,6 +42,9 @@ describe("sanitizeMetaUpdate", () => {
     expect(sanitizeMetaUpdate({ nome: "   " })).toEqual({});
     expect(sanitizeMetaUpdate({ tipoEmpresa: "Indústria" })).toEqual({
       tipo_empresa: "Indústria",
+    });
+    expect(sanitizeMetaUpdate({ taxaContato: 40 })).toEqual({
+      taxaContato: 40,
     });
   });
 });

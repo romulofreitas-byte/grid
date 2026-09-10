@@ -32,6 +32,7 @@ export type CrmRateSample = {
 };
 
 export type CrmRateSuggestions = {
+  taxaContato: CrmRateSample | null;
   taxa1: CrmRateSample | null;
   taxa2: CrmRateSample | null;
   taxa3: CrmRateSample | null;
@@ -40,6 +41,7 @@ export type CrmRateSuggestions = {
 };
 
 export const EMPTY_CRM_RATE_SUGGESTIONS: CrmRateSuggestions = {
+  taxaContato: null,
   taxa1: null,
   taxa2: null,
   taxa3: null,
@@ -62,10 +64,9 @@ function reached(deal: CrmRateDeal, minRank: number): boolean {
   return rankOf(deal) >= minRank;
 }
 
-/** Spoke with the decision-maker. Scheduled / gatekeeper stages do not count. */
+/** Spoke with the decision-maker, including a booked meeting. Gatekeeper stages do not count. */
 export function isDecisorEfetivado(deal: CrmRateDeal): boolean {
-  const rank = rankOf(deal);
-  return rank === STAGE_RANK.followup_decisor || rank >= STAGE_RANK.reuniao_realizada;
+  return rankOf(deal) >= STAGE_RANK.followup_decisor;
 }
 
 function sample(numerador: number, denominador: number): CrmRateSample | null {
@@ -81,6 +82,9 @@ function sample(numerador: number, denominador: number): CrmRateSample | null {
 export function suggestCrmRates(input: CrmRateInput): CrmRateSuggestions {
   const deals = input.deals.filter((deal) => rankOf(deal) >= 0);
   const decisor = deals.filter(isDecisorEfetivado).length;
+  const agendada = deals.filter((deal) =>
+    reached(deal, STAGE_RANK.reuniao_agendada),
+  ).length;
   const r1 = deals.filter((deal) => reached(deal, STAGE_RANK.reuniao_realizada)).length;
   const r2 = deals.filter((deal) =>
     reached(deal, STAGE_RANK.proposta_apresentada),
@@ -106,7 +110,8 @@ export function suggestCrmRates(input: CrmRateInput): CrmRateSuggestions {
       : null;
 
   return {
-    taxa1: sample(Math.min(r1, decisor), decisor),
+    taxaContato: sample(Math.min(agendada, decisor), decisor),
+    taxa1: sample(Math.min(r1, agendada), agendada),
     taxa2: sample(r2, r1),
     taxa3: sample(negociacao, r2),
     taxa4: sample(won, negociacao),

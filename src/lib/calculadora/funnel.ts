@@ -1,6 +1,7 @@
 import { roundReais } from "@/lib/calculadora/money";
 
 export const DEFAULT_TAXAS = {
+  taxaContato: 100,
   taxa1: 20,
   taxa2: 70,
   taxa3: 80,
@@ -17,6 +18,7 @@ export type FunnelPlan = {
   metaFaturamento: number;
   ticket: number;
   prazoMeses: number;
+  taxaContato: number;
   taxa1: number;
   taxa2: number;
   taxa3: number;
@@ -28,6 +30,7 @@ export type FunnelPlan = {
 export type FunnelInput = {
   metaFaturamento: number;
   ticket: number;
+  taxaContato?: number;
   taxa1: number;
   taxa2: number;
   taxa3: number;
@@ -41,6 +44,7 @@ export type FunnelResult = {
   negociacoes: number;
   r2: number;
   r1: number;
+  reunioesAgendadas: number;
   ligacoesDecisor: number;
   ligacoesTotais: number;
   semanas: number;
@@ -55,6 +59,7 @@ export function defaultFunnelPlan(): FunnelPlan {
     metaFaturamento: 0,
     ticket: 0,
     prazoMeses: 0,
+    taxaContato: DEFAULT_TAXAS.taxaContato,
     taxa1: DEFAULT_TAXAS.taxa1,
     taxa2: DEFAULT_TAXAS.taxa2,
     taxa3: DEFAULT_TAXAS.taxa3,
@@ -93,6 +98,7 @@ export function emptyFunnelResult(): FunnelResult {
     negociacoes: 0,
     r2: 0,
     r1: 0,
+    reunioesAgendadas: 0,
     ligacoesDecisor: 0,
     ligacoesTotais: 0,
     semanas: 0,
@@ -106,6 +112,10 @@ export function emptyFunnelResult(): FunnelResult {
 export function calculateFunnel(input: FunnelInput): FunnelResult {
   const meta = finiteNumber(input.metaFaturamento) ?? 0;
   const ticket = finiteNumber(input.ticket) ?? 0;
+  const taxaContato = toRate(
+    input.taxaContato ?? DEFAULT_TAXAS.taxaContato,
+    DEFAULT_TAXAS.taxaContato,
+  );
   const taxa1 = toRate(input.taxa1, DEFAULT_TAXAS.taxa1);
   const taxa2 = toRate(input.taxa2, DEFAULT_TAXAS.taxa2);
   const taxa3 = toRate(input.taxa3, DEFAULT_TAXAS.taxa3);
@@ -117,7 +127,8 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
   const negociacoes = Math.ceil(contratos / taxa4);
   const r2 = Math.ceil(negociacoes / taxa3);
   const r1 = Math.ceil(r2 / taxa2);
-  const ligacoesDecisor = Math.ceil(r1 / taxa1);
+  const reunioesAgendadas = Math.ceil(r1 / taxa1);
+  const ligacoesDecisor = Math.ceil(reunioesAgendadas / taxaContato);
 
   const prazoMeses = Math.max(0, Math.floor(finiteNumber(input.prazoMeses) ?? 0));
   if (prazoMeses <= 0 || ligacoesDecisor <= 0) {
@@ -126,6 +137,7 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
       negociacoes,
       r2,
       r1,
+      reunioesAgendadas,
       ligacoesDecisor,
       ligacoesTotais: 0,
       semanas: 0,
@@ -150,6 +162,7 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
     negociacoes,
     r2,
     r1,
+    reunioesAgendadas,
     ligacoesDecisor,
     ligacoesTotais,
     semanas,
@@ -182,6 +195,7 @@ export function parseFunnelPlan(raw: unknown): FunnelPlan | null {
     metaFaturamento: roundReais(Math.max(0, finiteNumber(row.metaFaturamento) ?? 0)),
     ticket: roundReais(Math.max(0, finiteNumber(row.ticket) ?? 0)),
     prazoMeses: Math.max(0, Math.floor(finiteNumber(row.prazoMeses) ?? 0)),
+    taxaContato: clampPercent(row.taxaContato, DEFAULT_TAXAS.taxaContato),
     taxa1: clampPercent(row.taxa1, DEFAULT_TAXAS.taxa1),
     taxa2: clampPercent(row.taxa2, DEFAULT_TAXAS.taxa2),
     taxa3: clampPercent(row.taxa3, DEFAULT_TAXAS.taxa3),

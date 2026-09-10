@@ -324,6 +324,8 @@ export const COPY = {
   boxMeetingDue: "Horário da reunião",
   boxSaveMeeting: "Agendar reunião",
   boxNoPhone: "Sem telefone",
+  boxNoteMore: "Ver mais",
+  boxNoteLess: "Ver menos",
   boxSprintEmpty: "Nenhuma ligação ou WhatsApp agendado no CRM.",
   boxSprintEmptyHasCrm:
     "Há negócios no CRM, mas nenhuma ligação ou WhatsApp agendada. O Box só executa ligar e WhatsApp.",
@@ -993,12 +995,15 @@ export const COPY = {
   metasLoadError: "Não foi possível carregar as metas. Recarregue a página.",
   metasSalvar: "Salvar meta",
   metasSalvarHint:
-    "Só este botão guarda em Suas metas. Nada salva sozinho. A primeira da lista é sempre a do Box.",
+    "Salvar guarda em Suas metas. Nada salva sozinho. Salvar e usar no Box também define as ligações do dia.",
   metasSalva: "Meta na lista.",
   calculadoraTaxas: "Taxas do funil",
-  calculadoraTaxa1: "Ligações com decisor → R1 realizada",
+  calculadoraTaxaContato: "Contato com decisor → Reunião agendada",
+  calculadoraTaxaContatoHint:
+    "De cada 10 conversas com o decisor, {n} viram reunião agendada.",
+  calculadoraTaxa1: "Reuniões agendadas → R1 realizada",
   calculadoraTaxa1Hint:
-    "De cada 10 ligações com o decisor, {n} viram R1 realizada.",
+    "De cada 10 reuniões agendadas, {n} viram R1 realizada.",
   calculadoraTaxa2: "R1 realizada → R2 realizada",
   calculadoraTaxa2Hint: "De cada 10 R1 realizadas, {n} viram R2 realizada.",
   calculadoraTaxa3: "R2 realizada → Negociação",
@@ -1014,29 +1019,33 @@ export const COPY = {
   calculadoraCrmTaxaTip: "{n} de {d} negócios do CRM avançaram nesta etapa.",
   calculadoraCrmTicketTip: "Média de {n} contratos ganhos no CRM.",
   calculadoraUsarTicketCrm: "Usar ticket do CRM",
-  calculadoraFunil: "Do contrato à ligação",
+  calculadoraFunil: "Do contrato ao contato",
   calculadoraPassoContratos: "Contratos",
   calculadoraPassoNegociacoes: "Negociações",
   calculadoraPassoR2: "R2s realizadas",
   calculadoraPassoR1: "R1s realizadas",
-  calculadoraPassoDecisor: "Ligações com decisor",
+  calculadoraPassoAgendada: "Reuniões agendadas",
+  calculadoraPassoDecisor: "Contatos com decisor",
   calculadoraGlossario: "Glossário",
   calculadoraGlossarioLead:
-    "O que conta em cada etapa: realizado, não agendado. Sem no-show, sem secretária, sem tentativa.",
+    "O que conta em cada etapa: agendar entra no funil; R1 só se realizada. Sem no-show, sem secretária, sem tentativa.",
   calculadoraPlano: "Plano do dia",
   calculadoraTotais: "Ligações totais (discagens)",
-  calculadoraDecisor: "Ligações com decisor",
+  calculadoraDecisor: "Contatos com decisor",
   calculadoraPorDia: "Ligações por dia",
   calculadoraPlanoHero: "É o que as ligações do dia vão pedir no Box.",
+  calculadoraPlanoX3: "3 discagens por conversa com o decisor.",
   calculadoraPlanoHoje: "Hoje",
   calculadoraPlanoHojeValue: "{n} discagens/dia",
   calculadoraPlanoPeriodo: "No período",
-  calculadoraPlanoPeriodoValue: "{totais} discagens · {decisor} com decisor",
+  calculadoraPlanoPeriodoValue:
+    "{totais} discagens · {decisor} com decisor · {agendadas} reuniões",
   calculadoraPlanoPrazo: "Até quando",
   calculadoraPlanoComo: "Como o número foi calculado",
   calculadoraPremissas:
-    "Ligações totais = efetivadas × 3. O volume do dia reparte em 3 dias de prospecção por semana.",
-  calculadoraPlanoComoTotais: "Ligações totais = ligações com decisor × 3.",
+    "Ligações totais = contatos com decisor × 3. O volume do dia reparte em 3 dias de prospecção por semana.",
+  calculadoraPlanoComoTotais:
+    "Discagens = contatos com decisor × 3. A cada 3 discagens, 1 conversa.",
   calculadoraPlanoComoDia:
     "O volume do dia reparte em 3 dias de prospecção por semana.",
   calculadoraCta: "Usar {n} ligações/dia no Box",
@@ -1044,6 +1053,8 @@ export const COPY = {
   calculadoraApplied: "Ligações do dia atualizadas.",
   calculadoraOpenBox: "Ver no Box",
   calculadoraContaLink: "Definir meta",
+  metasNaoSalvo: "Não salvo",
+  metasSalvarEUsar: "Salvar e usar no Box",
   boxMetaTitle: "Escolha a meta",
   boxMetaBody:
     "Quantas ligações fecham a meta no período. As ligações do dia saem da meta que você aplicar.",
@@ -1057,29 +1068,34 @@ export const CALCULADORA_GLOSSARIO = [
     body: "R1 é o levantamento de necessidades — a reunião de diagnóstico, realizada. R2 é a apresentação da proposta, também realizada, com base no que a R1 apurou. Agendar não conta; no-show não conta.",
   },
   {
+    id: "reuniao-agendada",
+    title: "O que é reunião agendada",
+    body: "Horário marcado com o decisor. Entra no funil. Não é R1: quem não apareceu não avança.",
+  },
+  {
     id: "ligacao-efetivada",
-    title: "O que é ligação com o decisor",
-    body: "Só conta quando você fala com quem decide. Tentativa, caixa postal, secretária e recepção ficam de fora. No plano do dia, as ligações totais já estimam esse filtro: totais = efetivadas × 3.",
+    title: "O que é contato com o decisor",
+    body: "Só conta quando você fala com quem decide. Tentativa, caixa postal, secretária e recepção ficam de fora. No plano do dia, as discagens já estimam esse filtro: totais = contatos × 3.",
   },
   {
     id: "o-que-nao-conta",
     title: "O que não entra na taxa",
-    body: "Reunião agendada não é R1. Quem não apareceu não avança o funil. Contato com secretária não é ligação com decisor. A taxa mede etapa realizada → próxima etapa realizada.",
+    body: "Reunião agendada não é R1. Quem não apareceu não avança o funil. Contato com secretária não é contato com decisor. A taxa mede etapa realizada → próxima etapa realizada — no agendamento, etapa marcada → R1 realizada.",
   },
   {
     id: "taxas",
     title: "Taxas de conversão por etapa",
-    body: "Cada campo é o percentual de avanço: ligação com decisor → R1 realizada → R2 realizada → entrou em negociação (não recusou na proposta) → contrato. Quando uma taxa sobe, a demanda de ligações cai.",
+    body: "Cada campo é o percentual de avanço: contato com decisor → reunião agendada → R1 realizada → R2 realizada → entrou em negociação (não recusou na proposta) → contrato. Quando uma taxa sobe, a demanda de ligações cai.",
   },
   {
     id: "ticket-meta",
     title: "Ticket médio e meta de faturamento",
-    body: "Ticket é o valor médio por contrato fechado. Meta é o faturamento desejado no período. A calculadora divide um pelo outro para achar quantos contratos — e daí volta o funil até as ligações.",
+    body: "Ticket é o valor médio por contrato fechado. Meta é o faturamento desejado no período. A calculadora divide um pelo outro para achar quantos contratos — e daí volta o funil até os contatos.",
   },
   {
     id: "regressivo",
     title: "Como o cálculo regressivo funciona",
-    body: "Começa no objetivo (contratos) e volta etapa por etapa até as ligações com decisor. O volume do dia reparte essas discagens em 3 dias de prospecção por semana.",
+    body: "Começa no objetivo (contratos) e volta etapa por etapa até os contatos com decisor. O ×3 transforma esses contatos em discagens. O volume do dia reparte em 3 dias de prospecção por semana.",
   },
 ] as const;
 

@@ -60,12 +60,29 @@ function metaToInput(meta: PilotMeta): MetaInput {
     metaFaturamento: meta.metaFaturamento,
     ticket: meta.ticket,
     prazoMeses: meta.prazoMeses,
+    taxaContato: meta.taxaContato || DEFAULT_TAXAS.taxaContato,
     taxa1: meta.taxa1,
     taxa2: meta.taxa2,
     taxa3: meta.taxa3,
     taxa4: meta.taxa4,
     taxasOrigem: meta.taxasOrigem,
   };
+}
+
+function sameMetaInput(a: MetaInput, b: MetaInput): boolean {
+  return (
+    a.nome === b.nome &&
+    a.tipo_empresa === b.tipo_empresa &&
+    a.metaFaturamento === b.metaFaturamento &&
+    a.ticket === b.ticket &&
+    a.prazoMeses === b.prazoMeses &&
+    a.taxaContato === b.taxaContato &&
+    a.taxa1 === b.taxa1 &&
+    a.taxa2 === b.taxa2 &&
+    a.taxa3 === b.taxa3 &&
+    a.taxa4 === b.taxa4 &&
+    a.taxasOrigem === b.taxasOrigem
+  );
 }
 
 function CrmChip({ sample, title }: { sample: CrmRateSample | null; title: string }) {
@@ -100,10 +117,12 @@ function PlanoFact({
 function FunnelStep({
   label,
   value,
+  rate,
   featured = false,
 }: {
   label: string;
   value: number;
+  rate?: string;
   featured?: boolean;
 }) {
   return (
@@ -126,6 +145,9 @@ function FunnelStep({
       >
         {formatInt(value)}
       </p>
+      {rate ? (
+        <p className="mt-0.5 text-[10px] font-medium text-podium-yellow">{rate}</p>
+      ) : null}
     </div>
   );
 }
@@ -190,6 +212,8 @@ function MetaPickCard({
   onBox,
   draft = false,
   onSelect,
+  onApply,
+  applying = false,
 }: {
   title: string;
   subtitle?: string;
@@ -198,35 +222,54 @@ function MetaPickCard({
   onBox?: boolean;
   draft?: boolean;
   onSelect?: () => void;
+  onApply?: () => void;
+  applying?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      disabled={!onSelect}
+    <div
       className={cn(
-        "flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left transition disabled:cursor-default",
+        "flex w-full items-center gap-1 rounded-md border px-1.5 py-1",
         selected
           ? "border-podium-yellow/40 bg-podium-yellow/10"
           : draft
             ? "border-dashed border-white/20 bg-white/[0.02]"
-            : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]",
+            : "border-white/10 bg-white/[0.03]",
       )}
     >
-      <span className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={onSelect}
+        disabled={!onSelect}
+        className={cn(
+          "min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition disabled:cursor-default",
+          !selected && !draft && "hover:bg-white/[0.04]",
+        )}
+      >
         <span className="block truncate text-[12px] font-medium text-podium-white">
           {title}
         </span>
         <span className="block truncate text-[11px] text-podium-muted">
           {[subtitle, detail].filter(Boolean).join(" · ")}
         </span>
-      </span>
+      </button>
       {onBox ? (
         <span className="shrink-0 rounded-md border border-podium-yellow/40 bg-podium-yellow/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
           {COPY.metasNoBox}
         </span>
       ) : null}
-    </button>
+      {onApply ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={applying}
+          onClick={onApply}
+          className="shrink-0 px-1.5"
+        >
+          {COPY.metasUsarNoBox}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -421,15 +464,28 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
         setDraft(next);
       }
       setJustApplied(Boolean(vars.apply));
-      if (vars.list) {
-        setJustSaved(true);
-        requestAnimationFrame(() => {
-          document.getElementById("suas-metas")?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        });
+      setJustSaved(!vars.apply);
+    },
+  });
+
+  const applyRemote = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/metas/${id}/apply`, { method: "POST" });
+      return readPayload(res);
+    },
+    onSuccess: (data, id) => {
+      setCache(data);
+      void invalidateLiveStats(qc);
+      const selected = data.metas.find((row) => row.id === id);
+      if (selected) {
+        const next = metaToInput(selected);
+        draftRef.current = next;
+        setDraft(next);
+        selectedIdRef.current = selected.id;
+        setSelectedId(selected.id);
       }
+      setJustApplied(true);
+      setJustSaved(false);
     },
   });
 
@@ -496,6 +552,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     setJustSaved(false);
     const updated = {
       ...draftRef.current,
+      taxaContato: next.taxaContato?.percent ?? draftRef.current.taxaContato,
       taxa1: next.taxa1?.percent ?? draftRef.current.taxa1,
       taxa2: next.taxa2?.percent ?? draftRef.current.taxa2,
       taxa3: next.taxa3?.percent ?? draftRef.current.taxa3,
@@ -511,6 +568,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     setJustSaved(false);
     const updated = {
       ...draftRef.current,
+      taxaContato: DEFAULT_TAXAS.taxaContato,
       taxa1: DEFAULT_TAXAS.taxa1,
       taxa2: DEFAULT_TAXAS.taxa2,
       taxa3: DEFAULT_TAXAS.taxa3,
@@ -522,11 +580,23 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
   }
 
   const hasCrmRates = Boolean(
-    suggestions?.taxa1 ||
+    suggestions?.taxaContato ||
+      suggestions?.taxa1 ||
       suggestions?.taxa2 ||
       suggestions?.taxa3 ||
       suggestions?.taxa4,
   );
+
+  function applyCard(meta: PilotMeta) {
+    if (
+      meta.id === selectedIdRef.current &&
+      !sameMetaInput(draftRef.current, metaToInput(meta))
+    ) {
+      save.mutate({ apply: true });
+      return;
+    }
+    applyRemote.mutate(meta.id);
+  }
 
   if (query.isError) {
     return <p className="text-sm text-podium-gray">{COPY.metasLoadError}</p>;
@@ -536,11 +606,19 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     return <WorkOpeningSkeleton label={COPY.metasOpening} split />;
   }
 
-  const ctaLabel = COPY.calculadoraCta.replace(
-    "{n}",
-    formatInt(result.ligacoesPorDia),
-  );
-  const persistError = save.error ?? remove.error;
+  const persistError = save.error ?? applyRemote.error ?? remove.error;
+  const selectedMeta = metas.find((row) => row.id === selectedId) ?? null;
+  const dirty =
+    selectedId === null
+      ? !sameMetaInput(draft, defaultMetaInput())
+      : !selectedMeta || !sameMetaInput(draft, metaToInput(selectedMeta));
+  const canSave = Boolean(draft.nome.trim()) && dirty && !save.isPending;
+  const canSaveAndApply =
+    Boolean(draft.nome.trim()) &&
+    result.ready &&
+    !save.isPending &&
+    (dirty || !activeOnBox);
+  const applying = save.isPending || applyRemote.isPending;
 
   return (
     <div className={workSplitClass}>
@@ -577,6 +655,12 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                     selected={selected}
                     onBox={onBox}
                     onSelect={() => selectMeta(meta)}
+                    onApply={onBox ? undefined : () => applyCard(meta)}
+                    applying={
+                      applying &&
+                      ((save.isPending && selected && dirty) ||
+                        applyRemote.variables === meta.id)
+                    }
                   />
                 );
               })}
@@ -596,7 +680,14 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
 
       <div id="meta-funil" className={cn(workSplitPaneClass, "space-y-3")}>
           <GlassCard className="p-3" hover={false}>
-            <SectionTitle>{COPY.calculadoraObjetivo}</SectionTitle>
+            <SectionTitle>
+              {COPY.calculadoraObjetivo}
+              {dirty ? (
+                <span className="rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+                  {COPY.metasNaoSalvo}
+                </span>
+              ) : null}
+            </SectionTitle>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="block text-sm text-podium-gray">
                 {COPY.metasNome}
@@ -679,37 +770,98 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
             </div>
           </GlassCard>
 
-          <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
-              <span>{COPY.calculadoraTaxas}</span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-            </summary>
-            <div className="space-y-3 px-3 pb-3">
-              {hasCrmRates ? (
-                <button
-                  type="button"
-                  title={
-                    draft.taxasOrigem === "crm"
-                      ? COPY.calculadoraUsarPadraoTip
-                      : COPY.calculadoraUsarCrmTip
+          <GlassCard className="p-3" highlight hover={false}>
+            <SectionTitle>{COPY.calculadoraPlano}</SectionTitle>
+            <div className="mt-3 rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-3 py-3">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+                {COPY.calculadoraPorDia}
+              </p>
+              <p className="mt-1 text-xl font-semibold text-podium-yellow">
+                {formatInt(result.ligacoesPorDia)}
+              </p>
+              <p className="mt-2 text-sm text-podium-gray">
+                {COPY.calculadoraPlanoHero}
+              </p>
+              <p className="mt-1 text-sm font-medium text-podium-white">
+                {COPY.calculadoraPlanoX3}
+              </p>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <PlanoFact
+                label={COPY.calculadoraPlanoHoje}
+                value={COPY.calculadoraPlanoHojeValue.replace(
+                  "{n}",
+                  formatInt(result.ligacoesPorDia),
+                )}
+              />
+              <PlanoFact
+                label={COPY.calculadoraPlanoPeriodo}
+                value={COPY.calculadoraPlanoPeriodoValue
+                  .replace("{totais}", formatInt(result.ligacoesTotais))
+                  .replace("{decisor}", formatInt(result.ligacoesDecisor))
+                  .replace("{agendadas}", formatInt(result.reunioesAgendadas))}
+              />
+              <PlanoFact
+                label={COPY.calculadoraPlanoPrazo}
+                value={
+                  result.ready && result.dataFinal
+                    ? `${result.dataFinal.toLocaleDateString("pt-BR")} · ${formatInt(result.semanas)} sem. · ${formatInt(result.diasProspeccao)} dias`
+                    : COPY.calculadoraCtaNeed
+                }
+              />
+            </div>
+            <details className="group mt-3 rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+                <span>{COPY.calculadoraPlanoComo}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+              </summary>
+              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
+                <p>{COPY.calculadoraPlanoComoTotais}</p>
+                <p>{COPY.calculadoraPlanoComoDia}</p>
+                {result.ready && result.dataFinal ? (
+                  <p>
+                    {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
+                    {draft.prazoMeses === 1 ? "mês" : "meses"}.
+                  </p>
+                ) : null}
+              </div>
+            </details>
+          </GlassCard>
+
+          <GlassCard className="p-3" hover={false}>
+            <SectionTitle>{COPY.calculadoraTaxas}</SectionTitle>
+            {hasCrmRates ? (
+              <button
+                type="button"
+                title={
+                  draft.taxasOrigem === "crm"
+                    ? COPY.calculadoraUsarPadraoTip
+                    : COPY.calculadoraUsarCrmTip
+                }
+                className={cn(buttonClassName({ variant: "accent", size: "sm" }), "mt-3")}
+                onClick={() => {
+                  if (draft.taxasOrigem === "crm") {
+                    applyDefaultRates();
+                  } else if (suggestions) {
+                    applyCrmRates(suggestions);
                   }
-                  className={buttonClassName({ variant: "accent", size: "sm" })}
-                  onClick={() => {
-                    if (draft.taxasOrigem === "crm") {
-                      applyDefaultRates();
-                    } else if (suggestions) {
-                      applyCrmRates(suggestions);
-                    }
-                  }}
-                >
-                  {draft.taxasOrigem === "crm"
-                    ? COPY.calculadoraUsarPadrao
-                    : COPY.calculadoraUsarCrm}
-                </button>
-              ) : null}
+                }}
+              >
+                {draft.taxasOrigem === "crm"
+                  ? COPY.calculadoraUsarPadrao
+                  : COPY.calculadoraUsarCrm}
+              </button>
+            ) : null}
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {(
                 [
+                  [
+                    "taxaContato",
+                    COPY.calculadoraTaxaContato,
+                    COPY.calculadoraTaxaContatoHint,
+                    suggestions?.taxaContato,
+                    DEFAULT_TAXAS.taxaContato,
+                  ],
                   [
                     "taxa1",
                     COPY.calculadoraTaxa1,
@@ -765,12 +917,11 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                 </label>
               ))}
             </div>
-            </div>
-          </details>
+          </GlassCard>
 
           <GlassCard className="p-3" hover={false}>
             <SectionTitle>{COPY.calculadoraFunil}</SectionTitle>
-            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
               <FunnelStep
                 label={COPY.calculadoraPassoContratos}
                 value={result.contratos}
@@ -779,12 +930,27 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
               <FunnelStep
                 label={COPY.calculadoraPassoNegociacoes}
                 value={result.negociacoes}
+                rate={`${draft.taxa4 || DEFAULT_TAXAS.taxa4}% → ${COPY.calculadoraPassoContratos}`}
               />
-              <FunnelStep label={COPY.calculadoraPassoR2} value={result.r2} />
-              <FunnelStep label={COPY.calculadoraPassoR1} value={result.r1} />
+              <FunnelStep
+                label={COPY.calculadoraPassoR2}
+                value={result.r2}
+                rate={`${draft.taxa3 || DEFAULT_TAXAS.taxa3}% → ${COPY.calculadoraPassoNegociacoes}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoR1}
+                value={result.r1}
+                rate={`${draft.taxa2 || DEFAULT_TAXAS.taxa2}% → ${COPY.calculadoraPassoR2}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoAgendada}
+                value={result.reunioesAgendadas}
+                rate={`${draft.taxa1 || DEFAULT_TAXAS.taxa1}% → ${COPY.calculadoraPassoR1}`}
+              />
               <FunnelStep
                 label={COPY.calculadoraPassoDecisor}
                 value={result.ligacoesDecisor}
+                rate={`${draft.taxaContato || DEFAULT_TAXAS.taxaContato}% → ${COPY.calculadoraPassoAgendada}`}
               />
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -792,11 +958,28 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                 type="button"
                 variant="primary"
                 size="md"
-                disabled={!draft.nome.trim() || save.isPending}
+                disabled={!canSave}
                 onClick={() => save.mutate({ list: true })}
               >
                 {COPY.metasSalvar}
               </Button>
+              <Button
+                type="button"
+                variant="accent"
+                size="md"
+                disabled={!canSaveAndApply}
+                onClick={() => save.mutate({ apply: true })}
+              >
+                {COPY.metasSalvarEUsar}
+              </Button>
+              {justApplied || activeOnBox ? (
+                <Link
+                  href="/box"
+                  className={buttonClassName({ variant: "secondary", size: "md" })}
+                >
+                  {COPY.calculadoraOpenBox}
+                </Link>
+              ) : null}
               {selectedId ? (
                 <Button
                   type="button"
@@ -819,89 +1002,16 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                 {COPY.metasSalva}
               </p>
             ) : null}
+            {justApplied ? (
+              <p className="mt-2 text-sm font-bold text-podium-yellow">
+                {COPY.calculadoraApplied}
+              </p>
+            ) : null}
             {persistError ? (
               <p className="mt-3 text-sm text-red-400">
                 {persistError instanceof Error
                   ? persistError.message
                   : "Não foi possível salvar."}
-              </p>
-            ) : null}
-          </GlassCard>
-
-          <GlassCard className="p-3" highlight hover={false}>
-            <SectionTitle>{COPY.calculadoraPlano}</SectionTitle>
-            <div className="mt-3 rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-3 py-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                {COPY.calculadoraPorDia}
-              </p>
-              <p className="mt-1 text-xl font-semibold text-podium-yellow">
-                {formatInt(result.ligacoesPorDia)}
-              </p>
-              <p className="mt-2 text-sm text-podium-gray">
-                {COPY.calculadoraPlanoHero}
-              </p>
-            </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
-              <PlanoFact
-                label={COPY.calculadoraPlanoHoje}
-                value={COPY.calculadoraPlanoHojeValue.replace(
-                  "{n}",
-                  formatInt(result.ligacoesPorDia),
-                )}
-              />
-              <PlanoFact
-                label={COPY.calculadoraPlanoPeriodo}
-                value={COPY.calculadoraPlanoPeriodoValue
-                  .replace("{totais}", formatInt(result.ligacoesTotais))
-                  .replace("{decisor}", formatInt(result.ligacoesDecisor))}
-              />
-              <PlanoFact
-                label={COPY.calculadoraPlanoPrazo}
-                value={
-                  result.ready && result.dataFinal
-                    ? `${result.dataFinal.toLocaleDateString("pt-BR")} · ${formatInt(result.semanas)} sem. · ${formatInt(result.diasProspeccao)} dias`
-                    : COPY.calculadoraCtaNeed
-                }
-              />
-            </div>
-            <details className="group mt-3 rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
-                <span>{COPY.calculadoraPlanoComo}</span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-              </summary>
-              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
-                <p>{COPY.calculadoraPlanoComoTotais}</p>
-                <p>{COPY.calculadoraPlanoComoDia}</p>
-                {result.ready && result.dataFinal ? (
-                  <p>
-                    {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
-                    {draft.prazoMeses === 1 ? "mês" : "meses"}.
-                  </p>
-                ) : null}
-              </div>
-            </details>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                disabled={!result.ready || save.isPending}
-                onClick={() => save.mutate({ apply: true })}
-              >
-                {result.ready ? ctaLabel : COPY.calculadoraCtaNeed}
-              </Button>
-              {justApplied || activeOnBox ? (
-                <Link
-                  href="/box"
-                  className={buttonClassName({ variant: "secondary", size: "md" })}
-                >
-                  {COPY.calculadoraOpenBox}
-                </Link>
-              ) : null}
-            </div>
-            {justApplied ? (
-              <p className="mt-3 text-sm font-bold text-podium-yellow">
-                {COPY.calculadoraApplied}
               </p>
             ) : null}
           </GlassCard>

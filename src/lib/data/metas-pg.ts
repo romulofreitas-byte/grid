@@ -6,7 +6,7 @@ import {
   type PilotMeta,
 } from "@/lib/calculadora/meta";
 import { DEFAULT_TAXAS } from "@/lib/calculadora/funnel";
-import { isUndefinedTableError, query } from "@/lib/data/pg";
+import { isUndefinedColumnError, isUndefinedTableError, query } from "@/lib/data/pg";
 
 function asIso(value: unknown): string {
   return new Date(String(value)).toISOString();
@@ -22,6 +22,7 @@ function mapMeta(row: Record<string, unknown>): PilotMeta {
     metaFaturamento: Number(row.meta_faturamento ?? 0),
     ticket: Number(row.ticket ?? 0),
     prazoMeses: Number(row.prazo_meses ?? 0),
+    taxaContato: Number(row.taxa_contato ?? DEFAULT_TAXAS.taxaContato),
     taxa1: Number(row.taxa1 ?? DEFAULT_TAXAS.taxa1),
     taxa2: Number(row.taxa2 ?? DEFAULT_TAXAS.taxa2),
     taxa3: Number(row.taxa3 ?? DEFAULT_TAXAS.taxa3),
@@ -33,6 +34,13 @@ function mapMeta(row: Record<string, unknown>): PilotMeta {
 }
 
 const META_COLUMNS = `
+  id, user_id, created_by, nome, tipo_empresa,
+  meta_faturamento, ticket, prazo_meses,
+  taxa_contato, taxa1, taxa2, taxa3, taxa4, taxas_origem,
+  created_at, updated_at
+`;
+
+const META_COLUMNS_LEGACY = `
   id, user_id, created_by, nome, tipo_empresa,
   meta_faturamento, ticket, prazo_meses,
   taxa1, taxa2, taxa3, taxa4, taxas_origem,
@@ -51,6 +59,13 @@ async function getOwnedMeta(
     return rows[0] ? mapMeta(rows[0]) : null;
   } catch (err) {
     if (isUndefinedTableError(err)) return null;
+    if (isUndefinedColumnError(err)) {
+      const { rows } = await query(
+        `select ${META_COLUMNS_LEGACY} from metas where id = $1 and user_id = $2`,
+        [metaId, userId],
+      );
+      return rows[0] ? mapMeta(rows[0]) : null;
+    }
     throw err;
   }
 }
@@ -69,34 +84,73 @@ export const metasPgMethods = {
       return rows.map(mapMeta);
     } catch (err) {
       if (isUndefinedTableError(err)) return [];
+      if (isUndefinedColumnError(err)) {
+        const { rows } = await query(
+          `select ${META_COLUMNS_LEGACY}
+             from metas
+            where user_id = $1
+            order by (id = (select active_meta_id from profiles where id = $1)) desc nulls last,
+                     updated_at desc`,
+          [userId],
+        );
+        return rows.map(mapMeta);
+      }
       throw err;
     }
   },
 
   async createMeta(userId: string, input: MetaInput): Promise<PilotMeta> {
-    const { rows } = await query(
-      `insert into metas (
-         user_id, created_by, nome, tipo_empresa,
-         meta_faturamento, ticket, prazo_meses,
-         taxa1, taxa2, taxa3, taxa4, taxas_origem
-       )
-       values ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       returning ${META_COLUMNS}`,
-      [
-        userId,
-        input.nome,
-        input.tipo_empresa,
-        input.metaFaturamento,
-        input.ticket,
-        input.prazoMeses,
-        input.taxa1,
-        input.taxa2,
-        input.taxa3,
-        input.taxa4,
-        input.taxasOrigem,
-      ],
-    );
-    return mapMeta(rows[0]);
+    try {
+      const { rows } = await query(
+        `insert into metas (
+           user_id, created_by, nome, tipo_empresa,
+           meta_faturamento, ticket, prazo_meses,
+           taxa_contato, taxa1, taxa2, taxa3, taxa4, taxas_origem
+         )
+         values ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         returning ${META_COLUMNS}`,
+        [
+          userId,
+          input.nome,
+          input.tipo_empresa,
+          input.metaFaturamento,
+          input.ticket,
+          input.prazoMeses,
+          input.taxaContato,
+          input.taxa1,
+          input.taxa2,
+          input.taxa3,
+          input.taxa4,
+          input.taxasOrigem,
+        ],
+      );
+      return mapMeta(rows[0]);
+    } catch (err) {
+      if (!isUndefinedColumnError(err)) throw err;
+      const { rows } = await query(
+        `insert into metas (
+           user_id, created_by, nome, tipo_empresa,
+           meta_faturamento, ticket, prazo_meses,
+           taxa1, taxa2, taxa3, taxa4, taxas_origem
+         )
+         values ($1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         returning ${META_COLUMNS_LEGACY}`,
+        [
+          userId,
+          input.nome,
+          input.tipo_empresa,
+          input.metaFaturamento,
+          input.ticket,
+          input.prazoMeses,
+          input.taxa1,
+          input.taxa2,
+          input.taxa3,
+          input.taxa4,
+          input.taxasOrigem,
+        ],
+      );
+      return mapMeta(rows[0]);
+    }
   },
 
   async updateMeta(
@@ -112,10 +166,38 @@ export const metasPgMethods = {
         `update metas set
            nome = $3, tipo_empresa = $4,
            meta_faturamento = $5, ticket = $6, prazo_meses = $7,
+           taxa_contato = $8, taxa1 = $9, taxa2 = $10, taxa3 = $11, taxa4 = $12,
+           taxas_origem = $13, updated_at = now()
+         where id = $1 and user_id = $2
+         returning ${META_COLUMNS}`,
+        [
+          metaId,
+          userId,
+          next.nome,
+          next.tipo_empresa,
+          next.metaFaturamento,
+          next.ticket,
+          next.prazoMeses,
+          next.taxaContato,
+          next.taxa1,
+          next.taxa2,
+          next.taxa3,
+          next.taxa4,
+          next.taxasOrigem,
+        ],
+      );
+      return rows[0] ? mapMeta(rows[0]) : null;
+    } catch (err) {
+      if (isUndefinedTableError(err)) return null;
+      if (!isUndefinedColumnError(err)) throw err;
+      const { rows } = await query(
+        `update metas set
+           nome = $3, tipo_empresa = $4,
+           meta_faturamento = $5, ticket = $6, prazo_meses = $7,
            taxa1 = $8, taxa2 = $9, taxa3 = $10, taxa4 = $11,
            taxas_origem = $12, updated_at = now()
          where id = $1 and user_id = $2
-         returning ${META_COLUMNS}`,
+         returning ${META_COLUMNS_LEGACY}`,
         [
           metaId,
           userId,
@@ -132,9 +214,6 @@ export const metasPgMethods = {
         ],
       );
       return rows[0] ? mapMeta(rows[0]) : null;
-    } catch (err) {
-      if (isUndefinedTableError(err)) return null;
-      throw err;
     }
   },
 

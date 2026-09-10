@@ -247,6 +247,8 @@ describe("COPY crm", () => {
     expect(COPY.boxQualify).toBe("Qualificação");
     expect(COPY.boxOutcome).toBe("Perdido/ganho");
     expect(COPY.boxConfirmMeeting).toBe("Confirmar reunião");
+    expect(COPY.boxNoteMore).toBe("Ver mais");
+    expect(COPY.boxNoteLess).toBe("Ver menos");
     expect(COPY.boxMeetingDue).toMatch(/horário/i);
     expect(COPY.boxSaveMeeting).toMatch(/agendar/i);
     expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
@@ -254,6 +256,12 @@ describe("COPY crm", () => {
     expect(COPY.painelHint).toBe("Aqui, o esforço aparece.");
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.metasOpening).toMatch(/Meta/);
+    expect(COPY.calculadoraTaxa1).toMatch(/Reuniões agendadas/);
+    expect(COPY.calculadoraPassoAgendada).toBe("Reuniões agendadas");
+    expect(COPY.calculadoraPassoDecisor).toBe("Contatos com decisor");
+    expect(COPY.calculadoraPlanoX3).toMatch(/3 discagens/);
+    expect(COPY.metasNaoSalvo).toBe("Não salvo");
+    expect(COPY.metasSalvarEUsar).toMatch(/usar no Box/i);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);
     expect(COPY.crmBridgePartial).toMatch(/não entraram no crm/i);

@@ -9,6 +9,7 @@ const ready = {
   metaFaturamento: 80_000,
   ticket: 15_000,
   prazoMeses: 3,
+  taxaContato: 100,
   taxa1: 20,
   taxa2: 70,
   taxa3: 80,
