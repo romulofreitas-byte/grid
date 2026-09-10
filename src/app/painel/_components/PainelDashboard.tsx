@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Flame, Phone } from "lucide-react";
@@ -154,10 +154,19 @@ export function PainelDashboard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const filters = useMemo(
+  const urlFilters = useMemo(
     () => parsePainelFilters(searchParams),
     [searchParams],
   );
+  const [pendingRange, setPendingRange] = useState<PainelRange | null>(null);
+  const filters: PainelFilters =
+    pendingRange != null ? { ...urlFilters, range: pendingRange } : urlFilters;
+
+  useEffect(() => {
+    if (pendingRange != null && pendingRange === urlFilters.range) {
+      setPendingRange(null);
+    }
+  }, [pendingRange, urlFilters.range]);
 
   const setFilters = useMemo(() => {
     return (next: PainelFilters) => {
@@ -165,6 +174,14 @@ export function PainelDashboard() {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     };
   }, [pathname, router]);
+
+  const reduce = useReducedMotion();
+
+  function selectRange(range: PainelRange) {
+    if (range === filters.range) return;
+    setPendingRange(range);
+    setFilters({ ...filters, range });
+  }
 
   const query = useQuery({
     queryKey: ["painel-metrics", painelFiltersQueryString(filters)],
@@ -246,22 +263,42 @@ export function PainelDashboard() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1">
-            {PAINEL_RANGES.map((range) => (
-              <button
-                key={range}
-                type="button"
-                onClick={() => setFilters({ ...filters, range: range as PainelRange })}
-                className={cn(
-                  "rounded-md px-2.5 py-1.5 text-[11px] font-medium transition",
-                  filters.range === range
-                    ? "bg-podium-yellow text-podium-navy"
-                    : "text-podium-muted hover:text-podium-white",
-                )}
-              >
-                {painelRangeLabel(range)}
-              </button>
-            ))}
+          <div
+            className="inline-flex flex-wrap rounded-lg border border-white/10 bg-white/[0.03] p-1"
+            role="group"
+            aria-label="Período"
+          >
+            {PAINEL_RANGES.map((range) => {
+              const selected = filters.range === range;
+              return (
+                <button
+                  key={range}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => selectRange(range)}
+                  className={cn(
+                    "relative rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors duration-150 ease-out",
+                    selected
+                      ? "text-podium-navy"
+                      : "text-podium-muted hover:bg-white/10 hover:text-podium-white active:bg-white/[0.16] active:text-podium-white",
+                  )}
+                >
+                  {selected ? (
+                    <motion.span
+                      layoutId={reduce ? undefined : "painel-range-pill"}
+                      className="absolute inset-0 rounded-md bg-podium-yellow shadow-[inset_0_1px_0_rgba(255,255,255,0.28)]"
+                      transition={
+                        reduce
+                          ? { duration: 0 }
+                          : { type: "spring", stiffness: 520, damping: 38 }
+                      }
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span className="relative z-10">{painelRangeLabel(range)}</span>
+                </button>
+              );
+            })}
           </div>
           {(m?.pipelines.length ?? 0) > 1 ? (
             <label className="block min-w-0 sm:w-[220px] sm:min-w-[220px]">
