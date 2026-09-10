@@ -49,8 +49,11 @@ export function PlanCard({
       >
         {eyebrow}
       </p>
-      <h3 className="mt-2 text-base font-semibold">{plan.nome}</h3>
-      <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-pretty text-sm leading-5 text-podium-muted">
+      <p className="mt-2 min-h-4 text-xs leading-4 text-podium-muted">
+        {plan.audience}
+      </p>
+      <h3 className="mt-1.5 text-base font-semibold">{plan.nome}</h3>
+      <p className="mt-1 line-clamp-3 min-h-[2.5rem] text-pretty text-sm leading-5 text-podium-muted">
         {plan.tagline}
       </p>
       <p className="mt-3 flex min-h-8 items-baseline whitespace-nowrap text-xl font-semibold text-podium-yellow">
@@ -59,7 +62,7 @@ export function PlanCard({
           <span className="text-sm font-medium text-podium-muted">/mês</span>
         ) : null}
       </p>
-      <ul className="mt-4 min-h-[8.5rem] space-y-2 text-sm text-podium-gray">
+      <ul className="mt-4 min-h-[11rem] space-y-2 text-sm text-podium-gray">
         {plan.highlights.map((line) => (
           <BenefitItem key={line} text={line} />
         ))}

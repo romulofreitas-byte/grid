@@ -28,10 +28,14 @@ export default async function PlanosPage({
 
   return (
     <PublicPage className="max-w-6xl" back={back}>
-      <SectionTitle className="mt-4">Planos e créditos</SectionTitle>
-      <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-        Buscar e ligar pela ficha é grátis. Qualificar custa 1 crédito. Crédito do
-        plano zera no mês.
+      <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+        {COPY.landingPlansEyebrow}
+      </p>
+      <h1 className="mt-3 max-w-xl text-balance text-xl font-semibold tracking-tight text-podium-white md:text-2xl">
+        {COPY.landingPlansTitle}
+      </h1>
+      <p className="mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-podium-muted md:text-base">
+        {COPY.landingPlansBody}
       </p>
 
       <div className="mt-8 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -76,7 +80,7 @@ export default async function PlanosPage({
                   >
                     {plan.sku === "free"
                       ? "Continuar no treino"
-                      : "Pagar com Pix"}
+                      : COPY.landingPlansCtaPaid}
                   </Link>
                 ) : waitlist ? (
                   <PilotoProWaitlistCta pathname="/planos" />
@@ -96,11 +100,13 @@ export default async function PlanosPage({
         })}
       </div>
 
+      <p className="mt-6 text-sm text-podium-muted">{COPY.landingPlansPayHint}</p>
+      <p className="mt-1 text-sm text-podium-muted">{COPY.planosCreditNote}</p>
+
       <div id="recarga" className="scroll-mt-20">
         <SectionTitle className="mt-14">Recarga de créditos</SectionTitle>
         <p className="mt-3 max-w-2xl text-pretty text-sm text-podium-gray">
-          Créditos extras para o meio do mês. Não expiram e somam no saldo da
-          conta.
+          Extra no meio do mês. Não expira e soma no saldo da conta.
         </p>
         <div className="mt-6 grid items-stretch gap-4 md:grid-cols-3">
           {PACKS.map((pack) => (

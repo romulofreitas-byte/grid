@@ -364,11 +364,14 @@ describe("COPY landing", () => {
   });
 
   it("ladders plans from Treino to Pro without putting automations on Piloto", () => {
+    expect(COPY.landingPlansTitle).toMatch(/destrava/i);
     expect(COPY.landingPlansBody).toMatch(/Treino livre/);
     expect(COPY.landingPlansBody).toMatch(/Piloto libera o CRM/);
     expect(COPY.landingPlansBody).toMatch(/importar a planilha/);
     expect(COPY.landingPlansBody).toMatch(/Automações/);
     expect(COPY.landingPlansBody).not.toMatch(/export/i);
+    expect(COPY.landingPlansPayHint).toMatch(/Pix/i);
+    expect(COPY.planosCreditNote).toMatch(/1 crédito/i);
     expect(COPY.landingPlansShowAll).toBe("Ver tudo");
     expect(COPY.landingPlansShowLess).toBe("Ver menos");
   });

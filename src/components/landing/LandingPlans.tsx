@@ -116,6 +116,7 @@ export function LandingPlans({ signedIn }: { signedIn: boolean }) {
         </div>
 
         <p className="mt-8 text-sm text-podium-muted">
+          {COPY.landingPlansPayHint}{" "}
           <Link
             href="/planos#recarga"
             className="font-bold text-podium-gray underline-offset-4 hover:text-podium-white hover:underline"

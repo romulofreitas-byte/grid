@@ -63,9 +63,12 @@ export const COPY = {
     "Salvou e qualificou: o lote inteiro cai em Entrada. Você liga, anota e segue o contato — sem planilha paralela.",
   landingCrmPreviewLabel: "Assim entra no CRM",
   landingPlansEyebrow: "Planos",
-  landingPlansTitle: "Escolha o plano e comece pela lista",
+  landingPlansTitle: "Escolha o plano pelo que destrava no dia",
   landingPlansBody:
-    "No Treino livre você busca, vê a lista e qualifica 25\u00a0empresas. O Piloto libera o CRM, a Meta e importar a planilha. O Pro traz volume e Automações.",
+    "No Treino livre você sente a lista. O Piloto libera o CRM, a meta do dia e importar a planilha. O Pro traz Automações: o lead do site e do anúncio cai no quadro.",
+  landingPlansPayHint: "Pix, cartão ou boleto no checkout.",
+  planosCreditNote:
+    "Qualificar custa 1 crédito. O crédito do plano zera no mês.",
   landingPlansMore: "Recargas e detalhes",
   landingPlansCtaFree: "Começar grátis",
   landingPlansCtaPaid: "Assinar",

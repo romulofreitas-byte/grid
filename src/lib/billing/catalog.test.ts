@@ -41,7 +41,7 @@ describe("catalog", () => {
       enrichAllowed: false,
       credits: 25,
     });
-    expect(free.highlights).toContain("25 qualificações / mês");
+    expect(free.highlights.join(" ")).toMatch(/25 qualifica/i);
     expect(catalogBenefitLines(free).join(" ")).not.toMatch(/crm|export/i);
   });
 
@@ -49,14 +49,26 @@ describe("catalog", () => {
     for (const plan of GRID_PLANS) {
       expect(plan.highlights).toHaveLength(4);
       expect(plan.details.length).toBeGreaterThan(0);
+      expect(plan.audience.length).toBeGreaterThan(0);
     }
   });
 
-  it("lists native CRM, Meta and spreadsheet import on Piloto", () => {
+  it("sells the day of calling on the face, not a quota of fichas", () => {
+    for (const plan of GRID_PLANS) {
+      expect(plan.highlights.join(" ")).not.toMatch(/fichas por dia/i);
+    }
+    expect(asPlan("membro_plataforma").highlights.join(" ")).not.toMatch(
+      /fichas por dia/i,
+    );
+  });
+
+  it("lists native CRM, Box and spreadsheet import on Piloto", () => {
     const piloto = asPlan("piloto");
-    expect(piloto.highlights).toContain("CRM nativo");
-    expect(piloto.highlights).toContain("Meta do dia no Box");
-    expect(piloto.details).toContain("Importar planilha para o quadro");
+    const face = piloto.highlights.join(" ");
+    expect(face).toMatch(/CRM/i);
+    expect(face).toMatch(/Box/);
+    expect(face).toMatch(/planilha/i);
+    expect(piloto.details.join(" ")).toMatch(/900 créditos/i);
     expect(catalogBenefitLines(piloto).join(" ")).not.toMatch(/automaç/i);
   });
 
@@ -80,9 +92,13 @@ describe("catalog", () => {
     expect(planHasFeature("unknown", "crm")).toBe(false);
     const pro = asPlan("piloto_pro");
     const escuderia = asPlan("escuderia");
-    expect(pro.highlights).toContain("Automações: link no site e anúncio Meta");
+    const proFace = pro.highlights.join(" ");
     expect(pro.highlights).toContain("Tudo do Piloto");
-    expect(pro.details).toContain("Munição de mercado na ficha");
+    expect(proFace).toMatch(/formulário no site/i);
+    expect(proFace).toMatch(/Meta/);
+    expect(proFace).toMatch(/muniç/i);
+    expect(pro.details.join(" ")).toMatch(/4\.000 créditos/i);
+    expect(pro.details.join(" ")).toMatch(/webhook/i);
     expect(escuderia.highlights).toContain("Tudo do Piloto Pro");
     expect(escuderia.notes).toContain("Seats extras em desenvolvimento");
   });
@@ -132,9 +148,9 @@ describe("catalog", () => {
     expect(formatBrl(9_700)).toBe("R$ 97,00");
   });
 
-  it("sizes Piloto around a month of daily calls, not bulk export", () => {
+  it("keeps credits in the accordion and does not sell bulk export on Piloto", () => {
     const piloto = asPlan("piloto");
-    expect(piloto.highlights).toContain("~20 fichas por dia no mês");
+    expect(piloto.details.join(" ")).toMatch(/900 créditos/i);
     expect(catalogBenefitLines(piloto).join(" ")).not.toMatch(/export/i);
   });
 
