@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GlassCard } from "@/components/GlassCard";
@@ -90,27 +91,95 @@ function CrmChip({ sample, title }: { sample: CrmRateSample | null; title: strin
   return (
     <span
       title={title}
-      className="cursor-help rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow"
+      className="shrink-0 cursor-help rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-podium-yellow"
     >
       CRM · {sample.numerador}/{sample.denominador}
     </span>
   );
 }
 
+type RateKey = "taxaContato" | "taxa1" | "taxa2" | "taxa3" | "taxa4";
+type FunnelFocus = RateKey | "discagens";
+
+const RATE_STEP_ID: Record<RateKey, string> = {
+  taxa4: "funil-negociacoes",
+  taxa3: "funil-r2",
+  taxa2: "funil-r1",
+  taxa1: "funil-agendadas",
+  taxaContato: "funil-decisor",
+};
+
+const RATE_EDITOR_ID: Record<RateKey, string> = {
+  taxaContato: "taxa-contato",
+  taxa1: "taxa-agendada",
+  taxa2: "taxa-r1",
+  taxa3: "taxa-r2",
+  taxa4: "taxa-negociacao",
+};
+
+const RATE_BUMP = 5;
+
 function PlanoFact({
   label,
-  value,
+  children,
 }: {
   label: string;
-  value: string;
+  children: ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2">
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+    <div className="flex min-h-[5.5rem] min-w-0 flex-col rounded-md border border-white/[0.08] bg-white/[0.03] px-3 py-2">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
         {label}
       </p>
-      <p className="mt-1 text-sm font-semibold text-podium-white">{value}</p>
+      <div className="mt-1 space-y-0.5 text-sm font-semibold tabular-nums leading-snug text-podium-white">
+        {children}
+      </div>
     </div>
+  );
+}
+
+function VolumeBar({
+  label,
+  value,
+  max,
+  active,
+  onSelect,
+  hint,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  active: boolean;
+  onSelect: () => void;
+  hint?: string;
+}) {
+  const width = max > 0 ? Math.max(6, Math.round((value / max) * 100)) : 0;
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={hint}
+      onClick={onSelect}
+      className={cn(
+        "w-full rounded-md px-1 py-1 text-left transition",
+        active ? "bg-podium-yellow/10" : "hover:bg-white/[0.04]",
+      )}
+    >
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+          {label}
+        </span>
+        <span className="text-sm font-semibold tabular-nums text-podium-white">
+          {formatInt(value)}
+        </span>
+      </span>
+      <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-white/10">
+        <span
+          className="block h-full rounded-full bg-podium-yellow"
+          style={{ width: `${width}%` }}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -119,34 +188,130 @@ function FunnelStep({
   value,
   rate,
   featured = false,
+  active = false,
+  stepId,
+  onSelect,
 }: {
   label: string;
   value: number;
   rate?: string;
   featured?: boolean;
+  active?: boolean;
+  stepId?: string;
+  onSelect?: () => void;
 }) {
-  return (
-    <div
-      className={cn(
-        "rounded-md border px-3 py-2",
-        featured
-          ? "border-podium-yellow/40 bg-podium-yellow/10"
-          : "border-white/[0.08] bg-white/[0.03]",
-      )}
-    >
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+  const className = cn(
+    "flex h-full min-h-[6.75rem] flex-col rounded-md border px-3 py-2 text-left",
+    featured
+      ? "border-podium-yellow/40 bg-podium-yellow/10"
+      : "border-white/[0.08] bg-white/[0.03]",
+    active && "ring-1 ring-podium-yellow/70",
+    onSelect && "transition hover:border-white/25",
+  );
+  const body = (
+    <>
+      <p className="min-h-8 text-[10px] font-medium uppercase leading-tight tracking-wide text-podium-muted">
         {label}
       </p>
       <p
         className={cn(
-          "mt-1 text-lg font-semibold",
+          "mt-1 text-lg font-semibold tabular-nums",
           featured ? "text-podium-yellow" : "text-podium-white",
         )}
       >
         {formatInt(value)}
       </p>
-      {rate ? (
-        <p className="mt-0.5 text-[10px] font-medium text-podium-yellow">{rate}</p>
+      <p
+        className={cn(
+          "mt-auto min-h-8 pt-1 text-[10px] font-medium leading-snug",
+          rate ? "text-podium-yellow" : "invisible",
+        )}
+      >
+        {rate ?? "—"}
+      </p>
+    </>
+  );
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        id={stepId}
+        className={className}
+        aria-pressed={active}
+        onClick={onSelect}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div id={stepId} className={className}>
+      {body}
+    </div>
+  );
+}
+
+function RateRow({
+  id,
+  label,
+  hint,
+  value,
+  fallback,
+  sample,
+  active,
+  delta,
+  onChange,
+  onFocus,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  value: number;
+  fallback: number;
+  sample: CrmRateSample | null;
+  active: boolean;
+  delta: string | null;
+  onChange: (percent: number) => void;
+  onFocus: () => void;
+}) {
+  return (
+    <div
+      id={id}
+      className={cn(
+        "rounded-md border px-3 py-3",
+        active
+          ? "border-podium-yellow/50 bg-podium-yellow/5"
+          : "border-white/[0.08] bg-white/[0.03]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 text-sm font-medium leading-snug text-podium-white">
+          {label}
+        </p>
+        <CrmChip
+          sample={sample}
+          title={
+            sample
+              ? COPY.calculadoraCrmTaxaTip
+                  .replace("{n}", String(sample.numerador))
+                  .replace("{d}", String(sample.denominador))
+              : ""
+          }
+        />
+      </div>
+      <p className="mt-1 text-sm leading-relaxed text-podium-gray">{hint}</p>
+      <div className="mt-2 w-24">
+        <PercentInput
+          id={`${id}-input`}
+          ariaLabel={label}
+          value={value}
+          fallback={fallback}
+          onChange={onChange}
+          onFocus={onFocus}
+        />
+      </div>
+      {active && delta ? (
+        <p className="mt-2 text-sm font-medium text-podium-yellow">{delta}</p>
       ) : null}
     </div>
   );
@@ -273,14 +438,47 @@ function MetaPickCard({
   );
 }
 
+const META_SWAP_TRANSITION = {
+  type: "spring" as const,
+  stiffness: 380,
+  damping: 32,
+  mass: 0.75,
+};
+
+function MetaListItem({
+  front,
+  reduce,
+  children,
+}: {
+  front: boolean;
+  reduce: boolean | null;
+  children: ReactNode;
+}) {
+  return (
+    <motion.div
+      layout={reduce ? false : "position"}
+      transition={reduce ? { duration: 0 } : META_SWAP_TRANSITION}
+      className={cn("relative", front && "z-10")}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function PercentInput({
+  id,
   value,
   fallback,
   onChange,
+  ariaLabel,
+  onFocus,
 }: {
+  id?: string;
   value: number;
   fallback: number;
   onChange: (percent: number) => void;
+  ariaLabel?: string;
+  onFocus?: () => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -289,14 +487,17 @@ function PercentInput({
   return (
     <div className="relative">
       <input
+        id={id}
         type="text"
         inputMode="numeric"
         autoComplete="off"
+        aria-label={ariaLabel}
         value={display}
         onFocus={(e) => {
           setFocused(true);
           setDraft(String(value));
           e.target.select();
+          onFocus?.();
         }}
         onChange={(e) => {
           const digits = e.target.value.replace(/\D/g, "").slice(0, 3);
@@ -368,6 +569,8 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
   const [justApplied, setJustApplied] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<PilotMeta | null>(null);
+  const [funnelFocus, setFunnelFocus] = useState<FunnelFocus | null>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -400,6 +603,19 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     () => calculateFunnel(funnelFromMeta(draft)),
     [draft],
   );
+  const rateFocus =
+    funnelFocus && funnelFocus !== "discagens" ? funnelFocus : null;
+  const deltaDaily = useMemo(() => {
+    if (!rateFocus) return null;
+    const current = draft[rateFocus] || DEFAULT_TAXAS[rateFocus];
+    const bumped = Math.min(100, current + RATE_BUMP);
+    if (bumped === current) return null;
+    const nextDaily = calculateFunnel(
+      funnelFromMeta({ ...draft, [rateFocus]: bumped }),
+    ).ligacoesPorDia;
+    if (nextDaily === result.ligacoesPorDia) return null;
+    return { pp: bumped - current, daily: nextDaily };
+  }, [rateFocus, draft, result.ligacoesPorDia]);
   const activeOnBox = Boolean(selectedId && selectedId === activeMetaId);
 
   function setCache(data: MetasPayload) {
@@ -411,6 +627,21 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
         EMPTY_CRM_RATE_SUGGESTIONS,
     });
     qc.invalidateQueries({ queryKey: ["profile"] });
+  }
+
+  async function promoteInList(id: string) {
+    await qc.cancelQueries({ queryKey: METAS_QUERY });
+    const previous = qc.getQueryData<MetasPayload>(METAS_QUERY);
+    if (!previous || previous.activeMetaId === id) return previous ?? null;
+    qc.setQueryData(METAS_QUERY, {
+      ...previous,
+      activeMetaId: id,
+      suggestions:
+        suggestionsQuery.data ??
+        previous.suggestions ??
+        EMPTY_CRM_RATE_SUGGESTIONS,
+    });
+    return previous;
   }
 
   const save = useMutation({
@@ -452,6 +683,16 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
       const applied = await fetch(`/api/metas/${id}/apply`, { method: "POST" });
       return readPayload(applied);
     },
+    onMutate: async (opts) => {
+      if (!opts.apply) return;
+      const id = selectedIdRef.current;
+      if (!id) return;
+      const previous = await promoteInList(id);
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) setCache(ctx.previous);
+    },
     onSuccess: (data, vars) => {
       if (!data) return;
       setCache(data);
@@ -472,6 +713,32 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/metas/${id}/apply`, { method: "POST" });
       return readPayload(res);
+    },
+    onMutate: async (id) => {
+      const previous = await promoteInList(id);
+      const prevSelectedId = selectedIdRef.current;
+      const prevDraft = draftRef.current;
+      const selected = (previous ?? qc.getQueryData<MetasPayload>(METAS_QUERY))
+        ?.metas.find((row) => row.id === id);
+      if (selected) {
+        const next = metaToInput(selected);
+        draftRef.current = next;
+        setDraft(next);
+        selectedIdRef.current = selected.id;
+        setSelectedId(selected.id);
+      }
+      return { previous, prevSelectedId, prevDraft };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) setCache(ctx.previous);
+      if (ctx?.prevDraft) {
+        draftRef.current = ctx.prevDraft;
+        setDraft(ctx.prevDraft);
+      }
+      if (ctx?.prevSelectedId !== undefined) {
+        selectedIdRef.current = ctx.prevSelectedId;
+        setSelectedId(ctx.prevSelectedId);
+      }
     },
     onSuccess: (data, id) => {
       setCache(data);
@@ -530,6 +797,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
   function selectMeta(meta: PilotMeta) {
     setJustApplied(false);
     setJustSaved(false);
+    setFunnelFocus(null);
     const next = metaToInput(meta);
     draftRef.current = next;
     setDraft(next);
@@ -540,11 +808,24 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
   function startNew() {
     setJustApplied(false);
     setJustSaved(false);
+    setFunnelFocus(null);
     const next = defaultMetaInput();
     draftRef.current = next;
     setDraft(next);
     selectedIdRef.current = null;
     setSelectedId(null);
+  }
+
+  function selectFunnel(next: FunnelFocus, opts?: { toggle?: boolean }) {
+    const turningOff = Boolean(opts?.toggle) && funnelFocus === next;
+    setFunnelFocus(turningOff ? null : next);
+    if (turningOff || next === "discagens") return;
+    requestAnimationFrame(() => {
+      document.getElementById(RATE_EDITOR_ID[next])?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
   }
 
   function applyCrmRates(next: CrmRateSuggestions) {
@@ -622,7 +903,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
 
   return (
     <div className={workSplitClass}>
-      <div className={workSplitRailClass}>
+      <motion.div className={workSplitRailClass} layoutScroll>
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
@@ -637,80 +918,157 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
             {COPY.metasNova}
           </button>
         </div>
-        <div id="suas-metas" className="mt-2 min-h-0 flex-1 space-y-1">
+        <div id="suas-metas" className="mt-2 flex min-h-0 flex-1 flex-col gap-1">
           {metas.length === 0 && selectedId !== null ? (
             <p className="px-1 py-6 text-sm text-podium-muted">{COPY.metasEmpty}</p>
           ) : (
-            <>
+            <LayoutGroup id="suas-metas">
               {metas.map((meta) => {
                 const daily = calculateFunnel(funnelFromMeta(meta)).ligacoesPorDia;
                 const selected = meta.id === selectedId;
                 const onBox = meta.id === activeMetaId;
                 return (
-                  <MetaPickCard
+                  <MetaListItem
                     key={meta.id}
-                    title={meta.nome}
-                    subtitle={meta.tipo_empresa || undefined}
-                    detail={`${formatBrl(meta.ticket)} · ${formatInt(daily)} lig/dia`}
-                    selected={selected}
-                    onBox={onBox}
-                    onSelect={() => selectMeta(meta)}
-                    onApply={onBox ? undefined : () => applyCard(meta)}
-                    applying={
-                      applying &&
-                      ((save.isPending && selected && dirty) ||
-                        applyRemote.variables === meta.id)
-                    }
-                  />
+                    front={onBox}
+                    reduce={reduceMotion}
+                  >
+                    <MetaPickCard
+                      title={meta.nome}
+                      subtitle={meta.tipo_empresa || undefined}
+                      detail={`${formatBrl(meta.ticket)} · ${formatInt(daily)} lig/dia`}
+                      selected={selected}
+                      onBox={onBox}
+                      onSelect={() => selectMeta(meta)}
+                      onApply={onBox ? undefined : () => applyCard(meta)}
+                      applying={
+                        applying &&
+                        ((save.isPending && selected && dirty) ||
+                          applyRemote.variables === meta.id)
+                      }
+                    />
+                  </MetaListItem>
                 );
               })}
               {selectedId === null ? (
-                <MetaPickCard
-                  title={draft.nome.trim() || COPY.metasNova}
-                  subtitle={draft.tipo_empresa.trim() || undefined}
-                  detail={COPY.metasRascunho}
-                  selected
-                  draft
-                />
+                <MetaListItem front={false} reduce={reduceMotion}>
+                  <MetaPickCard
+                    title={draft.nome.trim() || COPY.metasNova}
+                    subtitle={draft.tipo_empresa.trim() || undefined}
+                    detail={COPY.metasRascunho}
+                    selected
+                    draft
+                  />
+                </MetaListItem>
               ) : null}
-            </>
+            </LayoutGroup>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      <div id="meta-funil" className={cn(workSplitPaneClass, "space-y-3")}>
+      <div id="meta-funil" className={workSplitPaneClass}>
+        <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 border-b border-white/10 bg-podium-navy/95 py-2 backdrop-blur-xl">
+          <div className="min-w-[5.5rem] px-1">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+              {COPY.calculadoraPorDia}
+            </p>
+            <p className="text-xl font-semibold tabular-nums text-podium-yellow">
+              {formatInt(result.ligacoesPorDia)}
+            </p>
+          </div>
+          {dirty ? (
+            <span className="rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+              {COPY.metasNaoSalvo}
+            </span>
+          ) : null}
+          {justSaved ? (
+            <span className="text-sm font-bold text-podium-yellow">
+              {COPY.metasSalva}
+            </span>
+          ) : null}
+          {justApplied ? (
+            <span className="text-sm font-bold text-podium-yellow">
+              {COPY.calculadoraApplied}
+            </span>
+          ) : null}
+          {persistError ? (
+            <span className="text-sm text-red-400">
+              {persistError instanceof Error
+                ? persistError.message
+                : "Não foi possível salvar."}
+            </span>
+          ) : null}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              disabled={!canSave}
+              title={COPY.metasSalvarHint}
+              onClick={() => save.mutate({ list: true })}
+            >
+              {COPY.metasSalvar}
+            </Button>
+            <Button
+              type="button"
+              variant="accent"
+              size="md"
+              disabled={!canSaveAndApply}
+              onClick={() => save.mutate({ apply: true })}
+            >
+              {COPY.metasSalvarEUsar}
+            </Button>
+            {justApplied || activeOnBox ? (
+              <Link
+                href="/box"
+                className={buttonClassName({ variant: "secondary", size: "md" })}
+              >
+                {COPY.calculadoraOpenBox}
+              </Link>
+            ) : null}
+            {selectedId ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={remove.isPending}
+                onClick={() => {
+                  const meta = metas.find((row) => row.id === selectedId);
+                  if (meta) setPendingDelete(meta);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {COPY.metasExcluir}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-3 pb-3">
           <GlassCard className="p-3" hover={false}>
-            <SectionTitle>
-              {COPY.calculadoraObjetivo}
-              {dirty ? (
-                <span className="rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-                  {COPY.metasNaoSalvo}
-                </span>
-              ) : null}
-            </SectionTitle>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="block text-sm text-podium-gray">
-                {COPY.metasNome}
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={draft.nome}
-                  onChange={(e) => patch({ nome: e.target.value })}
-                  className={fieldClass}
-                />
-              </label>
-              <label className="block text-sm text-podium-gray">
-                {COPY.metasTipoEmpresa}
-                <input
-                  type="text"
-                  maxLength={80}
-                  value={draft.tipo_empresa}
-                  onChange={(e) => patch({ tipo_empresa: e.target.value })}
-                  className={fieldClass}
-                />
-              </label>
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <label className="block">
+              <span className="sr-only">{COPY.metasNome}</span>
+              <input
+                type="text"
+                maxLength={80}
+                value={draft.nome}
+                onChange={(e) => patch({ nome: e.target.value })}
+                placeholder={COPY.metasNome}
+                className="w-full rounded-md border border-transparent bg-transparent px-1 text-base font-semibold text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40"
+              />
+            </label>
+            <label className="mt-0.5 block">
+              <span className="sr-only">{COPY.metasTipoEmpresa}</span>
+              <input
+                type="text"
+                maxLength={80}
+                value={draft.tipo_empresa}
+                onChange={(e) => patch({ tipo_empresa: e.target.value })}
+                placeholder={COPY.metasTipoEmpresa}
+                className="w-full rounded-md border border-transparent bg-transparent px-1 text-sm text-podium-muted outline-none placeholder:text-podium-muted/70 focus:border-podium-yellow/40"
+              />
+            </label>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
               <label className="block text-sm text-podium-gray">
                 {COPY.calculadoraMetaFaturamento}
                 <MoneyInput
@@ -727,7 +1085,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                         "{n}",
                         String(suggestions.ticket.amostra),
                       )}
-                      className="cursor-help rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow"
+                      className="cursor-help rounded-md border border-podium-yellow/30 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-podium-yellow"
                     >
                       CRM · {suggestions.ticket.amostra}
                     </span>
@@ -766,93 +1124,102 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                   }
                   className={fieldClass}
                 />
+                {result.ready && result.dataFinal ? (
+                  <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+                    {result.dataFinal.toLocaleDateString("pt-BR")}
+                  </p>
+                ) : null}
               </label>
             </div>
           </GlassCard>
 
-          <GlassCard className="p-3" highlight hover={false}>
-            <SectionTitle>{COPY.calculadoraPlano}</SectionTitle>
-            <div className="mt-3 rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-3 py-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
-                {COPY.calculadoraPorDia}
-              </p>
-              <p className="mt-1 text-xl font-semibold text-podium-yellow">
-                {formatInt(result.ligacoesPorDia)}
-              </p>
-              <p className="mt-2 text-sm text-podium-gray">
-                {COPY.calculadoraPlanoHero}
-              </p>
-              <p className="mt-1 text-sm font-medium text-podium-white">
+          <GlassCard className="p-3" hover={false}>
+            <SectionTitle>{COPY.calculadoraFunil}</SectionTitle>
+            <div className="mt-4 grid grid-cols-2 items-stretch gap-2 xl:grid-cols-6">
+              <FunnelStep
+                label={COPY.calculadoraPassoContratos}
+                value={result.contratos}
+                featured
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoNegociacoes}
+                value={result.negociacoes}
+                stepId={RATE_STEP_ID.taxa4}
+                active={funnelFocus === "taxa4"}
+                onSelect={() => selectFunnel("taxa4", { toggle: true })}
+                rate={`${draft.taxa4 || DEFAULT_TAXAS.taxa4}% → ${COPY.calculadoraPassoContratosShort}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoR2}
+                value={result.r2}
+                stepId={RATE_STEP_ID.taxa3}
+                active={funnelFocus === "taxa3"}
+                onSelect={() => selectFunnel("taxa3", { toggle: true })}
+                rate={`${draft.taxa3 || DEFAULT_TAXAS.taxa3}% → ${COPY.calculadoraPassoNegociacoesShort}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoR1}
+                value={result.r1}
+                stepId={RATE_STEP_ID.taxa2}
+                active={funnelFocus === "taxa2"}
+                onSelect={() => selectFunnel("taxa2", { toggle: true })}
+                rate={`${draft.taxa2 || DEFAULT_TAXAS.taxa2}% → ${COPY.calculadoraPassoR2Short}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoAgendada}
+                value={result.reunioesAgendadas}
+                stepId={RATE_STEP_ID.taxa1}
+                active={funnelFocus === "taxa1"}
+                onSelect={() => selectFunnel("taxa1", { toggle: true })}
+                rate={`${draft.taxa1 || DEFAULT_TAXAS.taxa1}% → ${COPY.calculadoraPassoR1Short}`}
+              />
+              <FunnelStep
+                label={COPY.calculadoraPassoDecisor}
+                value={result.ligacoesDecisor}
+                stepId={RATE_STEP_ID.taxaContato}
+                active={funnelFocus === "taxaContato"}
+                onSelect={() => selectFunnel("taxaContato", { toggle: true })}
+                rate={`${draft.taxaContato || DEFAULT_TAXAS.taxaContato}% → ${COPY.calculadoraPassoAgendadaShort}`}
+              />
+            </div>
+            {funnelFocus === "discagens" ? (
+              <p className="mt-3 text-sm text-podium-gray">
                 {COPY.calculadoraPlanoX3}
               </p>
-            </div>
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
-              <PlanoFact
-                label={COPY.calculadoraPlanoHoje}
-                value={COPY.calculadoraPlanoHojeValue.replace(
-                  "{n}",
-                  formatInt(result.ligacoesPorDia),
-                )}
-              />
-              <PlanoFact
-                label={COPY.calculadoraPlanoPeriodo}
-                value={COPY.calculadoraPlanoPeriodoValue
-                  .replace("{totais}", formatInt(result.ligacoesTotais))
-                  .replace("{decisor}", formatInt(result.ligacoesDecisor))
-                  .replace("{agendadas}", formatInt(result.reunioesAgendadas))}
-              />
-              <PlanoFact
-                label={COPY.calculadoraPlanoPrazo}
-                value={
-                  result.ready && result.dataFinal
-                    ? `${result.dataFinal.toLocaleDateString("pt-BR")} · ${formatInt(result.semanas)} sem. · ${formatInt(result.diasProspeccao)} dias`
-                    : COPY.calculadoraCtaNeed
-                }
-              />
-            </div>
-            <details className="group mt-3 rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
-                <span>{COPY.calculadoraPlanoComo}</span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
-              </summary>
-              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
-                <p>{COPY.calculadoraPlanoComoTotais}</p>
-                <p>{COPY.calculadoraPlanoComoDia}</p>
-                {result.ready && result.dataFinal ? (
-                  <p>
-                    {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
-                    {draft.prazoMeses === 1 ? "mês" : "meses"}.
-                  </p>
-                ) : null}
-              </div>
-            </details>
+            ) : null}
           </GlassCard>
 
           <GlassCard className="p-3" hover={false}>
-            <SectionTitle>{COPY.calculadoraTaxas}</SectionTitle>
-            {hasCrmRates ? (
-              <button
-                type="button"
-                title={
-                  draft.taxasOrigem === "crm"
-                    ? COPY.calculadoraUsarPadraoTip
-                    : COPY.calculadoraUsarCrmTip
-                }
-                className={cn(buttonClassName({ variant: "accent", size: "sm" }), "mt-3")}
-                onClick={() => {
-                  if (draft.taxasOrigem === "crm") {
-                    applyDefaultRates();
-                  } else if (suggestions) {
-                    applyCrmRates(suggestions);
+            <div className="flex flex-col gap-2">
+              <SectionTitle>{COPY.calculadoraTaxas}</SectionTitle>
+              <Hint>{COPY.calculadoraTaxasLead}</Hint>
+              {hasCrmRates ? (
+                <button
+                  type="button"
+                  title={
+                    draft.taxasOrigem === "crm"
+                      ? COPY.calculadoraUsarPadraoTip
+                      : COPY.calculadoraUsarCrmTip
                   }
-                }}
-              >
-                {draft.taxasOrigem === "crm"
-                  ? COPY.calculadoraUsarPadrao
-                  : COPY.calculadoraUsarCrm}
-              </button>
-            ) : null}
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  className={cn(
+                    buttonClassName({ variant: "accent", size: "sm" }),
+                    "w-fit shrink-0",
+                  )}
+                  onClick={() => {
+                    if (draft.taxasOrigem === "crm") {
+                      applyDefaultRates();
+                    } else if (suggestions) {
+                      applyCrmRates(suggestions);
+                    }
+                  }}
+                >
+                  {draft.taxasOrigem === "crm"
+                    ? COPY.calculadoraUsarPadrao
+                    : COPY.calculadoraUsarCrm}
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-3 space-y-2">
               {(
                 [
                   [
@@ -892,128 +1259,110 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                   ],
                 ] as const
               ).map(([key, label, hint, sample, fallback]) => (
-                <label key={key} className="block text-sm text-podium-gray">
-                  <span className="flex items-center justify-between gap-2">
-                    {label}
-                    <CrmChip
-                      sample={sample ?? null}
-                      title={
-                        sample
-                          ? COPY.calculadoraCrmTaxaTip
-                              .replace("{n}", String(sample.numerador))
-                              .replace("{d}", String(sample.denominador))
-                          : ""
-                      }
-                    />
-                  </span>
-                  <PercentInput
-                    value={draft[key]}
-                    fallback={fallback}
-                    onChange={(percent) => patch({ [key]: percent }, "manual")}
-                  />
-                  <Hint className="mt-1">
-                    {hint.replace("{n}", eachTen(draft[key] || fallback))}
-                  </Hint>
-                </label>
+                <RateRow
+                  key={key}
+                  id={RATE_EDITOR_ID[key]}
+                  label={label}
+                  hint={hint.replace(
+                    "{n}",
+                    eachTen(draft[key] || fallback),
+                  )}
+                  value={draft[key]}
+                  fallback={fallback}
+                  sample={sample ?? null}
+                  active={funnelFocus === key}
+                  delta={
+                    rateFocus === key && deltaDaily
+                      ? COPY.calculadoraDeltaDia
+                          .replace("{pp}", String(deltaDaily.pp))
+                          .replace("{n}", formatInt(deltaDaily.daily))
+                      : null
+                  }
+                  onChange={(percent) => patch({ [key]: percent }, "manual")}
+                  onFocus={() => selectFunnel(key)}
+                />
               ))}
             </div>
           </GlassCard>
 
-          <GlassCard className="p-3" hover={false}>
-            <SectionTitle>{COPY.calculadoraFunil}</SectionTitle>
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
-              <FunnelStep
-                label={COPY.calculadoraPassoContratos}
-                value={result.contratos}
-                featured
-              />
-              <FunnelStep
-                label={COPY.calculadoraPassoNegociacoes}
-                value={result.negociacoes}
-                rate={`${draft.taxa4 || DEFAULT_TAXAS.taxa4}% → ${COPY.calculadoraPassoContratos}`}
-              />
-              <FunnelStep
-                label={COPY.calculadoraPassoR2}
-                value={result.r2}
-                rate={`${draft.taxa3 || DEFAULT_TAXAS.taxa3}% → ${COPY.calculadoraPassoNegociacoes}`}
-              />
-              <FunnelStep
-                label={COPY.calculadoraPassoR1}
-                value={result.r1}
-                rate={`${draft.taxa2 || DEFAULT_TAXAS.taxa2}% → ${COPY.calculadoraPassoR2}`}
-              />
-              <FunnelStep
-                label={COPY.calculadoraPassoAgendada}
-                value={result.reunioesAgendadas}
-                rate={`${draft.taxa1 || DEFAULT_TAXAS.taxa1}% → ${COPY.calculadoraPassoR1}`}
-              />
-              <FunnelStep
-                label={COPY.calculadoraPassoDecisor}
-                value={result.ligacoesDecisor}
-                rate={`${draft.taxaContato || DEFAULT_TAXAS.taxaContato}% → ${COPY.calculadoraPassoAgendada}`}
-              />
+          <GlassCard className="p-3" highlight hover={false}>
+            <SectionTitle>{COPY.calculadoraPlano}</SectionTitle>
+            <div className="mt-3 grid items-stretch gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
+              <div className="flex min-h-[5.5rem] min-w-0 flex-col rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-2">
+                <p className="px-1 text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+                  {COPY.calculadoraPlanoPeriodo}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  <VolumeBar
+                    label={COPY.calculadoraPlanoBarDiscagens}
+                    value={result.ligacoesTotais}
+                    max={result.ligacoesTotais}
+                    active={funnelFocus === "discagens"}
+                    hint={COPY.calculadoraPlanoX3}
+                    onSelect={() => selectFunnel("discagens", { toggle: true })}
+                  />
+                  <VolumeBar
+                    label={COPY.calculadoraPlanoBarDecisor}
+                    value={result.ligacoesDecisor}
+                    max={result.ligacoesTotais}
+                    active={funnelFocus === "taxaContato"}
+                    onSelect={() =>
+                      selectFunnel("taxaContato", { toggle: true })
+                    }
+                  />
+                  <VolumeBar
+                    label={COPY.calculadoraPlanoBarAgendadas}
+                    value={result.reunioesAgendadas}
+                    max={result.ligacoesTotais}
+                    active={funnelFocus === "taxa1"}
+                    onSelect={() => selectFunnel("taxa1", { toggle: true })}
+                  />
+                </div>
+              </div>
+              <PlanoFact label={COPY.calculadoraPlanoPrazo}>
+                {result.ready && result.dataFinal ? (
+                  <>
+                    <p>{result.dataFinal.toLocaleDateString("pt-BR")}</p>
+                    <div className="mt-2 flex min-w-0 flex-wrap gap-1">
+                      {Array.from(
+                        { length: Math.max(1, Math.min(result.semanas, 12)) },
+                        (_, index) => (
+                          <span
+                            key={index}
+                            className="h-1.5 w-3 shrink-0 rounded-full bg-podium-yellow/70"
+                          />
+                        ),
+                      )}
+                    </div>
+                    <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+                      {COPY.calculadoraPlanoPrazoValue
+                        .replace("{semanas}", formatInt(result.semanas))
+                        .replace("{dias}", formatInt(result.diasProspeccao))}
+                    </p>
+                  </>
+                ) : (
+                  <p className="font-medium text-podium-muted">
+                    {COPY.calculadoraCtaNeed}
+                  </p>
+                )}
+              </PlanoFact>
             </div>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                disabled={!canSave}
-                onClick={() => save.mutate({ list: true })}
-              >
-                {COPY.metasSalvar}
-              </Button>
-              <Button
-                type="button"
-                variant="accent"
-                size="md"
-                disabled={!canSaveAndApply}
-                onClick={() => save.mutate({ apply: true })}
-              >
-                {COPY.metasSalvarEUsar}
-              </Button>
-              {justApplied || activeOnBox ? (
-                <Link
-                  href="/box"
-                  className={buttonClassName({ variant: "secondary", size: "md" })}
-                >
-                  {COPY.calculadoraOpenBox}
-                </Link>
-              ) : null}
-              {selectedId ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    const meta = metas.find((row) => row.id === selectedId);
-                    if (meta) setPendingDelete(meta);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {COPY.metasExcluir}
-                </Button>
-              ) : null}
-            </div>
-            <Hint className="mt-3">{COPY.metasSalvarHint}</Hint>
-            {justSaved ? (
-              <p className="mt-2 text-sm font-bold text-podium-yellow">
-                {COPY.metasSalva}
-              </p>
-            ) : null}
-            {justApplied ? (
-              <p className="mt-2 text-sm font-bold text-podium-yellow">
-                {COPY.calculadoraApplied}
-              </p>
-            ) : null}
-            {persistError ? (
-              <p className="mt-3 text-sm text-red-400">
-                {persistError instanceof Error
-                  ? persistError.message
-                  : "Não foi possível salvar."}
-              </p>
-            ) : null}
+            <details className="group mt-3 rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-podium-white [&::-webkit-details-marker]:hidden">
+                <span>{COPY.calculadoraPlanoComo}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-podium-muted transition group-open:rotate-180 group-open:text-podium-yellow" />
+              </summary>
+              <div className="space-y-2 px-4 pb-4 text-sm leading-relaxed text-podium-gray">
+                <p>{COPY.calculadoraPlanoComoTotais}</p>
+                <p>{COPY.calculadoraPlanoComoDia}</p>
+                {result.ready && result.dataFinal ? (
+                  <p>
+                    {formatBrl(draft.metaFaturamento)} em {draft.prazoMeses}{" "}
+                    {draft.prazoMeses === 1 ? "mês" : "meses"}.
+                  </p>
+                ) : null}
+              </div>
+            </details>
           </GlassCard>
 
       <details className="group rounded-md border border-white/10 bg-white/[0.04] open:border-podium-yellow/25">
@@ -1033,6 +1382,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
           ))}
         </div>
       </details>
+        </div>
       </div>
 
       <ConfirmDialog
