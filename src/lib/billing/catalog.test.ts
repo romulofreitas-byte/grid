@@ -50,6 +50,12 @@ describe("catalog", () => {
       expect(plan.highlights).toHaveLength(4);
       expect(plan.details.length).toBeGreaterThan(0);
       expect(plan.audience.length).toBeGreaterThan(0);
+      expect(plan.badges.length).toBeGreaterThanOrEqual(2);
+      expect(plan.badges.length).toBeLessThanOrEqual(3);
+      for (const badge of plan.badges) {
+        expect(badge.label.length).toBeGreaterThan(0);
+        expect(badge.label.length).toBeLessThanOrEqual(16);
+      }
     }
   });
 

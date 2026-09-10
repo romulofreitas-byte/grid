@@ -12,13 +12,22 @@ export type PaymentMethod = "pix" | "card_br" | "boleto" | "card_intl";
 export type BillingProvider = "asaas" | "stripe" | "mock" | "platform" | "circle";
 export type OrderKind = "subscription_cycle" | "credit_pack" | "platform";
 
+export type PlanBadgeTone = "yellow" | "muted" | "success" | "sky";
+
+export type PlanBadge = {
+  label: string;
+  tone: PlanBadgeTone;
+};
+
 export type PlanDefinition = {
   sku: PlanSku;
   kind: "plan";
   nome: string;
-  /** One-line “para quem”, above the plan name on the card. */
+  /** One-line “para quem” — kept for checkout and tests; the card uses badges. */
   audience: string;
   tagline: string;
+  /** Compact chips between the plan name and the price. */
+  badges: PlanBadge[];
   priceCents: number;
   credits: number;
   enrichAllowed: boolean;
@@ -68,6 +77,10 @@ export const PLANS: PlanDefinition[] = [
     nome: "Treino livre",
     audience: "Para quem vai testar hoje",
     tagline: "Sente a lista. Liga. Decide se vale pagar.",
+    badges: [
+      { label: "Testar hoje", tone: "muted" },
+      { label: "Sem cartão", tone: "success" },
+    ],
     priceCents: 0,
     credits: 25,
     enrichAllowed: false,
@@ -91,6 +104,11 @@ export const PLANS: PlanDefinition[] = [
     nome: "Piloto",
     audience: "Para quem liga toda semana",
     tagline: "A lista vira o dia — não uma planilha.",
+    badges: [
+      { label: "Toda semana", tone: "muted" },
+      { label: "CRM", tone: "yellow" },
+      { label: "Box", tone: "yellow" },
+    ],
     priceCents: 9_700,
     credits: 900,
     enrichAllowed: true,
@@ -114,6 +132,11 @@ export const PLANS: PlanDefinition[] = [
     nome: "Piloto Pro",
     audience: "Para quem já capta e liga",
     tagline: "O lead de fora cai no quadro. Você liga.",
+    badges: [
+      { label: "Capta e liga", tone: "muted" },
+      { label: "Site + Meta", tone: "sky" },
+      { label: "Munição", tone: "yellow" },
+    ],
     priceCents: 19_700,
     credits: 4_000,
     enrichAllowed: true,
@@ -135,6 +158,10 @@ export const PLANS: PlanDefinition[] = [
     nome: "Escuderia",
     audience: "Para a equipe — em breve",
     tagline: "Quando a operação inteira entra no GRID.",
+    badges: [
+      { label: "Em breve", tone: "muted" },
+      { label: "Time", tone: "yellow" },
+    ],
     priceCents: 39_700,
     credits: 6_000,
     enrichAllowed: true,
@@ -157,6 +184,10 @@ export const PLANS: PlanDefinition[] = [
     nome: "Membro da Plataforma",
     audience: "Quem já assina o Mundo Pódium",
     tagline: "Nível Piloto incluído por 30 dias na assinatura Mundo Pódium.",
+    badges: [
+      { label: "30 dias", tone: "yellow" },
+      { label: "Nível Piloto", tone: "muted" },
+    ],
     priceCents: 0,
     credits: 900,
     enrichAllowed: true,

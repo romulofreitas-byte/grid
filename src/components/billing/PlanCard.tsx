@@ -4,8 +4,20 @@ import { useId, useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { COPY } from "@/lib/copy";
-import { formatBrl, type PlanDefinition } from "@/lib/billing/catalog";
+import {
+  formatBrl,
+  type PlanBadgeTone,
+  type PlanDefinition,
+} from "@/lib/billing/catalog";
 import { cn } from "@/lib/utils";
+
+const BADGE_TONE: Record<PlanBadgeTone, string> = {
+  yellow:
+    "border-podium-yellow/40 bg-podium-yellow/15 text-podium-yellow",
+  muted: "border-white/15 bg-white/[0.04] text-podium-gray",
+  success: "border-podium-success/35 bg-podium-success/15 text-podium-success",
+  sky: "border-sky-400/35 bg-sky-400/15 text-sky-300",
+};
 
 function BenefitItem({ text }: { text: string }) {
   return (
@@ -16,6 +28,28 @@ function BenefitItem({ text }: { text: string }) {
       />
       {text}
     </li>
+  );
+}
+
+function PlanPill({
+  label,
+  tone,
+  className,
+}: {
+  label: string;
+  tone: PlanBadgeTone;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit max-w-full items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none",
+        BADGE_TONE[tone],
+        className,
+      )}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -41,21 +75,21 @@ export function PlanCard({
 
   const inner = (
     <>
-      <p
-        className={cn(
-          "h-4 text-[10px] font-medium uppercase tracking-[0.12em]",
-          featured ? "text-podium-yellow" : "text-podium-muted",
-        )}
-      >
-        {eyebrow}
-      </p>
-      <p className="mt-2 min-h-4 text-xs leading-4 text-podium-muted">
-        {plan.audience}
-      </p>
-      <h3 className="mt-1.5 text-base font-semibold">{plan.nome}</h3>
-      <p className="mt-1 line-clamp-3 min-h-[2.5rem] text-pretty text-sm leading-5 text-podium-muted">
-        {plan.tagline}
-      </p>
+      <PlanPill
+        label={eyebrow}
+        tone={featured ? "yellow" : "muted"}
+        className="self-start"
+      />
+      <h3 className="mt-2 text-base font-semibold">{plan.nome}</h3>
+      <div className="mt-2 flex min-h-5 flex-wrap gap-1">
+        {plan.badges.map((badge) => (
+          <PlanPill
+            key={badge.label}
+            label={badge.label}
+            tone={badge.tone}
+          />
+        ))}
+      </div>
       <p className="mt-3 flex min-h-8 items-baseline whitespace-nowrap text-xl font-semibold text-podium-yellow">
         {price}
         {plan.priceCents > 0 ? (
