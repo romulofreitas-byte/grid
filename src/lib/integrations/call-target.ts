@@ -41,13 +41,23 @@ export function callViaLabel(connection: CallConnectionPick): string {
 }
 
 export function testCallDestination(
-  connection: Pick<CallConnectionPick, "kind" | "caller_id" | "provider" | "catalog_id">,
+  connection: {
+    kind: IntegrationKind;
+    caller_id?: string | null;
+    provider?: IntegrationProvider | null;
+    catalog_id?: string | null;
+    config?: Record<string, unknown>;
+  },
   to?: string | null,
 ): { ok: true; to: string } | { ok: false; error: string } {
   if (connection.kind === "crm") {
     return { ok: false, error: "CRM não disca" };
   }
-  const catalog = connection.catalog_id ?? connection.provider;
+  const fromConfig =
+    typeof connection.config?.catalog_id === "string"
+      ? connection.config.catalog_id
+      : null;
+  const catalog = connection.catalog_id ?? fromConfig ?? connection.provider;
   if (catalog === "api4com" && !to?.trim()) {
     return { ok: false, error: COPY.api4comTestHint };
   }

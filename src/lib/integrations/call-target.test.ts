@@ -117,4 +117,14 @@ describe("testCallDestination", () => {
     expect(dest.ok).toBe(false);
     if (!dest.ok) expect(dest.error).toMatch(/não testa no ramal/i);
   });
+
+  it("reads catalog_id from the stored config on a DB row", () => {
+    const dest = testCallDestination({
+      kind: "voip",
+      provider: "api4com",
+      caller_id: "10000",
+      config: { catalog_id: "api4com" },
+    });
+    expect(dest.ok).toBe(false);
+  });
 });
