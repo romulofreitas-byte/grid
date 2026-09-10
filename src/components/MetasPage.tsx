@@ -270,7 +270,7 @@ function RateRow({
   fallback: number;
   sample: CrmRateSample | null;
   active: boolean;
-  delta: string | null;
+  delta: { taxa: number; daily: number } | null;
   onChange: (percent: number) => void;
   onFocus: () => void;
 }) {
@@ -300,19 +300,28 @@ function RateRow({
         />
       </div>
       <p className="mt-1 text-sm leading-relaxed text-podium-gray">{hint}</p>
-      <div className="mt-2 w-24">
-        <PercentInput
-          id={`${id}-input`}
-          ariaLabel={label}
-          value={value}
-          fallback={fallback}
-          onChange={onChange}
-          onFocus={onFocus}
-        />
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <div className="w-24">
+          <PercentInput
+            id={`${id}-input`}
+            ariaLabel={label}
+            value={value}
+            fallback={fallback}
+            onChange={onChange}
+            onFocus={onFocus}
+          />
+        </div>
+        {active && delta ? (
+          <div className="min-w-0 pb-0.5">
+            <p className="text-sm text-podium-gray">
+              {COPY.calculadoraDeltaSe.replace("{taxa}", String(delta.taxa))}
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-podium-yellow">
+              {COPY.calculadoraDeltaDia.replace("{n}", formatInt(delta.daily))}
+            </p>
+          </div>
+        ) : null}
       </div>
-      {active && delta ? (
-        <p className="mt-2 text-sm font-medium text-podium-yellow">{delta}</p>
-      ) : null}
     </div>
   );
 }
@@ -614,7 +623,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
       funnelFromMeta({ ...draft, [rateFocus]: bumped }),
     ).ligacoesPorDia;
     if (nextDaily === result.ligacoesPorDia) return null;
-    return { pp: bumped - current, daily: nextDaily };
+    return { taxa: bumped, daily: nextDaily };
   }, [rateFocus, draft, result.ligacoesPorDia]);
   const activeOnBox = Boolean(selectedId && selectedId === activeMetaId);
 
@@ -1276,11 +1285,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                   sample={sample ?? null}
                   active={funnelFocus === key}
                   delta={
-                    rateFocus === key && deltaDaily
-                      ? COPY.calculadoraDeltaDia
-                          .replace("{pp}", String(deltaDaily.pp))
-                          .replace("{n}", formatInt(deltaDaily.daily))
-                      : null
+                    rateFocus === key && deltaDaily ? deltaDaily : null
                   }
                   onChange={(percent) => patch({ [key]: percent }, "manual")}
                   onFocus={() => selectFunnel(key)}
