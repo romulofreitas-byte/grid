@@ -36,6 +36,11 @@ export type RecordCompletedCallInput = {
   crmEventAlreadyWritten?: boolean;
   /** Skip getBalance; CRM routes already gated. */
   crmWrites?: boolean;
+  /**
+   * VoIP originate should count the ring and leave the Box `ligar` open
+   * so the pilot can write a note before Concluir.
+   */
+  completeOpenLigar?: boolean;
 };
 
 export async function recordCompletedCall(
@@ -82,7 +87,9 @@ export async function recordCompletedCall(
       if (deal) {
         const ligar = openLigarActivity(deal);
         if (ligar) {
-          await repo.completeCrmActivity(input.userId, deal.id, ligar.id);
+          if (input.completeOpenLigar !== false) {
+            await repo.completeCrmActivity(input.userId, deal.id, ligar.id);
+          }
         } else {
           await repo.logCrmCall(
             input.userId,

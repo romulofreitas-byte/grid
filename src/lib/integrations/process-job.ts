@@ -192,6 +192,7 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
         ? ((await repo.getSearch(job.search_id)) ?? null)
         : null,
       source: "dialer",
+      completeOpenLigar: false,
     });
     await repo.updateIntegrationJob(job.id, {
       status: "done",

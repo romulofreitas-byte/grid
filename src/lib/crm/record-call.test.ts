@@ -143,6 +143,35 @@ describe("recordCompletedCall", () => {
     const events = await mockRepo.listCrmEvents(USER, created!.id);
     expect(events?.filter((row) => row.kind === "ligar")).toHaveLength(1);
   });
+
+  it("keeps an open ligar on the Box card when VoIP only originates", async () => {
+    const store = getMockStore();
+    const cnpj = store.establishments[0]!.cnpj;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+      cnpj,
+    });
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", dueAt);
+
+    const result = await recordCompletedCall(mockRepo, {
+      userId: USER,
+      cnpj,
+      source: "dialer",
+      crmWrites: true,
+      completeOpenLigar: false,
+    });
+    expect(result.counted).toBe(true);
+
+    const card = await mockRepo.getCrmDeal(USER, created!.id);
+    expect(card?.next_activity?.kind).toBe("ligar");
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.filter((row) => row.kind === "ligar")).toHaveLength(0);
+    const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
+    expect(stats.hoje).toBe(1);
+  });
 });
 
 describe("countConfirmedCrmCall", () => {
