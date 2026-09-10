@@ -37,7 +37,7 @@ import {
   reaisFromBrlMask,
 } from "@/lib/calculadora/money";
 import { CALCULADORA_GLOSSARIO, COPY } from "@/lib/copy";
-import { invalidateLiveStats } from "@/lib/live-stats";
+import { dropPainelMetricsCache, invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 import {
   workSplitClass,
@@ -696,7 +696,10 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     onSuccess: (data, vars) => {
       if (!data) return;
       setCache(data);
-      if (vars.apply) void invalidateLiveStats(qc);
+      if (vars.apply) {
+        dropPainelMetricsCache(qc);
+        void invalidateLiveStats(qc);
+      }
       const currentId = selectedIdRef.current;
       const selected = data.metas.find((row) => row.id === currentId);
       if (selected) {
@@ -742,6 +745,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     },
     onSuccess: (data, id) => {
       setCache(data);
+      dropPainelMetricsCache(qc);
       void invalidateLiveStats(qc);
       const selected = data.metas.find((row) => row.id === id);
       if (selected) {

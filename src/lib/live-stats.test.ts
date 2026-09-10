@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   BOX_QUEUE_QUERY_KEY,
+  dropPainelMetricsCache,
   invalidateLiveStats,
   LIVE_STATS_KEYS,
   LIVE_STATS_QUERY_OPTIONS,
@@ -32,6 +33,14 @@ describe("invalidateLiveStats", () => {
   it("puts the box queue in the live stats family", () => {
     expect(LIVE_STATS_KEYS).toContain("box-queue");
     expect(BOX_QUEUE_QUERY_KEY).toEqual(["box-queue"]);
+  });
+});
+
+describe("dropPainelMetricsCache", () => {
+  it("drops every painel-metrics snapshot so the ring cannot paint a stale goal", () => {
+    const removeQueries = vi.fn();
+    dropPainelMetricsCache({ removeQueries });
+    expect(removeQueries).toHaveBeenCalledWith({ queryKey: ["painel-metrics"] });
   });
 });
 

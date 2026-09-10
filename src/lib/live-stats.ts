@@ -25,6 +25,12 @@ export function invalidateLiveStats(
   );
 }
 
+export function dropPainelMetricsCache(
+  qc: Pick<QueryClient, "removeQueries">,
+): void {
+  qc.removeQueries({ queryKey: ["painel-metrics"] });
+}
+
 /** Seed or replace cached data when the server snapshot identity changes. */
 export function replaceQueryIfSnapshotChanged<T>(
   qc: Pick<QueryClient, "setQueryData">,

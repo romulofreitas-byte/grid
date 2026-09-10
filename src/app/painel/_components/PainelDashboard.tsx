@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Flame, Phone } from "lucide-react";
@@ -212,7 +212,12 @@ export function PainelDashboard() {
   const error = query.error instanceof Error ? query.error.message : null;
   const crm = Boolean(m?.crmAllowed);
   const k = m?.kpis;
-  const missingCalls = k ? Math.max(0, k.callGoal - k.callsToday) : 0;
+  const fetchedOnce = useRef(false);
+  if (query.isFetchedAfterMount) fetchedOnce.current = true;
+  const kpisReady = Boolean(k) && fetchedOnce.current;
+  const callGoal = kpisReady && k ? k.callGoal : 0;
+  const callsToday = kpisReady && k ? k.callsToday : 0;
+  const missingCalls = kpisReady && k ? Math.max(0, k.callGoal - k.callsToday) : 0;
   const winWhole = (k?.wonPeriod ?? 0) + (k?.lostPeriod ?? 0);
   const rangeBadge = painelRangeLabel(filters.range);
   const allNiches = !filters.pipelineId;
@@ -337,8 +342,8 @@ export function PainelDashboard() {
                 className="pointer-events-none absolute inset-0 scale-[1.55] bg-[radial-gradient(circle,rgba(245,179,1,0.16),transparent_62%)]"
               />
               <VoltaRing
-                hoje={k?.callsToday ?? 0}
-                meta={k?.callGoal ?? 20}
+                hoje={callsToday}
+                meta={callGoal}
                 size="md"
                 className="relative"
               />
@@ -348,7 +353,7 @@ export function PainelDashboard() {
                 Trabalho do dia
               </p>
               <p className="mt-1 text-lg font-semibold leading-tight">
-                {!k
+                {!kpisReady
                   ? "Carregando a meta…"
                   : missingCalls > 0
                     ? COPY.painelCallsLeft.replace("{n}", String(missingCalls))
@@ -560,7 +565,7 @@ export function PainelDashboard() {
                 day: row.day,
                 calls: row.calls,
               }))}
-              goal={k?.callGoal ?? 20}
+              goal={callGoal}
             />
           </ChartCard>
           <GlassCard className="flex h-full flex-col justify-between p-3" hover={false}>

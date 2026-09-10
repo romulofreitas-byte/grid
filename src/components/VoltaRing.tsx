@@ -58,7 +58,7 @@ export function VoltaRing({
         >
           <AnimatedNumber value={hoje} format="int" />
           /
-          <AnimatedNumber value={meta} format="int" />
+          <AnimatedNumber key={meta} value={meta} format="int" />
         </p>
         <p className="mt-1 text-[10px] uppercase tracking-wider text-podium-muted">
           hoje
