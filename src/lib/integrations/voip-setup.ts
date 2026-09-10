@@ -1,3 +1,4 @@
+import { COPY } from "@/lib/copy";
 import { LIVE_VOIP_IDS, isLiveVoipId } from "./catalog";
 import type { IntegrationProvider, LiveVoipProvider } from "./schema";
 
@@ -23,18 +24,17 @@ const SETUPS: Record<(typeof LIVE_VOIP_IDS)[number], VoipSetup> = {
         id: "token",
         label: "Token de acesso",
         placeholder: "Cole o token da API4COM",
-        hint: "Painel → Tokens de acesso. Prefira um token que não expire.",
+        hint: COPY.api4comTokenHint,
         secret: true,
       },
       {
         id: "caller_id",
         label: "Ramal",
         placeholder: "1001",
-        hint: "O ramal do Webphone que vai tocar no clique.",
+        hint: COPY.api4comRamalHint,
       },
     ],
-    inboundHint:
-      "O GRID registra o webhook sozinho (versão 1.8) quando a URL for HTTPS pública. Homologue Ligar + hangup nesta URL — localhost não recebe o evento da API4COM.",
+    inboundHint: COPY.api4comInboundHint,
   },
   zenvia: {
     provider: "zenvia",

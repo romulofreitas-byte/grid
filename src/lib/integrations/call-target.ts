@@ -1,3 +1,4 @@
+import { COPY } from "@/lib/copy";
 import type { IntegrationConnectionPublic } from "./records";
 import type { IntegrationKind, IntegrationProvider } from "./schema";
 import { isNativeDialerProvider } from "./dialer-setup";
@@ -40,11 +41,15 @@ export function callViaLabel(connection: CallConnectionPick): string {
 }
 
 export function testCallDestination(
-  connection: Pick<CallConnectionPick, "kind" | "caller_id">,
+  connection: Pick<CallConnectionPick, "kind" | "caller_id" | "provider" | "catalog_id">,
   to?: string | null,
 ): { ok: true; to: string } | { ok: false; error: string } {
   if (connection.kind === "crm") {
     return { ok: false, error: "CRM não disca" };
+  }
+  const catalog = connection.catalog_id ?? connection.provider;
+  if (catalog === "api4com" && !to?.trim()) {
+    return { ok: false, error: COPY.api4comTestHint };
   }
   const dest = (to ?? connection.caller_id ?? "").trim();
   if (!dest) return { ok: false, error: "Informe o ramal" };

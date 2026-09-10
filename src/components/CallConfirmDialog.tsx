@@ -11,6 +11,8 @@ export function CallConfirmDialog({
   companyName,
   phoneLabel,
   pending = false,
+  voip = false,
+  error = null,
   onClose,
   onConfirm,
 }: {
@@ -18,6 +20,8 @@ export function CallConfirmDialog({
   companyName?: string | null;
   phoneLabel?: string | null;
   pending?: boolean;
+  voip?: boolean;
+  error?: string | null;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -46,7 +50,7 @@ export function CallConfirmDialog({
       open={open}
       eyebrowIcon={<Phone className="h-3.5 w-3.5" />}
       title={COPY.callAskTitle}
-      body={COPY.callAskBody}
+      body={voip ? COPY.callAskBodyVoip : COPY.callAskBody}
       confirmLabel={COPY.callAskConfirm}
       pendingLabel={COPY.callAskPending}
       pending={pending}
@@ -74,6 +78,9 @@ export function CallConfirmDialog({
         >
           {copied ? COPY.callAskCopied : phoneLabel}
         </button>
+      ) : null}
+      {error ? (
+        <p className="mt-3 text-sm text-podium-alert">{error}</p>
       ) : null}
     </ConfirmDialog>
   );

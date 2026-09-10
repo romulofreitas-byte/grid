@@ -12,6 +12,13 @@ export function toDialE164(raw: string): string | null {
   return normalizePhoneBR(trimmed)?.e164 ?? null;
 }
 
+/** Lead destination for originate — always +55…, never `+31…` without country. */
+export function toLeadDialE164(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed || isRamal(trimmed)) return null;
+  return normalizePhoneBR(trimmed)?.e164 ?? null;
+}
+
 export function brDigits(e164OrLocal: string): string {
   const trimmed = e164OrLocal.trim();
   if (isRamal(trimmed)) return trimmed;
@@ -47,6 +54,26 @@ export async function vendorFetch(
   return { ok: res.ok, status: res.status, text, json };
 }
 
+export function vendorErrorMessage(body?: string): string | undefined {
+  if (!body?.trim()) return undefined;
+  try {
+    const json = JSON.parse(body) as unknown;
+    if (typeof json === "string" && json.trim()) return json.trim();
+    if (!json || typeof json !== "object" || Array.isArray(json)) return undefined;
+    const root = json as Record<string, unknown>;
+    const nested =
+      root.error && typeof root.error === "object" && !Array.isArray(root.error)
+        ? (root.error as Record<string, unknown>)
+        : null;
+    const msg = [nested?.message, root.message, root.error].find(
+      (value) => typeof value === "string" && value.trim(),
+    );
+    return typeof msg === "string" ? msg.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function vendorHttpError(
   status: number,
   fallback: string,
@@ -58,6 +85,8 @@ export function vendorHttpError(
   if (status === 404) {
     return "Ramal ou número não encontrado no VoIP.";
   }
+  const fromJson = vendorErrorMessage(body);
+  if (fromJson) return fromJson;
   const snippet = body?.replace(/\s+/g, " ").trim().slice(0, 160);
   return snippet ? `${fallback} (${status}: ${snippet})` : `${fallback} (${status})`;
 }

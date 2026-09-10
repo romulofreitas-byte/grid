@@ -42,6 +42,7 @@ export type OutcomeEvent = {
   durationSec?: number;
   externalId?: string;
   occurredAt?: string;
+  recordingUrl?: string;
 };
 
 export type IntegrationAdapter = {
@@ -49,6 +50,8 @@ export type IntegrationAdapter = {
   auth: "oauth" | "api_key" | "connector";
   pushList?(leads: LeadOutbound[], ctx: ConnectionCtx): Promise<PushResult>;
   originate?(call: OriginateInput, ctx: ConnectionCtx): Promise<CallResult>;
+  /** Cancel an in-flight call. `externalId` is the vendor originate id. */
+  hangup?(externalId: string, ctx: ConnectionCtx): Promise<void>;
   parseInbound?(
     req: Request,
     rawBody: string,

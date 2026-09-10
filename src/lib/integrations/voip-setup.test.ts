@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseTwilioInbound } from "./twilio-adapter";
 import { parseTelnyxInbound } from "./telnyx-adapter";
-import { brDigits, isRamal, toDialE164 } from "./voip-dial";
+import { brDigits, isRamal, toDialE164, toLeadDialE164, vendorHttpError } from "./voip-dial";
 import { voipSetup } from "./voip-setup";
 
 describe("voip dial helpers", () => {
@@ -10,12 +10,38 @@ describe("voip dial helpers", () => {
     expect(isRamal("+5511999998888")).toBe(false);
     expect(toDialE164("11999998888")).toBe("+5511999998888");
     expect(brDigits("+5511999998888")).toBe("11999998888");
+    expect(toLeadDialE164("3134113893")).toBe("+553134113893");
+    expect(toLeadDialE164("(31) 3411-3893")).toBe("+553134113893");
+    expect(toLeadDialE164("+3134113893")).toBe("+553134113893");
+    expect(toLeadDialE164("10000")).toBeNull();
+  });
+
+  it("surfaces the vendor JSON message", () => {
+    expect(
+      vendorHttpError(
+        422,
+        "Não foi possível ligar",
+        JSON.stringify({
+          error: {
+            statusCode: 422,
+            name: "InvalidPhoneNumber",
+            message: "O número informado não é válido",
+          },
+        }),
+      ),
+    ).toBe("O número informado não é válido");
   });
 });
 
 describe("voipSetup", () => {
   it("maps the four live vendors", () => {
     expect(voipSetup("api4com")?.provider).toBe("api4com");
+    expect(voipSetup("api4com")?.inboundHint.toLowerCase()).not.toMatch(
+      /homologue|1\.8|localhost/,
+    );
+    expect(voipSetup("api4com")?.fields.find((f) => f.id === "token")?.hint).toMatch(
+      /não expire/,
+    );
     expect(voipSetup("zenvia")?.fields.some((f) => f.id === "token")).toBe(true);
     expect(voipSetup("twilio")?.fields.some((f) => f.id === "account_sid")).toBe(true);
     expect(voipSetup("telnyx")?.fields.some((f) => f.id === "app_id")).toBe(true);

@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { guardApi, isGuardReject } from "@/lib/auth/api-guard";
 import { getRepo } from "@/lib/data";
-import { canOriginate } from "@/lib/integrations/adapter-registry";
+import { canHangup, canOriginate } from "@/lib/integrations/adapter-registry";
 import { testCallDestination } from "@/lib/integrations/call-target";
 import { drainIntegrationJobs } from "@/lib/integrations/process-job";
+import type { IntegrationJobRecord } from "@/lib/integrations/records";
 
 const schema = z
   .object({
@@ -20,6 +21,11 @@ const schema = z
   .refine((body) => body.test || Boolean(body.cnpj), {
     message: "cnpj or test is required",
   });
+
+function jobExternalId(job: IntegrationJobRecord): string | null {
+  const raw = job.result?.externalId;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
 
 export async function POST(req: Request) {
   const gated = await guardApi(req, "write");
@@ -65,6 +71,22 @@ export async function POST(req: Request) {
     provider: connection.provider,
     payload: { cnpj: parsed.data.cnpj, to: parsed.data.to ?? null },
   });
-  void drainIntegrationJobs(4);
-  return NextResponse.json({ jobId: job.id, status: job.status });
+  await drainIntegrationJobs(4);
+  const settled =
+    (await repo.listIntegrationJobs(gated.userId, parsed.data.searchId ?? undefined)).find(
+      (row) => row.id === job.id,
+    ) ?? job;
+  if (settled.status === "failed") {
+    return NextResponse.json(
+      { error: settled.last_error ?? "Não foi possível ligar", jobId: job.id },
+      { status: 502 },
+    );
+  }
+  const externalId = jobExternalId(settled);
+  return NextResponse.json({
+    jobId: job.id,
+    status: settled.status,
+    externalId,
+    hangup: canHangup(connection.provider) && Boolean(externalId),
+  });
 }

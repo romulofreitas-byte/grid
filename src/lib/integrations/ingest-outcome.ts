@@ -14,6 +14,7 @@ export async function ingestCallOutcome(input: {
   notes?: string;
   durationSec?: number;
   externalId?: string;
+  recordingUrl?: string;
   /** VoIP hangup only confirms the call — never reunião/descarte. */
   forceStatus?: LeadStatus | null;
 }): Promise<{ ok: true; status: LeadStatus | null; matched: boolean }> {
@@ -60,6 +61,7 @@ export async function ingestCallOutcome(input: {
     payload_summary: {
       duration_sec: input.durationSec ?? null,
       matched: Boolean(lead),
+      record_url: input.recordingUrl ?? null,
     },
   });
 

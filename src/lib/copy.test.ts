@@ -142,6 +142,11 @@ describe("COPY automações", () => {
     expect(COPY.automacoesEmptyPane.toLowerCase()).toMatch(/integrações|integracoes/);
     expect(COPY.integracoesTitle).toBe("Integrações");
     expect(COPY.telefoniaTitle).toBe("Telefonia");
+    expect(COPY.api4comStep1).toMatch(/webphone/i);
+    expect(COPY.api4comTokenHint).toMatch(/não expire/);
+    expect(COPY.api4comInboundHint.toLowerCase()).not.toMatch(
+      /homologue|1\.8|localhost/,
+    );
     expect(COPY.integracoesFacebookTitle).toBe("Meta Lead Ads");
     expect(COPY.integracoesCatConectar).toBe("Conectar conta");
     expect(COPY.integracoesCatCaptar).toBe("Captar leads");
@@ -225,6 +230,10 @@ describe("COPY crm", () => {
     expect(COPY.callAskConfirm).toBe("Ligar");
     expect(COPY.callAskCancel).toBe("Cancelar");
     expect(COPY.callAskTitle).toMatch(/ligar/i);
+    expect(COPY.callAskBodyVoip).toMatch(/webphone/i);
+    expect(COPY.api4comTestHint).toMatch(/não testa no ramal/i);
+    expect(COPY.callHangup).toBe("Desligar");
+    expect(COPY.callHangupTitle).toMatch(/liga/i);
     expect(COPY.callAskCopyPhone).toBe("Copiar telefone");
     expect(COPY.callAskCopied).toBe("Copiado");
     expect(COPY.callDialHint).toMatch(/confirme/i);

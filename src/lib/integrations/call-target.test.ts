@@ -103,4 +103,18 @@ describe("testCallDestination", () => {
     expect(testCallDestination(conn({ id: "c", kind: "crm" })).ok).toBe(false);
     expect(testCallDestination(conn({ id: "v", kind: "voip" })).ok).toBe(false);
   });
+
+  it("does not dial the API4COM ramal as a phone", () => {
+    const dest = testCallDestination(
+      conn({
+        id: "v",
+        kind: "voip",
+        provider: "api4com",
+        catalog_id: "api4com",
+        caller_id: "10000",
+      }),
+    );
+    expect(dest.ok).toBe(false);
+    if (!dest.ok) expect(dest.error).toMatch(/não testa no ramal/i);
+  });
 });

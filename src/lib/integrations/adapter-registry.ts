@@ -33,3 +33,11 @@ export function canOriginate(provider: IntegrationProvider): boolean {
     return false;
   }
 }
+
+export function canHangup(provider: IntegrationProvider): boolean {
+  try {
+    return typeof adapterFor(provider).hangup === "function";
+  } catch {
+    return false;
+  }
+}

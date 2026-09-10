@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { canHangup, canOriginate } from "./adapter-registry";
 import {
   CATALOG_IDS,
   INTEGRATION_CATALOG,
@@ -43,5 +44,8 @@ describe("integration catalog", () => {
     expect(catalogAvailability(getCatalogItem("pipedrive")!)).toBe("soon");
     expect(isLiveDialerId("3cplus")).toBe(true);
     expect(isLiveDialerId("megadialer")).toBe(false);
+    expect(canOriginate("api4com")).toBe(true);
+    expect(canHangup("api4com")).toBe(true);
+    expect(canHangup("twilio")).toBe(false);
   });
 });

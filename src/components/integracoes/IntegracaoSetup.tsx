@@ -132,11 +132,11 @@ function ConnectionCard({
           ) : null}
           {connection.webhook_registered ? (
             <p className="text-[11px] text-podium-success">
-              Webhook registrado no painel da API4COM.
+              {COPY.api4comWebhookOk}
             </p>
           ) : nativeVoip && connection.catalog_id === "api4com" ? (
             <p className="text-[11px] text-podium-muted">
-              Cole a URL inbound em Integrações se o registro automático não rodou.
+              {COPY.api4comWebhookPending}
             </p>
           ) : nativeDialer ? (
             <p className="text-[11px] text-podium-muted">
@@ -184,7 +184,7 @@ const PAGE = {
   voip: {
     title: "VoIP",
     lead:
-      "Cole o token do VoIP para ligar da ficha. API4COM, Zenvia, Twilio e Telnyx conectam agora.",
+      "A ligação sai na sua conta do VoIP. API4COM, Zenvia, Twilio e Telnyx conectam agora.",
     leadStandby:
       "A montagem nativa está pausada. API4COM, Zenvia, Twilio e Telnyx voltam na próxima versão.",
     empty: "Nenhum VoIP ainda. Escolha o provedor abaixo.",
@@ -478,6 +478,12 @@ export function IntegracaoSetup({
                   <li>O GRID valida na hora. Se o token for recusado, nada é salvo.</li>
                   <li>Envie a lista no Grid. Ligar na ficha usa o token de agente.</li>
                 </>
+              ) : selected.id === "api4com" ? (
+                <>
+                  <li>{COPY.api4comStep1}</li>
+                  <li>{COPY.api4comStep2}</li>
+                  <li>{COPY.api4comStep3}</li>
+                </>
               ) : (
                 <>
                   <li>Cole o token do VoIP e o ramal.</li>
@@ -500,7 +506,9 @@ export function IntegracaoSetup({
                   : live && dialer
                     ? "Domínio + token de gestor + campanha"
                     : live && setup
-                      ? "Token + ramal · teste na hora"
+                      ? selected.id === "api4com"
+                        ? COPY.api4comConnectHint
+                        : "Token + ramal · teste na hora"
                       : COPY.integracoesStatusSoon}
               </p>
             </div>
@@ -620,7 +628,11 @@ export function IntegracaoSetup({
               <CopyLine value={created.inbound_url} label="URL de entrada" />
               {created.webhook_registered ? (
                 <p className="text-xs text-podium-success">
-                  Webhook já apontado na API4COM.
+                  {COPY.api4comWebhookOk}
+                </p>
+              ) : created.catalog_id === "api4com" ? (
+                <p className="text-xs text-podium-muted">
+                  {COPY.api4comWebhookPending}
                 </p>
               ) : null}
               {created.kind === "voip" ? (

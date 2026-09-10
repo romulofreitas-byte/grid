@@ -14,6 +14,7 @@ import { toLeadOutbound } from "./lead-outbound";
 import { appOrigin, inboundWebhookPath } from "./records";
 import type { IntegrationJobRecord } from "./records";
 import type { IntegrationProvider } from "./schema";
+import { toLeadDialE164 } from "./voip-dial";
 
 /** Originate and inbound outcomes never debit. push_list is billed in the API via debitExport. */
 
@@ -153,16 +154,17 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
     const dossier = await repo.getDossier(cnpj, job.search_id ?? undefined);
     if (!dossier) throw new Error("lead not found");
     const primary = dossier.contacts[0];
-    const to =
+    const rawTo =
       String(job.payload?.to ?? "") ||
       (primary
         ? normalizePhoneBR(`${primary.ddd ?? ""}${primary.telefone ?? ""}`, primary.ddd)
             ?.e164 ?? `+${toE164(primary.ddd, primary.telefone)}`
         : "");
-    if (!to || to === "+null" || to === "+") throw new Error("no phone to dial");
+    const to = toLeadDialE164(rawTo);
+    if (!to) throw new Error("Número inválido. Precisa de DDD + telefone.");
     const result = await adapter.originate(
       {
-        toE164: to.startsWith("+") ? to : `+${to.replace(/^\+/, "")}`,
+        toE164: to,
         from: connection.caller_id,
         cnpj,
         searchId: job.search_id,

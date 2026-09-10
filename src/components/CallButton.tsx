@@ -1,21 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Phone } from "lucide-react";
+import { Phone, PhoneOff } from "lucide-react";
 import { CallConfirmDialog } from "@/components/CallConfirmDialog";
 import { IntegrationLogo } from "@/components/IntegrationLogo";
 import { buttonClassName } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
 import { resolveCatalogItem } from "@/lib/integrations/catalog";
-import {
-  callViaLabel,
-  type CallConnectionPick,
-} from "@/lib/integrations/call-target";
+import { type CallConnectionPick } from "@/lib/integrations/call-target";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
+
+const HANGUP_IDLE_MS = 90_000;
 
 async function recordManualCall(input: {
   cnpj: string;
@@ -73,8 +72,18 @@ export function CallButton({
 }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [liveCall, setLiveCall] = useState<{
+    connectionId: string;
+    externalId: string;
+  } | null>(null);
   const dialCnpj = usableCnpj(cnpj);
   const originate = Boolean(connection && dialCnpj);
+
+  useEffect(() => {
+    if (!liveCall) return;
+    const timer = window.setTimeout(() => setLiveCall(null), HANGUP_IDLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [liveCall]);
 
   function invalidateAfterCall() {
     if (dialCnpj) {
@@ -102,31 +111,59 @@ export function CallButton({
             to,
           }),
         });
-        const body = (await res.json()) as { error?: string };
+        const body = (await res.json()) as {
+          error?: string;
+          externalId?: string | null;
+          hangup?: boolean;
+        };
         if (!res.ok) throw new Error(body.error ?? "Não foi possível ligar");
-        return;
+        if (body.hangup && body.externalId) {
+          return { hangup: true as const, externalId: body.externalId };
+        }
+        return { hangup: false as const };
       }
       if (!telHref) throw new Error("Sem telefone");
       window.location.href = telHref;
-      if (skipRecord || !dialCnpj) return;
+      if (skipRecord || !dialCnpj) return { hangup: false as const };
       await recordManualCall({ cnpj: dialCnpj, searchId });
+      return { hangup: false as const };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       setOpen(false);
+      if (result.hangup && connection) {
+        setLiveCall({ connectionId: connection.id, externalId: result.externalId });
+      }
       onCalled?.();
       if (originate || !skipRecord) invalidateAfterCall();
     },
   });
 
+  const hangupMutation = useMutation({
+    mutationFn: async () => {
+      if (!liveCall) throw new Error("Chamada sem identificador");
+      const res = await fetch("/api/integrations/call/hangup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(liveCall),
+      });
+      const body = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Não foi possível desligar");
+    },
+    onSuccess: () => setLiveCall(null),
+  });
+
   const canTel = Boolean(telHref);
   if (!originate && !canTel) return null;
 
-  const idleLabel = label ?? "Ligar";
+  const live = Boolean(liveCall);
+  const idleLabel = live ? COPY.callHangup : (label ?? "Ligar");
   const hideLabel = iconOnly || variant === "card";
   const catalogItem =
-    originate && connection && !hideLabel
+    originate && connection && !hideLabel && !live
       ? resolveCatalogItem(connection.catalog_id, connection.display_name)
       : undefined;
+  const pending = live ? hangupMutation.isPending : callMutation.isPending;
+  const actionError = live ? hangupMutation.error : callMutation.error;
 
   const base =
     variant === "card"
@@ -145,32 +182,60 @@ export function CallButton({
           })
         : buttonClassName({ variant: "secondary", size: "sm", className });
 
-  const title = callMutation.error
-    ? callMutation.error.message
-    : titleHint ?? (originate && connection ? callViaLabel(connection) : COPY.callAskTitle);
+  const title = actionError
+    ? actionError.message
+    : live
+      ? COPY.callHangupTitle
+      : originate
+        ? COPY.callVoipHint
+        : titleHint ?? COPY.callAskTitle;
 
   return (
     <>
-      <button
-        type="button"
-        disabled={callMutation.isPending}
-        onClick={() => setOpen(true)}
-        aria-label={title}
-        title={title}
-        className={cn(base)}
-      >
-        {catalogItem ? (
-          <IntegrationLogo
-            item={catalogItem}
-            size="xs"
-            active
-            className="bg-black/10"
-          />
-        ) : (
-          <Phone className={variant === "cockpit" ? "h-4 w-4" : "h-3.5 w-3.5"} />
+      <span
+        className={cn(
+          "inline-flex flex-col gap-1",
+          variant === "cockpit" ? "w-full" : "items-start",
         )}
-        {hideLabel ? null : callMutation.isPending ? "Ligando…" : idleLabel}
-      </button>
+      >
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            if (live) {
+              hangupMutation.mutate();
+              return;
+            }
+            setOpen(true);
+          }}
+          aria-label={title}
+          title={title}
+          className={cn(base)}
+        >
+          {catalogItem ? (
+            <IntegrationLogo
+              item={catalogItem}
+              size="xs"
+              active
+              className="bg-black/10"
+            />
+          ) : live ? (
+            <PhoneOff className={variant === "cockpit" ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          ) : (
+            <Phone className={variant === "cockpit" ? "h-4 w-4" : "h-3.5 w-3.5"} />
+          )}
+          {hideLabel
+            ? null
+            : pending
+              ? live
+                ? COPY.callHangupPending
+                : "Ligando…"
+              : idleLabel}
+        </button>
+        {actionError && !open ? (
+          <p className="max-w-64 text-[11px] text-podium-alert">{actionError.message}</p>
+        ) : null}
+      </span>
       {open
         ? createPortal(
             <CallConfirmDialog
@@ -178,6 +243,8 @@ export function CallButton({
               companyName={companyName}
               phoneLabel={phoneLabel}
               pending={callMutation.isPending}
+              voip={originate}
+              error={callMutation.error?.message ?? null}
               onClose={() => {
                 if (callMutation.isPending) return;
                 setOpen(false);
