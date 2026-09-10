@@ -174,9 +174,6 @@ export function BoxSprint({
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
         <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-white/10 px-2 py-1.5 md:flex-wrap md:justify-end md:px-3 md:py-2">
-          <p className="hidden shrink-0 px-1 text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted md:block">
-            {COPY.boxNow}
-          </p>
           <div className="flex min-w-0 flex-1 gap-1 md:flex-none md:justify-end">
             {visibleTabs.map((item) => {
               const count = boxQueueTabCount(queue.counts, item.id);

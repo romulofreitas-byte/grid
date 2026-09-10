@@ -22,7 +22,7 @@ import {
   type LocalParts,
 } from "@/lib/crm/datetime";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { format } from "date-fns";
@@ -44,10 +44,12 @@ export function CrmDateTimePicker({
   value,
   onChange,
   variant = "dark",
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
   variant?: "dark" | "light";
+  className?: string;
 }) {
   const light = variant === "light";
   const parts = partsFromValue(value);
@@ -173,53 +175,73 @@ export function CrmDateTimePicker({
   );
 
   return (
-    <div className="grid w-full max-w-xs grid-cols-2 gap-2">
-      <div ref={dateAnchorRef} className="min-w-0">
+    <div className={cn("grid w-full max-w-xs grid-cols-2 gap-2", className)}>
+      <div
+        ref={dateAnchorRef}
+        className="min-w-0"
+        onMouseDown={(event) => {
+          if (event.target === timeRef.current) return;
+          setCalendarOpen(true);
+        }}
+      >
         <label className="block">
           <span className={labelClass}>{COPY.crmDeadlineLabel}</span>
-          <input
-            ref={dateRef}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={10}
-            aria-label={COPY.crmDeadlineLabel}
-            aria-expanded={calendarOpen}
-            aria-controls={panelId}
-            placeholder="00/00/0000"
-            value={editingDate ? maskDateDigits(dateDraft) : dateLabel}
-            onMouseDown={() => {
-              setCalendarOpen(true);
-            }}
-            onFocus={() => {
-              setCalendarOpen(true);
-              if (!editingDate) {
-                setDateDraft(dateDigits(dateLabel));
-                setEditingDate(true);
-              }
-            }}
-            onChange={(event) => {
-              const next = dateDigits(event.target.value);
-              setDateDraft(next);
-              requestAnimationFrame(() => {
-                const el = dateRef.current;
-                if (!el) return;
-                const pos = maskDateDigits(next).length;
-                el.setSelectionRange(pos, pos);
-              });
-              if (next.length === 8) {
-                applyDateDraft(next);
+          <div className="relative mt-1">
+            <input
+              ref={dateRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={10}
+              aria-label={COPY.crmDeadlineLabel}
+              aria-expanded={calendarOpen}
+              aria-controls={panelId}
+              placeholder="00/00/0000"
+              value={editingDate ? maskDateDigits(dateDraft) : dateLabel}
+              onFocus={() => {
+                setCalendarOpen(true);
+                if (!editingDate) {
+                  setDateDraft(dateDigits(dateLabel));
+                  setEditingDate(true);
+                }
+              }}
+              onChange={(event) => {
+                const next = dateDigits(event.target.value);
+                setDateDraft(next);
+                requestAnimationFrame(() => {
+                  const el = dateRef.current;
+                  if (!el) return;
+                  const pos = maskDateDigits(next).length;
+                  el.setSelectionRange(pos, pos);
+                });
+                if (next.length === 8) {
+                  applyDateDraft(next);
+                  setEditingDate(false);
+                }
+              }}
+              onBlur={() => {
+                if (dateDraft.length > 0) applyDateDraft(dateDraft);
                 setEditingDate(false);
-              }
-            }}
-            onBlur={() => {
-              if (dateDraft.length > 0) applyDateDraft(dateDraft);
-              setEditingDate(false);
-              setDateDraft("");
-            }}
-            className={cn(fieldClass, "mt-1")}
-          />
+                setDateDraft("");
+              }}
+              className={cn(fieldClass, "pr-7")}
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={COPY.crmOpenCalendar}
+              className={cn(
+                "absolute top-1/2 right-1 -translate-y-1/2 rounded p-0.5",
+                light
+                  ? "text-zinc-400 hover:text-zinc-800"
+                  : "text-podium-muted hover:text-podium-yellow",
+              )}
+              onClick={() => setCalendarOpen(true)}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </label>
         <AnchorPopover
           open={calendarOpen}

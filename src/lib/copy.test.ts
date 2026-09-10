@@ -198,6 +198,7 @@ describe("COPY crm", () => {
     expect(COPY.crmNoActivity).toBe("Sem próxima ação");
     expect(COPY.crmNextAction).toBe("Próxima ação");
     expect(COPY.crmDeadlineLabel).toBe("Prazo");
+    expect(COPY.crmOpenCalendar).toBe("Abrir calendário");
     expect(COPY.crmTimeLabel).toBe("Horário");
     expect(COPY.crmWeekLater).toMatch(/semana/i);
     expect(COPY.crmFirstMileLocked).toMatch(/ficha/i);
@@ -233,7 +234,6 @@ describe("COPY crm", () => {
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.boxSprintTitle).toMatch(/trabalho do dia/i);
-    expect(COPY.boxNow).toMatch(/agora/i);
     expect(COPY.boxOpening).toMatch(/ligar/i);
     expect(COPY.boxQueue).toMatch(/fila/i);
     expect(COPY.boxOverdue).toMatch(/atrasado/i);
@@ -246,9 +246,12 @@ describe("COPY crm", () => {
     expect(COPY.boxColdChip).toBe("Fria");
     expect(COPY.boxQualify).toBe("Qualificação");
     expect(COPY.boxOutcome).toBe("Perdido/ganho");
-    expect(COPY.boxConfirmMeeting).toBe("Confirmar reunião");
+    expect(COPY.boxConfirmMeeting).toBe("Reunião agendada");
     expect(COPY.boxNoteMore).toBe("Ver mais");
     expect(COPY.boxNoteLess).toBe("Ver menos");
+    expect(COPY.boxNoteLast).toBe("Última nota");
+    expect(COPY.boxNotePlaceholder).toMatch(/acontecendo/i);
+    expect(COPY.boxNoteEmpty).toMatch(/anote/i);
     expect(COPY.boxMeetingDue).toMatch(/horário/i);
     expect(COPY.boxSaveMeeting).toMatch(/agendar/i);
     expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
@@ -257,9 +260,15 @@ describe("COPY crm", () => {
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.metasOpening).toMatch(/Meta/);
     expect(COPY.calculadoraTaxa1).toMatch(/Reuniões agendadas/);
-    expect(COPY.calculadoraPassoAgendada).toBe("Reuniões agendadas");
-    expect(COPY.calculadoraPassoDecisor).toBe("Contatos com decisor");
+    expect(COPY.calculadoraPassoAgendada).toBe("Agendadas");
+    expect(COPY.calculadoraPassoDecisor).toBe("Contatos");
     expect(COPY.calculadoraPlanoX3).toMatch(/3 discagens/);
+    expect(COPY.calculadoraPlanoBarDiscagens).toBe("Discagens");
+    expect(COPY.calculadoraPlanoBarDecisor).toBe("Decisor");
+    expect(COPY.calculadoraPlanoBarAgendadas).toBe("Reuniões");
+    expect(COPY.calculadoraDeltaSe).toMatch(/Se for/);
+    expect(COPY.calculadoraDeltaDia).toBe("{n} discagens/dia");
+    expect(COPY.calculadoraTaxasLead).toMatch(/avançam/);
     expect(COPY.metasNaoSalvo).toBe("Não salvo");
     expect(COPY.metasSalvarEUsar).toMatch(/usar no Box/i);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
