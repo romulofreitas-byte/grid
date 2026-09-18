@@ -11,6 +11,7 @@ import type {
   SavedLeadRef,
 } from "@/lib/integrations/records";
 import type { CompanySearchOpts } from "@/lib/data/company-search";
+import type { NamePreview } from "@/lib/data/name-query";
 import type { CrmBriefingLookup } from "@/lib/crm/briefing";
 import type { CrmDealTransferResult } from "@/lib/crm/transfer";
 import type {
@@ -82,6 +83,7 @@ export type GridRepo = {
     query: string,
     limit?: number,
   ): Promise<Array<RefCnae & { count: number }>>;
+  previewNames(query: string, ufs?: string[]): Promise<NamePreview>;
   searchCompanies(
     query: string,
     opts?: CompanySearchOpts,

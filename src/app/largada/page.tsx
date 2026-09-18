@@ -41,6 +41,12 @@ import { SHELL_CONTEXT_BOTTOM, SHELL_Z } from "@/lib/shell-chrome";
 import { cn } from "@/lib/utils";
 import { normalizeText } from "@/lib/niches";
 import {
+  canUseNameQuery,
+  emptyNamePreview,
+  isUmbrellaSegment,
+  type NamePreview,
+} from "@/lib/data/name-query";
+import {
   presetMatchesQuery,
   rankPresetMatch,
   rankTextMatch,
@@ -59,6 +65,7 @@ type NicheTree = {
     slug?: string;
     aliases?: string[];
     keywords?: string[];
+    name_stems?: string[];
   }>;
 };
 
@@ -102,9 +109,22 @@ function hasCountScope(filters: SearchFilters): boolean {
   return (
     filters.segmentIds.length > 0 ||
     (!!filters.intentQuery && filters.intentQuery.length >= 2) ||
+    (!!filters.nameQuery && filters.nameQuery.trim().length >= 2) ||
     filters.cnaes.length > 0 ||
     (filters.cnpjs?.length ?? 0) > 0
   );
+}
+
+async function fetchNamePreview(
+  q: string,
+  ufs: string[],
+  signal?: AbortSignal,
+): Promise<NamePreview> {
+  const params = new URLSearchParams({ q: q.trim() });
+  if (ufs[0]) params.set("ufs", ufs[0]);
+  const res = await fetch(`/api/niches/name-preview?${params}`, { signal });
+  if (!res.ok) throw new Error("name-preview");
+  return (await res.json()) as NamePreview;
 }
 
 function shouldFetchCount(
@@ -301,7 +321,7 @@ function LargadaWizard() {
   const [munQuery, setMunQuery] = useState("");
   const [munLetter, setMunLetter] = useState<string | null>(null);
   const [citiesOpen, setCitiesOpen] = useState(false);
-  const [showCnaePanel, setShowCnaePanel] = useState(true);
+  const [showCnaePanel, setShowCnaePanel] = useState(false);
   const [cnaeDraft, setCnaeDraft] = useState("");
   const [companyLabels, setCompanyLabels] = useState<Record<string, string>>({});
   const [cnaeLabels, setCnaeLabels] = useState<Record<string, string>>({});
@@ -315,6 +335,8 @@ function LargadaWizard() {
   const autoOpenedNiche = useRef(false);
   /** Evita reaplicar o default de CNAEs no mesmo escopo (segmento/intenção). */
   const autoCnaeScopeKey = useRef<string | null>(null);
+  /** Evita reaplicar matchNameStems depois de Ampliar. */
+  const autoStemScopeKey = useRef<string | null>(null);
 
   useEffect(() => {
     if (hydrated) return;
@@ -369,7 +391,14 @@ function LargadaWizard() {
             next.cnaes.length > 0
               ? cnaeScopeKey(next.segmentIds, next.intentQuery)
               : null;
-          if (next.cnaes.length > 0) setShowCnaePanel(true);
+          if (
+            next.segmentIds.length > 0 ||
+            next.nameQuery ||
+            next.cnaes.length > 0 ||
+            next.intentQuery
+          ) {
+            setShowCnaePanel(true);
+          }
         } catch {
           if (!cancelled) setMode("nova");
         } finally {
@@ -392,7 +421,14 @@ function LargadaWizard() {
           next.cnaes.length > 0
             ? cnaeScopeKey(next.segmentIds, next.intentQuery)
             : null;
-        if (next.cnaes.length > 0) setShowCnaePanel(true);
+        if (
+          next.segmentIds.length > 0 ||
+          next.nameQuery ||
+          next.cnaes.length > 0 ||
+          next.intentQuery
+        ) {
+          setShowCnaePanel(true);
+        }
       }
       if (!cancelled) setHydrated(true);
     }
@@ -532,7 +568,8 @@ function LargadaWizard() {
     enabled:
       pickerCnaeQ.trim().length >= 2 &&
       filters.segmentIds.length === 0 &&
-      !filters.intentQuery,
+      !filters.intentQuery &&
+      !filters.nameQuery,
   });
   const pickerCnaes = useMemo(() => {
     const rows = Array.isArray(pickerCnaeQuery.data) ? pickerCnaeQuery.data : [];
@@ -545,6 +582,27 @@ function LargadaWizard() {
       )
       .slice(0, PICKER_CNAE_LIMIT);
   }, [pickerCnaeQuery.data, segmentQuery]);
+
+  const namePreviewQ = useDebounced(segmentQuery, 300);
+  const namePreviewQuery = useQuery({
+    queryKey: ["name-preview", namePreviewQ, filters.ufs],
+    queryFn: ({ signal }) => fetchNamePreview(namePreviewQ, filters.ufs, signal),
+    enabled:
+      canUseNameQuery(namePreviewQ) &&
+      filters.segmentIds.length === 0 &&
+      !filters.intentQuery &&
+      !filters.nameQuery,
+  });
+  const namePreview: NamePreview = namePreviewQuery.data ?? emptyNamePreview();
+
+  const appliedNamePreviewQuery = useQuery({
+    queryKey: ["name-preview-applied", filters.nameQuery, filters.ufs],
+    queryFn: ({ signal }) =>
+      fetchNamePreview(filters.nameQuery!, filters.ufs, signal),
+    enabled: canUseNameQuery(filters.nameQuery),
+  });
+  const appliedNamePreview: NamePreview =
+    appliedNamePreviewQuery.data ?? emptyNamePreview();
 
   const cnaeQ = useDebounced(cnaeDraft, 300);
   const cnaeSearchQuery = useQuery({
@@ -584,7 +642,7 @@ function LargadaWizard() {
     [treeQuery.data],
   );
   const segmentSearch = normalizeText(segmentQuery);
-  const filteredNicheTree = useMemo(() => {
+  const matchedNicheTree = useMemo(() => {
     if (!segmentSearch) return nicheTree;
     return nicheTree
       .map((n) => {
@@ -624,6 +682,10 @@ function LargadaWizard() {
         return score(b) - score(a);
       });
   }, [nicheTree, segmentSearch, segmentQuery]);
+  const filteredNicheTree = useMemo(() => {
+    if (!segmentSearch || matchedNicheTree.length > 0) return matchedNicheTree;
+    return nicheTree;
+  }, [segmentSearch, matchedNicheTree, nicheTree]);
   const b2c = useMemo(
     () => filteredNicheTree.filter((n) => n.grupo === "b2c_local"),
     [filteredNicheTree],
@@ -633,38 +695,78 @@ function LargadaWizard() {
     [filteredNicheTree],
   );
   const matchedSegmentCount = useMemo(
-    () => filteredNicheTree.reduce((n, x) => n + x.segments.length, 0),
-    [filteredNicheTree],
+    () => matchedNicheTree.reduce((n, x) => n + x.segments.length, 0),
+    [matchedNicheTree],
   );
 
-  useEffect(() => {
-    if (!segmentSearch || filteredNicheTree.length === 0) return;
-    setOpenNiche((prev) => {
-      if (prev && filteredNicheTree.some((n) => n.id === prev)) return prev;
-      return filteredNicheTree[0]?.id ?? null;
-    });
-  }, [segmentSearch, filteredNicheTree]);
+  const selectedSegment = useMemo(() => {
+    const id = filters.segmentIds[0];
+    if (!id) return null;
+    for (const n of nicheTree) {
+      const s = n.segments.find((x) => x.id === id);
+      if (s) return s;
+    }
+    return null;
+  }, [nicheTree, filters.segmentIds]);
 
-  function applyIntentFromSearch() {
+  const umbrellaSelected = useMemo(() => {
+    if (!selectedSegment) return false;
+    const rows = cnaePreview.data ?? [];
+    if (!rows.length) return false;
+    return isUmbrellaSegment(
+      selectedSegment.name_stems,
+      rows.map((r) => r.descricao),
+    );
+  }, [selectedSegment, cnaePreview.data]);
+
+  useEffect(() => {
+    if (!filters.segmentIds.length) return;
+    const rows = cnaePreview.data;
+    if (!rows?.length) return;
+    const key = [...filters.segmentIds].sort().join(",");
+    if (autoStemScopeKey.current === key) return;
+    autoStemScopeKey.current = key;
+    const umbrella = isUmbrellaSegment(
+      selectedSegment?.name_stems,
+      rows.map((r) => r.descricao),
+    );
+    setFilters((f) =>
+      f.matchNameStems === umbrella ? f : { ...f, matchNameStems: umbrella },
+    );
+  }, [cnaePreview.data, filters.segmentIds, selectedSegment]);
+
+  useEffect(() => {
+    if (!segmentSearch || matchedNicheTree.length === 0) return;
+    setOpenNiche((prev) => {
+      if (prev && matchedNicheTree.some((n) => n.id === prev)) return prev;
+      return matchedNicheTree[0]?.id ?? null;
+    });
+  }, [segmentSearch, matchedNicheTree]);
+
+  function applyNameFromSearch() {
     const q = segmentQuery.trim();
-    if (q.length < 2) return;
+    if (!canUseNameQuery(q)) return;
     autoCnaeScopeKey.current = null;
+    autoStemScopeKey.current = null;
     setFilters((f) => ({
       ...f,
       presetId: null,
       segmentIds: [],
-      intentQuery: q,
+      intentQuery: null,
+      nameQuery: q,
+      matchNameStems: false,
       cnaes: [],
     }));
     setSegmentQuery("");
     setShowCnaePanel(true);
+    setStep(2);
   }
 
   function onSegmentSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
     if (!segmentSearch) return;
-    const ranked = filteredNicheTree
+    const ranked = matchedNicheTree
       .flatMap((n) => n.segments.map((s) => ({ nicheId: n.id, seg: s, niche: n })))
       .map((x) => ({
         ...x,
@@ -678,7 +780,7 @@ function LargadaWizard() {
       setSegmentQuery("");
       return;
     }
-    applyIntentFromSearch();
+    applyNameFromSearch();
   }
 
   const segmentNames = useMemo(() => {
@@ -727,11 +829,14 @@ function LargadaWizard() {
     setFilters((f) => {
       const has = f.segmentIds.includes(id);
       autoCnaeScopeKey.current = null;
+      autoStemScopeKey.current = null;
       return {
         ...f,
         presetId: null,
         segmentIds: has ? [] : [id],
         intentQuery: has ? f.intentQuery : null,
+        nameQuery: null,
+        matchNameStems: false,
         cnaes: [],
       };
     });
@@ -760,16 +865,52 @@ function LargadaWizard() {
 
   function pickCnaeAsNiche(codigo: string, descricao: string) {
     autoCnaeScopeKey.current = null;
+    autoStemScopeKey.current = null;
     setCnaeLabels((m) => ({ ...m, [codigo]: descricao }));
     setFilters((f) => ({
       ...f,
       presetId: null,
       segmentIds: [],
       intentQuery: null,
+      nameQuery: null,
+      matchNameStems: false,
       cnaes: [codigo],
     }));
     setSegmentQuery("");
     setShowCnaePanel(true);
+  }
+
+  function pickNameCnae(codigo: string, descricao: string) {
+    const q = segmentQuery.trim() || filters.nameQuery;
+    if (!canUseNameQuery(q)) return;
+    autoCnaeScopeKey.current = null;
+    autoStemScopeKey.current = null;
+    setCnaeLabels((m) => ({ ...m, [codigo]: descricao }));
+    setFilters((f) => ({
+      ...f,
+      presetId: null,
+      segmentIds: [],
+      intentQuery: null,
+      nameQuery: q,
+      matchNameStems: false,
+      cnaes: [codigo],
+    }));
+    setSegmentQuery("");
+    setShowCnaePanel(true);
+  }
+
+  function clearNichePick() {
+    autoCnaeScopeKey.current = null;
+    autoStemScopeKey.current = null;
+    setFilters((f) => ({
+      ...f,
+      presetId: null,
+      segmentIds: [],
+      intentQuery: null,
+      nameQuery: null,
+      matchNameStems: false,
+      cnaes: [],
+    }));
   }
 
   const runSearch = useMutation({
@@ -782,7 +923,9 @@ function LargadaWizard() {
       const nome =
         parts.length > 0
           ? `Lista · ${parts.join(" + ")}`
-          : filters.intentQuery
+          : filters.nameQuery
+            ? `Lista · ${filters.nameQuery}`
+            : filters.intentQuery
             ? `Lista · ${filters.intentQuery}`
             : filters.cnpjs.length
               ? `Lista · empresas`
@@ -974,7 +1117,9 @@ function LargadaWizard() {
 
           {step === 1 && (
             <div className="space-y-3">
-              {(filters.intentQuery || filters.cnpjs.length > 0) && (
+              {(filters.intentQuery ||
+                filters.nameQuery ||
+                filters.cnpjs.length > 0) && (
                 <div className="flex flex-wrap gap-2">
                   {filters.intentQuery ? (
                     <button
@@ -986,6 +1131,18 @@ function LargadaWizard() {
                     >
                       <Badge variant="accent">
                         {filters.intentQuery} ×
+                      </Badge>
+                    </button>
+                  ) : null}
+                  {filters.nameQuery ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        patch({ nameQuery: null, matchNameStems: false })
+                      }
+                    >
+                      <Badge variant="accent">
+                        Nome: {filters.nameQuery} ×
                       </Badge>
                     </button>
                   ) : null}
@@ -1012,7 +1169,7 @@ function LargadaWizard() {
                   <div className="h-24 animate-pulse rounded-md bg-white/5" />
                   <div className="h-24 animate-pulse rounded-md bg-white/5" />
                 </div>
-              ) : filters.segmentIds.length > 0 || filters.intentQuery ? null : (
+              ) : (
                 <>
                   <div className="space-y-2">
                     <div className="relative">
@@ -1021,12 +1178,24 @@ function LargadaWizard() {
                         value={segmentQuery}
                         onChange={(e) => setSegmentQuery(e.target.value)}
                         onKeyDown={onSegmentSearchKeyDown}
-                        placeholder="Buscar nicho (ex.: barbearia, clínica médica, farmácia)"
+                        placeholder="Buscar nicho (ex.: barbearia, churrasqueiro, tapiocaria)"
                         className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
                       />
                     </div>
-                    {segmentSearch.length >= 2 ? (
+                    {filters.segmentIds.length === 0 &&
+                    !filters.intentQuery &&
+                    !filters.nameQuery &&
+                    segmentSearch.length >= 2 ? (
                       <div className="flex flex-wrap items-center gap-2">
+                        {canUseNameQuery(segmentQuery) ? (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={applyNameFromSearch}
+                          >
+                            Buscar quem tem “{segmentQuery.trim()}” no nome
+                          </Button>
+                        ) : null}
                         <Hint>
                           {matchedSegmentCount > 0
                             ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"}`
@@ -1034,20 +1203,91 @@ function LargadaWizard() {
                           {pickerCnaes.length > 0
                             ? ` · ${pickerCnaes.length} atividade${pickerCnaes.length === 1 ? "" : "s"} da Receita`
                             : ""}
+                          {namePreviewQuery.isFetching
+                            ? " · buscando no nome…"
+                            : namePreview.timedOut
+                              ? " · prévia de nome lenta"
+                              : namePreview.total > 0
+                                ? ` · ${namePreview.sampled ? `${namePreview.total}+` : namePreview.total} no nome`
+                                : canUseNameQuery(segmentQuery)
+                                  ? " · recorte pelo nome"
+                                  : ""}
                           {matchedSegmentCount > 0
                             ? " · Enter seleciona o melhor match"
-                            : ""}
+                            : canUseNameQuery(segmentQuery)
+                              ? " · Enter recorta pelo nome"
+                              : ""}
                         </Hint>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={applyIntentFromSearch}
-                        >
-                          Buscar pelo termo “{segmentQuery.trim()}”
-                        </Button>
                       </div>
                     ) : null}
-                    {segmentSearch.length >= 2 && pickerCnaes.length > 0 ? (
+                    {filters.segmentIds.length === 0 &&
+                    !filters.intentQuery &&
+                    !filters.nameQuery &&
+                    canUseNameQuery(segmentQuery) ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-podium-muted">
+                          Nomes na Receita
+                        </p>
+                        {namePreviewQuery.isFetching ? (
+                          <p className="text-sm text-podium-muted">
+                            Buscando no fantasia e na razão social…
+                          </p>
+                        ) : namePreviewQuery.isError ? (
+                          <p className="text-sm text-podium-muted">
+                            Não deu para pré-visualizar agora. O recorte pelo
+                            nome ainda funciona — toque no botão acima.
+                          </p>
+                        ) : namePreview.timedOut ? (
+                          <p className="text-sm text-podium-muted">
+                            A prévia demorou. Dá para listar quem tem “
+                            {segmentQuery.trim()}” no nome mesmo assim.
+                          </p>
+                        ) : namePreview.total > 0 ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={applyNameFromSearch}
+                              className="text-left"
+                            >
+                              <p className="mt-1 text-sm text-podium-white">
+                                {namePreview.sampled
+                                  ? `${namePreview.total}+ empresas`
+                                  : `${namePreview.total.toLocaleString("pt-BR")} empresas`}{" "}
+                                com “{segmentQuery.trim()}” no fantasia ou razão
+                              </p>
+                            </button>
+                            <div className="max-h-48 space-y-1 overflow-auto">
+                              {namePreview.cnaes.map((c) => (
+                                <ChoiceTile
+                                  key={c.codigo}
+                                  density="row"
+                                  selected={false}
+                                  onClick={() =>
+                                    pickNameCnae(c.codigo, c.descricao)
+                                  }
+                                  meta={`${c.nameHits} no nome`}
+                                >
+                                  <span className="font-mono text-xs text-podium-muted">
+                                    {formatCnae(c.codigo) ?? c.codigo}
+                                  </span>{" "}
+                                  {c.descricao}
+                                </ChoiceTile>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-podium-muted">
+                            Sem agrupamento de atividade ainda — o botão lista
+                            quem tem esse termo no nome.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                    {filters.segmentIds.length === 0 &&
+                    !filters.intentQuery &&
+                    !filters.nameQuery &&
+                    segmentSearch.length >= 2 &&
+                    pickerCnaes.length > 0 ? (
                       <div className="space-y-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-podium-muted">
                           Atividades da Receita
@@ -1058,7 +1298,9 @@ function LargadaWizard() {
                               key={c.codigo}
                               density="row"
                               selected={filters.cnaes.includes(c.codigo)}
-                              onClick={() => pickCnaeAsNiche(c.codigo, c.descricao)}
+                              onClick={() =>
+                                pickCnaeAsNiche(c.codigo, c.descricao)
+                              }
                               meta={`${c.count} empresas`}
                             >
                               <span className="font-mono text-xs text-podium-muted">
@@ -1071,18 +1313,20 @@ function LargadaWizard() {
                       </div>
                     ) : null}
                   </div>
-                  <NicheGroup title="B2C local" hint={COPY.b2c} items={b2c} />
-                  <NicheGroup
-                    title="B2B"
-                    hint={COPY.b2b}
-                    items={b2b}
-                  />
+                  {filters.segmentIds.length === 0 &&
+                  !filters.intentQuery &&
+                  !filters.nameQuery ? (
+                    <>
+                      <NicheGroup title="B2C local" hint={COPY.b2c} items={b2c} />
+                      <NicheGroup title="B2B" hint={COPY.b2b} items={b2b} />
+                    </>
+                  ) : null}
                 </>
               )}
 
               {filters.segmentIds.length > 0 ? (
                 <div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {filters.segmentIds.map((id) => (
                       <button
                         key={id}
@@ -1094,11 +1338,31 @@ function LargadaWizard() {
                         </Badge>
                       </button>
                     ))}
+                    <Button size="sm" variant="ghost" onClick={clearNichePick}>
+                      Trocar nicho
+                    </Button>
                   </div>
-                  <Hint className="mt-2">Toque no nicho para escolher outro.</Hint>
+                  <Hint className="mt-2">
+                    Toque no nicho para escolher outro — ou refine as atividades
+                    da Receita abaixo.
+                  </Hint>
+                </div>
+              ) : filters.nameQuery ? (
+                <div>
+                  <Button size="sm" variant="ghost" onClick={clearNichePick}>
+                    Trocar nicho
+                  </Button>
+                  <Hint className="mt-2">
+                    A lista pega quem tem esse termo no nome. Atividades abaixo
+                    são opcionais — não entram sozinhas.
+                  </Hint>
                 </div>
               ) : null}
 
+              {(filters.segmentIds.length > 0 ||
+                !!filters.nameQuery ||
+                filters.cnaes.length > 0 ||
+                !!filters.intentQuery) && (
               <GlassCard className="p-3" highlight>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -1106,9 +1370,10 @@ function LargadaWizard() {
                       Buscar e refinar atividade (CNAE)
                     </h3>
                     <Hint className="mt-1">
-                      {COPY.cnae} Busque qualquer código ou descrição — não só os
-                      do segmento. As atividades do nicho já vêm marcadas;
-                      desmarque o que quiser tirar da lista.
+                      {COPY.cnae}{" "}
+                      {filters.nameQuery
+                        ? "CNAEs mais comuns entre quem tem o termo no nome — marque só se quiser apertar o recorte."
+                        : "Busque qualquer código ou descrição — não só os do segmento. As atividades do nicho já vêm marcadas; desmarque o que quiser tirar da lista."}
                     </Hint>
                   </div>
                   <Button
@@ -1119,6 +1384,18 @@ function LargadaWizard() {
                     {showCnaePanel ? "Ocultar atividades" : "Mostrar atividades"}
                   </Button>
                 </div>
+                {(umbrellaSelected || filters.matchNameStems) &&
+                filters.segmentIds.length > 0 ? (
+                  <div className="mt-3">
+                    <ToggleRow
+                      checked={filters.matchNameStems}
+                      onChange={(v) => patch({ matchNameStems: v })}
+                      title="Só quem tem esse ramo no nome"
+                      hint="Padrão em ramos cujo CNAE é genérico (churrascaria, tricologia). Desligue para listar toda a atividade da Receita."
+                      recommended
+                    />
+                  </div>
+                ) : null}
                 <div className="relative mt-3">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-podium-muted" />
                   <input
@@ -1176,7 +1453,46 @@ function LargadaWizard() {
                 )}
                 {showCnaePanel && (
                   <div className="mt-4 max-h-64 space-y-2 overflow-auto">
-                    {cnaePreview.isLoading ? (
+                    {filters.nameQuery ? (
+                      appliedNamePreviewQuery.isLoading ? (
+                        <p className="text-sm text-podium-muted">
+                          Carregando atividades ligadas ao nome…
+                        </p>
+                      ) : appliedNamePreview.cnaes.length === 0 ? (
+                        <p className="text-sm text-podium-muted">
+                          Nenhuma atividade agrupada ainda — siga para a região
+                          ou busque um CNAE acima.
+                        </p>
+                      ) : (
+                        appliedNamePreview.cnaes.map((c) => {
+                          const on = filters.cnaes.includes(c.codigo);
+                          return (
+                            <ChoiceTile
+                              key={c.codigo}
+                              density="row"
+                              selected={on}
+                              onClick={() => {
+                                if (!on) {
+                                  setCnaeLabels((m) => ({
+                                    ...m,
+                                    [c.codigo]: c.descricao,
+                                  }));
+                                }
+                                toggleCnae(c.codigo);
+                              }}
+                              meta={`${c.nameHits} no nome`}
+                            >
+                              <span className="font-mono text-xs text-podium-muted">
+                                {formatCnae(c.codigo) ?? c.codigo}
+                              </span>{" "}
+                              <span className="font-medium text-podium-white">
+                                {c.descricao}
+                              </span>
+                            </ChoiceTile>
+                          );
+                        })
+                      )
+                    ) : cnaePreview.isLoading ? (
                       <p className="text-sm text-podium-muted">
                         Carregando atividades do nicho…
                       </p>
@@ -1184,7 +1500,7 @@ function LargadaWizard() {
                       <p className="text-sm text-podium-muted">
                         {filters.segmentIds.length > 0
                           ? "Nenhuma atividade da Receita casou com este nicho — busque um CNAE acima."
-                          : "Selecione um segmento ou uma intenção para listar as atividades do nicho — ou busque um CNAE acima."}
+                          : "Selecione um segmento ou busque pelo nome para listar as atividades — ou busque um CNAE acima."}
                       </p>
                     ) : (
                       (cnaePreview.data ?? []).map((c) => {
@@ -1228,12 +1544,18 @@ function LargadaWizard() {
                         }}
                         className="underline"
                       >
-                        Limpar atividades selecionadas (usar só segmentos)
+                        Limpar atividades selecionadas
+                        {filters.segmentIds.length > 0
+                          ? " (usar só segmentos)"
+                          : filters.nameQuery
+                            ? " (usar só o nome)"
+                            : ""}
                       </Button>
                     )}
                   </div>
                 )}
               </GlassCard>
+              )}
 
               <Button
                 variant="primary"

@@ -41,6 +41,19 @@ import {
   sqlFoldAccent,
 } from "@/lib/data/company-search";
 import {
+  emptyNamePreview,
+  filtersUseNameMatch,
+  NAME_PREVIEW_CNAE_LIMIT,
+  NAME_PREVIEW_SAMPLE_CAP,
+  NAME_PREVIEW_UF_CAP,
+  nameContainsGroupsSql,
+  nameContainsSql,
+  nameIlikeGroups,
+  nameIlikeGroupsSql,
+  nameStemNeedles,
+  type NamePreview,
+} from "@/lib/data/name-query";
+import {
   cachedCandidateCnpjs,
   countCacheKey,
   getCountCache,
@@ -502,8 +515,53 @@ function needsCompaniesJoin(filters: SearchFilters): boolean {
   return (
     filters.portes.length > 0 ||
     filters.capitalMin != null ||
-    filters.capitalMax != null
+    filters.capitalMax != null ||
+    filtersUseNameMatch(filters)
   );
+}
+
+async function resolveFilterNameStems(
+  filters: SearchFilters,
+): Promise<string[]> {
+  if (!filters.matchNameStems || !filters.segmentIds.length) return [];
+  const presets = await loadPresets();
+  const stems: string[] = [];
+  for (const id of filters.segmentIds) {
+    const preset = presets.find((p) => p.id === id);
+    stems.push(...nameStemNeedles(preset?.name_stems));
+  }
+  return [...new Set(stems)];
+}
+
+function appendNameMatchSql(
+  params: unknown[],
+  clauses: string[],
+  fantasiaExpr: string,
+  razaoExpr: string,
+  filters: SearchFilters,
+  nameStems: string[],
+) {
+  const querySql = nameContainsGroupsSql(
+    fantasiaExpr,
+    razaoExpr,
+    params.length + 1,
+    nameIlikeGroups(filters.nameQuery),
+  );
+  if (querySql) {
+    params.push(...querySql.params);
+    clauses.push(querySql.sql);
+  }
+  const stemSql = nameContainsSql(
+    fantasiaExpr,
+    razaoExpr,
+    params.length + 1,
+    nameStems,
+    "or",
+  );
+  if (stemSql) {
+    params.push(...stemSql.params);
+    clauses.push(stemSql.sql);
+  }
 }
 
 function buildMatchFrom(filters: SearchFilters): string {
@@ -535,6 +593,7 @@ function buildMatchFrom(filters: SearchFilters): string {
 function buildStructuralFilterSql(
   filters: SearchFilters,
   allowedCnaes: Set<string> | null,
+  nameStems: string[] = [],
 ): FilterSql {
   const params: unknown[] = [];
   const clauses: string[] = ["1=1"];
@@ -560,6 +619,14 @@ function buildStructuralFilterSql(
   if (filters.municipioIds.length) {
     add("e.municipio_id = any(?::int[])", filters.municipioIds);
   }
+  appendNameMatchSql(
+    params,
+    clauses,
+    "e.nome_fantasia",
+    "c.razao_social",
+    filters,
+    nameStems,
+  );
   clauses.push(`not exists (
     select 1 from opt_outs o
     where o.documento in (e.cnpj, e.cnpj_basico)
@@ -590,13 +657,14 @@ function mapMunicipioCountRows(
 async function fetchTopMunicipiosPreview(
   filters: SearchFilters,
   allowed: Set<string> | null,
+  nameStems: string[] = [],
 ): Promise<CountResult["porMunicipio"]> {
-  const { sql, params } = buildStructuralFilterSql(filters, allowed);
+  const { sql, params } = buildStructuralFilterSql(filters, allowed, nameStems);
   const limitParam = params.length + 1;
   const { rows } = await querySearch<{ por_municipio: MunicipioCountRow[] | null }>(
     `with matched as (
        select e.municipio_id
-       from establishments e
+       ${filtersUseNameMatch(filters) ? "from establishments e join companies c on c.cnpj_basico = e.cnpj_basico" : "from establishments e"}
        where ${sql}
        limit $${limitParam}
      ),
@@ -629,6 +697,7 @@ async function fetchTopMunicipiosPreview(
 async function countTotalPreviewLegacy(
   filters: SearchFilters,
   allowed: Set<string> | null,
+  nameStems: string[] = [],
 ): Promise<CountResult> {
   let total = 0;
   let capped = false;
@@ -663,12 +732,15 @@ async function countTotalPreviewLegacy(
   }
 
   if (!usedMv) {
-    const { sql, params } = buildStructuralFilterSql(filters, allowed);
+    const { sql, params } = buildStructuralFilterSql(filters, allowed, nameStems);
     const limitParam = params.length + 1;
+    const fromSql = filtersUseNameMatch(filters)
+      ? "from establishments e join companies c on c.cnpj_basico = e.cnpj_basico"
+      : "from establishments e";
     const { rows } = await querySearch<{ n: number }>(
       `with matched as (
          select 1
-         from establishments e
+         ${fromSql}
          where ${sql}
          limit $${limitParam}
        )
@@ -682,7 +754,7 @@ async function countTotalPreviewLegacy(
 
   const porMunicipio =
     filters.ufs.length > 0 || filters.municipioIds.length > 0
-      ? await fetchTopMunicipiosPreview(filters, allowed).catch(() => [])
+      ? await fetchTopMunicipiosPreview(filters, allowed, nameStems).catch(() => [])
       : [];
 
   return {
@@ -695,8 +767,12 @@ async function countTotalPreviewLegacy(
   };
 }
 
-function buildFilterSql(filters: SearchFilters, allowedCnaes: Set<string> | null): FilterSql {
-  const structural = buildStructuralFilterSql(filters, allowedCnaes);
+function buildFilterSql(
+  filters: SearchFilters,
+  allowedCnaes: Set<string> | null,
+  nameStems: string[] = [],
+): FilterSql {
+  const structural = buildStructuralFilterSql(filters, allowedCnaes, nameStems);
   const params = [...structural.params];
   const clauses = structural.sql.split("\n    and ");
 
@@ -758,6 +834,7 @@ function buildFlatMatchFrom(filters: SearchFilters): string {
 function buildFlatStructuralFilterSql(
   filters: SearchFilters,
   allowedCnaes: Set<string> | null,
+  nameStems: string[] = [],
 ): FilterSql {
   const params: unknown[] = [];
   const clauses: string[] = ["es.opted_out = false"];
@@ -783,6 +860,14 @@ function buildFlatStructuralFilterSql(
   if (filters.municipioIds.length) {
     add("es.municipio_id = any(?::int[])", filters.municipioIds);
   }
+  appendNameMatchSql(
+    params,
+    clauses,
+    "es.nome_fantasia",
+    "es.razao_social",
+    filters,
+    nameStems,
+  );
 
   return { sql: clauses.join("\n    and "), params };
 }
@@ -790,8 +875,9 @@ function buildFlatStructuralFilterSql(
 function buildFlatFilterSql(
   filters: SearchFilters,
   allowedCnaes: Set<string> | null,
+  nameStems: string[] = [],
 ): FilterSql {
-  const structural = buildFlatStructuralFilterSql(filters, allowedCnaes);
+  const structural = buildFlatStructuralFilterSql(filters, allowedCnaes, nameStems);
   const params = [...structural.params];
   const clauses = structural.sql.split("\n    and ");
 
@@ -835,12 +921,16 @@ async function countViaFlatTable(
   filters: SearchFilters,
   allowed: Set<string> | null,
   opts: { includeStats: boolean; cap: number },
+  nameStems: string[] = [],
 ): Promise<CountResult> {
-  const { sql, params } = buildFlatFilterSql(filters, allowed);
+  const { sql, params } = buildFlatFilterSql(filters, allowed, nameStems);
   const joinSql = buildFlatMatchFrom(filters);
   const limitParam = params.length + 1;
   const includeCnpjs = opts.includeStats;
-  const { rows } = await querySearch<{
+  const run = filtersUseNameMatch(filters)
+    ? querySearchWithTimeout
+    : querySearch;
+  const { rows } = await run<{
     total_probe: number;
     com_telefone: number;
     com_email: number;
@@ -892,6 +982,7 @@ function canFastCountStructural(
   allowed: Set<string> | null,
 ): boolean {
   if (!allowed || allowed.has("__none__") || allowed.size === 0) return false;
+  if (filtersUseNameMatch(filters)) return false;
   if (filters.cnpjs?.length) return false;
   if (filters.municipioIds.length) return false;
   if (filters.portes.length) return false;
@@ -1150,6 +1241,7 @@ async function computeCount(
     const started = Date.now();
     let result: CountResult;
     const useFlat = await hasEstablishmentsSearch();
+    const nameStems = await resolveFilterNameStems(filters);
 
     if (mode === "total" && allowed && canFastCountPreview(filters, allowed)) {
       const mv = await countViaCnaeUfMv(filters, allowed);
@@ -1163,11 +1255,11 @@ async function computeCount(
     if (useFlat) {
       const includeStats = mode === "full";
       const cap = mode === "full" ? COUNT_CAP : FLAT_COUNT_PREVIEW_CAP;
-      result = await countViaFlatTable(filters, allowed, { includeStats, cap });
+      result = await countViaFlatTable(filters, allowed, { includeStats, cap }, nameStems);
     } else if (mode === "total") {
-      result = await countTotalPreviewLegacy(filters, allowed);
+      result = await countTotalPreviewLegacy(filters, allowed, nameStems);
     } else {
-      result = await countFullLegacy(filters, allowed);
+      result = await countFullLegacy(filters, allowed, nameStems);
     }
 
     logSearchDuration("count", started, { mode, flat: useFlat, total: result.total });
@@ -1179,6 +1271,7 @@ async function computeCount(
 async function countFullLegacy(
   filters: SearchFilters,
   allowed: Set<string> | null,
+  nameStems: string[] = [],
 ): Promise<CountResult> {
   const useFast = canFastCount(filters, allowed);
   if (useFast && (await hasCnaeUfCount())) {
@@ -1214,7 +1307,7 @@ async function countFullLegacy(
       }
     }
   }
-  const { sql, params } = buildFilterSql(filters, allowed);
+  const { sql, params } = buildFilterSql(filters, allowed, nameStems);
   const fromSql = buildMatchFrom(filters);
   const limitParam = params.length + 1;
   const { rows } = await querySearch<{
@@ -2551,6 +2644,8 @@ export const supabaseRepo: GridRepo = {
       ocultarEmailsGratuitos: false,
       ocultarEnderecosCompartilhados: false,
       soEnriquecidas: false,
+      nameQuery: null,
+      matchNameStems: false,
     } satisfies SearchFilters;
     const allowed = await resolveAllowedCnaes(probe);
     if (!allowed || allowed.has("__none__")) return [];
@@ -2578,8 +2673,10 @@ export const supabaseRepo: GridRepo = {
     const queryText = q.trim();
     if (queryText.length < 1) return [];
     const tokens = queryTokens(queryText);
-    const seed = tokens[0] ?? queryText;
-    const pattern = `%${seed}%`;
+    const seed = tokens[0] ?? normalizeText(queryText) ?? queryText;
+    const pattern = `%${escapeIlike(seed)}%`;
+    const foldedDescricao = sqlFoldAccent("c.descricao");
+    const foldedHitDescricao = sqlFoldAccent("descricao");
     const fetchLimit = Math.max(limit * 4, 80);
     const mvSql = `select c.codigo, c.descricao, coalesce(x.n, 0)::int as n
          from ref_cnae c
@@ -2588,14 +2685,14 @@ export const supabaseRepo: GridRepo = {
            from cnae_uf_count
            group by 1
          ) x on x.cnae_principal = c.codigo
-         where c.codigo ilike $1 or c.descricao ilike $1
+         where c.codigo ilike $1 escape '\\' or ${foldedDescricao} like $1 escape '\\'
          order by n desc, c.descricao
          limit $2`;
     const scanSql = (table: "establishments_search" | "establishments") =>
       `with hits as (
            select codigo, descricao
            from ref_cnae
-           where codigo ilike $1 or descricao ilike $1
+           where codigo ilike $1 escape '\\' or ${foldedHitDescricao} like $1 escape '\\'
            limit 200
          )
          select h.codigo, h.descricao, coalesce(x.n, 0)::int as n
@@ -2644,6 +2741,173 @@ export const supabaseRepo: GridRepo = {
     }
     if (lastErr) throw lastErr;
     return [];
+  },
+
+  async previewNames(q, ufs = []): Promise<NamePreview> {
+    const groups = nameIlikeGroups(q);
+    if (!groups.length) return emptyNamePreview();
+    const scopedUfs = ufChar2Params(ufs);
+    const sampled = scopedUfs.length === 0;
+    const cap = sampled ? NAME_PREVIEW_SAMPLE_CAP : NAME_PREVIEW_UF_CAP;
+    const needleParams = groups.flat().map((n) => `%${escapeIlike(n)}%`);
+
+    const mapPreview = (
+      rows: Array<{
+        codigo: string;
+        descricao: string | null;
+        n: number;
+        total: number;
+      }>,
+    ): NamePreview => {
+      const total = Number(rows[0]?.total ?? 0);
+      return {
+        total,
+        sampled: sampled || total >= cap,
+        cnaes: rows.map((r) => ({
+          codigo: trimChar(r.codigo),
+          descricao: r.descricao ?? "NÃO ENCONTRADO",
+          nameHits: Number(r.n),
+        })),
+      };
+    };
+
+    const runFlat = async (): Promise<NamePreview> => {
+      const params: unknown[] = [...needleParams];
+      const fantasiaWhere = nameIlikeGroupsSql(
+        "es.nome_fantasia",
+        1,
+        groups,
+      );
+      const razaoWhere = nameIlikeGroupsSql("es.razao_social", 1, groups);
+      const extra: string[] = ["es.opted_out = false"];
+      if (scopedUfs.length) {
+        params.push(scopedUfs);
+        extra.push(`es.uf = ${UF_ANY_SQL.replace("?", `$${params.length}`)}`);
+      }
+      const extraSql = extra.map((c) => `and ${c}`).join("\n           ");
+      params.push(cap);
+      const capRef = `$${params.length}`;
+      params.push(NAME_PREVIEW_CNAE_LIMIT);
+      const limitRef = `$${params.length}`;
+      const { rows } = await querySearchWithTimeout<{
+        codigo: string;
+        descricao: string | null;
+        n: number;
+        total: number;
+      }>(
+        `with matched as (
+           (
+             select es.cnpj, es.cnae_principal
+             from establishments_search es
+             where ${fantasiaWhere}
+               ${extraSql}
+             limit ${capRef}
+           )
+           union
+           (
+             select es.cnpj, es.cnae_principal
+             from establishments_search es
+             where ${razaoWhere}
+               ${extraSql}
+             limit ${capRef}
+           )
+         ),
+         grouped as (
+           select m.cnae_principal as codigo, count(*)::int as n
+           from matched m
+           group by 1
+           order by n desc
+           limit ${limitRef}
+         )
+         select g.codigo,
+                coalesce(c.descricao, 'NÃO ENCONTRADO') as descricao,
+                g.n,
+                (select count(*)::int from matched) as total
+         from grouped g
+         left join ref_cnae c on c.codigo = g.codigo
+         order by g.n desc`,
+        params,
+      );
+      return mapPreview(rows);
+    };
+
+    const runFat = async (): Promise<NamePreview> => {
+      const params: unknown[] = [...needleParams];
+      const fantasiaWhere = nameIlikeGroupsSql("e.nome_fantasia", 1, groups);
+      const razaoWhere = nameIlikeGroupsSql("c.razao_social", 1, groups);
+      const extra: string[] = [];
+      if (scopedUfs.length) {
+        params.push(scopedUfs);
+        extra.push(`e.uf = ${UF_ANY_SQL.replace("?", `$${params.length}`)}`);
+      }
+      const extraSql = extra.map((c) => `and ${c}`).join("\n           ");
+      params.push(cap);
+      const capRef = `$${params.length}`;
+      params.push(NAME_PREVIEW_CNAE_LIMIT);
+      const limitRef = `$${params.length}`;
+      const { rows } = await querySearchWithTimeout<{
+        codigo: string;
+        descricao: string | null;
+        n: number;
+        total: number;
+      }>(
+        `with matched as (
+           (
+             select e.cnpj, e.cnae_principal
+             from establishments e
+             where e.nome_fantasia is not null
+               and ${fantasiaWhere}
+               ${extraSql}
+             limit ${capRef}
+           )
+           union
+           (
+             select e.cnpj, e.cnae_principal
+             from companies c
+             join establishments e on e.cnpj_basico = c.cnpj_basico
+             where ${razaoWhere}
+               ${extraSql}
+             limit ${capRef}
+           )
+         ),
+         grouped as (
+           select m.cnae_principal as codigo, count(*)::int as n
+           from matched m
+           group by 1
+           order by n desc
+           limit ${limitRef}
+         )
+         select g.codigo,
+                coalesce(rc.descricao, 'NÃO ENCONTRADO') as descricao,
+                g.n,
+                (select count(*)::int from matched) as total
+         from grouped g
+         left join ref_cnae rc on rc.codigo = g.codigo
+         order by g.n desc`,
+        params,
+      );
+      return mapPreview(rows);
+    };
+
+    try {
+      if (await hasEstablishmentsSearch()) return await runFlat();
+      return await runFat();
+    } catch (err) {
+      if (isStatementTimeoutError(err)) {
+        return emptyNamePreview(true, true);
+      }
+      if (isMissingOrUnpopulatedRelationError(err) && (await hasEstablishmentsSearch())) {
+        try {
+          return await runFat();
+        } catch (inner) {
+          if (isStatementTimeoutError(inner)) {
+            return emptyNamePreview(true, true);
+          }
+          throw inner;
+        }
+      }
+      throw err;
+    }
   },
 
   async searchCompanies(q, opts) {
@@ -2742,6 +3006,7 @@ export const supabaseRepo: GridRepo = {
     const allowed = await resolveAllowedCnaes(filters);
     const profile = await scoreProfileForFilters(filters);
     const useFlat = await hasEstablishmentsSearch();
+    const nameStems = await resolveFilterNameStems(filters);
     let rows: Record<string, unknown>[];
     const started = Date.now();
     const cachedCnpjs = useFlat
@@ -2761,10 +3026,13 @@ export const supabaseRepo: GridRepo = {
         n: rows.length,
       });
     } else if (useFlat) {
-      const { sql, params } = buildFlatFilterSql(filters, allowed);
+      const { sql, params } = buildFlatFilterSql(filters, allowed, nameStems);
       const joinSql = buildFlatMatchFrom(filters);
       const limitParam = params.length + 1;
-      const result = await querySearch(
+      const run = filtersUseNameMatch(filters)
+        ? querySearchWithTimeout
+        : querySearch;
+      const result = await run(
         flatRankedEstablishmentsSql(sql, joinSql, limitParam),
         [...params, CANDIDATE_CAP],
       );
@@ -2774,7 +3042,7 @@ export const supabaseRepo: GridRepo = {
         n: rows.length,
       });
     } else {
-      const { sql, params } = buildFilterSql(filters, allowed);
+      const { sql, params } = buildFilterSql(filters, allowed, nameStems);
       const fromSql = buildMatchFrom(filters);
       const limitParam = params.length + 1;
       const result = await querySearch(

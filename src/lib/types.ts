@@ -421,7 +421,7 @@ export type NichePreset = {
   parent_id: string | null;
   keywords: string[];
   exclusoes: string[];
-  /** stems used to generate coherent mock company names */
+  /** stems for mock names and umbrella CNAE ∩ nome filters */
   name_stems: string[];
   /** commercial findability terms (envasadoras, cervejaria, …) */
   aliases: string[];
@@ -493,6 +493,10 @@ export type SearchFilters = {
   segmentIds: string[];
   /** Busca livre por intenção (ex.: "indústria química") */
   intentQuery: string | null;
+  /** Termo no nome fantasia ou razão social (Receita). */
+  nameQuery: string | null;
+  /** AND with the selected segment's name_stems (umbrella CNAEs). */
+  matchNameStems: boolean;
   /** CNPJs escolhidos na busca de empresas */
   cnpjs: string[];
   ufs: string[];
@@ -706,6 +710,8 @@ export const DEFAULT_FILTERS: SearchFilters = {
   presetId: null,
   segmentIds: [],
   intentQuery: null,
+  nameQuery: null,
+  matchNameStems: false,
   cnpjs: [],
   ufs: [],
   municipioIds: [],

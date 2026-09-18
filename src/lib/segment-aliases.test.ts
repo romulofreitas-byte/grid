@@ -59,6 +59,22 @@ describe("commercial term findability", () => {
     expect(presetMatchesQuery(seed("saloes-premium"), "barbearia")).toBe(false);
   });
 
+  it("finds churrasqueiro on churrascarias, not every restaurant alias", () => {
+    expect(presetMatchesQuery(seed("churrascarias"), "churrasqueiro")).toBe(
+      true,
+    );
+    expect(presetMatchesQuery(seed("churrascarias"), "churrasqueira")).toBe(
+      true,
+    );
+    expect(rankPresetMatch(seed("churrascarias"), "churrasqueiro")).toBeGreaterThanOrEqual(
+      70,
+    );
+  });
+
+  it("finds tricologia by the specialty name", () => {
+    expect(presetMatchesQuery(seed("tricologia"), "tricologia")).toBe(true);
+  });
+
   it("finds clínica médica in health, not só estética", () => {
     const clinica = seed("clinicas-medicas");
     const parent = seed("saude-e-clinicas");
@@ -113,5 +129,12 @@ describe("token matching", () => {
 
   it("does not let short aliases swallow longer queries", () => {
     expect(presetMatchesQuery(seed("bares"), "barbearia")).toBe(false);
+  });
+
+  it("does not send funerária to cremação pet", () => {
+    expect(presetMatchesQuery(seed("cremacao-pet"), "funerária")).toBe(false);
+    expect(presetMatchesQuery(seed("cremacao-pet"), "funeraria")).toBe(false);
+    expect(presetMatchesQuery(seed("cremacao-pet"), "funeraria pet")).toBe(true);
+    expect(presetMatchesQuery(seed("cremacao-pet"), "cremação")).toBe(true);
   });
 });

@@ -32,7 +32,7 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   fisioterapia: ["fisioterapeuta", "fisio", "reabilitacao"],
   nutricao: ["nutricionista", "nutri"],
   psicologia: ["psicologo", "terapia", "psicoterapia"],
-  tricologia: ["tricologista", "queda de cabelo", "capilar"],
+  tricologia: ["tricologista", "tricologia", "queda de cabelo", "capilar"],
   "medicina-integrativa": ["integrativa", "holistica", "medicina funcional"],
   cardiologia: ["cardiologista", "coracao"],
   ginecologia: ["ginecologista", "obstetricia"],
@@ -56,7 +56,7 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   "pet-taxi": ["pet taxi", "transporte pet"],
 
   // Automotivo
-  concessionarias: ["concessionaria", "revenda de carros novos"],
+  concessionarias: ["concessionaria", "concessionarias", "revenda de carros novos"],
   seminovos: ["seminovos", "carros usados", "usados"],
   "oficinas-mecanicas": ["oficina", "mecanica", "mecanico"],
   "funilaria-pintura": ["funilaria", "lanternagem", "pintura automotiva"],
@@ -112,7 +112,7 @@ export const SEGMENT_ALIASES: Record<string, string[]> = {
   padarias: ["padaria", "confeitaria", "panificadora", "panificadoras"],
   "food-trucks": ["food truck", "trailer de comida"],
   "dark-kitchen": ["dark kitchen", "cozinha fantasma", "delivery only"],
-  churrascarias: ["churrascaria", "churrasco"],
+  churrascarias: ["churrascaria", "churrasco", "churrasqueiro", "churrasqueira"],
 
   // Educação
   "escolas-particulares": ["escola particular", "colegio"],
@@ -366,8 +366,31 @@ function resolvedAliases(preset: SearchablePreset): string[] {
 function fieldHitsQuery(field: string, q: string): boolean {
   const n = normalizeText(field);
   if (!n) return false;
+  const fieldTokens = n
+    .split(/[^a-z0-9]+/g)
+    .filter((t) => t.length >= 3 && !QUERY_STOPWORDS.has(t));
+  if (fieldTokens.length > 1) {
+    return fieldTokens.every((t) => q.includes(t));
+  }
   if (n.includes(q)) return true;
   return q.includes(n) && n.length >= REVERSE_ALIAS_MIN;
+}
+
+function atomicSearchFields(preset: SearchablePreset): string[] {
+  const aliases = resolvedAliases(preset).filter((a) => {
+    const tokens = normalizeText(a)
+      .split(/[^a-z0-9]+/g)
+      .filter((t) => t.length >= 3 && !QUERY_STOPWORDS.has(t));
+    return tokens.length <= 1;
+  });
+  return [
+    preset.nome,
+    preset.parentNome ?? "",
+    ...aliases,
+    ...(preset.keywords ?? []),
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
 }
 
 /** Accent-folded tokens, stopwords dropped. Min length 3 except when the whole query is short. */
@@ -440,8 +463,8 @@ export function presetMatchesQuery(
   if ((preset.keywords ?? []).some((k) => fieldHitsQuery(k, q))) return true;
   const tokens = queryTokens(rawQuery);
   if (!tokens.length) return false;
-  const doc = searchableDocument(preset);
-  return tokens.every((t) => doc.includes(t));
+  const atoms = atomicSearchFields(preset);
+  return tokens.every((t) => atoms.some((f) => f.includes(t)));
 }
 
 export function rankPresetMatch(preset: SearchablePreset, rawQuery: string): number {
@@ -452,17 +475,25 @@ export function rankPresetMatch(preset: SearchablePreset, rawQuery: string): num
   if (nome === q) return 100;
   if (aliases.some((a) => a === q)) return 95;
   if (nome.startsWith(q)) return 90;
-  if (aliases.some((a) => a.startsWith(q) || (q.startsWith(a) && a.length >= REVERSE_ALIAS_MIN))) {
+  if (
+    aliases.some((a) => {
+      const tokens = a
+        .split(/[^a-z0-9]+/g)
+        .filter((t) => t.length >= 3 && !QUERY_STOPWORDS.has(t));
+      if (tokens.length > 1) return tokens.every((t) => q.includes(t));
+      return a.startsWith(q) || (q.startsWith(a) && a.length >= REVERSE_ALIAS_MIN);
+    })
+  ) {
     return 85;
   }
   if (nome.includes(q)) return 80;
   if (preset.parentNome && normalizeText(preset.parentNome).includes(q)) return 75;
-  if (aliases.some((a) => a.includes(q) || (q.includes(a) && a.length >= REVERSE_ALIAS_MIN))) {
+  if (aliases.some((a) => fieldHitsQuery(a, q))) {
     return 70;
   }
   const tokens = queryTokens(rawQuery);
-  const doc = searchableDocument(preset);
-  if (tokens.length && tokens.every((t) => doc.includes(t))) return 55;
+  const atoms = atomicSearchFields(preset);
+  if (tokens.length && tokens.every((t) => atoms.some((f) => f.includes(t)))) return 55;
   if ((preset.keywords ?? []).some((k) => normalizeText(k).includes(q))) return 40;
   return 0;
 }

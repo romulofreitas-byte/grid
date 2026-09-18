@@ -34,6 +34,7 @@ export async function GET(req: Request) {
               nome: s.nome,
               aliases: s.aliases ?? [],
               keywords: s.keywords ?? [],
+              name_stems: s.name_stems ?? [],
             })),
         }));
       return NextResponse.json(payload);

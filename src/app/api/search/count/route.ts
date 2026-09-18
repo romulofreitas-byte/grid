@@ -14,6 +14,8 @@ const filtersSchema = z.object({
   presetId: z.string().nullable().default(null),
   segmentIds: z.array(z.string()).default([]),
   intentQuery: z.string().nullable().default(null),
+  nameQuery: z.string().nullable().default(null),
+  matchNameStems: z.boolean().default(false),
   ufs: z.array(z.string()).default([]),
   municipioIds: z.array(z.number()).default([]),
   portes: z.array(z.string()).default([]),

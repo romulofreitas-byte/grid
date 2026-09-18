@@ -118,6 +118,9 @@ describe("filterStepFilled", () => {
     expect(filterStepFilled(1, filters({ segmentIds: ["clinicas"] }))).toBe(
       true,
     );
+    expect(filterStepFilled(1, filters({ nameQuery: "tapiocaria" }))).toBe(
+      true,
+    );
     expect(filterStepFilled(2, DEFAULT_FILTERS)).toBe(false);
     expect(filterStepFilled(2, filters({ ufs: ["SP"] }))).toBe(true);
     expect(filterStepFilled(3, DEFAULT_FILTERS)).toBe(false);
@@ -184,5 +187,19 @@ describe("listSummaryBadges", () => {
       "nicho:pet shop",
       "local:MG · estado inteiro",
     ]);
+  });
+
+  it("labels a nameQuery as the nicho chip", () => {
+    const badges = listSummaryBadges(
+      filters({ nameQuery: "tapiocaria", ufs: ["BA"] }),
+    );
+    expect(badges.map((b) => `${b.key}:${b.label}`)).toEqual([
+      "nicho:tapiocaria",
+      "local:BA · estado inteiro",
+    ]);
+    expect(
+      summarizeFilters(filters({ nameQuery: "tapiocaria", matchNameStems: true }))
+        .map((c) => c.label),
+    ).toEqual(["tapiocaria", "Só quem tem no nome"]);
   });
 });

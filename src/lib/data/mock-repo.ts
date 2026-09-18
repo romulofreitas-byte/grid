@@ -33,6 +33,12 @@ import {
   companyNameMatchesFields,
   isCompanyCnpjQuery,
 } from "@/lib/data/company-search";
+import {
+  establishmentNameMatches,
+  nameQueryNeedles,
+  nameStemNeedles,
+  type NamePreview,
+} from "@/lib/data/name-query";
 import { municipioListLimit } from "@/lib/municipios";
 import { crmMockMethods } from "@/lib/data/crm-mock";
 import { metasMockMethods } from "@/lib/data/metas-mock";
@@ -363,6 +369,16 @@ function buildContacts(
   return contacts;
 }
 
+function nameStemsForFilters(store: MockStore, filters: SearchFilters): string[] {
+  if (!filters.matchNameStems) return [];
+  const stems: string[] = [];
+  for (const id of filters.segmentIds) {
+    const preset = store.niche_presets.find((p) => p.id === id);
+    stems.push(...nameStemNeedles(preset?.name_stems));
+  }
+  return [...new Set(stems)];
+}
+
 function matchesFilters(store: MockStore, filters: SearchFilters) {
   const idx = getIndexes(store);
   const optOutDocs = new Set(store.opt_outs.map((o) => o.documento.replace(/\D/g, "")));
@@ -393,6 +409,17 @@ function matchesFilters(store: MockStore, filters: SearchFilters) {
 
     const company = idx.companyByBasico.get(est.cnpj_basico);
     if (!company) return false;
+
+    if (
+      !establishmentNameMatches(
+        company.razao_social,
+        est.nome_fantasia,
+        filters.nameQuery,
+        nameStemsForFilters(store, filters),
+      )
+    ) {
+      return false;
+    }
 
     if (filters.portes.length && company.porte && !filters.portes.includes(company.porte)) {
       return false;
@@ -696,6 +723,8 @@ export const mockRepo: GridRepo = {
       ocultarEmailsGratuitos: false,
       ocultarEnderecosCompartilhados: false,
       soEnriquecidas: false,
+      nameQuery: null,
+      matchNameStems: false,
     } satisfies SearchFilters;
 
     const allowed = resolveAllowedCnaes(store, probe);
@@ -727,6 +756,46 @@ export const mockRepo: GridRepo = {
         count: store.establishments.filter((e) => e.cnae_principal === c.codigo)
           .length,
       }));
+  },
+
+  async previewNames(query: string, ufs: string[] = []): Promise<NamePreview> {
+    const needles = nameQueryNeedles(query);
+    if (!needles.length) return { total: 0, sampled: false, cnaes: [] };
+    const store = getMockStore();
+    const idx = getIndexes(store);
+    const hits: Array<{ codigo: string }> = [];
+    for (const est of store.establishments) {
+      if (ufs.length && !ufs.includes(est.uf)) continue;
+      const company = idx.companyByBasico.get(est.cnpj_basico);
+      if (!company) continue;
+      if (
+        !establishmentNameMatches(
+          company.razao_social,
+          est.nome_fantasia,
+          query,
+          [],
+        )
+      ) {
+        continue;
+      }
+      hits.push({ codigo: est.cnae_principal });
+    }
+    const counts = new Map<string, number>();
+    for (const hit of hits) {
+      counts.set(hit.codigo, (counts.get(hit.codigo) ?? 0) + 1);
+    }
+    const cnaes = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([codigo, nameHits]) => {
+        const ref = idx.cnaeByCodigo.get(codigo);
+        return {
+          codigo,
+          descricao: ref?.descricao ?? "NÃO ENCONTRADO",
+          nameHits,
+        };
+      });
+    return { total: hits.length, sampled: false, cnaes };
   },
 
   async searchCompanies(query, opts) {

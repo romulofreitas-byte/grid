@@ -53,6 +53,7 @@ export function filterStepFilled(
     return (
       asList(filters.segmentIds).length > 0 ||
       (!!filters.intentQuery && filters.intentQuery.length >= 2) ||
+      (!!filters.nameQuery && filters.nameQuery.trim().length >= 2) ||
       asList(filters.cnaes).length > 0 ||
       asList(filters.cnpjs).length > 0
     );
@@ -94,6 +95,12 @@ export function summarizeFilters(
 
   if (filters.intentQuery) {
     chips.push({ key: "intent", label: filters.intentQuery });
+  }
+  if (filters.nameQuery?.trim()) {
+    chips.push({ key: "name", label: filters.nameQuery.trim() });
+  }
+  if (filters.matchNameStems) {
+    chips.push({ key: "name-stems", label: "Só quem tem no nome" });
   }
   if (cnpjs.length > 0) {
     chips.push({
@@ -208,6 +215,8 @@ export function listSummaryBadges(
     nicho = `${namedSegments[0]} +${namedSegments.length - 1}`;
   } else if (filters.intentQuery && filters.intentQuery.trim().length >= 2) {
     nicho = filters.intentQuery.trim();
+  } else if (filters.nameQuery && filters.nameQuery.trim().length >= 2) {
+    nicho = filters.nameQuery.trim();
   } else if (cnpjs.length > 0) {
     nicho = cnpjs.length === 1 ? "1 empresa" : `${cnpjs.length} empresas`;
   } else if (cnaes.length > 0) {
