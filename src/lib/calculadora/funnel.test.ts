@@ -158,4 +158,25 @@ describe("parseFunnelPlan", () => {
     expect(funnelPlanApplied(defaultFunnelPlan())).toBe(false);
     expect(parseFunnelPlan({ metaFaturamento: "150.000,50", ticket: "8.867,00" })?.metaFaturamento).toBe(150000.5);
   });
+
+  it("reads snake_case aliases for booking rate and origin", () => {
+    const parsed = parseFunnelPlan({
+      meta_faturamento: 80_000,
+      ticket: 15_000,
+      prazo_meses: 3,
+      taxa_contato: 50,
+      taxa1: 15,
+      taxa2: 60,
+      taxa3: 70,
+      taxa4: 30,
+      taxas_origem: "manual",
+    });
+    expect(parsed).toMatchObject({
+      metaFaturamento: 80_000,
+      prazoMeses: 3,
+      taxaContato: 50,
+      taxa1: 15,
+      taxasOrigem: "manual",
+    });
+  });
 });

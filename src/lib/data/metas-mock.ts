@@ -50,6 +50,11 @@ export const metasMockMethods = {
     );
     if (!meta) return null;
     Object.assign(meta, patch, { updated_at: nowIso() });
+    const profile = getMockStore().profiles.find((row) => row.id === userId);
+    if (profile?.active_meta_id === metaId) {
+      const goal = dailyGoalFromMeta(meta);
+      if (goal != null) profile.meta_ligacoes_dia = goal;
+    }
     return clone(meta);
   },
 

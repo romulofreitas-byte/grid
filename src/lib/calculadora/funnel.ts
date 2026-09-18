@@ -184,18 +184,27 @@ export function parseFunnelPlan(raw: unknown): FunnelPlan | null {
   }
   if (typeof raw !== "object") return null;
   const row = raw as Record<string, unknown>;
-  const origem = TAXAS_ORIGEM.includes(row.taxasOrigem as TaxasOrigem)
-    ? (row.taxasOrigem as TaxasOrigem)
+  const origemRaw = row.taxasOrigem ?? row.taxas_origem;
+  const origem = TAXAS_ORIGEM.includes(origemRaw as TaxasOrigem)
+    ? (origemRaw as TaxasOrigem)
     : "padrao";
   const appliedAt =
     typeof row.appliedAt === "string" && row.appliedAt.trim()
       ? row.appliedAt
       : null;
   return {
-    metaFaturamento: roundReais(Math.max(0, finiteNumber(row.metaFaturamento) ?? 0)),
+    metaFaturamento: roundReais(
+      Math.max(0, finiteNumber(row.metaFaturamento ?? row.meta_faturamento) ?? 0),
+    ),
     ticket: roundReais(Math.max(0, finiteNumber(row.ticket) ?? 0)),
-    prazoMeses: Math.max(0, Math.floor(finiteNumber(row.prazoMeses) ?? 0)),
-    taxaContato: clampPercent(row.taxaContato, DEFAULT_TAXAS.taxaContato),
+    prazoMeses: Math.max(
+      0,
+      Math.floor(finiteNumber(row.prazoMeses ?? row.prazo_meses) ?? 0),
+    ),
+    taxaContato: clampPercent(
+      row.taxaContato ?? row.taxa_contato,
+      DEFAULT_TAXAS.taxaContato,
+    ),
     taxa1: clampPercent(row.taxa1, DEFAULT_TAXAS.taxa1),
     taxa2: clampPercent(row.taxa2, DEFAULT_TAXAS.taxa2),
     taxa3: clampPercent(row.taxa3, DEFAULT_TAXAS.taxa3),

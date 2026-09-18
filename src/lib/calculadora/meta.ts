@@ -110,6 +110,22 @@ export function sanitizeMetaCreate(
   };
 }
 
+const META_PLAN_KEYS = [
+  ["metaFaturamento", "meta_faturamento"],
+  ["ticket"],
+  ["prazoMeses", "prazo_meses"],
+  ["taxaContato", "taxa_contato"],
+  ["taxa1"],
+  ["taxa2"],
+  ["taxa3"],
+  ["taxa4"],
+  ["taxasOrigem", "taxas_origem"],
+] as const;
+
+function rowHas(row: Record<string, unknown>, ...keys: readonly string[]): boolean {
+  return keys.some((key) => key in row);
+}
+
 export function sanitizeMetaUpdate(body: unknown): Partial<MetaInput> {
   if (!body || typeof body !== "object") return {};
   const row = body as Record<string, unknown>;
@@ -121,32 +137,24 @@ export function sanitizeMetaUpdate(body: unknown): Partial<MetaInput> {
   if ("tipo_empresa" in row || "tipoEmpresa" in row) {
     patch.tipo_empresa = clip(row.tipo_empresa ?? row.tipoEmpresa, META_TIPO_MAX);
   }
-  const planKeys = [
-    "metaFaturamento",
-    "ticket",
-    "prazoMeses",
-    "taxaContato",
-    "taxa1",
-    "taxa2",
-    "taxa3",
-    "taxa4",
-    "taxasOrigem",
-  ] as const;
-  const hasPlan = planKeys.some((key) => key in row);
+  const hasPlan = META_PLAN_KEYS.some((keys) => rowHas(row, ...keys));
   if (hasPlan) {
-    const plan = sanitizeFunnelPlanPatch({
-      ...defaultFunnelPlan(),
-      ...row,
-    });
-    if ("metaFaturamento" in row) patch.metaFaturamento = plan.metaFaturamento;
-    if ("ticket" in row) patch.ticket = plan.ticket;
-    if ("prazoMeses" in row) patch.prazoMeses = plan.prazoMeses;
-    if ("taxaContato" in row) patch.taxaContato = plan.taxaContato;
-    if ("taxa1" in row) patch.taxa1 = plan.taxa1;
-    if ("taxa2" in row) patch.taxa2 = plan.taxa2;
-    if ("taxa3" in row) patch.taxa3 = plan.taxa3;
-    if ("taxa4" in row) patch.taxa4 = plan.taxa4;
-    if ("taxasOrigem" in row) patch.taxasOrigem = plan.taxasOrigem;
+    const plan = sanitizeFunnelPlanPatch(row);
+    if (rowHas(row, "metaFaturamento", "meta_faturamento")) {
+      patch.metaFaturamento = plan.metaFaturamento;
+    }
+    if (rowHas(row, "ticket")) patch.ticket = plan.ticket;
+    if (rowHas(row, "prazoMeses", "prazo_meses")) patch.prazoMeses = plan.prazoMeses;
+    if (rowHas(row, "taxaContato", "taxa_contato")) {
+      patch.taxaContato = plan.taxaContato;
+    }
+    if (rowHas(row, "taxa1")) patch.taxa1 = plan.taxa1;
+    if (rowHas(row, "taxa2")) patch.taxa2 = plan.taxa2;
+    if (rowHas(row, "taxa3")) patch.taxa3 = plan.taxa3;
+    if (rowHas(row, "taxa4")) patch.taxa4 = plan.taxa4;
+    if (rowHas(row, "taxasOrigem", "taxas_origem")) {
+      patch.taxasOrigem = plan.taxasOrigem;
+    }
   }
   return patch;
 }

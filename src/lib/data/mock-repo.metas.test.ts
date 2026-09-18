@@ -87,4 +87,49 @@ describe("mock metas", () => {
       status: "not_found",
     });
   });
+
+  it("round-trips manual rates and refreshes the Box ring when that meta is active", async () => {
+    const store = getMockStore();
+    store.metas = [];
+    const profile = store.profiles.find((row) => row.id === LOCAL_USER_ID)!;
+    profile.active_meta_id = null;
+    profile.meta_ligacoes_dia = 20;
+
+    const created = await mockRepo.createMeta(LOCAL_USER_ID, {
+      ...ready,
+      taxaContato: 50,
+      taxa1: 15,
+      taxa2: 60,
+      taxa3: 70,
+      taxa4: 30,
+      taxasOrigem: "manual",
+    });
+    const listed = await mockRepo.listMetas(LOCAL_USER_ID);
+    expect(listed[0]).toMatchObject({
+      id: created.id,
+      taxaContato: 50,
+      taxa1: 15,
+      taxa2: 60,
+      taxa3: 70,
+      taxa4: 30,
+      taxasOrigem: "manual",
+    });
+
+    const applied = await mockRepo.applyMeta(LOCAL_USER_ID, created.id);
+    expect(applied.status).toBe("ok");
+    if (applied.status === "ok") {
+      expect(applied.metaLigacoesDia).not.toBe(9);
+      expect(profile.meta_ligacoes_dia).toBe(applied.metaLigacoesDia);
+    }
+    const ringAfterApply = profile.meta_ligacoes_dia;
+
+    const updated = await mockRepo.updateMeta(LOCAL_USER_ID, created.id, {
+      taxaContato: 25,
+      taxasOrigem: "manual",
+    });
+    expect(updated?.taxaContato).toBe(25);
+    expect(profile.active_meta_id).toBe(created.id);
+    expect(profile.meta_ligacoes_dia).not.toBe(ringAfterApply);
+    expect(profile.meta_ligacoes_dia).toBeGreaterThan(ringAfterApply);
+  });
 });

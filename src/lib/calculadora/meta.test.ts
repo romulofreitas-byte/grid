@@ -35,6 +35,50 @@ describe("sanitizeMetaCreate", () => {
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.value.taxaContato).toBe(50);
   });
+
+  it("round-trips manual funnel rates, including snake_case aliases", () => {
+    const camel = sanitizeMetaCreate({
+      nome: "Indústria",
+      metaFaturamento: 80_000,
+      ticket: 15_000,
+      prazoMeses: 3,
+      taxaContato: 50,
+      taxa1: 15,
+      taxa2: 60,
+      taxa3: 70,
+      taxa4: 30,
+      taxasOrigem: "manual",
+    });
+    expect(camel.ok).toBe(true);
+    if (camel.ok) {
+      expect(camel.value).toMatchObject({
+        taxaContato: 50,
+        taxa1: 15,
+        taxa2: 60,
+        taxa3: 70,
+        taxa4: 30,
+        taxasOrigem: "manual",
+      });
+    }
+    const snake = sanitizeMetaCreate({
+      nome: "Indústria",
+      meta_faturamento: 80_000,
+      ticket: 15_000,
+      prazo_meses: 3,
+      taxa_contato: 50,
+      taxa1: 15,
+      taxa2: 60,
+      taxa3: 70,
+      taxa4: 30,
+      taxas_origem: "manual",
+    });
+    expect(snake.ok).toBe(true);
+    if (snake.ok) {
+      expect(snake.value.taxaContato).toBe(50);
+      expect(snake.value.prazoMeses).toBe(3);
+      expect(snake.value.taxasOrigem).toBe("manual");
+    }
+  });
 });
 
 describe("sanitizeMetaUpdate", () => {
@@ -46,6 +90,10 @@ describe("sanitizeMetaUpdate", () => {
     expect(sanitizeMetaUpdate({ taxaContato: 40 })).toEqual({
       taxaContato: 40,
     });
+    expect(sanitizeMetaUpdate({ taxa_contato: 50, taxas_origem: "manual" })).toEqual({
+      taxaContato: 50,
+      taxasOrigem: "manual",
+    });
   });
 });
 
@@ -55,6 +103,12 @@ describe("dailyGoalFromMeta", () => {
       dailyGoalFromMeta(ready, new Date("2026-09-03T12:00:00.000Z")),
     ).toBe(9);
     expect(dailyGoalFromMeta({ ...ready, prazoMeses: 0 })).toBeNull();
+    expect(
+      dailyGoalFromMeta(
+        { ...ready, taxaContato: 50, taxasOrigem: "manual" },
+        new Date("2026-09-03T12:00:00.000Z"),
+      ),
+    ).toBe(17);
   });
 });
 
