@@ -832,6 +832,9 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     setDraft(next);
     selectedIdRef.current = null;
     setSelectedId(null);
+    requestAnimationFrame(() => {
+      document.getElementById("meta-nome")?.focus();
+    });
   }
 
   function selectFunnel(next: FunnelFocus, opts?: { toggle?: boolean }) {
@@ -911,12 +914,15 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
     selectedId === null
       ? !sameMetaInput(draft, defaultMetaInput())
       : !selectedMeta || !sameMetaInput(draft, metaToInput(selectedMeta));
-  const canSave = Boolean(draft.nome.trim()) && dirty && !save.isPending;
+  const missingNome = !draft.nome.trim();
+  const missingNicho = !draft.tipo_empresa.trim();
+  const canSave = !missingNome && dirty && !save.isPending;
   const canSaveAndApply =
-    Boolean(draft.nome.trim()) &&
+    !missingNome &&
     result.ready &&
     !save.isPending &&
     (dirty || !activeOnBox);
+  const saveTitle = missingNome ? COPY.metasNeedNome : COPY.metasSalvarHint;
   const applying = save.isPending || applyRemote.isPending;
 
   return (
@@ -1016,13 +1022,16 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                 : "Não foi possível salvar."}
             </span>
           ) : null}
+          {missingNome ? (
+            <span className="text-sm text-podium-yellow">{COPY.metasNeedNome}</span>
+          ) : null}
           <div className="ml-auto hidden flex-wrap items-center gap-2 md:flex">
             <Button
               type="button"
               variant="primary"
               size="md"
               disabled={!canSave}
-              title={COPY.metasSalvarHint}
+              title={saveTitle}
               onClick={() => save.mutate({ list: true })}
             >
               {COPY.metasSalvar}
@@ -1064,28 +1073,49 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
 
         <div className="space-y-3 pb-3">
           <GlassCard className="p-3" hover={false}>
-            <label className="block">
-              <span className="sr-only">{COPY.metasNome}</span>
-              <input
-                type="text"
-                maxLength={80}
-                value={draft.nome}
-                onChange={(e) => patch({ nome: e.target.value })}
-                placeholder={COPY.metasNome}
-                className="w-full rounded-md border border-transparent bg-transparent px-1 text-base font-semibold text-podium-white outline-none placeholder:text-podium-muted focus:border-podium-yellow/40"
-              />
-            </label>
-            <label className="mt-0.5 block">
-              <span className="sr-only">{COPY.metasTipoEmpresa}</span>
-              <input
-                type="text"
-                maxLength={80}
-                value={draft.tipo_empresa}
-                onChange={(e) => patch({ tipo_empresa: e.target.value })}
-                placeholder={COPY.metasTipoEmpresa}
-                className="w-full rounded-md border border-transparent bg-transparent px-1 text-sm text-podium-muted outline-none placeholder:text-podium-muted/70 focus:border-podium-yellow/40"
-              />
-            </label>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block text-sm text-podium-gray" htmlFor="meta-nome">
+                {COPY.metasNome}
+                <input
+                  id="meta-nome"
+                  type="text"
+                  maxLength={80}
+                  value={draft.nome}
+                  onChange={(e) => patch({ nome: e.target.value })}
+                  placeholder={COPY.metasNomePlaceholder}
+                  aria-required="true"
+                  className={cn(
+                    fieldClass,
+                    missingNome && "border-podium-yellow/50",
+                  )}
+                />
+                {missingNome ? (
+                  <p className="mt-1 text-xs text-podium-yellow">
+                    {COPY.metasNeedNome}
+                  </p>
+                ) : null}
+              </label>
+              <label className="block text-sm text-podium-gray" htmlFor="meta-nicho">
+                {COPY.metasTipoEmpresa}
+                <input
+                  id="meta-nicho"
+                  type="text"
+                  maxLength={80}
+                  value={draft.tipo_empresa}
+                  onChange={(e) => patch({ tipo_empresa: e.target.value })}
+                  placeholder={COPY.metasTipoPlaceholder}
+                  className={cn(
+                    fieldClass,
+                    missingNicho && "border-podium-yellow/40",
+                  )}
+                />
+                {missingNicho ? (
+                  <p className="mt-1 text-xs text-podium-muted">
+                    {COPY.metasTipoHint}
+                  </p>
+                ) : null}
+              </label>
+            </div>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
               <label className="block text-sm text-podium-gray">
                 {COPY.calculadoraMetaFaturamento}
@@ -1413,7 +1443,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
             variant="primary"
             size="md"
             disabled={!canSave}
-            title={COPY.metasSalvarHint}
+            title={saveTitle}
             onClick={() => save.mutate({ list: true })}
             className="min-h-11 flex-1"
           >

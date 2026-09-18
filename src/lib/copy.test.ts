@@ -279,6 +279,10 @@ describe("COPY crm", () => {
     expect(COPY.calculadoraDeltaDia).toBe("{n} discagens/dia");
     expect(COPY.calculadoraTaxasLead).toMatch(/avançam/);
     expect(COPY.metasNaoSalvo).toBe("Não salvo");
+    expect(COPY.metasNeedNome).toMatch(/nome/i);
+    expect(COPY.metasNomePlaceholder).toMatch(/clínicas/i);
+    expect(COPY.metasTipoPlaceholder).toMatch(/clínicas/i);
+    expect(COPY.metasTipoHint).toMatch(/nicho/i);
     expect(COPY.metasSalvarEUsar).toMatch(/usar no Box/i);
     expect(COPY.crmSaveListToEnter).toMatch(/salve a lista/i);
     expect(COPY.crmBridgeFailed).toMatch(/não foi possível colocar no crm/i);

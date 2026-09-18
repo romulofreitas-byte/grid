@@ -1008,7 +1008,10 @@ export const COPY = {
   calculadoraTicket: "Ticket médio do contrato",
   calculadoraPrazo: "Prazo para bater a meta (meses)",
   metasNome: "Nome da meta",
+  metasNomePlaceholder: "Ex.: Clínicas SP",
   metasTipoEmpresa: "Nicho",
+  metasTipoPlaceholder: "Ex.: clínicas",
+  metasTipoHint: "O nicho desta meta — clínicas, indústria, escolas.",
   metasNova: "Nova meta",
   metasLista: "Suas metas",
   metasListaHint:
