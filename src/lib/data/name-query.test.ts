@@ -11,6 +11,8 @@ import {
   nameIlikeNeedles,
   nameQueryNeedles,
   nameStemNeedles,
+  qualifyTradeAliases,
+  qualifyTradeNeedles,
 } from "./name-query";
 
 describe("nameQueryNeedles", () => {
@@ -168,5 +170,51 @@ describe("emptyNamePreview", () => {
       timedOut: true,
       cnaes: [],
     });
+  });
+});
+
+describe("qualifyTradeNeedles", () => {
+  it("folds funerária and drops short stems like pet", () => {
+    expect(qualifyTradeNeedles({ nameQuery: "funerária" })).toEqual([
+      "funeraria",
+    ]);
+    expect(
+      qualifyTradeNeedles({
+        matchNameStems: true,
+        stems: ["PET", "CREMA"],
+      }),
+    ).toEqual(["crema"]);
+  });
+});
+
+describe("qualifyTradeAliases", () => {
+  it("composes fantasia + term when only the razão has the needle", () => {
+    expect(
+      qualifyTradeAliases({
+        fantasia: "São José",
+        razao: "FUNERARIA SAO JOSE LTDA",
+        needles: ["funeraria"],
+      }),
+    ).toEqual(["São José funeraria"]);
+  });
+
+  it("stays empty when fantasia already carries the term", () => {
+    expect(
+      qualifyTradeAliases({
+        fantasia: "Funerária São José",
+        razao: "FUNERARIA SAO JOSE LTDA",
+        needles: ["funeraria"],
+      }),
+    ).toEqual([]);
+  });
+
+  it("stays empty without fantasia so we do not search the ramo alone", () => {
+    expect(
+      qualifyTradeAliases({
+        fantasia: null,
+        razao: "FUNERARIA SAO JOSE LTDA",
+        needles: ["funeraria"],
+      }),
+    ).toEqual([]);
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   enrichConcurrency,
   resolveJobScoreProfile,
+  resolveJobSearchContext,
   runJobPool,
 } from "./process-job";
 import { DEFAULT_FILTERS } from "@/lib/types";
@@ -57,6 +58,65 @@ describe("resolveJobScoreProfile", () => {
       null,
     );
     expect(profile).toBe("b2c_local");
+  });
+});
+
+describe("resolveJobSearchContext", () => {
+  it("injects nameQuery needles and skips when the list has none", async () => {
+    const withName = await resolveJobSearchContext(
+      {
+        getSearch: async () => search({ nameQuery: "funerária" }),
+        getPreset: async () => undefined,
+      },
+      "s1",
+    );
+    expect(withName.tradeNeedles).toEqual(["funeraria"]);
+
+    const bare = await resolveJobSearchContext(
+      {
+        getSearch: async () => search({}),
+        getPreset: async () => undefined,
+      },
+      "s1",
+    );
+    expect(bare.tradeNeedles).toEqual([]);
+
+    const none = await resolveJobSearchContext(
+      {
+        getSearch: async () => undefined,
+        getPreset: async () => undefined,
+      },
+      null,
+    );
+    expect(none.tradeNeedles).toEqual([]);
+  });
+
+  it("loads umbrella stems only when matchNameStems is on", async () => {
+    const on = await resolveJobSearchContext(
+      {
+        getSearch: async () =>
+          search({ segmentIds: ["p-b2b"], matchNameStems: true }),
+        getPreset: async () => ({
+          ...preset("b2b_industria"),
+          name_stems: ["CHURRAS", "PET"],
+        }),
+      },
+      "s1",
+    );
+    expect(on.tradeNeedles).toEqual(["churras"]);
+
+    const off = await resolveJobSearchContext(
+      {
+        getSearch: async () =>
+          search({ segmentIds: ["p-b2b"], matchNameStems: false }),
+        getPreset: async () => ({
+          ...preset("b2b_industria"),
+          name_stems: ["CHURRAS"],
+        }),
+      },
+      "s1",
+    );
+    expect(off.tradeNeedles).toEqual([]);
   });
 });
 

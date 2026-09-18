@@ -25,6 +25,10 @@ import {
   phonesForOsm,
 } from "@/lib/enrichment/osm";
 import type { GridRepo } from "@/lib/data/repo";
+import {
+  qualifyTradeAliases,
+  qualifyTradeNeedles,
+} from "@/lib/data/name-query";
 import { isEnrichmentComplete } from "@/lib/enrichment/fresh";
 import { isSerperPaused } from "@/lib/enrichment/serper-stats";
 import {
@@ -66,17 +70,35 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+export async function resolveJobSearchContext(
+  repo: Pick<GridRepo, "getSearch" | "getPreset">,
+  searchId: string | null,
+): Promise<{ scoreProfile: ScoreProfile; tradeNeedles: string[] }> {
+  if (!searchId) return { scoreProfile: "b2c_local", tradeNeedles: [] };
+  const search = await repo.getSearch(searchId);
+  if (!search) return { scoreProfile: "b2c_local", tradeNeedles: [] };
+  const id = search.filtros.segmentIds[0] ?? search.filtros.presetId;
+  const preset = id ? await repo.getPreset(id) : undefined;
+  const scoreProfile =
+    preset?.perfil_score === "b2b_industria" ? "b2b_industria" : "b2c_local";
+  const stems = search.filtros.matchNameStems
+    ? (preset?.name_stems ?? [])
+    : [];
+  return {
+    scoreProfile,
+    tradeNeedles: qualifyTradeNeedles({
+      nameQuery: search.filtros.nameQuery,
+      matchNameStems: search.filtros.matchNameStems,
+      stems,
+    }),
+  };
+}
+
 export async function resolveJobScoreProfile(
   repo: Pick<GridRepo, "getSearch" | "getPreset">,
   searchId: string | null,
 ): Promise<ScoreProfile> {
-  if (!searchId) return "b2c_local";
-  const search = await repo.getSearch(searchId);
-  if (!search) return "b2c_local";
-  const id = search.filtros.segmentIds[0] ?? search.filtros.presetId;
-  if (!id) return "b2c_local";
-  const preset = await repo.getPreset(id);
-  return preset?.perfil_score === "b2b_industria" ? "b2b_industria" : "b2c_local";
+  return (await resolveJobSearchContext(repo, searchId)).scoreProfile;
 }
 
 export function deferOsmFollowup(
@@ -215,7 +237,10 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
 
   try {
     const cache = await repo.getDomainCache(dossier.establishment.cnpj_basico);
-    const scoreProfile = await resolveJobScoreProfile(repo, job.search_id);
+    const { scoreProfile, tradeNeedles } = await resolveJobSearchContext(
+      repo,
+      job.search_id,
+    );
     const company: CascadeCompany = {
       establishment: dossier.establishment,
       company: dossier.company,
@@ -265,6 +290,13 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
     const extraNames = [...hints.names];
     const mapsName = hints.mapsUrl ? mapsPlaceNameFromUrl(hints.mapsUrl) : null;
     if (mapsName) extraNames.push(mapsName);
+    extraNames.push(
+      ...qualifyTradeAliases({
+        fantasia: dossier.establishment.nome_fantasia,
+        razao: dossier.company.razao_social,
+        needles: tradeNeedles,
+      }),
+    );
     const { row, timings } = await enrichCompany(
       company,
       cache,
@@ -291,6 +323,7 @@ export async function processJob(job: EnrichmentJob): Promise<void> {
           null,
         emailShared: dossier.emailSeal?.shared === true,
         extraNames,
+        tradeNeedles,
         seedDomain: hints.domain,
         seedInstagram: hints.instagram,
         seedGmb:

@@ -786,6 +786,30 @@ describe("Maps × Receita matching", () => {
     expect(listing.cid).toBe("88");
   });
 
+  it("picks the pin whose title still has the list term among two city matches", () => {
+    const saoJose = {
+      nomeFantasia: "São José",
+      razaoSocial: "JOSE SILVA SERVICOS LTDA",
+      municipio: "Uberlândia",
+      uf: "MG",
+      tradeNeedles: ["funeraria"],
+    };
+    const places = [
+      {
+        title: "São José Padaria",
+        address: "Uberlândia - MG",
+        cid: "padaria",
+      },
+      {
+        title: "Funerária São José",
+        address: "Uberlândia - MG",
+        cid: "funeraria",
+      },
+    ];
+    expect(pickBestMapsPlace(places, { ...saoJose, tradeNeedles: [] })).toBeNull();
+    expect(pickBestMapsPlace(places, saoJose)?.place.cid).toBe("funeraria");
+  });
+
   it("matches a Maps card whose website host is the brand, before a crawl", () => {
     const listing = resolveGmbListing(
       [

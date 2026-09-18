@@ -380,6 +380,8 @@ export type EnrichOptions = {
   /** Receita e-mail appears on many CNPJs — provider unless the host is the brand. */
   emailShared?: boolean;
   extraNames?: string[];
+  /** List nameQuery/stems — rank Maps/web hits, never a solo ramo query. */
+  tradeNeedles?: string[];
   seedDomain?: string | null;
   seedInstagram?: string | null;
   /** Keep the first-pass pin; confirm recrawl must not pay Maps again. */
@@ -821,6 +823,7 @@ async function enrichCompanyTracked(
     input.cnaeDescricao,
   );
   gmbInput.extraNames = options.extraNames;
+  gmbInput.tradeNeedles = options.tradeNeedles;
   const presencePlace = {
     nomeFantasia: est.nome_fantasia,
     razaoSocial: input.company.razao_social,
@@ -880,6 +883,7 @@ async function enrichCompanyTracked(
           brand.nomeFantasia,
           brand.municipio,
           exclude,
+          options.tradeNeedles,
         );
         if (best) {
           domainWave = "primary";

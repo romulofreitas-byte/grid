@@ -7,6 +7,8 @@ import { normalizeText } from "@/lib/normalize-text";
 
 export const NAME_QUERY_MIN_CHARS = 3;
 export const NAME_STEM_MIN_CHARS = 3;
+/** Trade term on Maps/web ranking — skip "pet" and other short stems. */
+export const QUALIFY_TRADE_NEEDLE_MIN = 4;
 /** National typeahead without UF — GIN scan cap, not a full count. */
 export const NAME_PREVIEW_SAMPLE_CAP = 2_000;
 /** With UF the scan is index-friendly; still cap so a broad stem cannot run away. */
@@ -125,6 +127,64 @@ export function establishmentNameMatches(
     return false;
   }
   return true;
+}
+
+function uniqueFoldedNeedles(raw: string[]): string[] {
+  const out: string[] = [];
+  for (const item of raw) {
+    const n = normalizeText(item);
+    if (n.length >= QUALIFY_TRADE_NEEDLE_MIN && !out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+/** Needles from the list recorte to bias qualification — never a city-wide ramo search. */
+export function qualifyTradeNeedles(input: {
+  nameQuery?: string | null;
+  matchNameStems?: boolean;
+  stems?: string[] | null;
+}): string[] {
+  const fromQuery = uniqueFoldedNeedles([
+    ...nameQueryNeedles(input.nameQuery),
+    ...nameIlikeNeedles(input.nameQuery),
+  ]);
+  const fromStems = input.matchNameStems
+    ? uniqueFoldedNeedles(nameStemNeedles(input.stems))
+    : [];
+  return [...new Set([...fromQuery, ...fromStems])];
+}
+
+export function haystackHasTradeNeedle(
+  haystack: string | null | undefined,
+  needles: string[] | null | undefined,
+): boolean {
+  if (!needles?.length) return false;
+  const hay = normalizeText(haystack ?? "");
+  if (!hay) return false;
+  return needles.some((n) => hay.includes(normalizeText(n)));
+}
+
+/**
+ * One compound extra name (`São José funerária`) when the Maps primary
+ * (fantasia) does not already contain the list term. Empty if fantasia
+ * already has it, or there is no fantasia (razão is the search name).
+ */
+export function qualifyTradeAliases(input: {
+  fantasia?: string | null;
+  razao: string;
+  needles: string[];
+}): string[] {
+  const needles = uniqueFoldedNeedles(input.needles);
+  if (!needles.length) return [];
+  const fantasia = (input.fantasia ?? "").trim();
+  if (!fantasia) return [];
+  const missing = needles.find(
+    (n) => !normalizeText(fantasia).includes(n),
+  );
+  if (!missing) return [];
+  const alias = `${fantasia} ${missing}`.replace(/\s+/g, " ").trim();
+  if (normalizeText(alias) === normalizeText(fantasia)) return [];
+  return [alias];
 }
 
 /**

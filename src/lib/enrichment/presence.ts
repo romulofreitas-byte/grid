@@ -22,6 +22,7 @@ import {
   isUsableSocialProfileUrl,
 } from "@/lib/enrichment/social-profile";
 import { isDirectoryUrl } from "@/lib/enrichment/directory-blocklist";
+import { haystackHasTradeNeedle } from "@/lib/data/name-query";
 import {
   cidFromMapsUrl,
   companyMapsSearchUrl,
@@ -100,6 +101,8 @@ export type GmbSearchInput = {
   receitaEmail?: string | null;
   /** Extra trading names from CRM notes / deal title. */
   extraNames?: string[];
+  /** List recorte — boost title/host that still carry the trade term. */
+  tradeNeedles?: string[];
   /** Receita CNAE text — Maps titles often use the trade, not the legal name. */
   cnaeDescricao?: string | null;
 };
@@ -402,6 +405,14 @@ export function scoreMapsPlace(
     match_by.push("phone");
     score += 4;
   }
+  if (
+    haystackHasTradeNeedle(
+      [place.title, place.website].filter(Boolean).join(" "),
+      input.tradeNeedles,
+    )
+  ) {
+    score += 1;
+  }
 
   const matched = Boolean(
     phone ||
@@ -441,6 +452,15 @@ export function pickBestMapsPlace(
     (item) => item.matched && !mapsIdentityLocked(item.match_by),
   );
   if (brandCity.length === 1) return pickRankedMapsPlace(brandCity);
+  if (brandCity.length > 1 && (input.tradeNeedles?.length ?? 0) > 0) {
+    const withTrade = brandCity.filter((item) =>
+      haystackHasTradeNeedle(
+        [item.place.title, item.place.website].filter(Boolean).join(" "),
+        input.tradeNeedles,
+      ),
+    );
+    if (withTrade.length > 0) return pickRankedMapsPlace(withTrade);
+  }
   return null;
 }
 
@@ -1152,6 +1172,7 @@ export function scoreDomainHit(
   razaoSocial: string,
   nomeFantasia: string | null,
   municipio: string,
+  tradeNeedles: string[] = [],
 ): number {
   const blob = `${hit.title} ${hit.snippet ?? ""}`;
   const strong = presenceBrandTokens(razaoSocial, nomeFantasia, municipio);
@@ -1172,7 +1193,13 @@ export function scoreDomainHit(
   );
   if (textScore + hostScore === 0) return 0;
   const kgBonus = hit.via === "kg" ? 2 : 0;
-  return textScore + hostScore * 2 + kgBonus + homepageBonus(hit.link);
+  const tradeBonus = haystackHasTradeNeedle(
+    `${hit.title} ${hit.snippet ?? ""} ${hit.link}`,
+    tradeNeedles,
+  )
+    ? 1
+    : 0;
+  return textScore + hostScore * 2 + kgBonus + homepageBonus(hit.link) + tradeBonus;
 }
 
 /**
@@ -1185,6 +1212,7 @@ export function pickBestDomainHit(
   nomeFantasia: string | null,
   municipio: string,
   excludeHosts: string[] = [],
+  tradeNeedles: string[] = [],
 ): OrganicHit | null {
   const blocked = new Set(
     excludeHosts.map((h) =>
@@ -1205,7 +1233,13 @@ export function pickBestDomainHit(
     if (hostBrandTokenHits(hit.link, razaoSocial, nomeFantasia, municipio) < 1) {
       continue;
     }
-    const score = scoreDomainHit(hit, razaoSocial, nomeFantasia, municipio);
+    const score = scoreDomainHit(
+      hit,
+      razaoSocial,
+      nomeFantasia,
+      municipio,
+      tradeNeedles,
+    );
     if (score < DOMAIN_SCORE_MIN) continue;
     if (!best || score > best.score) best = { hit, score };
   }
