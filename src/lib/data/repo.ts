@@ -416,6 +416,7 @@ export type GridRepo = {
     userId: string,
     dealId: string,
     activityId: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null>;
   logCrmCall(
     userId: string,
@@ -423,6 +424,7 @@ export type GridRepo = {
     notes: string,
     next?: CrmNextAction | null,
     phone?: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
   listCrmEvents(userId: string, dealId: string): Promise<CrmEvent[] | null>;
   createCrmEvent(

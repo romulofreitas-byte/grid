@@ -55,7 +55,6 @@ import {
   getCachedDealBriefing,
   getCachedDealEvents,
   loadDealBriefing,
-  loadDealEvents,
   setCachedDealBriefing,
   setCachedDealEvents,
 } from "@/lib/crm/deal-extras-cache";
@@ -68,6 +67,9 @@ import {
 import {
   CRM_CALL_RECORDING_LABEL,
   CRM_COMPOSER_KINDS,
+  CRM_RECORDING_POLL_MS,
+  CRM_RECORDING_WATCH_MS,
+  callRecordingReady,
   eventTitle,
   formatEventWhen,
   type CrmComposerKind,
@@ -385,6 +387,10 @@ export function CrmDealModal({
   const [events, setEvents] = useState<CrmEvent[]>(
     () => getCachedDealEvents(deal.id) ?? [],
   );
+  const [recordingWatch, setRecordingWatch] = useState<{
+    dealId: string;
+    callId: string;
+  } | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -419,6 +425,7 @@ export function CrmDealModal({
   const amountRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const briefingGen = useRef(0);
+  const historyGen = useRef(0);
   const mergedSociosForDeal = useRef<string | null>(null);
 
   useEffect(() => {
@@ -475,22 +482,18 @@ export function CrmDealModal({
 
   useEffect(() => {
     let cancelled = false;
-    const cached = getCachedDealEvents(deal.id);
-    if (cached) {
-      setEvents(cached);
-      return;
-    }
-    void loadDealEvents(deal.id, async () => {
-      const res = await crmFetch<{ events: CrmEvent[] }>(
-        `/api/crm/deals/${deal.id}/events`,
-      );
-      return res.events;
-    })
-      .then((events) => {
-        if (!cancelled) setEvents(events);
+    const dealId = deal.id;
+    const cached = getCachedDealEvents(dealId);
+    if (cached) setEvents(cached);
+    const gen = ++historyGen.current;
+    void crmFetch<{ events: CrmEvent[] }>(`/api/crm/deals/${dealId}/events`)
+      .then((res) => {
+        if (cancelled || gen !== historyGen.current) return;
+        setCachedDealEvents(dealId, res.events);
+        setEvents(res.events);
       })
       .catch((err) => {
-        if (!cancelled) {
+        if (!cancelled && !cached && gen === historyGen.current) {
           setError(err instanceof Error ? err.message : "Não carregou o histórico.");
         }
       });
@@ -498,6 +501,45 @@ export function CrmDealModal({
       cancelled = true;
     };
   }, [deal.id]);
+
+  useEffect(() => {
+    const watch = recordingWatch;
+    if (!watch || watch.dealId !== deal.id) return;
+    let cancelled = false;
+    const started = Date.now();
+    const dealId = deal.id;
+    const callId = watch.callId;
+
+    async function pull() {
+      if (Date.now() - started >= CRM_RECORDING_WATCH_MS) {
+        setRecordingWatch((current) => (current?.dealId === dealId ? null : current));
+        return;
+      }
+      const gen = ++historyGen.current;
+      try {
+        const res = await crmFetch<{ events: CrmEvent[] }>(
+          `/api/crm/deals/${dealId}/events`,
+        );
+        if (cancelled || gen !== historyGen.current) return;
+        setCachedDealEvents(dealId, res.events);
+        setEvents(res.events);
+        if (callRecordingReady(res.events, callId)) {
+          setRecordingWatch((current) =>
+            current?.callId === callId ? null : current,
+          );
+        }
+      } catch {
+        // The hangup file can arrive a few seconds after the call ends.
+      }
+    }
+
+    void pull();
+    const timer = window.setInterval(() => void pull(), CRM_RECORDING_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [recordingWatch, deal.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -664,6 +706,7 @@ export function CrmDealModal({
   }
 
   function prependEvent(event: CrmEvent) {
+    historyGen.current += 1;
     setEvents((current) => {
       const next = [event, ...current.filter((row) => row.id !== event.id)];
       setCachedDealEvents(deal.id, next);
@@ -672,6 +715,7 @@ export function CrmDealModal({
   }
 
   function updateEvent(event: CrmEvent) {
+    historyGen.current += 1;
     setEvents((current) => {
       const next = current.map((row) => (row.id === event.id ? event : row));
       setCachedDealEvents(deal.id, next);
@@ -691,13 +735,15 @@ export function CrmDealModal({
     ]);
   }
 
-  async function recordCallAfterDial() {
+  async function recordCallAfterDial(callId?: string) {
+    if (callId) setRecordingWatch({ dealId: deal.id, callId });
     try {
-      const result = await recordCrmDialAfterCall(deal);
+      const result = await recordCrmDialAfterCall(deal, callId);
       onChange(result.deal);
       void invalidateLiveStats(qc);
       if (result.event) prependEvent(result.event);
       if (result.events) {
+        historyGen.current += 1;
         setCachedDealEvents(deal.id, result.events);
         setEvents(result.events);
       }
@@ -1132,7 +1178,7 @@ export function CrmDealModal({
                 companyName={deal.company_name}
                 phoneLabel={formatPhoneDisplay(headerPhone)}
                 onConfirmOpenChange={setCallDialogOpen}
-                onCalled={() => void recordCallAfterDial()}
+                onCalled={(callId) => void recordCallAfterDial(callId)}
               />
             ) : (
               <button
@@ -1327,7 +1373,7 @@ export function CrmDealModal({
                               companyName={deal.company_name}
                               phoneLabel={formatPhoneDisplay(headerPhone)}
                               onConfirmOpenChange={setCallDialogOpen}
-                              onCalled={() => void recordCallAfterDial()}
+                              onCalled={(callId) => void recordCallAfterDial(callId)}
                             />
                           ) : (
                             <button

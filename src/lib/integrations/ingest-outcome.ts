@@ -59,6 +59,7 @@ export async function ingestCallOutcome(input: {
         cnpj: input.cnpj ?? lead?.cnpj ?? null,
         recordingUrl: input.recordingUrl,
         phone: input.e164,
+        callId: input.externalId,
       });
     }
   } catch {

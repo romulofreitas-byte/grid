@@ -9,6 +9,8 @@ const schema = z.object({
   cnpj: z.string().regex(/^\d{14}$/),
   savedLeadId: z.string().uuid().nullable().optional(),
   searchId: z.string().uuid().optional(),
+  dealId: z.string().uuid().optional(),
+  callId: z.string().trim().min(1).max(120).optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,6 +30,8 @@ export async function POST(req: Request) {
     savedLeadId: parsed.data.savedLeadId ?? null,
     search,
     source: "manual",
+    dealId: parsed.data.dealId,
+    callId: parsed.data.callId,
   });
   return NextResponse.json(await repo.getPilotStats(gated.userId));
 }

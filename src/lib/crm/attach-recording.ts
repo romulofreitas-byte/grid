@@ -1,4 +1,5 @@
-import type { CrmDealCard, CrmEvent } from "@/lib/crm/types";
+import { normalizeCallId } from "@/lib/crm/events";
+import type { CrmDealCard, CrmEvent, CrmEventMeta } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 
 export type AttachRecordingRepo = Pick<
@@ -30,6 +31,7 @@ export async function attachCallRecordingToDeal(
     cnpj?: string | null;
     recordingUrl?: string | null;
     phone?: string;
+    callId?: string | null;
   },
 ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
   const recordUrl = safeRecordingUrl(input.recordingUrl);
@@ -42,13 +44,28 @@ export async function attachCallRecordingToDeal(
       : null;
   if (!deal) return null;
 
+  const callId = normalizeCallId(input.callId);
   const events = (await repo.listCrmEvents(input.userId, deal.id)) ?? [];
+  const matched = callId
+    ? events.find((row) => row.kind === "ligar" && row.meta.call_id === callId)
+    : undefined;
   const latestLigar = events.find((row) => row.kind === "ligar");
-  const meta = {
+  const meta: CrmEventMeta = {
     record_url: recordUrl,
     ...(input.phone ? { phone: input.phone } : {}),
+    ...(callId ? { call_id: callId } : {}),
   };
 
+  if (matched) {
+    if (matched.meta.record_url === recordUrl) return { deal, event: matched };
+    return repo.updateCrmEvent(
+      input.userId,
+      deal.id,
+      matched.id,
+      matched.body,
+      meta,
+    );
+  }
   if (latestLigar && latestLigar.meta.record_url === recordUrl) {
     return { deal, event: latestLigar };
   }

@@ -11,6 +11,51 @@ export const CRM_EVENT_HISTORY_LIMIT = 50;
 
 export const CRM_CALL_RECORDING_LABEL = "Gravação da ligação";
 
+export const CRM_CALL_ID_MAX = 120;
+
+/** How often the open card asks for the hangup recording. */
+export const CRM_RECORDING_POLL_MS = 4_000;
+
+/** Stop waiting if API4COM never sends the file. */
+export const CRM_RECORDING_WATCH_MS = 2 * 60 * 1000;
+
+export function normalizeCallId(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed || trimmed.length > CRM_CALL_ID_MAX) return null;
+  return trimmed;
+}
+
+export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  const meta: CrmEvent["meta"] = {};
+  if (typeof raw.phone === "string" && raw.phone.trim()) {
+    meta.phone = raw.phone;
+  }
+  if (raw.outcome === "open" || raw.outcome === "won" || raw.outcome === "lost") {
+    meta.outcome = raw.outcome;
+  }
+  if (typeof raw.record_url === "string" && raw.record_url.startsWith("https://")) {
+    meta.record_url = raw.record_url;
+  }
+  const callId = normalizeCallId(
+    typeof raw.call_id === "string" ? raw.call_id : null,
+  );
+  if (callId) meta.call_id = callId;
+  return meta;
+}
+
+export function callRecordingReady(events: CrmEvent[], callId: string): boolean {
+  const id = normalizeCallId(callId);
+  if (!id) return false;
+  return events.some(
+    (event) =>
+      event.kind === "ligar" &&
+      event.meta.call_id === id &&
+      Boolean(event.meta.record_url),
+  );
+}
+
 export const CRM_COMPOSER_KINDS = [
   "nota",
   "ligar",

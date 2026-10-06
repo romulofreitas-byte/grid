@@ -21,7 +21,7 @@ import {
   type CrmDealTransferResult,
 } from "@/lib/crm/transfer";
 import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
-import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import { CRM_EVENT_HISTORY_LIMIT, normalizeCallId } from "@/lib/crm/events";
 import {
   INBOUND_EVENT_KEEP,
   INBOUND_EVENT_LIST_LIMIT,
@@ -70,6 +70,18 @@ import { getMockStore, type MockStore } from "@/lib/data/mock-store";
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function ligarCallMeta(
+  kind: string,
+  callId?: string,
+  phone?: string,
+): CrmEvent["meta"] {
+  const meta: CrmEvent["meta"] = {};
+  if (phone?.trim()) meta.phone = phone.trim();
+  const id = kind === "ligar" ? normalizeCallId(callId) : null;
+  if (id) meta.call_id = id;
+  return meta;
 }
 
 function id(): string {
@@ -940,6 +952,7 @@ export const crmMockMethods = {
     userId: string,
     dealId: string,
     activityId: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);
@@ -952,7 +965,13 @@ export const crmMockMethods = {
     );
     if (!open) return { deal: toCard(store, deal), event: null };
     open.status = "done";
-    const event = insertEvent(store, dealId, open.kind, "");
+    const event = insertEvent(
+      store,
+      dealId,
+      open.kind,
+      "",
+      ligarCallMeta(open.kind, callId),
+    );
     return { deal: toCard(store, deal), event };
   },
 
@@ -962,12 +981,13 @@ export const crmMockMethods = {
     notes: string,
     next?: CrmNextAction | null,
     phone?: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     return crmMockMethods.createCrmEvent(userId, dealId, {
       kind: "ligar",
       body: notes,
       next,
-      meta: phone ? { phone } : {},
+      meta: ligarCallMeta("ligar", callId, phone),
     });
   },
 

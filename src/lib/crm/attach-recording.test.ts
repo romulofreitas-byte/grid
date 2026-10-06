@@ -75,4 +75,35 @@ describe("attachCallRecordingToDeal", () => {
     expect(result?.deal.id).toBe(created!.id);
     expect(result?.event.meta.record_url).toBe(MP3);
   });
+
+  it("pins the recording on the ligar row for that call, not a newer one", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+    });
+    const callId = "2ee13fa4-975c-499d-bbb8-5177ff418316";
+    const matched = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Desta chamada",
+      meta: { call_id: callId },
+    });
+    const newer = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Ligação seguinte",
+    });
+
+    const result = await attachCallRecordingToDeal(mockRepo, {
+      userId: USER,
+      dealId: created!.id,
+      recordingUrl: MP3,
+      callId,
+    });
+
+    expect(result?.event.id).toBe(matched!.event.id);
+    expect(result?.event.meta.record_url).toBe(MP3);
+    expect(result?.event.body).toBe("Desta chamada");
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.find((row) => row.id === newer!.event.id)?.meta.record_url).toBeUndefined();
+  });
 });

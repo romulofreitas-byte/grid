@@ -225,8 +225,8 @@ function DealCardFace({
             titleHint={COPY.crmCallNow}
             companyName={displayCrmName(deal.company_name)}
             phoneLabel={formatPhoneDisplay(phone)}
-            onCalled={() => {
-              void recordCrmDialAfterCall(deal)
+            onCalled={(callId) => {
+              void recordCrmDialAfterCall(deal, callId)
                 .then((result) => {
                   onChange?.(result.deal);
                   void invalidateLiveStats(qc);

@@ -12,12 +12,19 @@ export type RecordCrmDialResult = {
 /** Same rule as the deal modal: complete an open `ligar`, else count a CNPJ call. */
 export async function recordCrmDialAfterCall(
   deal: CrmDealCard,
+  callId?: string,
 ): Promise<RecordCrmDialResult> {
   const ligar = openLigarActivity(deal);
   if (ligar) {
     const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
       `/api/crm/deals/${deal.id}/complete`,
-      { method: "POST", body: JSON.stringify({ activityId: ligar.id }) },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          activityId: ligar.id,
+          ...(callId ? { callId } : {}),
+        }),
+      },
     );
     return { deal: res.deal, event: res.event };
   }
@@ -26,7 +33,11 @@ export async function recordCrmDialAfterCall(
   const res = await fetch("/api/profile/call", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cnpj }),
+    body: JSON.stringify({
+      cnpj,
+      dealId: deal.id,
+      ...(callId ? { callId } : {}),
+    }),
   });
   const body = (await res.json()) as { error?: string };
   if (!res.ok) throw new Error(body.error ?? "Não registrou a ligação.");

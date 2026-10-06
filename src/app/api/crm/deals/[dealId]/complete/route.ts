@@ -19,6 +19,7 @@ export async function POST(
     gated.userId,
     dealId,
     parsed.data.activityId,
+    parsed.data.callId,
   );
   if (!result) return jsonError("Negócio não encontrado.", 404);
   if (!result.event) return jsonError("Nenhuma atividade a concluir.");

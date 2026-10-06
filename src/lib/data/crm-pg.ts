@@ -34,7 +34,11 @@ import {
 import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
 import { resolveDecisor } from "@/lib/decisor";
 import type { Partner, RefQualificacao } from "@/lib/types";
-import { CRM_EVENT_HISTORY_LIMIT } from "@/lib/crm/events";
+import {
+  CRM_EVENT_HISTORY_LIMIT,
+  normalizeCallId,
+  readCrmEventMeta,
+} from "@/lib/crm/events";
 import {
   INBOUND_EVENT_KEEP,
   INBOUND_EVENT_LIST_LIMIT,
@@ -214,18 +218,18 @@ function mapOutcome(value: unknown): CrmOutcome {
 }
 
 function mapEventMeta(value: unknown): CrmEvent["meta"] {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const raw = value as Record<string, unknown>;
+  return readCrmEventMeta(value);
+}
+
+function ligarCallMeta(
+  kind: string,
+  callId?: string,
+  phone?: string,
+): CrmEvent["meta"] {
   const meta: CrmEvent["meta"] = {};
-  if (typeof raw.phone === "string" && raw.phone.trim()) {
-    meta.phone = raw.phone;
-  }
-  if (raw.outcome === "open" || raw.outcome === "won" || raw.outcome === "lost") {
-    meta.outcome = raw.outcome;
-  }
-  if (typeof raw.record_url === "string" && raw.record_url.startsWith("https://")) {
-    meta.record_url = raw.record_url;
-  }
+  if (phone?.trim()) meta.phone = phone.trim();
+  const id = kind === "ligar" ? normalizeCallId(callId) : null;
+  if (id) meta.call_id = id;
   return meta;
 }
 
@@ -1671,6 +1675,7 @@ export const crmPgMethods = {
     userId: string,
     dealId: string,
     activityId: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
@@ -1687,7 +1692,13 @@ export const crmPgMethods = {
       await q(`update crm_activities set status = 'done' where id = $1`, [
         current.id,
       ]);
-      const event = await insertEvent(q, dealId, current.kind, "");
+      const event = await insertEvent(
+        q,
+        dealId,
+        current.kind,
+        "",
+        ligarCallMeta(current.kind, callId),
+      );
       const deal = await loadCard(q, dealId);
       if (!deal) return null;
       return { deal, event };
@@ -1700,12 +1711,13 @@ export const crmPgMethods = {
     notes: string,
     next?: CrmNextAction | null,
     phone?: string,
+    callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     return crmPgMethods.createCrmEvent(userId, dealId, {
       kind: "ligar",
       body: notes,
       next,
-      meta: phone ? { phone } : {},
+      meta: ligarCallMeta("ligar", callId, phone),
     });
   },
 

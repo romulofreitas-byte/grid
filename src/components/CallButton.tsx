@@ -68,7 +68,7 @@ export function CallButton({
   dealId?: string | null;
   variant?: "grid" | "ficha" | "cockpit" | "card" | "crm" | "inline";
   label?: string;
-  onCalled?: () => void;
+  onCalled?: (callId?: string) => void;
   className?: string;
   titleHint?: string;
   companyName?: string | null;
@@ -132,23 +132,24 @@ export function CallButton({
           hangup?: boolean;
         };
         if (!res.ok) throw new Error(body.error ?? "Não foi possível ligar");
-        if (body.hangup && body.externalId) {
-          return { hangup: true as const, externalId: body.externalId };
-        }
-        return { hangup: false as const };
+        const externalId = body.externalId?.trim() || undefined;
+        return {
+          hangup: Boolean(body.hangup && externalId),
+          externalId,
+        };
       }
       if (!telHref) throw new Error("Sem telefone");
       window.location.href = telHref;
-      if (skipRecord || !dialCnpj) return { hangup: false as const };
+      if (skipRecord || !dialCnpj) return { hangup: false as const, externalId: undefined };
       await recordManualCall({ cnpj: dialCnpj, searchId });
-      return { hangup: false as const };
+      return { hangup: false as const, externalId: undefined };
     },
     onSuccess: (result) => {
       setConfirmOpen(false);
-      if (result.hangup && connection) {
+      if (result.hangup && result.externalId && connection) {
         setLiveCall({ connectionId: connection.id, externalId: result.externalId });
       }
-      onCalled?.();
+      onCalled?.(result.externalId);
       if (originate || !skipRecord) invalidateAfterCall();
     },
   });

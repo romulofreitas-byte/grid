@@ -109,6 +109,48 @@ describe("recordCrmDialAfterCall", () => {
     expect(result.events).toEqual([]);
   });
 
+  it("sends the API4COM call id with the history write", async () => {
+    const updated = deal({ next_activity: null });
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        deal: updated,
+        event: {
+          id: "e1",
+          deal_id: "deal-1",
+          kind: "ligar",
+          body: "",
+          meta: { call_id: "call-1" },
+          created_at: "2026-09-01T12:00:00.000Z",
+          updated_at: "2026-09-01T12:00:00.000Z",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordCrmDialAfterCall(
+      deal({
+        open_activities: [
+          {
+            id: "a1",
+            deal_id: "deal-1",
+            kind: "ligar",
+            due_at: "2026-09-05T18:00:00.000Z",
+            status: "open",
+            created_at: "2026-09-01T12:00:00.000Z",
+          },
+        ],
+      }),
+      "call-1",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/crm/deals/deal-1/complete",
+      expect.objectContaining({
+        body: JSON.stringify({ activityId: "a1", callId: "call-1" }),
+      }),
+    );
+  });
+
   it("skips profile call when there is no CNPJ", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

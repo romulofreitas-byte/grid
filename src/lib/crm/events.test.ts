@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   CRM_EVENT_HISTORY_LIMIT,
+  callRecordingReady,
   closedDealCount,
   eventTitle,
   formatEventWhen,
+  readCrmEventMeta,
   visibleKanbanDeals,
 } from "./events";
-import type { CrmDealCard } from "./types";
+import type { CrmDealCard, CrmEvent } from "./types";
 
 function deal(outcome: CrmDealCard["outcome"]): CrmDealCard {
   return {
@@ -61,5 +63,57 @@ describe("kanban outcome filter", () => {
 
   it("keeps the history feed bounded", () => {
     expect(CRM_EVENT_HISTORY_LIMIT).toBe(50);
+  });
+});
+
+describe("readCrmEventMeta", () => {
+  it("keeps call_id and the https recording for the history player", () => {
+    expect(
+      readCrmEventMeta({
+        call_id: " 2ee13fa4-975c-499d-bbb8-5177ff418316 ",
+        record_url:
+          "https://listener.api4com.com/files/listen/2ee13fa4-975c-499d-bbb8-5177ff418316.mp3",
+        phone: "11999990000",
+        extra: "nope",
+      }),
+    ).toEqual({
+      call_id: "2ee13fa4-975c-499d-bbb8-5177ff418316",
+      record_url:
+        "https://listener.api4com.com/files/listen/2ee13fa4-975c-499d-bbb8-5177ff418316.mp3",
+      phone: "11999990000",
+    });
+    expect(readCrmEventMeta({ record_url: "http://listener.api4com.com/x.mp3" })).toEqual(
+      {},
+    );
+    expect(readCrmEventMeta({ call_id: "" })).toEqual({});
+  });
+});
+
+describe("callRecordingReady", () => {
+  const event = (meta: CrmEvent["meta"]): CrmEvent => ({
+    id: "e",
+    deal_id: "d",
+    kind: "ligar",
+    body: "",
+    meta,
+    created_at: "2026-09-01T12:00:00.000Z",
+    updated_at: "2026-09-01T12:00:00.000Z",
+  });
+
+  it("is ready only when this call already has a recording", () => {
+    const callId = "2ee13fa4-975c-499d-bbb8-5177ff418316";
+    expect(
+      callRecordingReady(
+        [event({ call_id: callId, record_url: "https://listener.api4com.com/a.mp3" })],
+        callId,
+      ),
+    ).toBe(true);
+    expect(callRecordingReady([event({ call_id: callId })], callId)).toBe(false);
+    expect(
+      callRecordingReady(
+        [event({ record_url: "https://listener.api4com.com/a.mp3" })],
+        callId,
+      ),
+    ).toBe(false);
   });
 });

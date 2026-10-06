@@ -41,6 +41,8 @@ export type RecordCompletedCallInput = {
    * so the pilot can write a note before Concluir.
    */
   completeOpenLigar?: boolean;
+  /** API4COM call id stamped on the ligar history row. */
+  callId?: string;
 };
 
 export async function recordCompletedCall(
@@ -88,7 +90,12 @@ export async function recordCompletedCall(
         const ligar = openLigarActivity(deal);
         if (ligar) {
           if (input.completeOpenLigar !== false) {
-            await repo.completeCrmActivity(input.userId, deal.id, ligar.id);
+            await repo.completeCrmActivity(
+              input.userId,
+              deal.id,
+              ligar.id,
+              input.callId,
+            );
           }
         } else {
           await repo.logCrmCall(
@@ -97,6 +104,7 @@ export async function recordCompletedCall(
             input.notes ?? "",
             input.next ?? null,
             input.phone,
+            input.callId,
           );
         }
       }
