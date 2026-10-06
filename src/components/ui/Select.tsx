@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -15,6 +15,11 @@ export type SelectOption = {
   value: string;
   label: string;
   hint?: string;
+};
+
+export type SelectAction = {
+  label: string;
+  onSelect: () => void;
 };
 
 export type SelectSize = "sm" | "md";
@@ -59,6 +64,7 @@ export function Select({
   tone = "dark",
   className,
   name,
+  action,
   "aria-label": ariaLabel,
 }: {
   value: string;
@@ -70,6 +76,7 @@ export function Select({
   tone?: SelectTone;
   className?: string;
   name?: string;
+  action?: SelectAction;
   "aria-label"?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -82,6 +89,8 @@ export function Select({
   const isPlaceholder = !selected || (Boolean(placeholder) && value === "");
   const skin = TONE[tone];
   const openRef = useRef(false);
+  const itemCount = options.length + (action ? 1 : 0);
+  const actionIndex = options.length;
 
   useEffect(() => {
     if (open && !openRef.current) {
@@ -128,6 +137,12 @@ export function Select({
     buttonRef.current?.focus();
   }
 
+  function runAction() {
+    if (!action) return;
+    setOpen(false);
+    action.onSelect();
+  }
+
   function onTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (disabled) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -136,10 +151,10 @@ export function Select({
         setOpen(true);
         return;
       }
-      if (options.length === 0) return;
+      if (itemCount === 0) return;
       const delta = event.key === "ArrowDown" ? 1 : -1;
       setActiveIndex((index) =>
-        Math.min(options.length - 1, Math.max(0, index + delta)),
+        Math.min(itemCount - 1, Math.max(0, index + delta)),
       );
       return;
     }
@@ -150,13 +165,17 @@ export function Select({
     }
     if (event.key === "End" && open) {
       event.preventDefault();
-      setActiveIndex(Math.max(0, options.length - 1));
+      setActiveIndex(Math.max(0, itemCount - 1));
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (!open) {
         setOpen(true);
+        return;
+      }
+      if (action && activeIndex === actionIndex) {
+        runAction();
         return;
       }
       const option = options[activeIndex];
@@ -257,6 +276,31 @@ export function Select({
             );
           })}
         </div>
+        {action ? (
+          <div
+            className={cn(
+              "border-t p-1",
+              tone === "light" ? "border-zinc-200" : "border-white/10",
+            )}
+          >
+            <button
+              type="button"
+              data-active={activeIndex === actionIndex ? "true" : undefined}
+              tabIndex={-1}
+              onMouseEnter={() => setActiveIndex(actionIndex)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={runAction}
+              className={cn(
+                "flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[11px] font-medium leading-snug transition-colors duration-150 ease-out",
+                skin.option,
+                activeIndex === actionIndex && skin.active,
+              )}
+            >
+              <Plus className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="min-w-0 truncate">{action.label}</span>
+            </button>
+          </div>
+        ) : null}
       </AnchorPopover>
     </div>
   );

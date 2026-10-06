@@ -39,10 +39,13 @@ import {
 import {
   buildCrmBriefing,
   CRM_CARD_PRESENCE_IDS,
-  mergeSourcedPhones,
   type CrmBriefing,
   type CrmPhoneSourceKind,
 } from "@/lib/crm/briefing";
+import {
+  companyPhoneMenuOptions,
+  selectedCompanyPhone,
+} from "@/lib/crm/company-phone-options";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
 import {
   crmDealAttachSurface,
@@ -366,6 +369,8 @@ export function CrmDealModal({
   const [phones, setPhones] = useState(
     deal.phones.length > 0 ? deal.phones : [""],
   );
+  const [addingPhone, setAddingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
   const [briefing, setBriefing] = useState<CrmBriefing>(
     () => getCachedDealBriefing(deal.id) ?? buildCrmBriefing(deal, null),
   );
@@ -409,6 +414,8 @@ export function CrmDealModal({
   const secretariesRef = useRef(secretaries);
   secretariesRef.current = secretaries;
   const companyPhoneRef = useRef<HTMLInputElement>(null);
+  const skipPhoneCommit = useRef(false);
+  const phoneCommitLock = useRef(false);
   const amountRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const briefingGen = useRef(0);
@@ -446,6 +453,9 @@ export function CrmDealModal({
 
   useEffect(() => {
     setPhones(deal.phones.length > 0 ? deal.phones : [""]);
+    skipPhoneCommit.current = true;
+    setAddingPhone(false);
+    setPhoneDraft("");
     setSecretaries(secretariesFromDeal(deal));
     setBody("");
     setComposerKind("ligar");
@@ -527,11 +537,25 @@ export function CrmDealModal({
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (celebrateCompany || callDialogOpen) return;
+      if (addingPhone) {
+        event.preventDefault();
+        event.stopPropagation();
+        skipPhoneCommit.current = true;
+        setAddingPhone(false);
+        setPhoneDraft("");
+        return;
+      }
       onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, celebrateCompany, callDialogOpen]);
+  }, [onClose, celebrateCompany, callDialogOpen, addingPhone]);
+
+  useEffect(() => {
+    if (!addingPhone) return;
+    const id = window.requestAnimationFrame(() => companyPhoneRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [addingPhone]);
 
   async function patch(payload: Record<string, unknown>) {
     const res = await crmFetch<{ deal: CrmDealCard }>(
@@ -913,12 +937,49 @@ export function CrmDealModal({
     void persistPhones(next);
   }
 
+  function beginAddPhone() {
+    skipPhoneCommit.current = false;
+    phoneCommitLock.current = false;
+    setPhoneDraft("");
+    setAddingPhone(true);
+  }
+
+  function commitAddedPhone() {
+    if (skipPhoneCommit.current || phoneCommitLock.current) {
+      skipPhoneCommit.current = false;
+      return;
+    }
+    phoneCommitLock.current = true;
+    const value = phoneDraft.trim();
+    setAddingPhone(false);
+    setPhoneDraft("");
+    if (!value) return;
+    selectCompanyPhone(value);
+  }
+
   const outcomes: CrmOutcome[] = ["lost", "open", "won"];
-  const phoneOptions = mergeSourcedPhones([
-    ...cleanedPhones(phones).map((phone) => ({ phone, source: "crm" as const })),
-    ...(briefing.phoneSources ?? []),
-  ]);
-  const companyPhone = phones[0]?.trim() || phoneOptions[0]?.phone || "";
+  const phoneOptions = companyPhoneMenuOptions({
+    savedPhones: cleanedPhones(phones),
+    sourced: briefing.phoneSources ?? [],
+    people: [
+      ...secretaries.map((person) => ({
+        name: person.name,
+        phone: person.phone,
+        role: "secretary" as const,
+      })),
+      ...people.map((person) => ({
+        name: person.name,
+        phone: person.phone,
+        role: "person" as const,
+      })),
+    ],
+    sourceHints: PHONE_SOURCE_HINT,
+    emptyNameHints: {
+      secretary: COPY.crmSecretaryLabel,
+      person: COPY.crmPhoneHintPartner,
+    },
+  });
+  const companyPhone = selectedCompanyPhone(phones, phoneOptions);
   const headerPhone =
     firstDialablePhone([companyPhone, ...dialTargets()]) ??
     briefing.phone ??
@@ -1442,7 +1503,27 @@ export function CrmDealModal({
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmCompanyPhone}</p>
               <div className="mt-1.5">
-                {phoneOptions.length > 0 ? (
+                {addingPhone ? (
+                  <input
+                    ref={companyPhoneRef}
+                    type="tel"
+                    inputMode="tel"
+                    className={CRM_FIELD}
+                    value={phoneDraft}
+                    autoComplete="off"
+                    name="crm-company-phone"
+                    maxLength={24}
+                    placeholder="(34) 99999-0000"
+                    aria-label={COPY.crmCompanyPhone}
+                    onChange={(event) => setPhoneDraft(event.target.value)}
+                    onBlur={() => commitAddedPhone()}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      commitAddedPhone();
+                    }}
+                  />
+                ) : phoneOptions.length > 0 ? (
                   <Select
                     size="sm"
                     className="w-full"
@@ -1450,10 +1531,14 @@ export function CrmDealModal({
                     name="crm-company-phone"
                     aria-label={COPY.crmCompanyPhone}
                     onChange={selectCompanyPhone}
+                    action={{
+                      label: COPY.crmAddPhone,
+                      onSelect: beginAddPhone,
+                    }}
                     options={phoneOptions.map((row) => ({
                       value: row.phone,
                       label: formatPhoneDisplay(row.phone),
-                      hint: PHONE_SOURCE_HINT[row.source],
+                      hint: row.hint,
                     }))}
                   />
                 ) : (

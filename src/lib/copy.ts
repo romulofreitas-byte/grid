@@ -530,6 +530,7 @@ export const COPY = {
   crmPhoneSourceReceita: "Receita",
   crmPhoneSourceMaps: "Maps",
   crmPhoneSourceCrm: "CRM",
+  crmPhoneHintPartner: "Sócio",
   crmActions: "Ações",
   crmCallNow: "Ligar",
   crmCopyPhone: "Copiar telefone",
