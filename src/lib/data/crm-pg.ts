@@ -36,6 +36,7 @@ import { resolveDecisor } from "@/lib/decisor";
 import type { Partner, RefQualificacao } from "@/lib/types";
 import {
   CRM_EVENT_HISTORY_LIMIT,
+  findLigarByCallId,
   normalizeCallId,
   readCrmEventMeta,
 } from "@/lib/crm/events";
@@ -1692,6 +1693,22 @@ export const crmPgMethods = {
       await q(`update crm_activities set status = 'done' where id = $1`, [
         current.id,
       ]);
+      const callIdNorm =
+        current.kind === "ligar" ? normalizeCallId(callId) : null;
+      if (callIdNorm) {
+        const prior = await q(
+          `select * from crm_events
+            where deal_id = $1 and kind = 'ligar' and meta->>'call_id' = $2
+            order by created_at desc
+            limit 1`,
+          [dealId, callIdNorm],
+        );
+        if (prior.rows[0]) {
+          const deal = await loadCard(q, dealId);
+          if (!deal) return null;
+          return { deal, event: mapEvent(prior.rows[0]) };
+        }
+      }
       const event = await insertEvent(
         q,
         dealId,
@@ -1713,6 +1730,24 @@ export const crmPgMethods = {
     phone?: string,
     callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    const callIdNorm = normalizeCallId(callId);
+    if (callIdNorm) {
+      const events = await crmPgMethods.listCrmEvents(userId, dealId);
+      const existing = findLigarByCallId(events ?? [], callIdNorm);
+      if (existing) {
+        if (next) {
+          await crmPgMethods.scheduleCrmActivity(
+            userId,
+            dealId,
+            next.kind,
+            next.dueAt,
+          );
+        }
+        const deal = await crmPgMethods.getCrmDeal(userId, dealId);
+        if (!deal) return null;
+        return { deal, event: existing };
+      }
+    }
     return crmPgMethods.createCrmEvent(userId, dealId, {
       kind: "ligar",
       body: notes,

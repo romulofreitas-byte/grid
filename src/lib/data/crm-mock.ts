@@ -21,7 +21,11 @@ import {
   type CrmDealTransferResult,
 } from "@/lib/crm/transfer";
 import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
-import { CRM_EVENT_HISTORY_LIMIT, normalizeCallId } from "@/lib/crm/events";
+import {
+  CRM_EVENT_HISTORY_LIMIT,
+  findLigarByCallId,
+  normalizeCallId,
+} from "@/lib/crm/events";
 import {
   INBOUND_EVENT_KEEP,
   INBOUND_EVENT_LIST_LIMIT,
@@ -965,6 +969,11 @@ export const crmMockMethods = {
     );
     if (!open) return { deal: toCard(store, deal), event: null };
     open.status = "done";
+    const existing =
+      open.kind === "ligar"
+        ? findLigarByCallId(store.crm_events.filter((row) => row.deal_id === dealId), callId)
+        : undefined;
+    if (existing) return { deal: toCard(store, deal), event: existing };
     const event = insertEvent(
       store,
       dealId,
@@ -983,6 +992,18 @@ export const crmMockMethods = {
     phone?: string,
     callId?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    const existing = deal
+      ? findLigarByCallId(
+          store.crm_events.filter((row) => row.deal_id === dealId),
+          callId,
+        )
+      : undefined;
+    if (deal && existing) {
+      if (next) insertActivity(store, dealId, next.kind, next.dueAt);
+      return { deal: toCard(store, deal), event: existing };
+    }
     return crmMockMethods.createCrmEvent(userId, dealId, {
       kind: "ligar",
       body: notes,

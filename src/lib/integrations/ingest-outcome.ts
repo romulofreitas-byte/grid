@@ -1,7 +1,9 @@
 import type { LeadStatus } from "@/lib/types";
 import { crmAllowed } from "@/lib/billing/service";
-import { attachCallRecordingToDeal } from "@/lib/crm/attach-recording";
+import { attachCallRecordingToDeal, safeRecordingUrl } from "@/lib/crm/attach-recording";
 import { getRepo } from "@/lib/data";
+import { decryptJson } from "@/lib/integrations/crypto";
+import { loadApi4comRecordings } from "@/lib/integrations/api4com-recording";
 import { advanceCrmOnDisposition } from "@/lib/crm/lead-sync";
 import type { IntegrationConnectionRecord } from "./records";
 import { dispositionToLeadStatus } from "./outcomes";
@@ -51,13 +53,36 @@ export async function ingestCallOutcome(input: {
     }
   }
 
+  let recordingUrl = input.recordingUrl;
+  if (
+    !safeRecordingUrl(recordingUrl) &&
+    input.externalId &&
+    input.connection.provider === "api4com"
+  ) {
+    try {
+      const creds = await decryptJson(
+        input.connection.credentials_ciphertext,
+        input.connection.credentials_nonce,
+      );
+      const token = creds.token?.trim() ?? "";
+      if (token) {
+        const calls = await loadApi4comRecordings(token, [input.externalId]);
+        recordingUrl =
+          calls.find((row) => row.id === input.externalId)?.recordUrl ??
+          recordingUrl;
+      }
+    } catch {
+      // Hangup still attaches when the file shows up on the next history load.
+    }
+  }
+
   try {
     if (mayWriteCrm) {
       await attachCallRecordingToDeal(repo, {
         userId: input.connection.user_id,
         dealId: input.dealId,
         cnpj: input.cnpj ?? lead?.cnpj ?? null,
-        recordingUrl: input.recordingUrl,
+        recordingUrl,
         phone: input.e164,
         callId: input.externalId,
       });

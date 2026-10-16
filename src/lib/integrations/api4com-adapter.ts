@@ -192,12 +192,13 @@ export function createApi4comAdapter(): IntegrationAdapter {
       if (!phone) {
         throw new Error("Número inválido. Precisa de DDD + telefone.");
       }
-      const res = await vendorFetch(`${BASE}/dialer`, {
+      const res = await vendorFetch(`${BASE}/calls`, {
         method: "POST",
         headers: authHeaders(token),
         body: JSON.stringify({
           extension,
-          phone,
+          caller: extension,
+          called: phone,
           metadata: {
             gateway: API4COM_GATEWAY,
             cnpj: call.cnpj || undefined,

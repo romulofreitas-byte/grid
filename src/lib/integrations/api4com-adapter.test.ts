@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 describe("createApi4comAdapter", () => {
-  it("POSTs dialer with ramal, E.164 and GRID metadata", async () => {
+  it("POSTs /calls with ramal, E.164 and GRID metadata", async () => {
     const captured: { url: string; body: string; auth: string | null } = {
       url: "",
       body: "",
@@ -74,15 +74,18 @@ describe("createApi4comAdapter", () => {
     );
     expect(result.accepted).toBe(true);
     expect(result.externalId).toBe("call-1");
-    expect(captured.url).toContain("/dialer");
+    expect(captured.url).toContain("/calls");
+    expect(captured.url).not.toContain("/dialer");
     expect(captured.auth).toBe("tok-live");
     const json = JSON.parse(captured.body) as {
       extension: string;
-      phone: string;
-      metadata: { gateway: string; cnpj: string };
+      caller: string;
+      called: string;
+      metadata: { gateway: string; cnpj: string; deal_id?: string };
     };
     expect(json.extension).toBe("1001");
-    expect(json.phone).toBe("+5511988887777");
+    expect(json.caller).toBe("1001");
+    expect(json.called).toBe("+5511988887777");
     expect(json.metadata.gateway).toBe("grid-podium");
     expect(json.metadata.cnpj).toBe("12345678000190");
   });
@@ -105,7 +108,7 @@ describe("createApi4comAdapter", () => {
       },
       ctx(),
     );
-    expect(JSON.parse(body).phone).toBe("+553134113893");
+    expect(JSON.parse(body).called).toBe("+553134113893");
   });
 
   it("refuses a ramal as the destination", async () => {

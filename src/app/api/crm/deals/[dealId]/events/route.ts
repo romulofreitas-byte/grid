@@ -3,6 +3,7 @@ import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { fromDatetimeLocal } from "@/lib/crm/activity";
+import { syncDealCallRecordings } from "@/lib/crm/sync-call-recording";
 import { eventCreateSchema } from "@/lib/crm/schema";
 
 export async function GET(
@@ -12,9 +13,16 @@ export async function GET(
   const gated = await guardCrmApi(req, "read");
   if (isGuardReject(gated)) return gated;
   const { dealId } = await ctx.params;
-  const events = await getRepo().listCrmEvents(gated.userId, dealId);
+  const repo = getRepo();
+  const events = await repo.listCrmEvents(gated.userId, dealId);
   if (!events) return jsonError("Negócio não encontrado.", 404);
-  return NextResponse.json({ events });
+  const withAudio = await syncDealCallRecordings(
+    repo,
+    gated.userId,
+    dealId,
+    events,
+  ).catch(() => events);
+  return NextResponse.json({ events: withAudio });
 }
 
 export async function POST(

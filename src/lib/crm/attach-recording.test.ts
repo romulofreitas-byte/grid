@@ -106,4 +106,32 @@ describe("attachCallRecordingToDeal", () => {
     const events = await mockRepo.listCrmEvents(USER, created!.id);
     expect(events?.find((row) => row.id === newer!.event.id)?.meta.record_url).toBeUndefined();
   });
+
+  it("keeps a single ligar row when the webhook already stored the call", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+    });
+    const callId = "2ee13fa4-975c-499d-bbb8-5177ff418316";
+    await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "",
+      meta: { call_id: callId, record_url: MP3 },
+    });
+    const scheduled = await mockRepo.scheduleCrmActivity(
+      USER,
+      created!.id,
+      "ligar",
+      "2026-10-16T18:00:00.000Z",
+    );
+    const activityId = scheduled?.open_activities[0]?.id;
+    expect(activityId).toBeTruthy();
+
+    await mockRepo.completeCrmActivity(USER, created!.id, activityId!, callId);
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    const ligar = events?.filter((row) => row.kind === "ligar") ?? [];
+    expect(ligar).toHaveLength(1);
+    expect(ligar[0]?.meta.record_url).toBe(MP3);
+  });
 });

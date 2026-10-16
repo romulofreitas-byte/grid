@@ -293,6 +293,8 @@ export type CrmEventMeta = {
   record_url?: string;
   /** API4COM call id, so the hangup recording lands on this row. */
   call_id?: string;
+  /** Last time we asked API4COM for this row's file. */
+  recording_checked_at?: string;
 };
 
 export type CrmEvent = {

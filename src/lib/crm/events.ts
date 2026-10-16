@@ -16,8 +16,17 @@ export const CRM_CALL_ID_MAX = 120;
 /** How often the open card asks for the hangup recording. */
 export const CRM_RECORDING_POLL_MS = 4_000;
 
-/** Stop waiting if API4COM never sends the file. */
-export const CRM_RECORDING_WATCH_MS = 2 * 60 * 1000;
+/** Keep asking while the card is open. The file often lands after hangup. */
+export const CRM_RECORDING_WATCH_MS = 10 * 60 * 1000;
+
+/** Don't hit API4COM on every history refresh. */
+export const CRM_RECORDING_SYNC_WAIT_MS = 20_000;
+
+/** A call can still receive its file the next time the card is opened. */
+export const CRM_RECORDING_SYNC_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Hangup and the history row can be this far apart and still be the same call. */
+export const CRM_RECORDING_MATCH_WINDOW_MS = 30 * 60 * 1000;
 
 export function normalizeCallId(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim() ?? "";
@@ -42,7 +51,42 @@ export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
     typeof raw.call_id === "string" ? raw.call_id : null,
   );
   if (callId) meta.call_id = callId;
+  if (
+    typeof raw.recording_checked_at === "string" &&
+    /^\d{4}-\d{2}-\d{2}T/.test(raw.recording_checked_at)
+  ) {
+    meta.recording_checked_at = raw.recording_checked_at;
+  }
   return meta;
+}
+
+export function findLigarByCallId(
+  events: CrmEvent[],
+  callId: string | null | undefined,
+): CrmEvent | undefined {
+  const id = normalizeCallId(callId ?? null);
+  if (!id) return undefined;
+  return events.find((row) => row.kind === "ligar" && row.meta.call_id === id);
+}
+
+export function recordingSyncDue(
+  event: Pick<CrmEvent, "kind" | "created_at" | "meta">,
+  now = Date.now(),
+): boolean {
+  if (event.kind !== "ligar" || event.meta.record_url || !event.meta.call_id) {
+    return false;
+  }
+  const created = new Date(event.created_at).getTime();
+  if (Number.isNaN(created) || now - created > CRM_RECORDING_SYNC_WINDOW_MS) {
+    return false;
+  }
+  const checked = event.meta.recording_checked_at
+    ? new Date(event.meta.recording_checked_at).getTime()
+    : Number.NaN;
+  if (!Number.isNaN(checked) && now - checked < CRM_RECORDING_SYNC_WAIT_MS) {
+    return false;
+  }
+  return true;
 }
 
 export function callRecordingReady(events: CrmEvent[], callId: string): boolean {
