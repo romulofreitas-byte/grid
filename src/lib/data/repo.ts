@@ -308,6 +308,12 @@ export type GridRepo = {
   insertIntegrationEvent(
     row: Omit<IntegrationEventRecord, "id" | "created_at">,
   ): Promise<void>;
+  /** True when the VoIP hangup webhook already landed for this originate id. */
+  hasInboundCallOutcome(
+    userId: string,
+    connectionId: string,
+    externalId: string,
+  ): Promise<boolean>;
   findSavedLeadForOutcome(
     userId: string,
     input: { cnpj?: string; e164?: string; searchId?: string | null },

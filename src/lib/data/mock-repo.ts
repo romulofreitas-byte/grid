@@ -1950,6 +1950,17 @@ export const mockRepo: GridRepo = {
     });
   },
 
+  async hasInboundCallOutcome(userId, connectionId, externalId) {
+    return getMockStore().integration_events.some(
+      (event) =>
+        event.user_id === userId &&
+        event.connection_id === connectionId &&
+        event.external_id === externalId &&
+        event.direction === "inbound" &&
+        event.event_type === "call.outcome",
+    );
+  },
+
   async findSavedLeadForOutcome(userId, input) {
     const store = getMockStore();
     const leads = store.saved_leads.filter((l) => l.user_id === userId);

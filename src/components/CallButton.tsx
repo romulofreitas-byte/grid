@@ -18,6 +18,7 @@ import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
 const HANGUP_IDLE_MS = 90_000;
+const CALL_STATUS_POLL_MS = 3_000;
 
 async function recordManualCall(input: {
   cnpj: string;
@@ -97,6 +98,34 @@ export function CallButton({
     if (!liveCall) return;
     const timer = window.setTimeout(() => setLiveCall(null), HANGUP_IDLE_MS);
     return () => window.clearTimeout(timer);
+  }, [liveCall]);
+
+  useEffect(() => {
+    if (!liveCall) return;
+    let cancelled = false;
+    const current = liveCall;
+
+    async function pull() {
+      try {
+        const params = new URLSearchParams({
+          connectionId: current.connectionId,
+          externalId: current.externalId,
+        });
+        const res = await fetch(`/api/integrations/call/status?${params}`);
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as { ended?: boolean };
+        if (!cancelled && body.ended) setLiveCall(null);
+      } catch {
+        // The hangup webhook can arrive a few seconds after the call ends.
+      }
+    }
+
+    void pull();
+    const timer = window.setInterval(() => void pull(), CALL_STATUS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [liveCall]);
 
   function invalidateAfterCall() {

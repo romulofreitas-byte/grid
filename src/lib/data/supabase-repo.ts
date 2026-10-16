@@ -4577,6 +4577,21 @@ export const supabaseRepo: GridRepo = {
     );
   },
 
+  async hasInboundCallOutcome(userId, connectionId, externalId) {
+    const { rows } = await query(
+      `select 1 as hit
+       from integration_events
+       where user_id = $1
+         and connection_id = $2
+         and external_id = $3
+         and direction = 'inbound'
+         and event_type = 'call.outcome'
+       limit 1`,
+      [userId, connectionId, externalId],
+    );
+    return Boolean(rows[0]);
+  },
+
   async findSavedLeadForOutcome(userId, input) {
     if (input.searchId && input.cnpj) {
       const { rows } = await query(
