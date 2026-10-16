@@ -252,6 +252,7 @@ export const scheduleSchema = z.object({
 export const completeSchema = z.object({
   activityId: z.string().uuid(),
   callId: z.string().trim().min(1).max(120).optional(),
+  phone: z.string().trim().max(24).optional(),
 });
 
 export const logCallSchema = z.object({

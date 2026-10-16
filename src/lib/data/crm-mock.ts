@@ -957,6 +957,7 @@ export const crmMockMethods = {
     dealId: string,
     activityId: string,
     callId?: string,
+    phone?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);
@@ -979,7 +980,7 @@ export const crmMockMethods = {
       dealId,
       open.kind,
       "",
-      ligarCallMeta(open.kind, callId),
+      ligarCallMeta(open.kind, callId, phone),
     );
     return { deal: toCard(store, deal), event };
   },

@@ -151,6 +151,75 @@ describe("recordCrmDialAfterCall", () => {
     );
   });
 
+  it("sends the dialed number when completing an open ligar", async () => {
+    const updated = deal({ next_activity: null });
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        deal: updated,
+        event: {
+          id: "e1",
+          deal_id: "deal-1",
+          kind: "ligar",
+          body: "",
+          meta: { phone: "(11) 4123-3244" },
+          created_at: "2026-09-01T12:00:00.000Z",
+          updated_at: "2026-09-01T12:00:00.000Z",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordCrmDialAfterCall(
+      deal({
+        open_activities: [
+          {
+            id: "a1",
+            deal_id: "deal-1",
+            kind: "ligar",
+            due_at: "2026-09-05T18:00:00.000Z",
+            status: "open",
+            created_at: "2026-09-01T12:00:00.000Z",
+          },
+        ],
+      }),
+      "call-1",
+      "(11) 4123-3244",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/crm/deals/deal-1/complete",
+      expect.objectContaining({
+        body: JSON.stringify({
+          activityId: "a1",
+          callId: "call-1",
+          phone: "(11) 4123-3244",
+        }),
+      }),
+    );
+  });
+
+  it("sends the dialed number on the profile call", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({}))
+      .mockResolvedValueOnce(jsonResponse({ events: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await recordCrmDialAfterCall(deal(), undefined, "(11) 4123-3244");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/profile/call",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          cnpj: "12345678000199",
+          dealId: "deal-1",
+          phone: "(11) 4123-3244",
+        }),
+      }),
+    );
+  });
+
   it("skips profile call when there is no CNPJ", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatPhoneDisplay } from "@/lib/crm/dial";
 import type {
   CrmDealCard,
   CrmEvent,
@@ -135,6 +136,10 @@ export function eventTitle(event: Pick<CrmEvent, "kind" | "meta">): string {
     if (outcome === "won") return "Marcado como ganho";
     if (outcome === "lost") return "Marcado como perdido";
     if (outcome === "open") return "Voltou para em andamento";
+  }
+  if (event.kind === "ligar") {
+    const phone = event.meta.phone?.trim();
+    if (phone) return `Ligação feita · ${formatPhoneDisplay(phone)}`;
   }
   return CRM_EVENT_KIND_LABELS[event.kind];
 }

@@ -423,6 +423,7 @@ export type GridRepo = {
     dealId: string,
     activityId: string,
     callId?: string,
+    phone?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null>;
   logCrmCall(
     userId: string,

@@ -252,6 +252,45 @@ describe("crm mock board", () => {
     expect(events?.filter((row) => row.kind === "ligar")).toHaveLength(2);
   });
 
+  it("stores the dialed number only when the call payload includes it", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Número discado",
+    });
+    const plain = await mockRepo.logCrmCall(USER, created!.id, "Sem número.");
+    expect(plain?.event.meta.phone).toBeUndefined();
+    const dialed = await mockRepo.logCrmCall(
+      USER,
+      created!.id,
+      "Com número.",
+      null,
+      "(11) 4123-3244",
+    );
+    expect(dialed?.event.meta.phone).toBe("(11) 4123-3244");
+
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", dueAt);
+    const open = (await mockRepo.getCrmDeal(USER, created!.id))!.next_activity!;
+    const done = await mockRepo.completeCrmActivity(
+      USER,
+      created!.id,
+      open.id,
+      undefined,
+      "(11) 98888-0000",
+    );
+    expect(done?.event?.meta.phone).toBe("(11) 98888-0000");
+
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", dueAt);
+    const again = (await mockRepo.getCrmDeal(USER, created!.id))!.next_activity!;
+    const unmarked = await mockRepo.completeCrmActivity(
+      USER,
+      created!.id,
+      again.id,
+    );
+    expect(unmarked?.event?.meta.phone).toBeUndefined();
+  });
+
   it("schedules the next volta without a history item", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const created = await mockRepo.createCrmDeal(USER, {

@@ -11,6 +11,7 @@ const schema = z.object({
   searchId: z.string().uuid().optional(),
   dealId: z.string().uuid().optional(),
   callId: z.string().trim().min(1).max(120).optional(),
+  phone: z.string().trim().max(24).optional(),
 });
 
 export async function POST(req: Request) {
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
     source: "manual",
     dealId: parsed.data.dealId,
     callId: parsed.data.callId,
+    phone: parsed.data.phone,
   });
   return NextResponse.json(await repo.getPilotStats(gated.userId));
 }

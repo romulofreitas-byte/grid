@@ -735,10 +735,14 @@ export function CrmDealModal({
     ]);
   }
 
-  async function recordCallAfterDial(callId?: string) {
+  async function recordCallAfterDial(callId?: string, phone?: string | null) {
     if (callId) setRecordingWatch({ dealId: deal.id, callId });
     try {
-      const result = await recordCrmDialAfterCall(deal, callId);
+      const result = await recordCrmDialAfterCall(
+        deal,
+        callId,
+        phone?.trim() || undefined,
+      );
       onChange(result.deal);
       void invalidateLiveStats(qc);
       if (result.event) prependEvent(result.event);
@@ -1178,7 +1182,7 @@ export function CrmDealModal({
                 companyName={deal.company_name}
                 phoneLabel={formatPhoneDisplay(headerPhone)}
                 onConfirmOpenChange={setCallDialogOpen}
-                onCalled={(callId) => void recordCallAfterDial(callId)}
+                onCalled={(callId) => void recordCallAfterDial(callId, headerPhone)}
               />
             ) : (
               <button
@@ -1373,7 +1377,7 @@ export function CrmDealModal({
                               companyName={deal.company_name}
                               phoneLabel={formatPhoneDisplay(headerPhone)}
                               onConfirmOpenChange={setCallDialogOpen}
-                              onCalled={(callId) => void recordCallAfterDial(callId)}
+                              onCalled={(callId) => void recordCallAfterDial(callId, headerPhone)}
                             />
                           ) : (
                             <button
@@ -1505,7 +1509,7 @@ export function CrmDealModal({
                             </button>
                           </div>
                         ) : null}
-                        {event.meta.phone ? (
+                        {event.kind !== "ligar" && event.meta.phone ? (
                           <p className="mt-1 font-mono text-[10px] text-podium-muted">
                             {event.meta.phone}
                           </p>

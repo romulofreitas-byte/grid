@@ -13,7 +13,9 @@ export type RecordCrmDialResult = {
 export async function recordCrmDialAfterCall(
   deal: CrmDealCard,
   callId?: string,
+  phone?: string,
 ): Promise<RecordCrmDialResult> {
+  const dialed = phone?.trim() || undefined;
   const ligar = openLigarActivity(deal);
   if (ligar) {
     const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
@@ -23,6 +25,7 @@ export async function recordCrmDialAfterCall(
         body: JSON.stringify({
           activityId: ligar.id,
           ...(callId ? { callId } : {}),
+          ...(dialed ? { phone: dialed } : {}),
         }),
       },
     );
@@ -37,6 +40,7 @@ export async function recordCrmDialAfterCall(
       cnpj,
       dealId: deal.id,
       ...(callId ? { callId } : {}),
+      ...(dialed ? { phone: dialed } : {}),
     }),
   });
   const body = (await res.json()) as { error?: string };

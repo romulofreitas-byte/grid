@@ -1677,6 +1677,7 @@ export const crmPgMethods = {
     dealId: string,
     activityId: string,
     callId?: string,
+    phone?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
@@ -1714,7 +1715,7 @@ export const crmPgMethods = {
         dealId,
         current.kind,
         "",
-        ligarCallMeta(current.kind, callId),
+        ligarCallMeta(current.kind, callId, phone),
       );
       const deal = await loadCard(q, dealId);
       if (!deal) return null;

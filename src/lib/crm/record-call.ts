@@ -95,6 +95,7 @@ export async function recordCompletedCall(
               deal.id,
               ligar.id,
               input.callId,
+              input.phone,
             );
           }
         } else {

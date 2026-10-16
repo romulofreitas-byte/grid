@@ -39,6 +39,9 @@ describe("crm events copy", () => {
       eventTitle({ kind: "outcome", meta: { outcome: "won" } }),
     ).toBe("Marcado como ganho");
     expect(eventTitle({ kind: "ligar", meta: {} })).toBe("Ligação feita");
+    expect(
+      eventTitle({ kind: "ligar", meta: { phone: "1141233244" } }),
+    ).toBe("Ligação feita · (11) 4123-3244");
     expect(eventTitle({ kind: "email", meta: {} })).toBe("E-mail enviado");
   });
 
