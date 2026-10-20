@@ -65,8 +65,10 @@ export const COPY = {
   landingPlansEyebrow: "Planos",
   landingPlansTitle: "Escolha o plano pelo que destrava no dia",
   landingPlansBody:
-    "No Treino livre você sente a lista. O Piloto libera o CRM, o VoIP, o Box de ligação e importar a planilha. O Pro traz Automações: o lead do site e do anúncio cai no quadro.",
+    "No Treino livre você sente a lista. O Piloto libera o CRM, o Box de ligação, conectar a sua conta VoIP ou discador, e importar a planilha. O Pro traz Automações: o lead do site e do anúncio cai no quadro.",
   landingPlansPayHint: "Pix, cartão ou boleto no checkout.",
+  planosTelefoniaNote:
+    "O plano não inclui discador nem conta VoIP. A conta é sua: 3C Plus, API4COM, Zenvia, Twilio ou Telnyx. Sem conexão, Ligar abre o telefone do aparelho.",
   planosCreditNote:
     "Qualificar custa 1 crédito. O crédito do plano zera no mês.",
   planosRecargaBody:

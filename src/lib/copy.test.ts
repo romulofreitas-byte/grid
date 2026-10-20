@@ -371,11 +371,15 @@ describe("COPY landing", () => {
     expect(COPY.landingPlansTitle).toMatch(/destrava/i);
     expect(COPY.landingPlansBody).toMatch(/Treino livre/);
     expect(COPY.landingPlansBody).toMatch(/Piloto libera o CRM/);
-    expect(COPY.landingPlansBody).toMatch(/VoIP/);
+    expect(COPY.landingPlansBody).toMatch(/conta VoIP ou discador/);
     expect(COPY.landingPlansBody).toMatch(/Box de ligação/);
     expect(COPY.landingPlansBody).toMatch(/importar a planilha/);
     expect(COPY.landingPlansBody).toMatch(/Automações/);
     expect(COPY.landingPlansBody).not.toMatch(/export/i);
+    expect(COPY.landingPlansBody).not.toMatch(/libera o VoIP/);
+    expect(COPY.planosTelefoniaNote).toMatch(/não inclui discador nem conta VoIP/);
+    expect(COPY.planosTelefoniaNote).toMatch(/3C Plus/);
+    expect(COPY.planosTelefoniaNote).toMatch(/telefone do aparelho/);
     expect(COPY.landingPlansPayHint).toMatch(/Pix/i);
     expect(COPY.planosCreditNote).toMatch(/1 crédito/i);
     expect(COPY.planosRecargaBody).toMatch(/não substitui o plano/i);

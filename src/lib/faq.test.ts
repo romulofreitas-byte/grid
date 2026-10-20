@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { COPY } from "./copy";
 import { FAQ_ITEMS, faqGrouped, filterFaq } from "./faq";
 
 describe("filterFaq", () => {
@@ -39,11 +40,23 @@ describe("qualificar FAQ", () => {
   });
 });
 
+describe("discador FAQ", () => {
+  it("says the plan does not include a dialer or VoIP account", () => {
+    const item = FAQ_ITEMS.find((entry) => entry.id === "discador-incluso");
+    expect(item?.category).toBe("Ligar e Box");
+    expect(item?.question).toMatch(/inclui discador ou VoIP/);
+    expect(item?.answer).toBe(COPY.planosTelefoniaNote);
+  });
+});
+
 describe("conexoes FAQ", () => {
   it("says GRID dials with VoIP and falls back to the device phone", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "conexoes");
+    expect(item?.answer).toMatch(/não entra no preço/);
     expect(item?.answer).toMatch(/GRID disca/);
     expect(item?.answer).toMatch(/telefone do aparelho/);
+    expect(item?.answer).toMatch(/API4COM/);
+    expect(item?.answer).not.toMatch(/ainda não está nesta versão/);
   });
 });
 

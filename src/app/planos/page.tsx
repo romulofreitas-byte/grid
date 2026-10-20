@@ -100,7 +100,10 @@ export default async function PlanosPage({
         })}
       </div>
 
-      <p className="mt-6 text-sm text-podium-muted">{COPY.landingPlansPayHint}</p>
+      <p className="mt-6 max-w-2xl text-pretty text-sm leading-relaxed text-podium-muted">
+        {COPY.planosTelefoniaNote}
+      </p>
+      <p className="mt-3 text-sm text-podium-muted">{COPY.landingPlansPayHint}</p>
       <p className="mt-1 text-sm text-podium-muted">{COPY.planosCreditNote}</p>
 
       <div id="recarga" className="scroll-mt-20">

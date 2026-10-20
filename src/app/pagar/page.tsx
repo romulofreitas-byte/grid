@@ -193,20 +193,27 @@ function PagarInner() {
           transition={{ duration: 0.25, ease: enterEase }}
         >
           <GlassCard className={cn(fillCard, "justify-between")} highlight>
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-              {item.kind === "pack" ? "Recarga" : "Plano"}
-            </p>
-            <h2 className="mt-2 text-lg font-semibold md:text-xl">{item.nome}</h2>
-            <p className="mt-2 text-sm text-podium-gray">{item.tagline}</p>
-            <p className="mt-4 text-xl font-semibold text-podium-yellow md:text-2xl">
-              {priceLabel}
-            </p>
-            <p className="mt-2 text-sm text-podium-muted md:text-base">
-              {item.credits.toLocaleString("pt-BR")} créditos
-            </p>
-            {upgradingFromPiloto ? (
-              <Hint className="mt-4">{COPY.pagarUpgradeFromPiloto}</Hint>
-            ) : null}
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
+                {item.kind === "pack" ? "Recarga" : "Plano"}
+              </p>
+              <h2 className="mt-2 text-lg font-semibold md:text-xl">{item.nome}</h2>
+              <p className="mt-2 text-sm text-podium-gray">{item.tagline}</p>
+              <p className="mt-4 text-xl font-semibold text-podium-yellow md:text-2xl">
+                {priceLabel}
+              </p>
+              <p className="mt-2 text-sm text-podium-muted md:text-base">
+                {item.credits.toLocaleString("pt-BR")} créditos
+              </p>
+              {upgradingFromPiloto ? (
+                <Hint className="mt-4">{COPY.pagarUpgradeFromPiloto}</Hint>
+              ) : null}
+              {item.kind === "plan" ? (
+                <p className="mt-4 text-pretty text-sm leading-relaxed text-podium-muted">
+                  {COPY.planosTelefoniaNote}
+                </p>
+              ) : null}
+            </div>
             <ul className="mt-8 space-y-3 border-t border-white/10 pt-6">
               {catalogBenefitLines(item).map((line) => (
                 <li key={line} className="flex gap-3 text-sm text-podium-gray">

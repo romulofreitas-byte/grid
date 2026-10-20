@@ -1,9 +1,11 @@
 import { integracoesHref, largadaNovaHref } from "@/lib/back";
 import { EXPORT_CREDIT_COST } from "@/lib/billing/catalog";
+import { COPY } from "@/lib/copy";
 
 export const FAQ_CATEGORIES = [
   "Começar",
   "Lista e contato",
+  "Ligar e Box",
   "Créditos",
   "Export e integrações",
   "Privacidade",
@@ -200,11 +202,18 @@ export const FAQ_ITEMS: FaqItem[] = [
     links: [{ href: "/listas", label: "Abrir listas" }],
   },
   {
+    id: "discador-incluso",
+    category: "Ligar e Box",
+    question: "O plano inclui discador ou VoIP?",
+    answer: COPY.planosTelefoniaNote,
+    links: [{ href: integracoesHref("voip"), label: "Abrir Telefonia" }],
+  },
+  {
     id: "conexoes",
     category: "Export e integrações",
     question: "Onde ligo o VoIP?",
     answer:
-      "A ligação pela internet ainda não está nesta versão. O botão Ligar abre o telefone do aparelho. Quando voltar, você cola o token em Integrações e o GRID disca ao clicar (Painel, lista e ficha).",
+      "A conta não entra no preço do plano. Em Integrações → Telefonia você cola o token e o ramal. O GRID disca ao clicar em Ligar no Painel, na lista e na ficha. Hoje: API4COM, Zenvia, Twilio e Telnyx. Sem conexão, o botão Ligar abre o telefone do aparelho. Discador live: 3C Plus. Asterisk, 3CX e outros discadores ainda estão em breve.",
     links: [{ href: integracoesHref("voip"), label: "Abrir Telefonia" }],
   },
   {

@@ -118,7 +118,7 @@ export const PLANS: PlanDefinition[] = [
     billed: true,
     highlights: [
       "Qualificou: o lote cai no CRM",
-      "Liga pelo VoIP na ficha",
+      "Liga na ficha com a sua conta VoIP",
       "Meta do dia no Box de ligação",
       "Importa a planilha e liga no mesmo quadro",
     ],
@@ -198,7 +198,7 @@ export const PLANS: PlanDefinition[] = [
     billed: false,
     highlights: [
       "Qualificou: o lote cai no CRM",
-      "Liga pelo VoIP na ficha",
+      "Liga na ficha com a sua conta VoIP",
       "Meta do dia no Box de ligação",
     ],
     details: [
