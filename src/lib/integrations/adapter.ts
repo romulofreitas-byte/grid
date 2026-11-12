@@ -32,6 +32,8 @@ export type OriginateInput = {
 export type CallResult = {
   accepted: boolean;
   externalId?: string;
+  /** Our id echoed in vendor metadata. API4COM's dial id is not the hangup id. */
+  callRef?: string;
   message?: string;
 };
 
@@ -42,6 +44,8 @@ export type OutcomeEvent = {
   notes?: string;
   durationSec?: number;
   externalId?: string;
+  /** Correlates a hangup with the dial when the vendor ids differ. */
+  callRef?: string;
   occurredAt?: string;
   recordingUrl?: string;
   dealId?: string;

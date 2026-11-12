@@ -28,6 +28,11 @@ function jobExternalId(job: IntegrationJobRecord): string | null {
   return typeof raw === "string" && raw.trim() ? raw.trim() : null;
 }
 
+function jobCallRef(job: IntegrationJobRecord): string | null {
+  const raw = job.result?.callRef;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
 export async function POST(req: Request) {
   const gated = await guardApi(req, "write");
   if (isGuardReject(gated)) return gated;
@@ -92,6 +97,7 @@ export async function POST(req: Request) {
     jobId: job.id,
     status: settled.status,
     externalId,
+    callRef: jobCallRef(settled),
     hangup: canHangup(connection.provider) && Boolean(externalId),
   });
 }

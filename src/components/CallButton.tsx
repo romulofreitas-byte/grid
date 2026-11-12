@@ -89,6 +89,7 @@ export function CallButton({
   const [liveCall, setLiveCall] = useState<{
     connectionId: string;
     externalId: string;
+    callRef?: string;
   } | null>(null);
   const dialCnpj = usableCnpj(cnpj);
   const liveConnection =
@@ -125,6 +126,7 @@ export function CallButton({
           connectionId: current.connectionId,
           externalId: current.externalId,
         });
+        if (current.callRef) params.set("callRef", current.callRef);
         const res = await fetch(`/api/integrations/call/status?${params}`);
         if (!res.ok || cancelled) return;
         const body = (await res.json()) as { ended?: boolean };
@@ -175,6 +177,7 @@ export function CallButton({
         const body = (await res.json()) as {
           error?: string;
           externalId?: string | null;
+          callRef?: string | null;
           hangup?: boolean;
         };
         if (!res.ok) throw new Error(body.error ?? "Não foi possível ligar");
@@ -182,6 +185,7 @@ export function CallButton({
         return {
           hangup: Boolean(body.hangup && externalId),
           externalId,
+          callRef: body.callRef?.trim() || undefined,
         };
       }
       if (dialOnDevice && telHref) {
@@ -194,10 +198,12 @@ export function CallButton({
     },
     onSuccess: (result) => {
       setConfirmOpen(false);
+      const callRef = "callRef" in result ? result.callRef : undefined;
       if (result.hangup && result.externalId && liveConnection) {
         setLiveCall({
           connectionId: liveConnection.id,
           externalId: result.externalId,
+          ...(callRef ? { callRef } : {}),
         });
       }
       onCalled?.(result.externalId);
@@ -211,7 +217,10 @@ export function CallButton({
       const res = await fetch("/api/integrations/call/hangup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(liveCall),
+        body: JSON.stringify({
+          connectionId: liveCall.connectionId,
+          externalId: liveCall.externalId,
+        }),
       });
       const body = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(body.error ?? "Não foi possível desligar");

@@ -17,6 +17,7 @@ export async function ingestCallOutcome(input: {
   notes?: string;
   durationSec?: number;
   externalId?: string;
+  callRef?: string;
   recordingUrl?: string;
   dealId?: string;
   /** VoIP hangup only confirms the call — never reunião/descarte. */
@@ -106,6 +107,7 @@ export async function ingestCallOutcome(input: {
       duration_sec: input.durationSec ?? null,
       matched: Boolean(lead),
       record_url: input.recordingUrl ?? null,
+      ...(input.callRef ? { call_ref: input.callRef } : {}),
     },
   });
 

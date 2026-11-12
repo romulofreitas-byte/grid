@@ -1979,15 +1979,21 @@ export const mockRepo: GridRepo = {
     });
   },
 
-  async hasInboundCallOutcome(userId, connectionId, externalId) {
-    return getMockStore().integration_events.some(
-      (event) =>
-        event.user_id === userId &&
-        event.connection_id === connectionId &&
-        event.external_id === externalId &&
-        event.direction === "inbound" &&
-        event.event_type === "call.outcome",
-    );
+  async hasInboundCallOutcome(userId, connectionId, externalId, callRef) {
+    const ref = callRef?.trim() || null;
+    return getMockStore().integration_events.some((event) => {
+      if (
+        event.user_id !== userId ||
+        event.connection_id !== connectionId ||
+        event.direction !== "inbound" ||
+        event.event_type !== "call.outcome"
+      ) {
+        return false;
+      }
+      if (event.external_id === externalId) return true;
+      const stored = event.payload_summary?.call_ref;
+      return Boolean(ref && stored === ref);
+    });
   },
 
   async findSavedLeadForOutcome(userId, input) {

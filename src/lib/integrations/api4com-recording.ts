@@ -8,6 +8,9 @@ export type Api4comCallRow = {
   recordUrl: string | null;
   dealId: string | null;
   startedAt: number | null;
+  endedAt?: number | null;
+  hangupCause?: string | null;
+  callRef?: string | null;
 };
 
 export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
@@ -26,6 +29,8 @@ export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
     const meta = asRecord(rec.metadata);
     const startedRaw = pickString(rec, ["started_at", "startedAt"]);
     const startedAt = startedRaw ? Date.parse(startedRaw) : Number.NaN;
+    const endedRaw = pickString(rec, ["ended_at", "endedAt"]);
+    const endedAt = endedRaw ? Date.parse(endedRaw) : Number.NaN;
     rows.push({
       id,
       recordUrl: safeRecordingUrl(
@@ -36,6 +41,13 @@ export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
         pickString(rec, ["deal_id", "dealId"]) ??
         null,
       startedAt: Number.isNaN(startedAt) ? null : startedAt,
+      endedAt: Number.isNaN(endedAt) ? null : endedAt,
+      hangupCause:
+        pickString(rec, ["hangup_cause", "hangupCause"]) ?? null,
+      callRef:
+        pickString(meta, ["call_ref", "callRef"]) ??
+        pickString(rec, ["call_ref", "callRef"]) ??
+        null,
     });
   }
   return rows;
@@ -78,4 +90,38 @@ export async function loadApi4comRecordings(
     extra.push(...(await getCalls(token, { where: { id }, limit: 1 })));
   }
   return [...recent, ...extra];
+}
+
+/** Dial id and webhook id differ. `call_ref` is the id we put on the call. */
+export function api4comRowEnded(row: Api4comCallRow): boolean {
+  if (row.hangupCause?.trim()) return true;
+  return typeof row.endedAt === "number" && !Number.isNaN(row.endedAt);
+}
+
+export function matchApi4comCallEnded(
+  rows: readonly Api4comCallRow[],
+  query: { vendorId: string; callRef?: string | null },
+): boolean {
+  const ref = query.callRef?.trim() || null;
+  const row = rows.find(
+    (item) => item.id === query.vendorId || (ref != null && item.callRef === ref),
+  );
+  return row ? api4comRowEnded(row) : false;
+}
+
+/** True when the call list already shows this dial as finished. */
+export async function lookupApi4comCallEnded(
+  token: string,
+  query: { vendorId: string; callRef?: string | null },
+): Promise<boolean> {
+  const since = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+  let rows = await getCalls(token, {
+    where: { started_at: { gte: since } },
+    order: "started_at DESC",
+    limit: 30,
+  });
+  if (rows.length === 0) {
+    rows = await getCalls(token, { order: "started_at DESC", limit: 30 });
+  }
+  return matchApi4comCallEnded(rows, query);
 }

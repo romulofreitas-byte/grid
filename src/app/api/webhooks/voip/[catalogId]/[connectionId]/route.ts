@@ -82,6 +82,7 @@ export async function POST(
     notes: parsed.notes,
     durationSec: parsed.durationSec,
     externalId: parsed.externalId,
+    callRef: parsed.callRef,
     recordingUrl: parsed.recordingUrl,
     dealId: parsed.dealId,
     forceStatus: "ligando",

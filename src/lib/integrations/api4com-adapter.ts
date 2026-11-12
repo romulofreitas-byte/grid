@@ -164,6 +164,9 @@ export function parseApi4comInbound(rawBody: string): OutcomeEvent | null {
   const dealId =
     pickString(metadata, ["deal_id", "dealId"]) ??
     pickString(root, ["deal_id", "dealId"]);
+  const callRef =
+    pickString(metadata, ["call_ref", "callRef"]) ??
+    pickString(root, ["call_ref", "callRef"]);
   return {
     cnpj: pickCnpj(metadata),
     e164: calledToE164(to),
@@ -173,6 +176,7 @@ export function parseApi4comInbound(rawBody: string): OutcomeEvent | null {
     externalId:
       pickString(nested, ["id", "call_id", "uuid"]) ??
       pickString(root, ["id", "call_id", "uuid"]),
+    callRef,
     notes: api4comHangupNote(cause),
     recordingUrl,
     dealId,
@@ -192,6 +196,7 @@ export function createApi4comAdapter(): IntegrationAdapter {
       if (!phone) {
         throw new Error("Número inválido. Precisa de DDD + telefone.");
       }
+      const callRef = crypto.randomUUID();
       const res = await vendorFetch(`${BASE}/calls`, {
         method: "POST",
         headers: authHeaders(token),
@@ -205,6 +210,7 @@ export function createApi4comAdapter(): IntegrationAdapter {
             search_id: call.searchId,
             connection_id: ctx.connectionId,
             deal_id: call.dealId || undefined,
+            call_ref: callRef,
           },
         }),
       });
@@ -217,6 +223,7 @@ export function createApi4comAdapter(): IntegrationAdapter {
       return {
         accepted: true,
         externalId: pickString(body, ["id"]),
+        callRef,
         message: pickString(body, ["message"]),
       };
     },

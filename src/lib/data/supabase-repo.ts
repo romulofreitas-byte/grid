@@ -4670,17 +4670,21 @@ export const supabaseRepo: GridRepo = {
     );
   },
 
-  async hasInboundCallOutcome(userId, connectionId, externalId) {
+  async hasInboundCallOutcome(userId, connectionId, externalId, callRef) {
+    const ref = callRef?.trim() || null;
     const { rows } = await query(
       `select 1 as hit
        from integration_events
        where user_id = $1
          and connection_id = $2
-         and external_id = $3
          and direction = 'inbound'
          and event_type = 'call.outcome'
+         and (
+           external_id = $3
+           or ($4::text is not null and payload_summary->>'call_ref' = $4)
+         )
        limit 1`,
-      [userId, connectionId, externalId],
+      [userId, connectionId, externalId, ref],
     );
     return Boolean(rows[0]);
   },

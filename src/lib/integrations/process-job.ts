@@ -186,7 +186,11 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
       external_id: result.externalId ?? null,
       disposition: null,
       lead_status: "ligando",
-      payload_summary: { accepted: result.accepted, deal_id: target.dealId },
+      payload_summary: {
+        accepted: result.accepted,
+        deal_id: target.dealId,
+        ...(result.callRef ? { call_ref: result.callRef } : {}),
+      },
     });
     if (!target.skipLeadRecord && dossier) {
       await recordCompletedCall(repo, {
@@ -202,7 +206,11 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
     }
     await repo.updateIntegrationJob(job.id, {
       status: "done",
-      result: { accepted: result.accepted, externalId: result.externalId ?? null },
+      result: {
+        accepted: result.accepted,
+        externalId: result.externalId ?? null,
+        callRef: result.callRef ?? null,
+      },
       finished_at: new Date().toISOString(),
     });
   } catch (err) {

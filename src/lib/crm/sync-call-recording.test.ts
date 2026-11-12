@@ -36,6 +36,9 @@ describe("parseApi4comCallList", () => {
         recordUrl: MP3,
         dealId: "deal-1",
         startedAt: Date.parse("2026-10-15T18:00:05.000Z"),
+        endedAt: null,
+        hangupCause: null,
+        callRef: null,
       },
     ]);
   });

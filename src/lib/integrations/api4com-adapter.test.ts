@@ -26,6 +26,7 @@ const OFFICIAL_HANGUP = {
   metadata: {
     gateway: "grid-podium",
     cnpj: "12.345.678/0001-90",
+    call_ref: "cr-1",
   },
 };
 
@@ -81,13 +82,17 @@ describe("createApi4comAdapter", () => {
       extension: string;
       caller: string;
       called: string;
-      metadata: { gateway: string; cnpj: string; deal_id?: string };
+      metadata: { gateway: string; cnpj: string; deal_id?: string; call_ref: string };
     };
     expect(json.extension).toBe("1001");
     expect(json.caller).toBe("1001");
     expect(json.called).toBe("+5511988887777");
     expect(json.metadata.gateway).toBe("grid-podium");
     expect(json.metadata.cnpj).toBe("12345678000190");
+    expect(json.metadata.call_ref).toBe(result.callRef);
+    expect(result.callRef).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
   });
 
   it("normalizes a national BR number to +55 E.164", async () => {
@@ -201,6 +206,7 @@ describe("parseApi4comInbound", () => {
     expect(parsed?.durationSec).toBe(5);
     expect(parsed?.e164).toBe("+554833328530");
     expect(parsed?.externalId).toBe("2ee13fa4-975c-499d-bbb8-5177ff418316");
+    expect(parsed?.callRef).toBe("cr-1");
     expect(parsed?.recordingUrl).toContain("2ee13fa4-975c-499d-bbb8-5177ff418316.mp3");
     expect(parsed?.dealId).toBeUndefined();
   });
