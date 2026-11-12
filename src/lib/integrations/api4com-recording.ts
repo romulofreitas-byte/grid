@@ -33,7 +33,8 @@ export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
       ),
       dealId:
         pickString(meta, ["deal_id", "dealId"]) ??
-        pickString(rec, ["deal_id", "dealId"]),
+        pickString(rec, ["deal_id", "dealId"]) ??
+        null,
       startedAt: Number.isNaN(startedAt) ? null : startedAt,
     });
   }
