@@ -3,6 +3,7 @@ import {
   callViaLabel,
   canPlaceVoipCall,
   pickCallConnection,
+  shouldUseDeviceDialer,
   testCallDestination,
   type CallConnectionPick,
 } from "./call-target";
@@ -79,6 +80,31 @@ describe("pickCallConnection", () => {
         conn({ id: "pending", kind: "voip", status: "pending" }),
       ]),
     ).toBeNull();
+  });
+});
+
+describe("shouldUseDeviceDialer", () => {
+  const voip = conn({
+    id: "v",
+    kind: "voip",
+    provider: "api4com",
+    display_name: "API4COM",
+  });
+
+  it("stays off the handset while VoIP is connected or still loading", () => {
+    expect(
+      shouldUseDeviceDialer({ connection: voip, to: "3134113893" }),
+    ).toBe(false);
+    expect(
+      shouldUseDeviceDialer({
+        connection: null,
+        connectionsPending: true,
+        to: "3134113893",
+      }),
+    ).toBe(false);
+    expect(
+      shouldUseDeviceDialer({ connection: null, to: "3134113893" }),
+    ).toBe(true);
   });
 });
 

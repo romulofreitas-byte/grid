@@ -11,9 +11,10 @@ import {
 import { buildBoxRhythm, type BoxRhythm } from "@/lib/box/rhythm";
 import { isCrmStageKey } from "@/lib/crm/cadence";
 import { uniquePhones } from "@/lib/crm/dial";
+import { cnpjKey, phoneIsHidden } from "@/lib/hidden-phones";
 import { peopleFromDeal, sanitizeSecretaries } from "@/lib/crm/people";
 import type { CrmOutcome } from "@/lib/crm/types";
-import { getDataSource, hasLiveDatabase } from "@/lib/data";
+import { getDataSource, getRepo, hasLiveDatabase } from "@/lib/data";
 import { getMockStore } from "@/lib/data/mock-store";
 import { isUndefinedColumnError, isUndefinedTableError, query } from "@/lib/data/pg";
 import { DEFAULT_CALL_GOAL } from "@/lib/pilot-profile";
@@ -339,6 +340,33 @@ async function loadIdlePg(userId: string): Promise<BoxQueueIdle> {
   };
 }
 
+async function omitHiddenBoxPhones(
+  userId: string,
+  sources: BoxQueueSource[],
+): Promise<BoxQueueSource[]> {
+  const cnpjs = sources
+    .map((source) => source.cnpj)
+    .filter((cnpj): cnpj is string => Boolean(cnpj));
+  if (!cnpjs.length) return sources;
+  let hidden = new Map<string, string[]>();
+  try {
+    hidden = await getRepo().listHiddenPhones(userId, cnpjs);
+  } catch (err) {
+    console.error("box_hidden_phones_error", err);
+    return sources;
+  }
+  return sources.map((source) => {
+    const keys = source.cnpj
+      ? (hidden.get(cnpjKey(source.cnpj) ?? "") ?? [])
+      : [];
+    if (!keys.length) return source;
+    return {
+      ...source,
+      phones: source.phones.filter((phone) => !phoneIsHidden(phone, keys)),
+    };
+  });
+}
+
 export async function loadBoxQueue(
   userId: string,
   now = new Date(),
@@ -391,5 +419,6 @@ export async function loadBoxQueue(
     return toPayload(emptyQueue(), resolved, rhythm, emptyIdle());
   }
 
+  sources = await omitHiddenBoxPhones(userId, sources);
   return toPayload(buildBoxQueue(sources, now), resolved, rhythm, idle);
 }

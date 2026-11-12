@@ -12,6 +12,7 @@ import {
   syncCrmDealNotes,
 } from "@/lib/crm/lead-sync";
 import { getDataSource, getRepo } from "@/lib/data";
+import { cnpjKey, omitHiddenContacts } from "@/lib/hidden-phones";
 import { resolveFichaNichoNome } from "@/lib/nicho-cidade";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { enqueueDiscoveryRetries } from "@/lib/enrichment/discovery-retry";
@@ -61,7 +62,15 @@ export async function GET(
   if (!dossier) {
     return NextResponse.json({ error: "NÃO ENCONTRADO" }, { status: 404 });
   }
-  const safe = redactDossier(dossier, {
+  const hidden = await repo.listHiddenPhones(gated.userId, [cnpj]);
+  const visible = {
+    ...dossier,
+    contacts: omitHiddenContacts(
+      dossier.contacts,
+      hidden.get(cnpjKey(cnpj) ?? cnpj) ?? [],
+    ),
+  };
+  const safe = redactDossier(visible, {
     showEnrichment: enriched,
     showContacts: balance.enrichAllowed || enriched,
     plano: balance.plano,

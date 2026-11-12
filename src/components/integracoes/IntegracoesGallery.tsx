@@ -9,9 +9,9 @@ import type { CrmFormChannel, CrmMetaConnection } from "@/lib/crm/types";
 import { matchesAutomacoesCategory } from "@/lib/crm/types";
 import { IMPORT_RUNS_QUERY_KEY } from "@/lib/crm/import-history";
 import type { PublicImportRun } from "@/lib/crm/import-history";
-import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
 import { HUB_SECTIONS, filterHubItems, type HubItem } from "@/lib/integrations/hub";
 import { useBillingMe } from "@/hooks/useBillingMe";
+import { useConnections } from "@/hooks/useConnections";
 
 type MetaPagesResponse = {
   pages: CrmMetaConnection[];
@@ -19,10 +19,6 @@ type MetaPagesResponse = {
 
 type InboundList = {
   endpoints: Array<{ channel: CrmFormChannel }>;
-};
-
-type ConnectionsList = {
-  connections: IntegrationConnectionPublic[];
 };
 
 type ImportRunsList = {
@@ -115,15 +111,7 @@ export function IntegracoesGallery() {
     enabled: Boolean(billing.data) && automations,
   });
 
-  const connectionsQuery = useQuery({
-    queryKey: ["integration-connections"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/connections");
-      if (!res.ok) throw new Error("connections");
-      return (await res.json()) as ConnectionsList;
-    },
-    enabled: Boolean(billing.data),
-  });
+  const connectionsQuery = useConnections({ enabled: Boolean(billing.data) });
 
   const importsQuery = useQuery({
     queryKey: IMPORT_RUNS_QUERY_KEY,
@@ -139,7 +127,7 @@ export function IntegracoesGallery() {
   const tallies = useMemo(() => {
     const endpoints = inboundQuery.data?.endpoints ?? [];
     const voip: Record<string, number> = {};
-    for (const connection of connectionsQuery.data?.connections ?? []) {
+    for (const connection of connectionsQuery.data ?? []) {
       if (connection.status !== "active") continue;
       const id = connection.catalog_id ?? connection.provider;
       voip[id] = (voip[id] ?? 0) + 1;
@@ -156,7 +144,7 @@ export function IntegracoesGallery() {
       voip,
     };
   }, [
-    connectionsQuery.data?.connections,
+    connectionsQuery.data,
     importsQuery.data?.length,
     inboundQuery.data?.endpoints,
     pagesQuery.data?.pages.length,

@@ -97,6 +97,12 @@ export type MockStore = {
     cnpj: string;
     kind: "export" | "enrich";
   }>;
+  user_hidden_phones: Array<{
+    user_id: string;
+    cnpj: string;
+    phone_digits: string;
+    created_at: string;
+  }>;
   user_catchup_state: Array<{
     user_id: string;
     task_id: string;
@@ -689,6 +695,7 @@ function createMockStore(): MockStore {
     crm_meta_connections: [],
     crm_import_runs: [],
     billed_cnpjs: [],
+    user_hidden_phones: [],
     user_catchup_state: [],
   };
 

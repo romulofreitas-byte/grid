@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     title: COPY.landingMetaTitle,
     description: COPY.landingHeadline,
   },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {

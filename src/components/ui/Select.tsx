@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import {
   useEffect,
   useId,
@@ -15,6 +15,8 @@ export type SelectOption = {
   value: string;
   label: string;
   hint?: string;
+  onRemove?: () => void;
+  removeLabel?: string;
 };
 
 export type SelectAction = {
@@ -244,35 +246,55 @@ export function Select({
             const isSelected = option.value === value;
             const isActive = index === activeIndex;
             return (
-              <button
+              <div
                 key={option.value || `empty-${index}`}
-                type="button"
                 role="option"
                 aria-selected={isSelected}
                 data-active={isActive ? "true" : undefined}
-                tabIndex={-1}
                 onMouseEnter={() => setActiveIndex(index)}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => pick(option.value)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] font-medium leading-snug transition-colors duration-150 ease-out",
+                  "flex w-full items-center gap-1 rounded-md pr-1 text-[11px] font-medium leading-snug transition-colors duration-150 ease-out",
                   skin.option,
                   isActive && skin.active,
                   isSelected && skin.selected,
                 )}
               >
-                <span className="min-w-0 truncate">{option.label}</span>
-                {option.hint ? (
-                  <span
-                    className={cn(
-                      "ml-auto shrink-0 text-[10px] font-medium",
-                      tone === "light" ? "text-zinc-400" : "text-podium-muted",
-                    )}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => pick(option.value)}
+                  className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5 text-left"
+                >
+                  <span className="min-w-0 truncate">{option.label}</span>
+                  {option.hint ? (
+                    <span
+                      className={cn(
+                        "ml-auto shrink-0 text-[10px] font-medium",
+                        tone === "light" ? "text-zinc-400" : "text-podium-muted",
+                      )}
+                    >
+                      {option.hint}
+                    </span>
+                  ) : null}
+                </button>
+                {option.onRemove ? (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={option.removeLabel ?? "Excluir"}
+                    title={option.removeLabel ?? "Excluir"}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      option.onRemove?.();
+                    }}
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-podium-muted hover:bg-white/10 hover:text-podium-alert"
                   >
-                    {option.hint}
-                  </span>
+                    <X className="h-3 w-3" />
+                  </button>
                 ) : null}
-              </button>
+              </div>
             );
           })}
         </div>

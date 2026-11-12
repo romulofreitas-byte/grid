@@ -4,6 +4,7 @@ import { COPY } from "@/lib/copy";
 import type { GridRepo } from "@/lib/data/repo";
 import { displayCompanyName } from "@/lib/enrichment/company-name";
 import { formatPhone } from "@/lib/format";
+import { cnpjKey, phoneIsHidden } from "@/lib/hidden-phones";
 import type { Search, SearchFilters } from "@/lib/types";
 
 export function normalizePipelineNome(nome: string): string {
@@ -100,6 +101,7 @@ export type CrmBridgeRepo = Pick<
   | "getDossier"
   | "getPreset"
   | "listCompanyBriefs"
+  | "listHiddenPhones"
 >;
 
 export type BridgeQualifyResult = {
@@ -173,6 +175,7 @@ export async function bridgeQualifiedLeadsToCrm(
   let failed = 0;
 
   const briefs = await repo.listCompanyBriefs(input.cnpjs);
+  const hiddenByCnpj = await repo.listHiddenPhones(input.userId, input.cnpjs);
   const briefByCnpj = new Map(
     briefs.map((row) => [digitsCnpj(row.cnpj), row] as const),
   );
@@ -215,6 +218,9 @@ export async function bridgeQualifiedLeadsToCrm(
         .map((c) => formatPhone(c.ddd, c.telefone))
         .filter((p): p is string => Boolean(p));
     }
+
+    const hidden = hiddenByCnpj.get(cnpjKey(cnpj) ?? cnpj) ?? [];
+    phones = phones.filter((phone) => !phoneIsHidden(phone, hidden));
 
     const deal: CrmDealCard | null = await repo.createCrmDeal(input.userId, {
       pipelineId: pipeline.id,

@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
@@ -23,6 +24,8 @@ import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { GridPresenceIcons } from "@/components/GridPresenceIcons";
 import { CallButton } from "@/components/CallButton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { requestHidePhone } from "@/components/HidePhoneButton";
 import { Select } from "@/components/ui/Select";
 import { COPY } from "@/lib/copy";
 import { formatNichoCidade } from "@/lib/nicho-cidade";
@@ -38,6 +41,7 @@ import {
 } from "@/lib/crm/activity";
 import {
   buildCrmBriefing,
+  withoutHiddenBriefingPhones,
   CRM_CARD_PRESENCE_IDS,
   type CrmBriefing,
   type CrmPhoneSourceKind,
@@ -47,6 +51,7 @@ import {
   selectedCompanyPhone,
 } from "@/lib/crm/company-phone-options";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
+import { BOX_QUEUE_QUERY_KEY } from "@/lib/live-stats";
 import {
   crmDealAttachSurface,
 } from "@/lib/crm/company-attach";
@@ -373,6 +378,8 @@ export function CrmDealModal({
   );
   const [addingPhone, setAddingPhone] = useState(false);
   const [phoneDraft, setPhoneDraft] = useState("");
+  const [phoneToHide, setPhoneToHide] = useState<string | null>(null);
+  const [hidingPhone, setHidingPhone] = useState(false);
   const [briefing, setBriefing] = useState<CrmBriefing>(
     () => getCachedDealBriefing(deal.id) ?? buildCrmBriefing(deal, null),
   );
@@ -987,6 +994,44 @@ export function CrmDealModal({
     void persistPhones(next);
   }
 
+  async function hideListedPhone(phone: string) {
+    setHidingPhone(true);
+    setError(null);
+    try {
+      const result = await requestHidePhone({
+        phone,
+        cnpj: deal.cnpj,
+        dealId: deal.id,
+      });
+      const updated = result.deals.find((row) => row.id === deal.id);
+      if (updated) {
+        onChange(updated);
+        const nextPhones = updated.phones.length > 0 ? updated.phones : [""];
+        phonesRef.current = nextPhones;
+        setPhones(nextPhones);
+        const nextPeople = updated.people.length > 0 ? updated.people : [emptyPerson()];
+        peopleRef.current = nextPeople;
+        setPeople(nextPeople);
+        const nextSecretaries = secretariesFromDeal(updated);
+        secretariesRef.current = nextSecretaries;
+        setSecretaries(nextSecretaries);
+      }
+      const nextBriefing = withoutHiddenBriefingPhones(briefing, [phone]);
+      setBriefing(nextBriefing);
+      setCachedDealBriefing(deal.id, nextBriefing);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["lead"] }),
+        qc.invalidateQueries({ queryKey: ["grid"] }),
+        qc.invalidateQueries({ queryKey: BOX_QUEUE_QUERY_KEY }),
+      ]);
+      setPhoneToHide(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível excluir o telefone.");
+    } finally {
+      setHidingPhone(false);
+    }
+  }
+
   function beginAddPhone() {
     skipPhoneCommit.current = false;
     phoneCommitLock.current = false;
@@ -1589,6 +1634,8 @@ export function CrmDealModal({
                       value: row.phone,
                       label: formatPhoneDisplay(row.phone),
                       hint: row.hint,
+                      removeLabel: COPY.hidePhone,
+                      onRemove: () => setPhoneToHide(row.phone),
                     }))}
                   />
                 ) : (
@@ -1611,6 +1658,24 @@ export function CrmDealModal({
                 )}
               </div>
             </div>
+            {phoneToHide
+              ? createPortal(
+                  <ConfirmDialog
+                    open
+                    title={COPY.hidePhoneTitle}
+                    body={COPY.hidePhoneBody}
+                    confirmLabel={COPY.hidePhone}
+                    pendingLabel={COPY.hidePhonePending}
+                    pending={hidingPhone}
+                    onClose={() => {
+                      if (hidingPhone) return;
+                      setPhoneToHide(null);
+                    }}
+                    onConfirm={() => void hideListedPhone(phoneToHide)}
+                  />,
+                  document.body,
+                )
+              : null}
 
             <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
               <p className={CRM_LABEL}>{COPY.crmPeopleTitle}</p>

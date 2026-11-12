@@ -7,6 +7,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { BookmarkPlus, Check, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { CallButton } from "@/components/CallButton";
+import { HidePhoneButton } from "@/components/HidePhoneButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyValue } from "@/components/EmptyValue";
 import { GlassCard } from "@/components/GlassCard";
@@ -65,7 +66,7 @@ import { GRID_PRESENCE_GRID_IDS } from "@/lib/audit/grid-presence";
 import { formatEventWhen } from "@/lib/crm/events";
 import { qualifyCrmHint, type PublicCrmBridge } from "@/lib/crm/bridge";
 import { pickCallConnection } from "@/lib/integrations/call-target";
-import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import { useConnections } from "@/hooks/useConnections";
 import type { IntegrationJobRecord } from "@/lib/integrations/records";
 import {
   SHELL_CONTEXT_BOTTOM,
@@ -259,9 +260,12 @@ function GridContactCell({ row }: { row: GridRow }) {
   return (
     <div className="min-w-0">
       {phone ? (
-        <p className="font-medium tabular-nums" title={phoneTitle}>
-          {phone}
-        </p>
+        <div className="flex items-center gap-1">
+          <p className="min-w-0 font-medium tabular-nums" title={phoneTitle}>
+            {phone}
+          </p>
+          <HidePhoneButton phone={phone} cnpj={row.cnpj} />
+        </div>
       ) : (
         <EmptyValue />
       )}
@@ -545,17 +549,8 @@ export default function GridPage() {
     }
   }
 
-  const connectionsQuery = useQuery({
-    queryKey: ["integration-connections"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/connections");
-      if (!res.ok) return { connections: [] as IntegrationConnectionPublic[] };
-      return (await res.json()) as { connections: IntegrationConnectionPublic[] };
-    },
-  });
-  const callConnection = pickCallConnection(
-    connectionsQuery.data?.connections ?? [],
-  );
+  const connectionsQuery = useConnections();
+  const callConnection = pickCallConnection(connectionsQuery.data ?? []);
 
   const pushJobsQuery = useQuery({
     queryKey: ["integration-jobs", searchId],
@@ -775,7 +770,7 @@ export default function GridPage() {
   const selectedCost = selectedCount * ENRICH_CREDIT_COST;
   const exportCostHint = `${EXPORT_CREDIT_COST} créditos por empresa`;
   const extraBatchSizes = QUALIFY_BATCH_SIZES.filter((size) => size !== callGoal);
-  const destinations = (connectionsQuery.data?.connections ?? []).filter(
+  const destinations = (connectionsQuery.data ?? []).filter(
     (c) =>
       c.status === "active" &&
       (c.provider === "webhook" || c.provider === "3cplus"),

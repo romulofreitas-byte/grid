@@ -31,6 +31,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       createCrmDeal: vi.fn(),
       getDossier: vi.fn(),
       listCompanyBriefs: vi.fn(),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
       getPreset: vi.fn(),
     } satisfies CrmBridgeRepo;
 
@@ -97,6 +98,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
         contacts: [{ ddd: "31", telefone: "999990000" }],
       } as unknown as LeadDossier),
       listCompanyBriefs: vi.fn().mockResolvedValue([]),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
       getPreset: vi.fn().mockResolvedValue({
         id: "seg-1",
         nome: "Clínicas estética",
@@ -185,6 +187,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
           decisorNome: null,
         })),
       ),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
       getPreset: vi.fn().mockResolvedValue({
         id: "seg-1",
         nome: "Clínicas estética",
@@ -246,6 +249,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
           decisorNome: null,
         },
       ]),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
       getPreset: vi.fn().mockResolvedValue(null),
     };
 
@@ -283,6 +287,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       createCrmDeal: vi.fn(),
       getDossier: vi.fn().mockResolvedValue(null),
       listCompanyBriefs: vi.fn().mockResolvedValue([]),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
       getPreset: vi.fn().mockResolvedValue({
         id: "seg-1",
         nome: "Clínicas estética",

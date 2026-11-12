@@ -541,4 +541,12 @@ export type GridRepo = {
     taskId: string,
     result: CatchUpRunResult,
   ): Promise<void>;
+  listHiddenPhones(
+    userId: string,
+    cnpjs: string[],
+  ): Promise<Map<string, string[]>>;
+  hideCompanyPhone(
+    userId: string,
+    input: { phone: string; cnpj?: string | null; dealId?: string | null },
+  ): Promise<{ deals: CrmDealCard[] }>;
 };

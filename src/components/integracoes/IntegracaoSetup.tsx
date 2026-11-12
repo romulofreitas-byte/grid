@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useConnections } from "@/hooks/useConnections";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
@@ -226,16 +227,7 @@ export function IntegracaoSetup({
   const dialer = kind === "dialer" ? dialerSetup(selected.id) : null;
   const live = catalogAvailability(selected) === "live";
 
-  const list = useQuery({
-    queryKey: ["integration-connections"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/connections");
-      if (!res.ok) throw new Error("Não foi possível carregar");
-      return (await res.json()) as {
-        connections: IntegrationConnectionPublic[];
-      };
-    },
-  });
+  const list = useConnections();
 
   const jobs = useQuery({
     queryKey: ["integration-jobs"],
@@ -345,7 +337,7 @@ export function IntegracaoSetup({
       qc.invalidateQueries({ queryKey: ["integration-connections"] }),
   });
 
-  const connections = (list.data?.connections ?? []).filter((c) => c.kind === kind);
+  const connections = (list.data ?? []).filter((c) => c.kind === kind);
   const sortedConnections = useMemo(
     () =>
       [...connections].sort((a, b) => {

@@ -8,6 +8,7 @@ import { AppShell } from "@/components/AppShell";
 import { AnatomyCard } from "@/components/AnatomyCard";
 import { SociosPanel } from "@/components/ApproachDoors";
 import { CallButton } from "@/components/CallButton";
+import { HidePhoneButton } from "@/components/HidePhoneButton";
 import { ContactSealBadge } from "@/components/ContactSeal";
 import {
   LeadFichaAuditBoard,
@@ -40,7 +41,7 @@ import type {
 import { fichaCrmPrompt } from "@/lib/crm/ficha-prompt";
 import { asCompanySearchHit } from "@/lib/empresas/context";
 import { pickCallConnection } from "@/lib/integrations/call-target";
-import type { IntegrationConnectionPublic } from "@/lib/integrations/records";
+import { useConnections } from "@/hooks/useConnections";
 import { displayCompanyName, leadMapsHref } from "@/lib/enrichment/company-name";
 import type { PresenceCorrection } from "@/lib/enrichment/correct-presence";
 import { enrichmentStage } from "@/lib/enrichment/fresh";
@@ -223,14 +224,7 @@ export default function LeadPage() {
     }
   }, [dossierQuery.data?.status, qc]);
 
-  const connectionsQuery = useQuery({
-    queryKey: ["integration-connections"],
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/connections");
-      if (!res.ok) return { connections: [] as IntegrationConnectionPublic[] };
-      return (await res.json()) as { connections: IntegrationConnectionPublic[] };
-    },
-  });
+  const connectionsQuery = useConnections();
 
   const statsQuery = useQuery({
     queryKey: ["pilot-stats"],
@@ -591,9 +585,7 @@ export default function LeadPage() {
   const years = yearsSince(d.decisor?.dataEntrada ?? null);
   const primary = pickPrimary(d.contacts);
   const others = d.contacts.filter((c) => c !== primary);
-  const callConnection = pickCallConnection(
-    connectionsQuery.data?.connections ?? [],
-  );
+  const callConnection = pickCallConnection(connectionsQuery.data ?? []);
   const companyTitle = displayCompanyName(est.nome_fantasia, company.razao_social);
   const mapsUrl = leadMapsHref(
     {
@@ -798,9 +790,15 @@ export default function LeadPage() {
                         "Telefone"
                       )}
                     </p>
-                    <p className="mt-0.5 text-sm font-medium">
-                      {formatPhone(primary.ddd, primary.telefone)}
-                    </p>
+                    <div className="mt-0.5 flex items-center gap-1">
+                      <p className="text-sm font-medium">
+                        {formatPhone(primary.ddd, primary.telefone)}
+                      </p>
+                      <HidePhoneButton
+                        phone={`${primary.ddd ?? ""}${primary.telefone ?? ""}`}
+                        cnpj={params.cnpj}
+                      />
+                    </div>
                     <ContactSealBadge
                       seal={primary.seal}
                       label={primary.label}
@@ -901,9 +899,15 @@ export default function LeadPage() {
                     className="flex items-center justify-between gap-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-medium">
-                        {formatPhone(c.ddd, c.telefone)}
-                      </p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-medium">
+                          {formatPhone(c.ddd, c.telefone)}
+                        </p>
+                        <HidePhoneButton
+                          phone={`${c.ddd ?? ""}${c.telefone ?? ""}`}
+                          cnpj={params.cnpj}
+                        />
+                      </div>
                       <ContactSealBadge
                         seal={c.seal}
                         label={c.label}

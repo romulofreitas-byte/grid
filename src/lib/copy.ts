@@ -563,6 +563,11 @@ export const COPY = {
   crmSearchDealsError: "Não foi possível buscar.",
   crmPhonesLabel: "Telefones",
   crmAddPhone: "Adicionar telefone",
+  hidePhone: "Excluir telefone",
+  hidePhoneTitle: "Excluir este telefone?",
+  hidePhoneBody:
+    "Ele sai da ficha, da lista e do CRM. O cadastro da Receita não muda.",
+  hidePhonePending: "Excluindo…",
   crmNextAction: "Próxima ação",
   crmNewPipeline: "Novo nicho",
   crmNewPipelineName: "Nome do nicho",
@@ -787,6 +792,7 @@ export const COPY = {
   callHangupTitle: "Encerrar a ligação",
   callConfirmHint: "Conta na meta e registra no CRM.",
   callDialHint: "Confirme para abrir o telefone e contar na meta.",
+  callConnectionsPending: "Carregando a telefonia…",
   gridCalledToday: "Ligou",
   conexoesStandbyBanner:
     "A ligação pela internet ainda não está nesta versão. Por agora, o botão Ligar abre o telefone do\u00a0aparelho.",

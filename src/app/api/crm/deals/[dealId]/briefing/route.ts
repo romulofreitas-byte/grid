@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError } from "@/app/api/crm/_http";
-import { loadCrmBriefing } from "@/lib/crm/briefing";
+import { loadCrmBriefing, withoutHiddenBriefingPhones } from "@/lib/crm/briefing";
 import { getRepo } from "@/lib/data";
+import { cnpjKey } from "@/lib/hidden-phones";
 
 export async function GET(
   req: Request,
@@ -17,5 +18,11 @@ export async function GET(
   const briefing = await loadCrmBriefing(deal, (cnpj) =>
     repo.getCrmBriefingLookup(cnpj),
   );
-  return NextResponse.json({ briefing });
+  const company = cnpjKey(deal.cnpj);
+  const hidden = company
+    ? ((await repo.listHiddenPhones(gated.userId, [company])).get(company) ?? [])
+    : [];
+  return NextResponse.json({
+    briefing: withoutHiddenBriefingPhones(briefing, hidden),
+  });
 }

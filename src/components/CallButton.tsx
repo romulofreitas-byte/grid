@@ -11,8 +11,11 @@ import { COPY } from "@/lib/copy";
 import { resolveCatalogItem } from "@/lib/integrations/catalog";
 import {
   canPlaceVoipCall,
+  pickCallConnection,
+  shouldUseDeviceDialer,
   type CallConnectionPick,
 } from "@/lib/integrations/call-target";
+import { useConnections } from "@/hooks/useConnections";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
@@ -81,13 +84,24 @@ export function CallButton({
   onConfirmOpenChange?: (open: boolean) => void;
 }) {
   const qc = useQueryClient();
+  const connectionsQuery = useConnections();
   const [open, setOpen] = useState(false);
   const [liveCall, setLiveCall] = useState<{
     connectionId: string;
     externalId: string;
   } | null>(null);
   const dialCnpj = usableCnpj(cnpj);
-  const originate = canPlaceVoipCall(connection, { cnpj: dialCnpj, to });
+  const liveConnection =
+    connection ?? pickCallConnection(connectionsQuery.data ?? []);
+  const connectionsPending =
+    !liveConnection && connectionsQuery.isPending;
+  const originate = canPlaceVoipCall(liveConnection, { cnpj: dialCnpj, to });
+  const dialOnDevice = shouldUseDeviceDialer({
+    connection: liveConnection,
+    connectionsPending,
+    cnpj: dialCnpj,
+    to,
+  });
 
   function setConfirmOpen(next: boolean) {
     setOpen(next);
@@ -143,12 +157,15 @@ export function CallButton({
 
   const callMutation = useMutation({
     mutationFn: async () => {
-      if (originate && connection) {
+      if (connectionsPending) {
+        throw new Error(COPY.callConnectionsPending);
+      }
+      if (originate && liveConnection) {
         const res = await fetch("/api/integrations/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            connectionId: connection.id,
+            connectionId: liveConnection.id,
             cnpj: dialCnpj ?? undefined,
             searchId: searchId ?? null,
             to,
@@ -167,16 +184,21 @@ export function CallButton({
           externalId,
         };
       }
-      if (!telHref) throw new Error("Sem telefone");
-      window.location.href = telHref;
-      if (skipRecord || !dialCnpj) return { hangup: false as const, externalId: undefined };
-      await recordManualCall({ cnpj: dialCnpj, searchId });
-      return { hangup: false as const, externalId: undefined };
+      if (dialOnDevice && telHref) {
+        window.location.href = telHref;
+        if (skipRecord || !dialCnpj) return { hangup: false as const, externalId: undefined };
+        await recordManualCall({ cnpj: dialCnpj, searchId });
+        return { hangup: false as const, externalId: undefined };
+      }
+      throw new Error(originate ? "Não foi possível ligar" : "Sem telefone");
     },
     onSuccess: (result) => {
       setConfirmOpen(false);
-      if (result.hangup && result.externalId && connection) {
-        setLiveCall({ connectionId: connection.id, externalId: result.externalId });
+      if (result.hangup && result.externalId && liveConnection) {
+        setLiveCall({
+          connectionId: liveConnection.id,
+          externalId: result.externalId,
+        });
       }
       onCalled?.(result.externalId);
       if (originate || !skipRecord) invalidateAfterCall();
@@ -198,15 +220,15 @@ export function CallButton({
   });
 
   const canTel = Boolean(telHref);
-  if (!originate && !canTel) return null;
+  if (!connectionsPending && !originate && !canTel) return null;
 
   const live = Boolean(liveCall);
   const idleLabel = live ? COPY.callHangup : (label ?? "Ligar");
   const hideLabel = iconOnly || variant === "card";
   const showCatalog =
-    originate && connection && !hideLabel && !live && variant !== "crm" && variant !== "inline";
+    originate && liveConnection && !hideLabel && !live && variant !== "crm" && variant !== "inline";
   const catalogItem = showCatalog
-    ? resolveCatalogItem(connection!.catalog_id, connection!.display_name)
+    ? resolveCatalogItem(liveConnection.catalog_id, liveConnection.display_name)
     : undefined;
   const pending = live ? hangupMutation.isPending : callMutation.isPending;
   const actionError = live ? hangupMutation.error : callMutation.error;
@@ -242,9 +264,11 @@ export function CallButton({
     ? actionError.message
     : live
       ? COPY.callHangupTitle
-      : originate
-        ? COPY.callVoipHint
-        : titleHint ?? COPY.callAskTitle;
+      : connectionsPending
+        ? COPY.callConnectionsPending
+        : originate
+          ? COPY.callVoipHint
+          : (titleHint ?? COPY.callAskTitle);
 
   return (
     <>
@@ -256,7 +280,7 @@ export function CallButton({
       >
         <button
           type="button"
-          disabled={pending || disabled}
+          disabled={pending || disabled || connectionsPending}
           onClick={() => {
             if (live) {
               hangupMutation.mutate();

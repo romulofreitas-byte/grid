@@ -19,6 +19,20 @@ function canPlaceCall(provider: IntegrationProvider): boolean {
   );
 }
 
+/** Device dialer only when no callable connection is known yet. */
+export function shouldUseDeviceDialer(input: {
+  connection: CallConnectionPick | null | undefined;
+  connectionsPending?: boolean;
+  cnpj?: string | null;
+  to?: string | null;
+}): boolean {
+  if (input.connectionsPending) return false;
+  if (canPlaceVoipCall(input.connection, { cnpj: input.cnpj, to: input.to })) {
+    return false;
+  }
+  return true;
+}
+
 /** VoIP click-to-call: CNPJ or a destination number is enough. */
 export function canPlaceVoipCall(
   connection: CallConnectionPick | null | undefined,

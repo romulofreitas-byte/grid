@@ -10,6 +10,13 @@ import { yearsSince } from "@/lib/format";
 import { getMockStore, type MockStore } from "@/lib/data/mock-store";
 import { gridPresenceFromEnrichment } from "@/lib/audit/grid-presence";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
+import {
+  cnpjKey,
+  HidePhoneError,
+  phoneHideKey,
+  phoneIsHidden,
+  stripPhoneFromDealFields,
+} from "@/lib/hidden-phones";
 import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { buildGoldenMinute } from "@/lib/golden-minute";
@@ -1440,7 +1447,21 @@ export const mockRepo: GridRepo = {
         est.ddd2,
         est.telefone2,
       );
-      const primary = contacts[0];
+      const hiddenKeys = (store.user_hidden_phones ?? [])
+        .filter(
+          (row) =>
+            row.user_id === search.user_id &&
+            cnpjKey(row.cnpj) === cnpjKey(lead.cnpj),
+        )
+        .map((row) => row.phone_digits);
+      const visibleContacts = contacts.filter((contact) => {
+        const raw =
+          contact.ddd && contact.telefone
+            ? `${contact.ddd}${contact.telefone}`
+            : contact.telefone;
+        return !phoneIsHidden(raw, hiddenKeys);
+      });
+      const primary = visibleContacts[0] ?? null;
       const partners = idx.partnersByBasico.get(est.cnpj_basico) ?? [];
       const decisor = resolveDecisor(partners, store.ref_qualificacao, {
         razaoSocial: company.razao_social,
@@ -1465,6 +1486,14 @@ export const mockRepo: GridRepo = {
           sharedVerdict: primary?.sharedVerdict,
         },
         completeAudit ? enrichment : null,
+        {
+          keys: hiddenKeys,
+          extras: contacts.map((contact) =>
+            contact.ddd && contact.telefone
+              ? `${contact.ddd}${contact.telefone}`
+              : null,
+          ),
+        },
       );
 
       return {
@@ -1995,6 +2024,80 @@ export const mockRepo: GridRepo = {
       }
     }
     return null;
+  },
+
+  async listHiddenPhones(userId, cnpjs) {
+    const wanted = new Set(
+      cnpjs.map((cnpj) => cnpjKey(cnpj)).filter((cnpj): cnpj is string => Boolean(cnpj)),
+    );
+    const map = new Map<string, string[]>();
+    if (!wanted.size) return map;
+    for (const row of getMockStore().user_hidden_phones ?? []) {
+      if (row.user_id !== userId) continue;
+      const cnpj = cnpjKey(row.cnpj);
+      if (!cnpj || !wanted.has(cnpj)) continue;
+      const list = map.get(cnpj) ?? [];
+      list.push(row.phone_digits);
+      map.set(cnpj, list);
+    }
+    return map;
+  },
+
+  async hideCompanyPhone(userId, input) {
+    const phoneKey = phoneHideKey(input.phone);
+    if (!phoneKey) throw new HidePhoneError("Telefone inválido");
+    const store = getMockStore();
+    store.user_hidden_phones ??= [];
+    let cnpj = cnpjKey(input.cnpj);
+    let ids: string[] = [];
+    if (input.dealId) {
+      const deal = await crmMockMethods.getCrmDeal(userId, input.dealId);
+      if (!deal) throw new HidePhoneError("Negócio não encontrado", 404);
+      cnpj = cnpjKey(deal.cnpj) ?? cnpj;
+      if (!cnpj) ids = [deal.id];
+    }
+    if (cnpj) {
+      const exists = store.user_hidden_phones.some(
+        (row) =>
+          row.user_id === userId &&
+          cnpjKey(row.cnpj) === cnpj &&
+          row.phone_digits === phoneKey,
+      );
+      if (!exists) {
+        store.user_hidden_phones.push({
+          user_id: userId,
+          cnpj,
+          phone_digits: phoneKey,
+          created_at: new Date().toISOString(),
+        });
+      }
+      const owned = new Set(
+        store.crm_pipelines
+          .filter((pipeline) => pipeline.user_id === userId)
+          .map((pipeline) => pipeline.id),
+      );
+      ids = store.crm_deals
+        .filter(
+          (deal) => owned.has(deal.pipeline_id) && cnpjKey(deal.cnpj) === cnpj,
+        )
+        .map((deal) => deal.id);
+    }
+    if (!cnpj && ids.length === 0) {
+      throw new HidePhoneError("Informe a empresa ou o negócio.");
+    }
+    const deals = [];
+    for (const id of ids) {
+      const current = await crmMockMethods.getCrmDeal(userId, id);
+      if (!current) continue;
+      const next = stripPhoneFromDealFields(current, input.phone);
+      const updated = await crmMockMethods.updateCrmDeal(userId, id, {
+        phones: next.phones,
+        people: next.people,
+        secretaries: next.secretaries,
+      });
+      if (updated) deals.push(updated);
+    }
+    return { deals };
   },
 
   ...crmMockMethods,

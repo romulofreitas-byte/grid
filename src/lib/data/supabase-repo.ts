@@ -99,6 +99,12 @@ import {
 import { gridPresenceFromEnrichment } from "@/lib/audit/grid-presence";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "@/lib/grid-phone";
 import {
+  cnpjKey,
+  HidePhoneError,
+  phoneHideKey,
+  stripPhoneFromDealFields,
+} from "@/lib/hidden-phones";
+import {
   gridRowFromSnapshot,
   gridRowStub,
   parseGridSnapshot,
@@ -1910,6 +1916,64 @@ async function countUnaudited(searchId: string, userId: string, fallback: number
   }
 }
 
+async function hiddenPhonesFor(
+  userId: string,
+  cnpjs: string[],
+): Promise<Map<string, string[]>> {
+  const keys = [
+    ...new Set(
+      cnpjs.map((cnpj) => cnpjKey(cnpj)).filter((cnpj): cnpj is string => Boolean(cnpj)),
+    ),
+  ];
+  const map = new Map<string, string[]>();
+  if (!keys.length) return map;
+  try {
+    const { rows } = await query<{ cnpj: string; phone_digits: string }>(
+      `select cnpj, phone_digits
+         from user_hidden_phones
+        where user_id = $1 and cnpj = any($2::char(14)[])`,
+      [userId, keys],
+    );
+    for (const row of rows) {
+      const cnpj = cnpjKey(String(row.cnpj));
+      if (!cnpj) continue;
+      const list = map.get(cnpj) ?? [];
+      list.push(String(row.phone_digits));
+      map.set(cnpj, list);
+    }
+  } catch (err) {
+    if (!isUndefinedTableError(err)) throw err;
+  }
+  return map;
+}
+
+async function receitaPhonesFor(cnpjs: string[]): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>();
+  if (!cnpjs.length) return map;
+  const { rows } = await query<{
+    cnpj: string;
+    ddd1: string | null;
+    telefone1: string | null;
+    ddd2: string | null;
+    telefone2: string | null;
+  }>(
+    `select cnpj, ddd1, telefone1, ddd2, telefone2
+       from establishments
+      where cnpj = any($1::char(14)[])`,
+    [cnpjs],
+  );
+  for (const row of rows) {
+    const cnpj = cnpjKey(String(row.cnpj));
+    if (!cnpj) continue;
+    const phones = [
+      row.ddd1 && row.telefone1 ? `${row.ddd1}${row.telefone1}` : null,
+      row.ddd2 && row.telefone2 ? `${row.ddd2}${row.telefone2}` : null,
+    ].filter((phone): phone is string => Boolean(phone));
+    map.set(cnpj, phones);
+  }
+  return map;
+}
+
 async function overlayGridRows(
   searchId: string,
   userId: string,
@@ -1917,6 +1981,10 @@ async function overlayGridRows(
 ): Promise<{ rows: GridRow[]; discoveryRetryCnpjs: string[] }> {
   if (!rows.length) return { rows, discoveryRetryCnpjs: [] };
   const paddedCnpjs = cnpjChar14Params(rows.map((r) => r.cnpj));
+  const hiddenByCnpj = await hiddenPhonesFor(userId, paddedCnpjs);
+  const receitaPhones = [...hiddenByCnpj.values()].some((list) => list.length)
+    ? await receitaPhonesFor(paddedCnpjs).catch(() => new Map<string, string[]>())
+    : new Map<string, string[]>();
   const [jobRes, auditRes, billedRes] = await allQueries([
     () =>
       query(
@@ -1954,6 +2022,7 @@ async function overlayGridRows(
     if (hasAudit && needsDiscoveryRetry(enrichment ?? null)) {
       discoveryRetryCnpjs.push(row.cnpj);
     }
+    const companyKey = cnpjKey(row.cnpj) ?? "";
     const phone = overlayGridPhone(
       {
         telefone: row.telefone,
@@ -1962,6 +2031,10 @@ async function overlayGridRows(
         sharedVerdict: row.sharedVerdict,
       },
       enrichment,
+      {
+        keys: hiddenByCnpj.get(companyKey) ?? [],
+        extras: receitaPhones.get(companyKey) ?? [],
+      },
     );
     return {
       ...row,
@@ -4670,6 +4743,63 @@ export const supabaseRepo: GridRepo = {
       }
     }
     return null;
+  },
+
+  async listHiddenPhones(userId, cnpjs) {
+    return hiddenPhonesFor(userId, cnpjs);
+  },
+
+  async hideCompanyPhone(userId, input) {
+    const phoneKey = phoneHideKey(input.phone);
+    if (!phoneKey) throw new HidePhoneError("Telefone inválido");
+    let cnpj = cnpjKey(input.cnpj);
+    let ids: string[] = [];
+    if (input.dealId) {
+      const deal = await crmPgMethods.getCrmDeal(userId, input.dealId);
+      if (!deal) throw new HidePhoneError("Negócio não encontrado", 404);
+      cnpj = cnpjKey(deal.cnpj) ?? cnpj;
+      if (!cnpj) ids = [deal.id];
+    }
+    if (cnpj) {
+      try {
+        await query(
+          `insert into user_hidden_phones (user_id, cnpj, phone_digits)
+           values ($1, $2, $3)
+           on conflict (user_id, cnpj, phone_digits) do nothing`,
+          [userId, cnpj, phoneKey],
+        );
+      } catch (err) {
+        if (isUndefinedTableError(err)) {
+          throw new HidePhoneError("Não foi possível guardar a exclusão.", 503);
+        }
+        throw err;
+      }
+      const { rows } = await query<{ id: string }>(
+        `select d.id
+           from crm_deals d
+           join crm_pipelines p on p.id = d.pipeline_id
+          where p.user_id = $1
+            and regexp_replace(coalesce(d.cnpj, ''), '\\D', '', 'g') = $2`,
+        [userId, cnpj],
+      );
+      ids = rows.map((row) => String(row.id));
+    }
+    if (!cnpj && ids.length === 0) {
+      throw new HidePhoneError("Informe a empresa ou o negócio.");
+    }
+    const deals = [];
+    for (const id of ids) {
+      const current = await crmPgMethods.getCrmDeal(userId, id);
+      if (!current) continue;
+      const next = stripPhoneFromDealFields(current, input.phone);
+      const updated = await crmPgMethods.updateCrmDeal(userId, id, {
+        phones: next.phones,
+        people: next.people,
+        secretaries: next.secretaries,
+      });
+      if (updated) deals.push(updated);
+    }
+    return { deals };
   },
 
   ...crmPgMethods,

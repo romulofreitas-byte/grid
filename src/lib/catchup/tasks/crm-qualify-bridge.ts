@@ -15,6 +15,7 @@ export type QualifyBridgeRepo = Pick<
   | "getDossier"
   | "getPreset"
   | "listCompanyBriefs"
+  | "listHiddenPhones"
 >;
 
 export async function runCrmQualifyBridge(

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { phoneHideKey } from "./hidden-phones";
 import { contactsFromEnrichmentPhones, overlayGridPhone } from "./grid-phone";
 import type { LeadEnrichment, PhoneEvidence } from "./types";
 
@@ -106,6 +107,43 @@ describe("overlayGridPhone", () => {
     expect(next.telefone).toBe("31988887777");
     expect(next.seal).toBe("ATUALIZADO");
     expect(next.sharedCount).toBe(1);
+  });
+
+  it("skips a hidden audit number and keeps the Receita line", () => {
+    const row = {
+      telefone: "3133334444",
+      seal: "COMPARTILHADO" as const,
+      sharedCount: 4,
+      sharedVerdict: "proprio" as const,
+    };
+    const next = overlayGridPhone(
+      row,
+      enrichment([
+        phone({
+          e164: "+5531988887777",
+          tipo: "movel",
+          sources: ["site_tel"],
+          seal: "ATUALIZADO",
+          sharedCount: 1,
+        }),
+      ]),
+      [phoneHideKey("31988887777")!],
+    );
+    expect(next.telefone).toBe("3133334444");
+  });
+
+  it("promotes the next Receita number when the shown line is hidden", () => {
+    const row = {
+      telefone: "3133334444",
+      seal: "NAO_CONFIRMADO" as const,
+      sharedCount: 1,
+      sharedVerdict: "proprio" as const,
+    };
+    const next = overlayGridPhone(row, null, {
+      keys: [phoneHideKey("3133334444")!],
+      extras: ["31988887777"],
+    });
+    expect(next.telefone).toBe("31988887777");
   });
 });
 

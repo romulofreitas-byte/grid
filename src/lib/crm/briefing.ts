@@ -5,6 +5,7 @@ import { mapsListingHref } from "@/lib/enrichment/company-name";
 import { companySiteHref } from "@/lib/enrichment/company-site";
 import type { CrmDeal } from "@/lib/crm/types";
 import { formatPhone } from "@/lib/format";
+import { phoneIsHidden } from "@/lib/hidden-phones";
 import { phonesMatch } from "@/lib/phone";
 import {
   gmbListingStatus,
@@ -436,6 +437,27 @@ function isBriefingLookup(
   value: LeadDossier | CrmBriefingLookup,
 ): value is CrmBriefingLookup {
   return "extraPhones" in value && "presence" in value;
+}
+
+export function withoutHiddenBriefingPhones(
+  briefing: CrmBriefing,
+  hidden: readonly string[],
+): CrmBriefing {
+  if (!hidden.length) return briefing;
+  const phoneSources = briefing.phoneSources.filter(
+    (row) => !phoneIsHidden(row.phone, hidden),
+  );
+  const phones = uniquePhones(
+    [...phoneSources.map((row) => row.phone), ...briefing.phones].filter(
+      (phone) => !phoneIsHidden(phone, hidden),
+    ),
+  );
+  return {
+    ...briefing,
+    phoneSources,
+    phones,
+    phone: phones[0] ?? null,
+  };
 }
 
 export async function loadCrmBriefing(
