@@ -37,6 +37,7 @@ import {
   companyNameTokens,
   escapeIlike,
   isCompanyCnpjQuery,
+  isFullCnpjQuery,
   mergeCompanyNameWaves,
   sqlFoldAccent,
 } from "@/lib/data/company-search";
@@ -2358,21 +2359,39 @@ async function searchCompaniesByCnpj(
 ): Promise<CompanySearchHit[]> {
   const digits = queryText.replace(/\D/g, "");
   const padded = digits.padStart(14, "0");
-  const basico = digits.slice(0, 8);
-  const params: unknown[] = [padded, `${digits}%`, basico];
-  const extra = companySearchExtraSql(params, ufs, soMatriz);
+  const params: unknown[] = [];
+  const branches: string[] = [];
+
+  // Equality and root lookup stay in separate branches. OR-ing them with
+  // `cnpj LIKE` makes Postgres seq-scan ~13M rows (~30s) and the request
+  // times out — the UI then says the CNPJ is missing.
+  params.push(padded);
+  const exact = `e.cnpj = $${params.length}::char(14)`;
+  const exactExtra = companySearchExtraSql(params, ufs, soMatriz);
+  branches.push(
+    `select e.cnpj from establishments e where ${exact}${exactExtra}`,
+  );
+
+  if (digits.length < 14) {
+    params.push(digits.slice(0, 8));
+    const root = `e.cnpj_basico = $${params.length}::char(8)`;
+    params.push(`${digits}%`);
+    const like = `e.cnpj::text like $${params.length}`;
+    const rootExtra = companySearchExtraSql(params, ufs, soMatriz);
+    branches.push(
+      `select e.cnpj from establishments e where ${root} and ${like}${rootExtra}`,
+    );
+  }
+
   params.push(limit);
+  const limitRef = `$${params.length}`;
   const { rows } = await querySearch<CompanyHitRow>(
     `with hits as (
-       select e.cnpj
-       from establishments e
-       where (e.cnpj = $1 or e.cnpj like $2 or e.cnpj_basico = $3)
-       ${extra}
-       limit $${params.length}
+       ${branches.map((sql) => `(${sql} limit ${limitRef})`).join("\n       union\n       ")}
      )
      ${COMPANY_HIT_SELECT}
      order by e.is_matriz desc
-     limit $${params.length}`,
+     limit ${limitRef}`,
     params,
   );
   return rows.map(mapCompanySearchHit);
@@ -2927,6 +2946,7 @@ export const supabaseRepo: GridRepo = {
     } catch (err) {
       if (isStatementTimeoutError(err)) {
         logSearchDuration("searchCompanies", started, { n: 0, timeout: true });
+        if (isFullCnpjQuery(queryText)) throw err;
         return [];
       }
       throw err;
