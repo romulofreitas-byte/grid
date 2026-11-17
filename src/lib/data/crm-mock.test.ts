@@ -341,6 +341,43 @@ describe("crm mock board", () => {
     expect(done?.event?.kind).toBe("whatsapp");
   });
 
+  it("drops one history row and keeps the other note on the deal", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Histórico duplicado",
+    });
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", dueAt);
+    const first = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Vitor atendeu.",
+    });
+    const second = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Registro repetido.",
+    });
+    const removed = await mockRepo.deleteCrmEvent(
+      USER,
+      created!.id,
+      second!.event.id,
+    );
+    expect(removed?.event.body).toBe("Registro repetido.");
+    expect(removed?.deal.notes).toBe("Vitor atendeu.");
+    expect(removed?.deal.open_activities).toHaveLength(1);
+    const left = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(left?.map((row) => row.id)).toEqual([first!.event.id]);
+    expect(
+      await mockRepo.deleteCrmEvent(USER, created!.id, second!.event.id),
+    ).toBeNull();
+    expect(
+      await mockRepo.deleteCrmEvent("outra-pessoa", created!.id, first!.event.id),
+    ).toBeNull();
+    expect((await mockRepo.listCrmEvents(USER, created!.id))?.map((row) => row.id)).toEqual([
+      first!.event.id,
+    ]);
+  });
+
   it("keeps note images on the event without scheduling an action", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const created = await mockRepo.createCrmDeal(USER, {

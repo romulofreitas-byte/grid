@@ -952,6 +952,32 @@ export const crmMockMethods = {
     return toCard(store, deal);
   },
 
+  async deleteCrmEvent(
+    userId: string,
+    dealId: string,
+    eventId: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+    const store = getMockStore();
+    const deal = ownDeal(store, userId, dealId);
+    if (!deal) return null;
+    const index = store.crm_events.findIndex(
+      (row) => row.id === eventId && row.deal_id === dealId,
+    );
+    if (index < 0) return null;
+    const [event] = store.crm_events.splice(index, 1);
+    if (!event) return null;
+    const latest = store.crm_events
+      .map((row, order) => ({ row, order }))
+      .filter(({ row }) => row.deal_id === dealId && row.body.trim())
+      .sort((a, b) => {
+        const byTime = b.row.created_at.localeCompare(a.row.created_at);
+        return byTime !== 0 ? byTime : b.order - a.order;
+      })[0];
+    deal.notes = latest?.row.body ?? "";
+    deal.updated_at = nowIso();
+    return { deal: toCard(store, deal), event };
+  },
+
   async deleteCrmActivity(
     userId: string,
     dealId: string,

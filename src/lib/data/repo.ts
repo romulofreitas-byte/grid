@@ -432,6 +432,12 @@ export type GridRepo = {
     dealId: string,
     activityId: string,
   ): Promise<CrmDealCard | null>;
+  /** Drops one history row. Does not change the open actions. */
+  deleteCrmEvent(
+    userId: string,
+    dealId: string,
+    eventId: string,
+  ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
   logCrmCall(
     userId: string,
     dealId: string,

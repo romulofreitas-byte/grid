@@ -512,6 +512,7 @@ export const COPY = {
   crmDeleteAction: "Excluir",
   crmDeleteActionConfirm:
     "Excluir esta ação? Ela sai da lista e não entra no histórico.",
+  crmDeleteHistoryConfirm: "Excluir este registro? Ele sai do histórico.",
   crmAttachImage: "Anexar imagem",
   crmRemoveImage: "Tirar imagem",
   crmNoteImage: "Imagem da anotação",

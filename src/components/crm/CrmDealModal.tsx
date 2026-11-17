@@ -414,6 +414,9 @@ export function CrmDealModal({
   );
   const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<string | null>(
+    null,
+  );
   const [composerImages, setComposerImages] = useState<PendingNoteImage[]>([]);
   const [historyImages, setHistoryImages] = useState<
     Record<string, CrmEventImage[]>
@@ -984,6 +987,32 @@ export function CrmDealModal({
       setExpandedActionId((current) =>
         current === activityId ? null : current,
       );
+      void invalidateLiveStats(qc);
+      void qc.invalidateQueries({ queryKey: BOX_QUEUE_QUERY_KEY });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não excluiu.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteHistory(eventId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await crmFetch<{ deal: CrmDealCard }>(
+        `/api/crm/deals/${deal.id}/events/${eventId}`,
+        { method: "DELETE" },
+      );
+      onChange(res.deal);
+      historyGen.current += 1;
+      setEvents((current) => {
+        const next = current.filter((row) => row.id !== eventId);
+        setCachedDealEvents(deal.id, next);
+        return next;
+      });
+      setConfirmDeleteEventId(null);
+      setExpandedEventId((current) => (current === eventId ? null : current));
       void invalidateLiveStats(qc);
       void qc.invalidateQueries({ queryKey: BOX_QUEUE_QUERY_KEY });
     } catch (err) {
@@ -1686,9 +1715,10 @@ export function CrmDealModal({
                         key={event.id}
                         className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2"
                       >
+                        <div className="flex items-start gap-2">
                         <button
                           type="button"
-                          className="flex w-full items-start gap-2 text-left"
+                          className="flex min-w-0 flex-1 items-start gap-2 text-left"
                           onClick={() => {
                             const opening = !expanded;
                             setExpandedEventId(opening ? event.id : null);
@@ -1723,6 +1753,17 @@ export function CrmDealModal({
                             {formatEventWhen(event.created_at)}
                           </span>
                         </button>
+                        {confirmDeleteEventId === event.id ? null : (
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => setConfirmDeleteEventId(event.id)}
+                            className="shrink-0 text-[10px] text-podium-muted hover:text-red-300 disabled:opacity-50"
+                          >
+                            {COPY.crmDeleteAction}
+                          </button>
+                        )}
+                        </div>
                         {!expanded && event.meta.images?.length ? (
                           <CrmNoteImageStrip
                             images={event.meta.images.map((image) => ({
@@ -1803,6 +1844,29 @@ export function CrmDealModal({
                             src={event.meta.record_url}
                             aria-label={CRM_CALL_RECORDING_LABEL}
                           />
+                        ) : null}
+                        {confirmDeleteEventId === event.id ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <p className="min-w-0 flex-1 text-[10px] text-podium-gray">
+                              {COPY.crmDeleteHistoryConfirm}
+                            </p>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => void deleteHistory(event.id)}
+                              className="rounded-md border border-red-500/40 px-2 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                            >
+                              {COPY.crmDeleteAction}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => setConfirmDeleteEventId(null)}
+                              className="text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50"
+                            >
+                              {COPY.confirmCancel}
+                            </button>
+                          </div>
                         ) : null}
                       </article>
                     );

@@ -244,6 +244,7 @@ describe("COPY crm", () => {
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
     expect(COPY.crmDeleteAction).toBe("Excluir");
     expect(COPY.crmDeleteActionConfirm).toMatch(/não entra no histórico/i);
+    expect(COPY.crmDeleteHistoryConfirm).toMatch(/sai do histórico/i);
     expect(COPY.crmAttachImage).toMatch(/imagem/i);
     expect(COPY.crmImageLimit).toMatch(/3/);
     expect(COPY.crmImageTooBig).toMatch(/4 MB/);
