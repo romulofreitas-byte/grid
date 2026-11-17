@@ -1,9 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { parseNoteImageDataUrl } from "@/lib/crm/note-image-parse";
 import {
+  NOTE_IMAGE_MAX_BYTES,
   extForNoteMime,
   isOwnedNoteImagePath,
   noteImageObjectPath,
@@ -23,6 +24,20 @@ function mimeForPath(path: string): string {
   if (path.endsWith(".png")) return "image/png";
   if (path.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
+}
+
+function bucketMissing(message: string): boolean {
+  return /bucket not found|bucket does not exist/i.test(message);
+}
+
+async function ensureNoteBucket(admin: SupabaseClient): Promise<boolean> {
+  const { error } = await admin.storage.createBucket(BUCKET, {
+    public: false,
+    fileSizeLimit: NOTE_IMAGE_MAX_BYTES,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
+  });
+  if (!error) return true;
+  return /already exists|duplicate/i.test(error.message);
 }
 
 export async function GET(
@@ -73,10 +88,20 @@ export async function POST(
   if (!path) return jsonError("Imagem inválida.");
   const admin = storageAdmin();
   if (!admin) return jsonError("Não foi possível guardar a imagem.", 503);
-  const { error } = await admin.storage.from(BUCKET).upload(path, parsed.bytes, {
+  const bytes = new Uint8Array(parsed.bytes);
+  let { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
     contentType: parsed.mime,
     upsert: false,
   });
-  if (error) return jsonError("Não foi possível guardar a imagem.", 503);
+  if (error && bucketMissing(error.message) && (await ensureNoteBucket(admin))) {
+    ({ error } = await admin.storage.from(BUCKET).upload(path, bytes, {
+      contentType: parsed.mime,
+      upsert: false,
+    }));
+  }
+  if (error) {
+    console.error("crm note image upload", error.message);
+    return jsonError("Não foi possível guardar a imagem.", 503);
+  }
   return NextResponse.json({ path, mime: parsed.mime });
 }
