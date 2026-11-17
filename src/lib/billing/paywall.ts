@@ -183,7 +183,8 @@ export function paywallCopy(state: PaywallOpen): PaywallCopy {
         ? "O comprovante chegou. O CRM e as qualificações da conta não somem — o quadro abre assim que o plano confirmar."
         : "O CRM e os leads qualificados continuam na conta. Se a tela ainda mostrar Treino livre, fale com o atendimento — não pague de novo.",
       primary: {
-        href: supportWhatsAppHref({ intent: "help", pathname: "/crm" }),
+        href:
+          supportWhatsAppHref({ intent: "help", pathname: "/crm" }) ?? PLANOS_URL,
         label: "Falar no WhatsApp",
         external: true,
       },
