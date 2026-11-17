@@ -103,7 +103,6 @@ import {
   cnpjKey,
   HidePhoneError,
   phoneHideKey,
-  phoneHideKeys,
   stripPhoneFromDealFields,
 } from "@/lib/hidden-phones";
 import {
@@ -4854,7 +4853,13 @@ export const supabaseRepo: GridRepo = {
 
   async revealCompanyPhones(userId, cnpj, phones) {
     const company = cnpjKey(cnpj);
-    const keys = [...new Set(phones.flatMap((phone) => phoneHideKeys(phone)))];
+    const keys = [
+      ...new Set(
+        phones
+          .map((phone) => phoneHideKey(phone))
+          .filter((key): key is string => Boolean(key)),
+      ),
+    ];
     if (!company || keys.length === 0) return;
     try {
       await query(

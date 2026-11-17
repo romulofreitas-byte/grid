@@ -14,7 +14,6 @@ import {
   cnpjKey,
   HidePhoneError,
   phoneHideKey,
-  phoneHideKeys,
   phoneIsHidden,
   stripPhoneFromDealFields,
 } from "@/lib/hidden-phones";
@@ -2127,7 +2126,11 @@ export const mockRepo: GridRepo = {
 
   async revealCompanyPhones(userId, cnpj, phones) {
     const company = cnpjKey(cnpj);
-    const keys = new Set(phones.flatMap((phone) => phoneHideKeys(phone)));
+    const keys = new Set(
+      phones
+        .map((phone) => phoneHideKey(phone))
+        .filter((key): key is string => Boolean(key)),
+    );
     if (!company || keys.size === 0) return;
     const store = getMockStore();
     store.user_hidden_phones = (store.user_hidden_phones ?? []).filter(
