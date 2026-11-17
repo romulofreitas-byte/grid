@@ -263,15 +263,22 @@ export const logCallSchema = z.object({
 
 export const eventKindSchema = z.enum(CRM_EVENT_KINDS);
 
+const noteImageSchema = z.object({
+  path: z.string().trim().min(1).max(200),
+  mime: z.enum(["image/jpeg", "image/png", "image/webp"]),
+});
+
 export const eventCreateSchema = z.object({
   kind: eventKindSchema,
   body: z.string().max(4000).optional(),
   phone: z.string().trim().max(24).optional(),
   next: scheduleSchema.nullable().optional(),
+  images: z.array(noteImageSchema).max(3).optional(),
 });
 
 export const eventPatchSchema = z.object({
   body: z.string().max(4000),
+  images: z.array(noteImageSchema).max(3).optional(),
 });
 
 export const outcomeSchema = z.object({

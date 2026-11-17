@@ -287,6 +287,19 @@ export type CrmDeal = {
   updated_at: string;
 };
 
+export const CRM_NOTE_IMAGE_MIMES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+export type CrmNoteImageMime = (typeof CRM_NOTE_IMAGE_MIMES)[number];
+
+export type CrmEventImage = {
+  path: string;
+  mime: CrmNoteImageMime;
+};
+
 export type CrmEventMeta = {
   phone?: string;
   outcome?: CrmOutcome;
@@ -295,6 +308,7 @@ export type CrmEventMeta = {
   call_id?: string;
   /** Last time we asked API4COM for this row's file. */
   recording_checked_at?: string;
+  images?: CrmEventImage[];
 };
 
 export type CrmEvent = {

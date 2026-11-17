@@ -89,6 +89,18 @@ describe("readCrmEventMeta", () => {
       {},
     );
     expect(readCrmEventMeta({ call_id: "" })).toEqual({});
+    expect(
+      readCrmEventMeta({
+        images: [
+          {
+            path: "user_1/deal_1/print.png",
+            mime: "image/png",
+          },
+          { path: "../etc/passwd", mime: "image/png" },
+          { path: "user_1/deal_1/print.png", mime: "image/gif" },
+        ],
+      }).images,
+    ).toEqual([{ path: "user_1/deal_1/print.png", mime: "image/png" }]);
   });
 });
 

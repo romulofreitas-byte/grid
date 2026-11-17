@@ -499,7 +499,7 @@ export const COPY = {
     "Follow-up no CRM não entra no Box. Agende Ligar ou WhatsApp para cair na fila.",
   crmComposerHint:
     "Salvar grava a nota no histórico. Não cria próxima ação e não conta na meta.",
-  crmComposerNeedOne: "Escreva a nota.",
+  crmComposerNeedOne: "Escreva a nota ou anexe uma imagem.",
   crmRescheduleHint:
     "Muda a data desta ação. Não conta como feita e não entra no histórico.",
   crmComposerPlaceholder: "O que considerar nesta ação?",
@@ -509,6 +509,15 @@ export const COPY = {
   crmHistoryTodoToday: "Hoje",
   crmHistoryTodoOverdue: "Atrasada",
   crmMarkDone: "Concluir",
+  crmDeleteAction: "Excluir",
+  crmDeleteActionConfirm:
+    "Excluir esta ação? Ela sai da lista e não entra no histórico.",
+  crmAttachImage: "Anexar imagem",
+  crmRemoveImage: "Tirar imagem",
+  crmNoteImage: "Imagem da anotação",
+  crmImageTooBig: "Use uma imagem de até 4 MB.",
+  crmImageType: "Use JPEG, PNG ou WebP.",
+  crmImageLimit: "Até 3 imagens por anotação.",
   crmHistoryEmpty: "Nada registrado ainda. Cada ligação e ação fica aqui.",
   crmCreatedAt: "Criada",
   crmSaveHistory: "Salvar",

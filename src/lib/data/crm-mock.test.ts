@@ -306,6 +306,66 @@ describe("crm mock board", () => {
     expect(deal?.next_activity?.kind).toBe("whatsapp");
   });
 
+  it("drops one open action and leaves the histórico untouched", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Ação duplicada",
+    });
+    const dueAt = new Date("2026-09-02T15:00:00.000Z").toISOString();
+    const later = new Date("2026-09-05T15:00:00.000Z").toISOString();
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "ligar", dueAt);
+    await mockRepo.scheduleCrmActivity(USER, created!.id, "whatsapp", later);
+    const card = await mockRepo.getCrmDeal(USER, created!.id);
+    const ligar = card!.open_activities.find((row) => row.kind === "ligar")!;
+    const before = await mockRepo.listCrmEvents(USER, created!.id);
+    const removed = await mockRepo.deleteCrmActivity(USER, created!.id, ligar.id);
+    expect(removed?.open_activities.map((row) => row.kind)).toEqual(["whatsapp"]);
+    expect(await mockRepo.listCrmEvents(USER, created!.id)).toEqual(before);
+    expect(await mockRepo.deleteCrmActivity(USER, created!.id, ligar.id)).toBeNull();
+    expect(await mockRepo.deleteCrmActivity("outra-pessoa", created!.id, ligar.id)).toBeNull();
+    const still = await mockRepo.getCrmDeal(USER, created!.id);
+    expect(still?.open_activities.map((row) => row.kind)).toEqual(["whatsapp"]);
+    const done = await mockRepo.completeCrmActivity(
+      USER,
+      created!.id,
+      still!.open_activities[0]!.id,
+    );
+    expect(
+      await mockRepo.deleteCrmActivity(
+        USER,
+        created!.id,
+        still!.open_activities[0]!.id,
+      ),
+    ).toBeNull();
+    expect(done?.event?.kind).toBe("whatsapp");
+  });
+
+  it("keeps note images on the event without scheduling an action", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Print na nota",
+    });
+    const path = `${USER}/${created!.id}/print.jpg`;
+    const saved = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "nota",
+      body: "",
+      meta: { images: [{ path, mime: "image/jpeg" }] },
+    });
+    expect(saved?.deal.open_activities).toEqual([]);
+    expect(saved?.event.meta.images).toEqual([{ path, mime: "image/jpeg" }]);
+    const cleared = await mockRepo.updateCrmEvent(
+      USER,
+      created!.id,
+      saved!.event.id,
+      "Sem print.",
+      { images: [] },
+    );
+    expect(cleared?.event.body).toBe("Sem print.");
+    expect(cleared?.event.meta.images).toEqual([]);
+  });
+
   it("marks the open volta as done and writes it to the histórico", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Nicho teste");
     const created = await mockRepo.createCrmDeal(USER, {

@@ -242,6 +242,11 @@ describe("COPY crm", () => {
     expect(COPY.crmAssetsTitle).toBe("Ativos");
     expect(COPY.crmHistoryTodo).toMatch(/fazer/i);
     expect(COPY.crmMarkDone).toMatch(/concluir/i);
+    expect(COPY.crmDeleteAction).toBe("Excluir");
+    expect(COPY.crmDeleteActionConfirm).toMatch(/não entra no histórico/i);
+    expect(COPY.crmAttachImage).toMatch(/imagem/i);
+    expect(COPY.crmImageLimit).toMatch(/3/);
+    expect(COPY.crmImageTooBig).toMatch(/4 MB/);
     expect(COPY.boxSprintTitle).toMatch(/trabalho do dia/i);
     expect(COPY.boxOpening).toMatch(/ligar/i);
     expect(COPY.boxQueue).toMatch(/fila/i);

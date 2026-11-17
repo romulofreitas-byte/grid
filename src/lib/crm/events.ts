@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatPhoneDisplay } from "@/lib/crm/dial";
+import { readNoteImages } from "@/lib/crm/note-images";
 import type {
   CrmDealCard,
   CrmEvent,
@@ -58,6 +59,8 @@ export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
   ) {
     meta.recording_checked_at = raw.recording_checked_at;
   }
+  const images = readNoteImages(raw.images);
+  if (images.length) meta.images = images;
   return meta;
 }
 

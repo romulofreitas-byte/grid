@@ -426,6 +426,12 @@ export type GridRepo = {
     callId?: string,
     phone?: string,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent | null } | null>;
+  /** Drops an open action. Does not write history or count a call. */
+  deleteCrmActivity(
+    userId: string,
+    dealId: string,
+    activityId: string,
+  ): Promise<CrmDealCard | null>;
   logCrmCall(
     userId: string,
     dealId: string,

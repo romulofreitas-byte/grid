@@ -17,8 +17,14 @@ import { motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type FocusEvent } from "react";
 import { CrmDateTimePicker } from "@/components/crm/CrmDateTimePicker";
+import {
+  CrmNoteImageButton,
+  CrmNoteImageStrip,
+  readNoteImageFile,
+  type PendingNoteImage,
+} from "@/components/crm/CrmNoteImages";
 import { CrmDealGridAttach } from "@/components/crm/CrmDealGridAttach";
 import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
@@ -51,6 +57,7 @@ import {
   selectedCompanyPhone,
 } from "@/lib/crm/company-phone-options";
 import { CRM_FIELD, CRM_LABEL, crmFetch } from "@/lib/crm/client";
+import { NOTE_IMAGE_LIMIT, noteImageHref } from "@/lib/crm/note-images";
 import { BOX_QUEUE_QUERY_KEY } from "@/lib/live-stats";
 import {
   crmDealAttachSurface,
@@ -91,6 +98,7 @@ import type {
   CrmActivityKind,
   CrmDealCard,
   CrmEvent,
+  CrmEventImage,
   CrmOutcome,
   CrmPerson,
   CrmPipelineSummary,
@@ -405,6 +413,14 @@ export function CrmDealModal({
     {},
   );
   const [dueLocal, setDueLocal] = useState(defaultNextDueLocal);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [composerImages, setComposerImages] = useState<PendingNoteImage[]>([]);
+  const [historyImages, setHistoryImages] = useState<
+    Record<string, CrmEventImage[]>
+  >({});
+  const [historyPending, setHistoryPending] = useState<
+    Record<string, PendingNoteImage[]>
+  >({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callDialogOpen, setCallDialogOpen] = useState(false);
@@ -792,6 +808,69 @@ export function CrmDealModal({
     setBriefingReady(true);
   }
 
+  async function acceptImages(
+    current: number,
+    files: File[],
+  ): Promise<PendingNoteImage[] | null> {
+    const room = NOTE_IMAGE_LIMIT - current;
+    if (room <= 0) {
+      setError(COPY.crmImageLimit);
+      return null;
+    }
+    if (files.length > room) setError(COPY.crmImageLimit);
+    try {
+      const next: PendingNoteImage[] = [];
+      for (const file of files.slice(0, room)) {
+        next.push(await readNoteImageFile(file));
+      }
+      return next;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : COPY.crmImageType);
+      return null;
+    }
+  }
+
+  async function addComposerImages(files: File[]) {
+    const next = await acceptImages(composerImages.length, files);
+    if (!next) return;
+    setComposerImages((current) => [...current, ...next].slice(0, NOTE_IMAGE_LIMIT));
+  }
+
+  async function addHistoryImages(eventId: string, files: File[]) {
+    const saved = historyImages[eventId]?.length ?? 0;
+    const pending = historyPending[eventId]?.length ?? 0;
+    const next = await acceptImages(saved + pending, files);
+    if (!next) return;
+    setHistoryPending((current) => ({
+      ...current,
+      [eventId]: [...(current[eventId] ?? []), ...next].slice(0, NOTE_IMAGE_LIMIT),
+    }));
+  }
+
+  async function uploadPending(
+    images: PendingNoteImage[],
+  ): Promise<CrmEventImage[]> {
+    return Promise.all(
+      images.map(async (image) => {
+        const uploaded = await crmFetch<{
+          path: string;
+          mime: CrmEventImage["mime"];
+        }>(`/api/crm/deals/${deal.id}/attachments`, {
+          method: "POST",
+          body: JSON.stringify({ dataUrl: image.dataUrl }),
+        });
+        return { path: uploaded.path, mime: uploaded.mime };
+      }),
+    );
+  }
+
+  function onComposerPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = [...event.clipboardData.files];
+    if (!files.length) return;
+    event.preventDefault();
+    void addComposerImages(files);
+  }
+
   async function saveComposer() {
     const note = body.trim();
     const schedule = composerKind !== "nota";
@@ -800,14 +879,17 @@ export function CrmDealModal({
       setError("Escolha a ação e o horário.");
       return;
     }
-    if (!note && !next) {
+    if (!note && !next && composerImages.length === 0) {
       setError(COPY.crmComposerNeedOne);
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      if (note) {
+      const images = composerImages.length
+        ? await uploadPending(composerImages)
+        : [];
+      if (note || images.length) {
         const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
           `/api/crm/deals/${deal.id}/events`,
           {
@@ -815,13 +897,14 @@ export function CrmDealModal({
             body: JSON.stringify({
               kind: composerKind,
               body: note,
+              ...(images.length ? { images } : {}),
               ...(next ? { next } : {}),
             }),
           },
         );
         onChange(res.deal);
         prependEvent(res.event);
-      } else {
+      } else if (next) {
         const scheduled = await crmFetch<{ deal: CrmDealCard }>(
           `/api/crm/deals/${deal.id}/schedule`,
           { method: "POST", body: JSON.stringify(next) },
@@ -829,6 +912,7 @@ export function CrmDealModal({
         onChange(scheduled.deal);
       }
       setBody("");
+      setComposerImages([]);
       setDueLocal(defaultNextDueLocal());
       void invalidateLiveStats(qc);
     } catch (err) {
@@ -887,18 +971,53 @@ export function CrmDealModal({
     }
   }
 
+  async function deletePlanned(activityId: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await crmFetch<{ deal: CrmDealCard }>(
+        `/api/crm/deals/${deal.id}/activities/${activityId}`,
+        { method: "DELETE" },
+      );
+      onChange(res.deal);
+      setConfirmDeleteId(null);
+      setExpandedActionId((current) =>
+        current === activityId ? null : current,
+      );
+      void invalidateLiveStats(qc);
+      void qc.invalidateQueries({ queryKey: BOX_QUEUE_QUERY_KEY });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não excluiu.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveHistory(eventId: string) {
     const nextBody = drafts[eventId];
     if (nextBody === undefined) return;
     setSaving(true);
     setError(null);
     try {
+      const pending = historyPending[eventId] ?? [];
+      const uploaded = pending.length ? await uploadPending(pending) : [];
+      const currentEvent = events.find((row) => row.id === eventId);
+      const kept = historyImages[eventId] ?? currentEvent?.meta.images ?? [];
+      const images = [...kept, ...uploaded].slice(0, NOTE_IMAGE_LIMIT);
       const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
         `/api/crm/deals/${deal.id}/events/${eventId}`,
-        { method: "PATCH", body: JSON.stringify({ body: nextBody }) },
+        {
+          method: "PATCH",
+          body: JSON.stringify({ body: nextBody, images }),
+        },
       );
       onChange(res.deal);
       updateEvent(res.event);
+      setHistoryPending((current) => ({ ...current, [eventId]: [] }));
+      setHistoryImages((current) => ({
+        ...current,
+        [eventId]: res.event.meta.images ?? [],
+      }));
       setExpandedEventId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não salvou o texto.");
@@ -1306,7 +1425,19 @@ export function CrmDealModal({
                       value={body}
                       autoComplete="off"
                       onChange={(event) => setBody(event.target.value)}
+                      onPaste={onComposerPaste}
                       placeholder={COPY.crmComposerPlaceholder}
+                    />
+                    <CrmNoteImageStrip
+                      images={composerImages.map((image) => ({
+                        id: image.id,
+                        src: image.dataUrl,
+                      }))}
+                      onRemove={(id) =>
+                        setComposerImages((current) =>
+                          current.filter((image) => image.id !== id),
+                        )
+                      }
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {composerKind !== "nota" ? (
@@ -1315,6 +1446,10 @@ export function CrmDealModal({
                           onChange={setDueLocal}
                         />
                       ) : null}
+                      <CrmNoteImageButton
+                        disabled={saving}
+                        onFiles={(files) => void addComposerImages(files)}
+                      />
                       <button
                         type="button"
                         disabled={saving}
@@ -1445,6 +1580,16 @@ export function CrmDealModal({
                             {COPY.crmWhatsappNow}
                           </button>
                         ) : null}
+                        {confirmDeleteId === activity.id ? null : (
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => setConfirmDeleteId(activity.id)}
+                            className="inline-flex items-center text-[10px] text-podium-muted hover:text-red-300 disabled:opacity-50"
+                          >
+                            {COPY.crmDeleteAction}
+                          </button>
+                        )}
                         <label className="inline-flex cursor-pointer items-center gap-1 text-[10px] text-podium-muted hover:text-podium-gray">
                           <input
                             type="checkbox"
@@ -1486,6 +1631,29 @@ export function CrmDealModal({
                           </button>
                         </div>
                       ) : null}
+                      {confirmDeleteId === activity.id ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <p className="min-w-0 flex-1 text-[10px] text-podium-gray">
+                            {COPY.crmDeleteActionConfirm}
+                          </p>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => void deletePlanned(activity.id)}
+                            className="rounded-md border border-red-500/40 px-2 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                          >
+                            {COPY.crmDeleteAction}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-[10px] text-podium-muted hover:text-podium-white disabled:opacity-50"
+                          >
+                            {COPY.confirmCancel}
+                          </button>
+                        </div>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -1500,6 +1668,19 @@ export function CrmDealModal({
                       COMPOSER_ICONS[event.kind as CrmComposerKind] ?? StickyNote;
                     const expanded = expandedEventId === event.id;
                     const draft = drafts[event.id] ?? event.body;
+                    const savedImages =
+                      historyImages[event.id] ?? event.meta.images ?? [];
+                    const pendingImages = historyPending[event.id] ?? [];
+                    const historyThumbs = [
+                      ...savedImages.map((image) => ({
+                        id: `saved:${image.path}`,
+                        src: noteImageHref(deal.id, image.path),
+                      })),
+                      ...pendingImages.map((image) => ({
+                        id: `pending:${image.id}`,
+                        src: image.dataUrl,
+                      })),
+                    ];
                     return (
                       <article
                         key={event.id}
@@ -1509,11 +1690,22 @@ export function CrmDealModal({
                           type="button"
                           className="flex w-full items-start gap-2 text-left"
                           onClick={() => {
-                            setExpandedEventId(expanded ? null : event.id);
+                            const opening = !expanded;
+                            setExpandedEventId(opening ? event.id : null);
                             setDrafts((current) => ({
                               ...current,
                               [event.id]: event.body,
                             }));
+                            if (opening) {
+                              setHistoryImages((current) => ({
+                                ...current,
+                                [event.id]: event.meta.images ?? [],
+                              }));
+                              setHistoryPending((current) => ({
+                                ...current,
+                                [event.id]: [],
+                              }));
+                            }
                           }}
                         >
                           <Icon className="mt-0.5 h-3 w-3 shrink-0 text-podium-yellow" />
@@ -1531,11 +1723,25 @@ export function CrmDealModal({
                             {formatEventWhen(event.created_at)}
                           </span>
                         </button>
+                        {!expanded && event.meta.images?.length ? (
+                          <CrmNoteImageStrip
+                            images={event.meta.images.map((image) => ({
+                              id: image.path,
+                              src: noteImageHref(deal.id, image.path),
+                            }))}
+                          />
+                        ) : null}
                         {expanded ? (
                           <div className="mt-2">
                             <textarea
                               className={cn(CRM_FIELD, "min-h-16 resize-y")}
                               value={draft}
+                              onPaste={(row) => {
+                                const files = [...row.clipboardData.files];
+                                if (!files.length) return;
+                                row.preventDefault();
+                                void addHistoryImages(event.id, files);
+                              }}
                               onChange={(row) =>
                                 setDrafts((current) => ({
                                   ...current,
@@ -1543,15 +1749,45 @@ export function CrmDealModal({
                                 }))
                               }
                             />
-                            <button
-                              type="button"
-                              disabled={saving}
-                              onClick={() => void saveHistory(event.id)}
-                              className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2 py-0.5 text-[10px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
-                            >
-                              <Check className="h-3 w-3" />
-                              {COPY.crmSaveHistory}
-                            </button>
+                            <CrmNoteImageStrip
+                              images={historyThumbs}
+                              onRemove={(id) => {
+                                if (id.startsWith("pending:")) {
+                                  const pendingId = id.slice("pending:".length);
+                                  setHistoryPending((current) => ({
+                                    ...current,
+                                    [event.id]: (current[event.id] ?? []).filter(
+                                      (image) => image.id !== pendingId,
+                                    ),
+                                  }));
+                                  return;
+                                }
+                                const path = id.slice("saved:".length);
+                                setHistoryImages((current) => ({
+                                  ...current,
+                                  [event.id]: (current[event.id] ?? savedImages).filter(
+                                    (image) => image.path !== path,
+                                  ),
+                                }));
+                              }}
+                            />
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                              <CrmNoteImageButton
+                                disabled={saving}
+                                onFiles={(files) =>
+                                  void addHistoryImages(event.id, files)
+                                }
+                              />
+                              <button
+                                type="button"
+                                disabled={saving}
+                                onClick={() => void saveHistory(event.id)}
+                                className="inline-flex items-center gap-1 rounded-md bg-podium-yellow px-2 py-0.5 text-[10px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                              >
+                                <Check className="h-3 w-3" />
+                                {COPY.crmSaveHistory}
+                              </button>
+                            </div>
                           </div>
                         ) : null}
                         {event.kind !== "ligar" && event.meta.phone ? (

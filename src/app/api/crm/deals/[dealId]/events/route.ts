@@ -4,7 +4,9 @@ import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { fromDatetimeLocal } from "@/lib/crm/activity";
 import { syncDealCallRecordings } from "@/lib/crm/sync-call-recording";
+import { claimNoteImages } from "@/lib/crm/note-images";
 import { eventCreateSchema } from "@/lib/crm/schema";
+import type { CrmEvent } from "@/lib/crm/types";
 
 export async function GET(
   req: Request,
@@ -44,10 +46,17 @@ export async function POST(
     if (!dueAt) return jsonError("Horário da próxima ação inválido.");
     next = { kind: next.kind, dueAt };
   }
+  const meta: CrmEvent["meta"] = {};
+  if (parsed.data.phone) meta.phone = parsed.data.phone;
+  if (parsed.data.images?.length) {
+    const images = claimNoteImages(gated.userId, dealId, parsed.data.images);
+    if (!images) return jsonError("Imagem inválida.");
+    meta.images = images;
+  }
   const result = await getRepo().createCrmEvent(gated.userId, dealId, {
     kind: parsed.data.kind,
     body: parsed.data.body,
-    meta: parsed.data.phone ? { phone: parsed.data.phone } : {},
+    meta,
     next,
   });
   if (!result) return jsonError("Negócio não encontrado.", 404);

@@ -1669,6 +1669,24 @@ export const crmPgMethods = {
     });
   },
 
+  async deleteCrmActivity(
+    userId: string,
+    dealId: string,
+    activityId: string,
+  ): Promise<CrmDealCard | null> {
+    return withTransaction(async (q) => {
+      if (!(await ownedDeal(q, userId, dealId))) return null;
+      const deleted = await q(
+        `delete from crm_activities
+          where id = $1 and deal_id = $2 and status = 'open'`,
+        [activityId, dealId],
+      );
+      if (!deleted.rowCount) return null;
+      await q(`update crm_deals set updated_at = now() where id = $1`, [dealId]);
+      return loadCard(q, dealId);
+    });
+  },
+
   async completeCrmActivity(
     userId: string,
     dealId: string,
