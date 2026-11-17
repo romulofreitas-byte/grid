@@ -44,6 +44,29 @@ type StripeCustomer = { id: string };
 type StripeSession = { id: string; url?: string | null };
 type StripeSub = { id: string };
 
+export function stripeOrderIdFromObject(
+  obj: Record<string, unknown>,
+): string | undefined {
+  const fromMeta = (value: unknown): string | undefined => {
+    if (!value || typeof value !== "object") return undefined;
+    const id = (value as { order_id?: unknown }).order_id;
+    return typeof id === "string" && id.trim() ? id.trim() : undefined;
+  };
+  const direct = fromMeta(obj.metadata);
+  if (direct) return direct;
+  if (typeof obj.client_reference_id === "string" && obj.client_reference_id.trim()) {
+    return obj.client_reference_id.trim();
+  }
+  const parent = obj.parent;
+  if (parent && typeof parent === "object") {
+    const details = (parent as { subscription_details?: { metadata?: unknown } })
+      .subscription_details;
+    const nested = fromMeta(details?.metadata);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
 function verifySignature(rawBody: string, header: string | null, endpointSecret: string): boolean {
   if (!header) return false;
   const parts = Object.fromEntries(
@@ -149,6 +172,7 @@ export const stripeProvider: PaymentProvider = {
         type: "payment.paid",
         providerPaymentId: String(obj.id),
         providerSubId: obj.subscription ? String(obj.subscription) : undefined,
+        orderId: stripeOrderIdFromObject(obj),
       };
     }
     if (event.type === "invoice.paid") {
@@ -159,6 +183,7 @@ export const stripeProvider: PaymentProvider = {
         type: "payment.paid",
         providerPaymentId: String(obj.id),
         providerSubId: sub,
+        orderId: stripeOrderIdFromObject(obj),
       };
     }
     if (event.type === "invoice.payment_failed") {

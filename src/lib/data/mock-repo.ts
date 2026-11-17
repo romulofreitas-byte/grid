@@ -14,10 +14,16 @@ import {
   cnpjKey,
   HidePhoneError,
   phoneHideKey,
+  phoneHideKeys,
   phoneIsHidden,
   stripPhoneFromDealFields,
 } from "@/lib/hidden-phones";
-import { isEnrichmentComplete, isEnrichmentVisible } from "@/lib/enrichment/fresh";
+import {
+  isEnrichmentComplete,
+  isEnrichmentEverComplete,
+  isEnrichmentVisible,
+} from "@/lib/enrichment/fresh";
+import { gridOwnedEnrichmentStatus } from "@/lib/grid-qualify";
 import { needsDiscoveryRetry } from "@/lib/enrichment/discovery";
 import { buildGoldenMinute } from "@/lib/golden-minute";
 import {
@@ -386,7 +392,11 @@ function nameStemsForFilters(store: MockStore, filters: SearchFilters): string[]
   return [...new Set(stems)];
 }
 
-function matchesFilters(store: MockStore, filters: SearchFilters) {
+function matchesFilters(
+  store: MockStore,
+  filters: SearchFilters,
+  billedUserId?: string,
+) {
   const idx = getIndexes(store);
   const optOutDocs = new Set(store.opt_outs.map((o) => o.documento.replace(/\D/g, "")));
   const allowedCnaes = resolveAllowedCnaes(store, filters);
@@ -459,7 +469,10 @@ function matchesFilters(store: MockStore, filters: SearchFilters) {
 
     if (filters.soEnriquecidas) {
       const enr = store.lead_enrichment.find((r) => r.cnpj === est.cnpj);
-      if (!isEnrichmentFresh(enr)) return false;
+      const billed =
+        billedUserId != null &&
+        userOwnsAudit(store, billedUserId, est.cnpj);
+      if (!isEnrichmentEverComplete(enr) && !billed) return false;
     }
 
     if (filters.ocultarEmailsGratuitos && isFreeEmail(est.email)) return false;
@@ -984,7 +997,7 @@ export const mockRepo: GridRepo = {
   async runSearch(userId: string, nome: string, filters: SearchFilters) {
     await this.pruneUnsavedSearches(userId, { incoming: 1 });
     const store = getMockStore();
-    const matched = matchesFilters(store, filters).slice(0, RESULT_CAP);
+    const matched = matchesFilters(store, filters, userId).slice(0, RESULT_CAP);
     const scored = matched
       .map((est) => {
         const { score } = scoreEstablishment(store, est, filters);
@@ -1474,7 +1487,8 @@ export const mockRepo: GridRepo = {
         .find((j) => j.cnpj === lead.cnpj && j.search_id === searchId);
       const enrichment = store.lead_enrichment.find((e) => e.cnpj === lead.cnpj);
       const hasAudit = userOwnsAudit(store, search.user_id, lead.cnpj, searchId);
-      const completeAudit = hasAudit && isEnrichmentFresh(enrichment);
+      const visibleAudit = hasAudit && isEnrichmentVisible(enrichment);
+      const completeAudit = visibleAudit;
       if (hasAudit && needsDiscoveryRetry(enrichment)) {
         discoveryRetryCnpjs.push(lead.cnpj);
       }
@@ -1513,7 +1527,12 @@ export const mockRepo: GridRepo = {
         email: est.email?.trim() || null,
         gridScore: lead.grid_score ?? 0,
         gridPosition: lead.grid_position ?? 0,
-        enrichmentStatus: job?.status ?? (completeAudit ? "done" : null),
+        enrichmentStatus: gridOwnedEnrichmentStatus({
+          jobStatus: job?.status,
+          billed: hasAudit,
+          hasEnrichment: Boolean(visibleAudit && enrichment),
+          previous: null,
+        }),
         hasAudit,
         presence: hasAudit
           ? gridPresenceFromEnrichment(completeAudit ? enrichment : null)
@@ -2104,6 +2123,21 @@ export const mockRepo: GridRepo = {
       if (updated) deals.push(updated);
     }
     return { deals };
+  },
+
+  async revealCompanyPhones(userId, cnpj, phones) {
+    const company = cnpjKey(cnpj);
+    const keys = new Set(phones.flatMap((phone) => phoneHideKeys(phone)));
+    if (!company || keys.size === 0) return;
+    const store = getMockStore();
+    store.user_hidden_phones = (store.user_hidden_phones ?? []).filter(
+      (row) =>
+        !(
+          row.user_id === userId &&
+          cnpjKey(row.cnpj) === company &&
+          keys.has(row.phone_digits)
+        ),
+    );
   },
 
   ...crmMockMethods,

@@ -31,7 +31,7 @@ export interface PaymentProvider {
     customerId: string,
     method: PaymentMethod,
   ): Promise<ChargeResult>;
-  /** User asked to stop at the end of the cycle (Stripe) or now (Asaas). */
+  /** User asked to stop future charges; GRID keeps the paid cycle. */
   cancelSubscription(providerSubId: string): Promise<void>;
   /** Upgrade path: stop the previous plan immediately so it cannot double-charge. */
   cancelSubscriptionNow(providerSubId: string): Promise<void>;

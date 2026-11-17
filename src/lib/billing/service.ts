@@ -6,6 +6,7 @@ import {
   isTrialExpired,
   PLATFORM_TRIAL_DAYS,
   subscriptionGrantsAccess,
+  subscriptionPeriodOpen,
   trialDaysRemaining,
 } from "@/lib/billing/access";
 import {
@@ -43,6 +44,7 @@ import {
   EnrichmentNotAllowedError,
   FREE_QUALIFY_EXHAUSTED_MESSAGE,
   InsufficientCreditsError,
+  type AccessHold,
   type BillingOrder,
   type CreditBalance,
   type CreditLot,
@@ -135,6 +137,7 @@ function emptyFreeBalance(credits: number): CreditBalance {
     trialDaysLeft: null,
     trialExpired: false,
     periodEndsAt: null,
+    accessHold: null,
   };
 }
 
@@ -183,6 +186,9 @@ async function syncCache(store: BillingStore, profileId: string): Promise<Credit
   const enrichAllowed = item?.kind === "plan" ? item.enrichAllowed : false;
   const total = plan + pack;
   await store.updateProfileCache(profileId, { plano, creditos: total });
+  const accessHold = grantsAccess
+    ? null
+    : await resolveAccessHold(store, profileId);
   return {
     total,
     plan,
@@ -192,7 +198,25 @@ async function syncCache(store: BillingStore, profileId: string): Promise<Credit
     trialDaysLeft: trialDaysRemaining(sub),
     trialExpired: isTrialExpired(sub) && !grantsAccess,
     periodEndsAt: grantsAccess && sub ? sub.currentPeriodEnd : null,
+    accessHold,
   };
+}
+
+async function resolveAccessHold(
+  store: BillingStore,
+  profileId: string,
+): Promise<AccessHold> {
+  const orders = await store.listOrders(profileId);
+  const planOrders = orders.filter(
+    (order) => order.kind === "subscription_cycle",
+  );
+  if (planOrders.some((order) => order.status === "pending")) {
+    return "payment_pending";
+  }
+  if (planOrders.some((order) => order.status === "paid")) {
+    return "paid_unlocking";
+  }
+  return null;
 }
 
 async function grantLot(
@@ -641,8 +665,11 @@ async function maybeRenewSubscription(
   const sub = await store.getSubscriptionByProviderSub(provider, providerSubId);
   if (!sub) return;
   if (sub.provider === "platform") return;
-  const age = Date.now() - new Date(sub.currentPeriodStart).getTime();
-  if (age < 20 * 24 * 60 * 60 * 1000) return;
+  const periodEnded = !subscriptionPeriodOpen(sub);
+  const remainingMs =
+    new Date(sub.currentPeriodEnd).getTime() - Date.now();
+  const nearPeriodEnd = remainingMs <= 5 * 24 * 60 * 60 * 1000;
+  if (!periodEnded && !nearPeriodEnd) return;
   const item = getCatalogItem(sub.plan);
   if (!item || item.kind !== "plan") return;
   if (item.sku === "membro_plataforma") return;
@@ -667,6 +694,7 @@ async function maybeRenewSubscription(
     status: "active",
     currentPeriodStart: start,
     currentPeriodEnd: end,
+    cancelAtPeriodEnd: false,
   });
   await grantLot(store, {
     profileId: sub.profileId,
@@ -698,6 +726,36 @@ async function findOrderForEvent(
   return null;
 }
 
+async function applyPaidEvent(
+  store: BillingStore,
+  event: NormalizedPaymentEvent,
+): Promise<void> {
+  const order = await findOrderForEvent(store, event);
+  if (order) {
+    if (event.providerPaymentId && order.providerPaymentId !== event.providerPaymentId) {
+      await store.updateOrder(order.id, {
+        providerPaymentId: event.providerPaymentId,
+      });
+    }
+    if (event.providerSubId && order.providerSubId !== event.providerSubId) {
+      await store.updateOrder(order.id, { providerSubId: event.providerSubId });
+    }
+    await applyPaymentPaid(order.id);
+    const subId = event.providerSubId ?? order.providerSubId;
+    if (subId) {
+      const sub = await store.getActiveSubscription(order.profileId);
+      if (sub) {
+        await store.updateSubscription(sub.id, { providerSubId: subId });
+      }
+      await maybeRenewSubscription(event.provider, subId);
+    }
+    return;
+  }
+  if (event.providerSubId && event.providerPaymentId) {
+    await maybeRenewSubscription(event.provider, event.providerSubId);
+  }
+}
+
 export async function handleNormalizedEvent(
   event: NormalizedPaymentEvent,
   payload: unknown,
@@ -708,33 +766,14 @@ export async function handleNormalizedEvent(
     providerEventId: event.providerEventId,
     payload,
   });
-  if (!fresh) return;
 
   if (event.type === "payment.paid") {
-    const order = await findOrderForEvent(store, event);
-    if (order) {
-      if (event.providerPaymentId && order.providerPaymentId !== event.providerPaymentId) {
-        await store.updateOrder(order.id, {
-          providerPaymentId: event.providerPaymentId,
-        });
-      }
-      if (event.providerSubId && order.providerSubId !== event.providerSubId) {
-        await store.updateOrder(order.id, { providerSubId: event.providerSubId });
-      }
-      await applyPaymentPaid(order.id);
-      if (event.providerSubId) {
-        const sub = await store.getActiveSubscription(order.profileId);
-        if (sub) {
-          await store.updateSubscription(sub.id, { providerSubId: event.providerSubId });
-        }
-      }
-      return;
-    }
-    if (event.providerSubId && event.providerPaymentId) {
-      await maybeRenewSubscription(event.provider, event.providerSubId);
-    }
+    await applyPaidEvent(store, event);
     return;
   }
+
+  if (!fresh) return;
+
   if (event.type === "payment.failed" || event.type === "payment.overdue") {
     const order = await findOrderForEvent(store, event);
     if (order && order.status === "pending") {
@@ -751,12 +790,25 @@ export async function handleNormalizedEvent(
     }
     return;
   }
-  if (event.type === "subscription.deleted" && event.providerSubId) {
+  if (event.type === "payment.refunded" && event.providerSubId) {
     const sub = await store.getSubscriptionByProviderSub(
       event.provider,
       event.providerSubId,
     );
     if (sub) await store.updateSubscription(sub.id, { status: "canceled" });
+    return;
+  }
+  if (event.type === "subscription.deleted" && event.providerSubId) {
+    const sub = await store.getSubscriptionByProviderSub(
+      event.provider,
+      event.providerSubId,
+    );
+    if (!sub) return;
+    if (subscriptionPeriodOpen(sub)) {
+      await store.updateSubscription(sub.id, { cancelAtPeriodEnd: true });
+      return;
+    }
+    await store.updateSubscription(sub.id, { status: "canceled" });
     return;
   }
   if (event.type === "treasury.complete" && event.providerTransferId) {

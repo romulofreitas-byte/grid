@@ -27,6 +27,7 @@ import {
 } from "@/lib/niches";
 import { cnaeMatchesQuery, presetMatchesQuery, queryTokens } from "@/lib/segment-aliases";
 import { computeDorDigital, computeGridScore } from "@/lib/scoring";
+import { gridOwnedEnrichmentStatus } from "@/lib/grid-qualify";
 import {
   canSearchCompanies,
   COMPANY_NAME_SEARCH_TIMEOUT_MS,
@@ -102,6 +103,7 @@ import {
   cnpjKey,
   HidePhoneError,
   phoneHideKey,
+  phoneHideKeys,
   stripPhoneFromDealFields,
 } from "@/lib/hidden-phones";
 import {
@@ -571,7 +573,26 @@ function appendNameMatchSql(
   }
 }
 
-function buildMatchFrom(filters: SearchFilters): string {
+function billedCnpjsJoin(
+  cnpjExpr: string,
+  billedProfileId: string | undefined,
+  paramIndex: number,
+): string {
+  if (!billedProfileId) return "";
+  return `left join billed_cnpjs bc on bc.kind = 'enrich' and rtrim(bc.cnpj) = rtrim(${cnpjExpr}) and bc.profile_id = $${paramIndex}`;
+}
+
+function soEnriquecidasClause(billedProfileId?: string): string {
+  return billedProfileId
+    ? "(le.cnpj is not null or bc.cnpj is not null)"
+    : "le.cnpj is not null";
+}
+
+function buildMatchFrom(
+  filters: SearchFilters,
+  billedProfileId?: string,
+  billedParamIndex?: number,
+): string {
   const parts = ["from establishments e"];
   if (needsCompaniesJoin(filters)) {
     parts.push("join companies c on c.cnpj_basico = e.cnpj_basico");
@@ -591,8 +612,10 @@ function buildMatchFrom(filters: SearchFilters): string {
   }
   if (filters.soEnriquecidas) {
     parts.push(
-      "left join lead_enrichment le on le.cnpj = e.cnpj and le.expires_at > now() and (le.stage is null or le.stage = 'complete')",
+      "left join lead_enrichment le on le.cnpj = e.cnpj and (le.stage is null or le.stage = 'complete')",
     );
+    const billedJoin = billedCnpjsJoin("e.cnpj", billedProfileId, billedParamIndex ?? 0);
+    if (billedJoin) parts.push(billedJoin);
   }
   return parts.join("\n  ");
 }
@@ -778,6 +801,7 @@ function buildFilterSql(
   filters: SearchFilters,
   allowedCnaes: Set<string> | null,
   nameStems: string[] = [],
+  billedProfileId?: string,
 ): FilterSql {
   const structural = buildStructuralFilterSql(filters, allowedCnaes, nameStems);
   const params = [...structural.params];
@@ -809,7 +833,8 @@ function buildFilterSql(
     clauses.push("coalesce(pv.verdict, 'proprio') is distinct from 'contabilidade'");
   }
   if (filters.soEnriquecidas) {
-    clauses.push("le.cnpj is not null");
+    if (billedProfileId) params.push(billedProfileId);
+    clauses.push(soEnriquecidasClause(billedProfileId));
   }
   if (filters.ocultarEmailsGratuitos) {
     clauses.push(`(e.email is null or not (${FREE_EMAIL_SQL}))`);
@@ -831,11 +856,15 @@ function buildFilterSql(
   return { sql: clauses.join("\n    and "), params };
 }
 
-function buildFlatMatchFrom(filters: SearchFilters): string {
+function buildFlatMatchFrom(
+  filters: SearchFilters,
+  billedProfileId?: string,
+  billedParamIndex?: number,
+): string {
   if (!filters.soEnriquecidas) return "";
+  const billedJoin = billedCnpjsJoin("es.cnpj", billedProfileId, billedParamIndex ?? 0);
   return `left join lead_enrichment le on le.cnpj = es.cnpj
-    and le.expires_at > now()
-    and (le.stage is null or le.stage = 'complete')`;
+    and (le.stage is null or le.stage = 'complete')${billedJoin ? `\n    ${billedJoin}` : ""}`;
 }
 
 function buildFlatStructuralFilterSql(
@@ -883,6 +912,7 @@ function buildFlatFilterSql(
   filters: SearchFilters,
   allowedCnaes: Set<string> | null,
   nameStems: string[] = [],
+  billedProfileId?: string,
 ): FilterSql {
   const structural = buildFlatStructuralFilterSql(filters, allowedCnaes, nameStems);
   const params = [...structural.params];
@@ -911,7 +941,10 @@ function buildFlatFilterSql(
   if (filters.ocultarTelefonesCompartilhados) {
     clauses.push("es.phone_verdict is distinct from 'contabilidade'");
   }
-  if (filters.soEnriquecidas) clauses.push("le.cnpj is not null");
+  if (filters.soEnriquecidas) {
+    if (billedProfileId) params.push(billedProfileId);
+    clauses.push(soEnriquecidasClause(billedProfileId));
+  }
   if (filters.ocultarEmailsGratuitos) {
     clauses.push("(es.email is null or not es.email_livre)");
   }
@@ -1997,7 +2030,7 @@ async function overlayGridRows(
     () =>
       query(
         `select * from lead_enrichment
-         where cnpj = any($1::char(14)[]) and expires_at > now()
+         where cnpj = any($1::char(14)[])
            and (stage is null or stage = 'complete')`,
         [paddedCnpjs],
       ),
@@ -2042,8 +2075,12 @@ async function overlayGridRows(
       seal: phone.seal,
       sharedCount: phone.sharedCount,
       sharedVerdict: phone.sharedVerdict,
-      enrichmentStatus:
-        job?.status ?? (enrichment ? "done" : row.enrichmentStatus),
+      enrichmentStatus: gridOwnedEnrichmentStatus({
+        jobStatus: job?.status,
+        billed: billed.has(row.cnpj),
+        hasEnrichment: Boolean(enrichment),
+        previous: row.enrichmentStatus,
+      }),
       hasAudit,
       presence: hasAudit
         ? gridPresenceFromEnrichment(enrichment ?? null)
@@ -3119,8 +3156,15 @@ export const supabaseRepo: GridRepo = {
         n: rows.length,
       });
     } else if (useFlat) {
-      const { sql, params } = buildFlatFilterSql(filters, allowed, nameStems);
-      const joinSql = buildFlatMatchFrom(filters);
+      const { sql, params } = buildFlatFilterSql(
+        filters,
+        allowed,
+        nameStems,
+        userId,
+      );
+      const billedParamIndex =
+        filters.soEnriquecidas && userId ? params.length : undefined;
+      const joinSql = buildFlatMatchFrom(filters, userId, billedParamIndex);
       const limitParam = params.length + 1;
       const run = filtersUseNameMatch(filters)
         ? querySearchWithTimeout
@@ -3135,8 +3179,10 @@ export const supabaseRepo: GridRepo = {
         n: rows.length,
       });
     } else {
-      const { sql, params } = buildFilterSql(filters, allowed, nameStems);
-      const fromSql = buildMatchFrom(filters);
+      const { sql, params } = buildFilterSql(filters, allowed, nameStems, userId);
+      const billedParamIndex =
+        filters.soEnriquecidas && userId ? params.length : undefined;
+      const fromSql = buildMatchFrom(filters, userId, billedParamIndex);
       const limitParam = params.length + 1;
       const result = await querySearch(
         `select e.* ${fromSql}
@@ -4804,6 +4850,23 @@ export const supabaseRepo: GridRepo = {
       if (updated) deals.push(updated);
     }
     return { deals };
+  },
+
+  async revealCompanyPhones(userId, cnpj, phones) {
+    const company = cnpjKey(cnpj);
+    const keys = [...new Set(phones.flatMap((phone) => phoneHideKeys(phone)))];
+    if (!company || keys.length === 0) return;
+    try {
+      await query(
+        `delete from user_hidden_phones
+          where user_id = $1
+            and cnpj = $2
+            and phone_digits = any($3::text[])`,
+        [userId, company, keys],
+      );
+    } catch (err) {
+      if (!isUndefinedTableError(err)) throw err;
+    }
   },
 
   ...crmPgMethods,

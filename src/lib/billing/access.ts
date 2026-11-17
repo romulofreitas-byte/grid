@@ -8,13 +8,27 @@ export function addUtcDays(from: Date, days: number): Date {
   return d;
 }
 
+export function subscriptionPeriodOpen(
+  sub: BillingSubscription | null | undefined,
+  at = new Date(),
+): boolean {
+  if (!sub) return false;
+  return new Date(sub.currentPeriodEnd).getTime() > at.getTime();
+}
+
+/** Paid cycle stays usable until currentPeriodEnd. past_due is dunning, not a lock. */
 export function subscriptionGrantsAccess(
   sub: BillingSubscription | null | undefined,
   at = new Date(),
 ): boolean {
   if (!sub) return false;
-  if (sub.status !== "active" && sub.status !== "trialing") return false;
-  return new Date(sub.currentPeriodEnd).getTime() > at.getTime();
+  if (!subscriptionPeriodOpen(sub, at)) return false;
+  if (sub.status === "canceled") return false;
+  return (
+    sub.status === "active" ||
+    sub.status === "trialing" ||
+    sub.status === "past_due"
+  );
 }
 
 export function trialDaysRemaining(

@@ -1239,10 +1239,7 @@ export const crmPgMethods = {
       municipio: municipioNome,
       uf: row.uf == null ? null : String(row.uf),
     });
-    const expiresAt = row.expires_at
-      ? new Date(String(row.expires_at)).getTime()
-      : 0;
-    const enrichmentVisible = expiresAt > Date.now();
+    const enrichmentVisible = row.expires_at != null;
     const sourcedPhones = mergeSourcedPhones([
       ...(enrichmentVisible ? sourcedPhonesFromUnknown(row.phones) : []),
       ...extraPhones.map((phone) => ({ phone, source: "receita" as const })),

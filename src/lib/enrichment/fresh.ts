@@ -28,9 +28,11 @@ export function isEnrichmentComplete(
   return isEnrichmentUnexpired(row) && isEnrichmentEverComplete(row);
 }
 
-/** Ficha can show arriving slices. */
+/** Ficha and CRM keep the last complete audit even after the 30-day cache TTL. */
 export function isEnrichmentVisible(
   row: LeadEnrichment | null | undefined,
 ): boolean {
+  if (!row) return false;
+  if (isEnrichmentEverComplete(row)) return true;
   return isEnrichmentUnexpired(row);
 }

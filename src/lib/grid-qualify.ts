@@ -40,7 +40,7 @@ export function isGridRowJobInFlight(
   return status === "pending" || status === "running";
 }
 
-/** Paid is not the same as finished — billed rows stay “cruzando” until the job completes. */
+/** Paid and still crawling stays “cruzando”. Billed without an in-flight job is Qualificado. */
 export function isGridRowQualifying(
   row: {
     cnpj: string;
@@ -50,21 +50,34 @@ export function isGridRowQualifying(
   pendingCnpjs: Set<string>,
 ): boolean {
   if (pendingCnpjs.has(row.cnpj)) return true;
-  if (isGridRowJobInFlight(row.enrichmentStatus)) return true;
+  return isGridRowJobInFlight(row.enrichmentStatus);
+}
+
+export function gridOwnedEnrichmentStatus(input: {
+  jobStatus: EnrichmentJobStatus | null | undefined;
+  billed: boolean;
+  hasEnrichment: boolean;
+  previous?: EnrichmentJobStatus | null;
+}): EnrichmentJobStatus | null {
+  if (isGridRowJobInFlight(input.jobStatus)) return input.jobStatus ?? null;
   if (
-    row.hasAudit &&
-    !isGridRowAuditComplete(row.enrichmentStatus) &&
-    row.enrichmentStatus !== "failed"
+    input.billed ||
+    isGridRowAuditComplete(input.jobStatus) ||
+    input.hasEnrichment
   ) {
-    return true;
+    return isGridRowAuditComplete(input.jobStatus) ? input.jobStatus! : "done";
   }
-  return false;
+  return input.jobStatus ?? input.previous ?? null;
 }
 
 export function isGridRowQualified(
-  row: { enrichmentStatus: EnrichmentJobStatus | null },
+  row: {
+    hasAudit?: boolean;
+    enrichmentStatus: EnrichmentJobStatus | null;
+  },
   qualifying: boolean,
 ): boolean {
   if (qualifying) return false;
-  return isGridRowAuditComplete(row.enrichmentStatus);
+  if (isGridRowAuditComplete(row.enrichmentStatus)) return true;
+  return Boolean(row.hasAudit) && row.enrichmentStatus !== "failed";
 }

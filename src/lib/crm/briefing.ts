@@ -372,6 +372,7 @@ export function buildCrmBriefing(
     "company_name" | "contact_name" | "phones" | "people" | "secretaries"
   >,
   extras: LeadDossier | CrmBriefingLookup | null,
+  opts?: { billed?: boolean },
 ): CrmBriefing {
   const lookup = extras && isBriefingLookup(extras) ? extras : null;
   const dossier: LeadDossier | null =
@@ -395,7 +396,7 @@ export function buildCrmBriefing(
     lookup?.decisor?.trim() ||
     dossier?.decisor?.nome ||
     null;
-  const audited = extrasAreAudited(lookup, dossier);
+  const audited = extrasAreAudited(lookup, dossier) || Boolean(opts?.billed);
   return {
     company: deal.company_name,
     phone: phones[0] ?? null,
@@ -463,14 +464,15 @@ export function withoutHiddenBriefingPhones(
 export async function loadCrmBriefing(
   deal: CrmDeal,
   getLookup: (cnpj: string) => Promise<CrmBriefingLookup | null>,
+  opts?: { billed?: boolean },
 ): Promise<CrmBriefing> {
   if (!shouldFetchDossier(deal.cnpj)) {
-    return buildCrmBriefing(deal, null);
+    return buildCrmBriefing(deal, null, opts);
   }
   try {
     const lookup = await getLookup(deal.cnpj!);
-    return buildCrmBriefing(deal, lookup);
+    return buildCrmBriefing(deal, lookup, opts);
   } catch {
-    return buildCrmBriefing(deal, null);
+    return buildCrmBriefing(deal, null, opts);
   }
 }

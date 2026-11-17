@@ -21,15 +21,15 @@ describe("grid qualify badge", () => {
     expect(isGridRowQualified(row, qualifying)).toBe(false);
   });
 
-  it("treats billed-without-job as still cruzando until a complete audit exists", () => {
+  it("treats billed-without-job as Qualificado", () => {
     const row = {
       cnpj: "12345678000190",
       hasAudit: true,
       enrichmentStatus: null,
     };
     const qualifying = isGridRowQualifying(row, new Set());
-    expect(qualifying).toBe(true);
-    expect(isGridRowQualified(row, qualifying)).toBe(false);
+    expect(qualifying).toBe(false);
+    expect(isGridRowQualified(row, qualifying)).toBe(true);
   });
 
   it("shows Qualificado only after the job finishes", () => {

@@ -1,3 +1,5 @@
+import type { AccessHold } from "@/lib/billing/types";
+
 export const PAINEL_RANGES = ["today", "7d", "30d", "month", "all"] as const;
 export type PainelRange = (typeof PAINEL_RANGES)[number];
 
@@ -57,6 +59,7 @@ export type PainelMetrics = {
   pipelineId: string | null;
   crmAllowed: boolean;
   trialExpired: boolean;
+  accessHold: AccessHold;
   pipelines: PainelPipelineOption[];
   kpis: PainelKpis;
   funnel: PainelFunnelStep[];

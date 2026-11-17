@@ -148,6 +148,23 @@ describe("crm briefing", () => {
     expect(row.socios).toEqual([]);
   });
 
+  it("keeps audited when the account already paid to qualify", async () => {
+    const row = await loadCrmBriefing(
+      deal({ cnpj: "12345678000190" }),
+      async () => ({
+        municipioNome: "Uberlândia",
+        extraPhones: [],
+        presence: null,
+        address: null,
+        cnae: null,
+        decisor: null,
+        assets: null,
+      }),
+      { billed: true },
+    );
+    expect(row.audited).toBe(true);
+  });
+
   it("lists PF socios from the dossier QSA", () => {
     const row = buildCrmBriefing(
       deal(),

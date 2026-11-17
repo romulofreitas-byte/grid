@@ -89,6 +89,17 @@ describe("paywallCopy", () => {
     expect(copy.secondary).toEqual({ action: "close", label: "Fechar" });
   });
 
+  it("points unlocking crm to atendimento instead of Treino livre", () => {
+    const copy = paywallCopy({
+      kind: "unlocking",
+      feature: "crm",
+      hold: "paid_unlocking",
+    });
+    expect(copy.title).toMatch(/pagamento/i);
+    expect(copy.body).toMatch(/não pague de novo/i);
+    expect(copy.primary.external).toBe(true);
+  });
+
   it("points plan crm to /planos", () => {
     const copy = paywallCopy({ kind: "plan", feature: "crm" });
     expect(copy.title).toMatch(/CRM/);

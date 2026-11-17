@@ -3,16 +3,24 @@ import { GlassCard } from "@/components/GlassCard";
 import { ImportacoesPanel } from "@/components/importacoes/ImportacoesPanel";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
+import type { AccessHold } from "@/lib/billing/types";
 import { ensureDefaultPipeline } from "@/lib/crm/ensure-pipeline";
 import { getRepo } from "@/lib/data";
 import { userFacingDbBusyMessage } from "@/lib/data/pg";
 import { redirect, unstable_rethrow } from "next/navigation";
 
-function ImportLocked({ trialExpired }: { trialExpired: boolean }) {
+function ImportLocked({
+  trialExpired,
+  accessHold,
+}: {
+  trialExpired: boolean;
+  accessHold: AccessHold;
+}) {
   return (
     <FeatureLockedPage
       feature="crm"
       trialExpired={trialExpired}
+      accessHold={accessHold}
       from="/importacoes"
     />
   );
@@ -27,7 +35,12 @@ export default async function ImportacoesPage() {
       getRepo().listCrmPipelines(session.id),
     ]);
     if (!balance.enrichAllowed) {
-      return <ImportLocked trialExpired={balance.trialExpired} />;
+      return (
+        <ImportLocked
+          trialExpired={balance.trialExpired}
+          accessHold={balance.accessHold}
+        />
+      );
     }
     const pipelines = await ensureDefaultPipeline(session.id, listed);
     return <ImportacoesPanel initialPipelines={pipelines} />;

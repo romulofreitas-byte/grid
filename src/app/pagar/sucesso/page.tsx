@@ -65,16 +65,29 @@ function SucessoInner() {
   const reduce = useReducedMotion();
   const [order, setOrder] = useState<BillingOrder | null>(null);
   const item = order ? getCatalogItem(order.sku) : undefined;
+  const paid = order?.status === "paid";
 
   useEffect(() => {
     if (!orderId) return;
-    void fetch(`/api/billing/order/${orderId}`)
-      .then((r) => r.json())
-      .then((json: { order?: BillingOrder }) => {
-        if (json.order) setOrder(json.order);
-      })
-      .catch(() => undefined);
-  }, [orderId]);
+    if (order?.status === "paid") return;
+    let cancelled = false;
+
+    async function load() {
+      const res = await fetch(`/api/billing/order/${orderId}`);
+      const json = (await res.json()) as { order?: BillingOrder };
+      if (cancelled || !json.order) return;
+      setOrder(json.order);
+    }
+
+    void load();
+    const timer = window.setInterval(() => {
+      void load().then(() => undefined);
+    }, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [orderId, order?.status]);
 
   return (
     <AppShell fill title="Pago" back={next}>
@@ -93,23 +106,31 @@ function SucessoInner() {
             <div className="flex flex-col items-center justify-center px-4 py-6 text-center md:px-8">
               <StartingLights litCount={5} phase="go" />
               <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
-                Tudo certo
+                {paid ? "Tudo certo" : "Quase lá"}
               </p>
               <h1 className="mt-2 text-balance text-xl font-semibold md:text-2xl">
-                Pagamento confirmado
+                {paid ? "Pagamento confirmado" : "Pagamento recebido, liberando o plano"}
               </h1>
               {item ? (
                 <p className="mt-2 text-pretty text-sm text-podium-gray">
                   {item.nome}
-                  {" · "}
-                  <span className="font-semibold text-podium-yellow">
-                    <CreditCount value={item.credits} /> créditos
-                  </span>{" "}
-                  na conta
+                  {paid ? (
+                    <>
+                      {" · "}
+                      <span className="font-semibold text-podium-yellow">
+                        <CreditCount value={item.credits} /> créditos
+                      </span>{" "}
+                      na conta
+                    </>
+                  ) : (
+                    " · o CRM abre assim que o plano confirmar."
+                  )}
                 </p>
               ) : (
                 <p className="mt-2 text-pretty text-sm text-podium-gray">
-                  Créditos já estão na conta.
+                  {paid
+                    ? "Créditos já estão na conta."
+                    : "Estamos confirmando o pagamento com o banco."}
                 </p>
               )}
               <div className="mt-6">

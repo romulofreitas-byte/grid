@@ -76,6 +76,8 @@ export type TreasuryTransfer = {
   updatedAt: string;
 };
 
+export type AccessHold = "payment_pending" | "paid_unlocking" | null;
+
 export type CreditBalance = {
   total: number;
   plan: number;
@@ -85,6 +87,7 @@ export type CreditBalance = {
   trialDaysLeft: number | null;
   trialExpired: boolean;
   periodEndsAt: string | null;
+  accessHold: AccessHold;
 };
 
 export type BillingMe = {
@@ -101,6 +104,7 @@ export type NormalizedPaymentEvent = {
     | "payment.paid"
     | "payment.failed"
     | "payment.overdue"
+    | "payment.refunded"
     | "subscription.deleted"
     | "treasury.complete"
     | "treasury.failed";

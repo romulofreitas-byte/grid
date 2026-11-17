@@ -35,7 +35,7 @@ function row(partial: Partial<LeadEnrichment> = {}): LeadEnrichment {
     fonte: {},
     midiaPaga: { label: "NÃO VERIFICADO", verificado_automaticamente: false },
     collected_at: "2026-08-13T12:00:00.000Z",
-    expires_at: "2026-09-12T12:00:00.000Z",
+    expires_at: "2027-09-12T12:00:00.000Z",
     ...partial,
   };
 }
@@ -51,13 +51,13 @@ describe("enrichment freshness", () => {
     expect(isEnrichmentComplete(row())).toBe(true);
   });
 
-  it("rejects an expired complete row", () => {
+  it("keeps an expired complete row visible without counting it as fresh", () => {
     expect(
       isEnrichmentComplete(row({ expires_at: "2020-01-01T00:00:00.000Z" })),
     ).toBe(false);
     expect(
       isEnrichmentVisible(row({ expires_at: "2020-01-01T00:00:00.000Z" })),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       isEnrichmentEverComplete(row({ expires_at: "2020-01-01T00:00:00.000Z" })),
     ).toBe(true);

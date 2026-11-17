@@ -14,6 +14,7 @@ import { buttonClassName } from "@/components/ui/Button";
 import { withFrom } from "@/lib/billing/href";
 import { isSkuOnSale } from "@/lib/billing/catalog";
 import { paywallCopy } from "@/lib/billing/paywall";
+import type { AccessHold } from "@/lib/billing/types";
 import { COPY } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
@@ -73,18 +74,24 @@ export function FeatureLockedPage({
   trialExpired,
   from,
   compact = false,
+  accessHold = null,
 }: {
   feature: "crm" | "automations";
   trialExpired: boolean;
   from: string;
   compact?: boolean;
+  accessHold?: AccessHold;
 }) {
   const reduce = useReducedMotion();
   const [picked, setPicked] = useState<number | null>(null);
-  const copy = paywallCopy({
-    kind: trialExpired && feature === "crm" ? "trial" : "plan",
-    feature,
-  });
+  const copy = paywallCopy(
+    accessHold && feature === "crm"
+      ? { kind: "unlocking", feature, hold: accessHold }
+      : {
+          kind: trialExpired && feature === "crm" ? "trial" : "plan",
+          feature,
+        },
+  );
   const highlights =
     feature === "automations"
       ? [
@@ -157,6 +164,8 @@ export function FeatureLockedPage({
             </p>
           ) : null}
 
+          {accessHold && feature === "crm" ? null : (
+          <>
           <ul className="mt-3 space-y-1.5">
             {highlights.map((line, index) => {
               const active = picked === index;
@@ -204,6 +213,8 @@ export function FeatureLockedPage({
               </motion.p>
             ) : null}
           </AnimatePresence>
+          </>
+          )}
 
           <div
             className={cn(

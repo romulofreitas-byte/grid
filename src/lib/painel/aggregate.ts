@@ -149,6 +149,7 @@ export function emptyPainelMetrics(partial: {
   pipelineId: string | null;
   crmAllowed: boolean;
   trialExpired: boolean;
+  accessHold?: import("@/lib/billing/types").AccessHold;
   pipelines?: PainelMetrics["pipelines"];
   callGoal?: number;
   callsToday?: number;
@@ -161,6 +162,7 @@ export function emptyPainelMetrics(partial: {
     pipelineId: partial.pipelineId,
     crmAllowed: partial.crmAllowed,
     trialExpired: partial.trialExpired,
+    accessHold: partial.accessHold ?? null,
     pipelines: partial.pipelines ?? [],
     kpis: emptyKpis(
       partial.callGoal ?? 20,
@@ -179,7 +181,7 @@ export function emptyPainelMetrics(partial: {
 
 export function aggregatePainel(input: PainelSnapshot): Omit<
   PainelMetrics,
-  "crmAllowed" | "trialExpired"
+  "crmAllowed" | "trialExpired" | "accessHold"
 > {
   const startMs = periodStartMs(input.range, input.now);
   const today = saoPauloDay(input.now);

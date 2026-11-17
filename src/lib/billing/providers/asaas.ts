@@ -140,7 +140,10 @@ export const asaasProvider: PaymentProvider = {
   },
 
   async cancelSubscription(providerSubId: string) {
-    await asaasFetch(`/subscriptions/${providerSubId}`, { method: "DELETE" });
+    await asaasFetch(`/subscriptions/${providerSubId}`, {
+      method: "PUT",
+      body: JSON.stringify({ status: "INACTIVE" }),
+    });
   },
 
   async cancelSubscriptionNow(providerSubId: string) {
@@ -197,11 +200,21 @@ export const asaasProvider: PaymentProvider = {
         orderId,
       };
     }
-    if (event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+    if (event === "PAYMENT_DELETED") {
       return {
         provider: "asaas",
         providerEventId: eventId,
         type: "payment.failed",
+        providerPaymentId: paymentId,
+        providerSubId: subId,
+        orderId,
+      };
+    }
+    if (event === "PAYMENT_REFUNDED") {
+      return {
+        provider: "asaas",
+        providerEventId: eventId,
+        type: "payment.refunded",
         providerPaymentId: paymentId,
         providerSubId: subId,
         orderId,

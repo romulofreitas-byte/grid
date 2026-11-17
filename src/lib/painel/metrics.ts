@@ -54,7 +54,7 @@ async function loadPainelMetricsPg(
   userId: string,
   filters: PainelFilters,
   now: Date,
-): Promise<Omit<PainelMetrics, "crmAllowed" | "trialExpired">> {
+): Promise<Omit<PainelMetrics, "crmAllowed" | "trialExpired" | "accessHold">> {
   const pipelineId = filters.pipelineId ?? null;
   const [
     profileRows,
@@ -204,7 +204,7 @@ function loadPainelMetricsMock(
   userId: string,
   filters: PainelFilters,
   now: Date,
-): Omit<PainelMetrics, "crmAllowed" | "trialExpired"> {
+): Omit<PainelMetrics, "crmAllowed" | "trialExpired" | "accessHold"> {
   const store = getMockStore();
   const pipelineId = filters.pipelineId ?? null;
   const owned = new Set(
@@ -285,8 +285,9 @@ export async function loadPainelMetrics(
   const balance = await getBalance(userId);
   const crmAllowed = balance.enrichAllowed;
   const trialExpired = balance.trialExpired;
+  const accessHold = balance.accessHold;
 
-  let core: Omit<PainelMetrics, "crmAllowed" | "trialExpired">;
+  let core: Omit<PainelMetrics, "crmAllowed" | "trialExpired" | "accessHold">;
   if (getDataSource() === "supabase") {
     if (!hasLiveDatabase()) {
       throw new PainelDataError("Banco indisponível para o painel.");
@@ -309,6 +310,7 @@ export async function loadPainelMetrics(
       pipelineId: filters.pipelineId ?? null,
       crmAllowed: false,
       trialExpired,
+      accessHold,
       pipelines: core.pipelines,
       callGoal: core.kpis.callGoal,
       callsToday: core.kpis.callsToday,
@@ -318,5 +320,5 @@ export async function loadPainelMetrics(
     });
   }
 
-  return { ...core, crmAllowed: true, trialExpired };
+  return { ...core, crmAllowed: true, trialExpired, accessHold };
 }

@@ -51,6 +51,19 @@ describe("asaas webhook auth", () => {
     expect(event?.providerPaymentId).toBe("pay_1");
   });
 
+  it("maps PAYMENT_REFUNDED separately from failure", async () => {
+    process.env.ASAAS_WEBHOOK_TOKEN = "token-32-chars-minimum-aaaaaa";
+    const event = await asaasProvider.parseWebhook(
+      req({ "asaas-access-token": "token-32-chars-minimum-aaaaaa" }),
+      JSON.stringify({
+        id: "evt_ref",
+        event: "PAYMENT_REFUNDED",
+        payment: { id: "pay_r", subscription: "sub_1" },
+      }),
+    );
+    expect(event?.type).toBe("payment.refunded");
+  });
+
   it("forwards externalReference as orderId", async () => {
     process.env.ASAAS_WEBHOOK_TOKEN = "token-32-chars-minimum-aaaaaa";
     const event = await asaasProvider.parseWebhook(

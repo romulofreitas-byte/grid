@@ -4,6 +4,7 @@ import { AutomacoesPanel } from "@/components/automacoes/AutomacoesPanel";
 import { requireSession } from "@/lib/auth/session";
 import { planHasFeature } from "@/lib/billing/catalog";
 import { getBalance } from "@/lib/billing/service";
+import type { AccessHold } from "@/lib/billing/types";
 import { ensureDefaultPipeline } from "@/lib/crm/ensure-pipeline";
 import type { AutomacoesCategory } from "@/lib/crm/types";
 import { getRepo } from "@/lib/data";
@@ -13,14 +14,17 @@ import { redirect, unstable_rethrow } from "next/navigation";
 function AutomacoesLocked({
   feature,
   trialExpired,
+  accessHold,
 }: {
   feature: "crm" | "automations";
   trialExpired: boolean;
+  accessHold: AccessHold;
 }) {
   return (
     <FeatureLockedPage
       feature={feature}
       trialExpired={trialExpired}
+      accessHold={feature === "crm" ? accessHold : null}
       from="/integracoes"
     />
   );
@@ -39,6 +43,7 @@ export async function renderAutomacoes(category: AutomacoesCategory) {
         <AutomacoesLocked
           feature={balance.enrichAllowed ? "automations" : "crm"}
           trialExpired={balance.trialExpired}
+          accessHold={balance.accessHold}
         />
       );
     }

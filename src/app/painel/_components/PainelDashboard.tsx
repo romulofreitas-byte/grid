@@ -40,11 +40,21 @@ import { buttonClassName } from "@/components/ui/Button";
 import { useMdUp } from "@/hooks/useMinWidth";
 import { cn } from "@/lib/utils";
 
-function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
-  const copy = paywallCopy({
-    kind: trialExpired ? "trial" : "plan",
-    feature: "crm",
-  });
+function CrmLocked({
+  trialExpired,
+  accessHold,
+}: {
+  trialExpired: boolean;
+  accessHold?: import("@/lib/billing/types").AccessHold;
+}) {
+  const copy = paywallCopy(
+    accessHold
+      ? { kind: "unlocking", feature: "crm", hold: accessHold }
+      : {
+          kind: trialExpired ? "trial" : "plan",
+          feature: "crm",
+        },
+  );
   return (
     <GlassCard className="p-3">
       <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">
@@ -53,7 +63,14 @@ function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
       <p className="mt-2 text-sm font-semibold">{copy.title}</p>
       <p className="mt-2 text-sm text-podium-gray">{copy.body}</p>
       <Link
-        href={withFrom(copy.primary.href, "/painel")}
+        href={
+          copy.primary.external
+            ? copy.primary.href
+            : withFrom(copy.primary.href, "/painel")
+        }
+        {...(copy.primary.external
+          ? { target: "_blank", rel: "noopener noreferrer" }
+          : {})}
         className={buttonClassName({
           variant: "primary",
           size: "md",
@@ -587,7 +604,10 @@ function PainelNumbersBlock({
   return (
     <>
       {!m ? null : !crm ? (
-        <CrmLocked trialExpired={Boolean(m.trialExpired)} />
+        <CrmLocked
+          trialExpired={Boolean(m.trialExpired)}
+          accessHold={m.accessHold}
+        />
       ) : (
         <>
           <div>

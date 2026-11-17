@@ -5,6 +5,7 @@ import { FeatureLockedPage } from "@/components/billing/FeatureLockedPage";
 import { GlassCard } from "@/components/GlassCard";
 import { requireSession } from "@/lib/auth/session";
 import { getBalance } from "@/lib/billing/service";
+import type { AccessHold } from "@/lib/billing/types";
 import { ensureDefaultPipeline } from "@/lib/crm/ensure-pipeline";
 import {
   LAST_CRM_PIPELINE_COOKIE,
@@ -28,9 +29,20 @@ export default function CrmPage({
   );
 }
 
-function CrmLocked({ trialExpired }: { trialExpired: boolean }) {
+function CrmLocked({
+  trialExpired,
+  accessHold,
+}: {
+  trialExpired: boolean;
+  accessHold: AccessHold;
+}) {
   return (
-    <FeatureLockedPage feature="crm" trialExpired={trialExpired} from="/crm" />
+    <FeatureLockedPage
+      feature="crm"
+      trialExpired={trialExpired}
+      accessHold={accessHold}
+      from="/crm"
+    />
   );
 }
 
@@ -48,7 +60,12 @@ async function CrmPageInner({
       getRepo().listCrmPipelines(session.id),
     ]);
     if (!balance.enrichAllowed) {
-      return <CrmLocked trialExpired={balance.trialExpired} />;
+      return (
+        <CrmLocked
+          trialExpired={balance.trialExpired}
+          accessHold={balance.accessHold}
+        />
+      );
     }
     const repo = getRepo();
     const pipelines = await ensureDefaultPipeline(session.id, listed);

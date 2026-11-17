@@ -744,4 +744,117 @@ describe("billing service", () => {
       }),
     ).rejects.toMatchObject({ message: PLAN_DOWNGRADE_MESSAGE, status: 409 });
   });
+
+  it("keeps CRM open while past_due inside the paid period", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const sub = await memoryBillingStore.getActiveSubscription(profileId);
+    expect(sub).toBeTruthy();
+    await memoryBillingStore.updateSubscription(sub!.id, { status: "past_due" });
+    const bal = await getBalance(profileId);
+    expect(bal.enrichAllowed).toBe(true);
+    expect(bal.plano).toBe("piloto");
+  });
+
+  it("does not lock a paid cycle on subscription.deleted", async () => {
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    await handleNormalizedEvent(
+      {
+        provider: "mock",
+        providerEventId: "evt-sub-del",
+        type: "subscription.deleted",
+        providerSubId: order.providerSubId ?? undefined,
+      },
+      {},
+    );
+    const bal = await getBalance(profileId);
+    expect(bal.enrichAllowed).toBe(true);
+    const sub = await memoryBillingStore.getActiveSubscription(profileId);
+    expect(sub?.cancelAtPeriodEnd).toBe(true);
+    expect(sub?.status).toBe("active");
+  });
+
+  it("retries a paid webhook even if the event was already recorded", async () => {
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "boleto",
+    });
+    expect(order.status).toBe("pending");
+    const event = {
+      provider: "mock" as const,
+      providerEventId: "evt-retry-grant",
+      type: "payment.paid" as const,
+      providerPaymentId: "pay_retry",
+      orderId: order.id,
+    };
+    await memoryBillingStore.insertPaymentEvent({
+      provider: event.provider,
+      providerEventId: event.providerEventId,
+      payload: {},
+    });
+    await handleNormalizedEvent(event, {});
+    const bal = await getBalance(profileId);
+    expect(bal.plano).toBe("piloto");
+    expect(bal.enrichAllowed).toBe(true);
+  });
+
+  it("renews when a later payment reuses the original order id", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-14T12:00:00.000Z"));
+    const order = await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "card_br",
+    });
+    const firstEnd = (await getBalance(profileId)).periodEndsAt;
+    vi.setSystemTime(new Date("2026-12-14T15:00:00.000Z"));
+    await handleNormalizedEvent(
+      {
+        provider: "mock",
+        providerEventId: "evt-renew-1",
+        type: "payment.paid",
+        providerPaymentId: "pay_month_2",
+        providerSubId: order.providerSubId ?? undefined,
+        orderId: order.id,
+      },
+      {},
+    );
+    const bal = await getBalance(profileId);
+    expect(bal.enrichAllowed).toBe(true);
+    expect(bal.plano).toBe("piloto");
+    expect(bal.periodEndsAt).not.toBe(firstEnd);
+    expect(new Date(bal.periodEndsAt ?? 0).getTime()).toBeGreaterThan(
+      new Date("2026-12-14T15:00:00.000Z").getTime(),
+    );
+    vi.useRealTimers();
+  });
+
+  it("flags a pending plan checkout as unlocking hold", async () => {
+    await createCheckout({
+      profileId,
+      email: "piloto@mundopodium.com.br",
+      nome: "Rômulo",
+      sku: "piloto",
+      method: "boleto",
+    });
+    const bal = await getBalance(profileId);
+    expect(bal.enrichAllowed).toBe(false);
+    expect(bal.accessHold).toBe("payment_pending");
+  });
 });

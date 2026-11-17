@@ -1,12 +1,14 @@
 import { pagarHref } from "@/lib/billing/href";
 import { isSkuOnSale } from "@/lib/billing/catalog";
+import { supportWhatsAppHref } from "@/lib/support";
+import type { AccessHold } from "@/lib/billing/types";
 
 export const PLANOS_URL = "/planos";
 export const RECARGA_URL = "/planos#recarga";
 export const PLANOS_PRO_URL = "/planos#piloto-pro";
 
 export type BillingGateCode = "plan_required" | "insufficient_credits" | "trial_expired";
-export type PaywallKind = "plan" | "credits" | "trial";
+export type PaywallKind = "plan" | "credits" | "trial" | "unlocking";
 export type PaywallFeature = "qualify" | "export" | "crm_push" | "crm" | "automations";
 
 export type BillingGate = {
@@ -21,6 +23,7 @@ export type PaywallOpen = {
   feature: PaywallFeature;
   needed?: number;
   available?: number;
+  hold?: Exclude<AccessHold, null>;
 };
 
 export type PaywallCopy = {
@@ -169,6 +172,24 @@ export function blockCrmIfFree(
 }
 
 export function paywallCopy(state: PaywallOpen): PaywallCopy {
+  if (state.kind === "unlocking") {
+    const pending = state.hold === "payment_pending";
+    return {
+      eyebrow: pending ? "Pagamento" : "Plano pago",
+      title: pending
+        ? "Liberando o plano"
+        : "Seu pagamento já entrou",
+      body: pending
+        ? "O comprovante chegou. O CRM e as qualificações da conta não somem — o quadro abre assim que o plano confirmar."
+        : "O CRM e os leads qualificados continuam na conta. Se a tela ainda mostrar Treino livre, fale com o atendimento — não pague de novo.",
+      primary: {
+        href: supportWhatsAppHref({ intent: "help", pathname: "/crm" }),
+        label: "Falar no WhatsApp",
+        external: true,
+      },
+      secondary: { href: "/conta/plano", label: "Ver o plano" },
+    };
+  }
   if (state.kind === "trial") {
     return {
       eyebrow: "30 dias",

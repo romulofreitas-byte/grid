@@ -34,13 +34,27 @@ describe("subscriptionGrantsAccess", () => {
     ).toBe(true);
   });
 
-  it("denies past_due and ended periods", () => {
+  it("keeps past_due usable until the paid period ends", () => {
+    expect(
+      subscriptionGrantsAccess(
+        sub({
+          status: "past_due",
+          plan: "piloto",
+          currentPeriodEnd: "2026-09-15T00:00:00.000Z",
+        }),
+        new Date("2026-09-01T00:00:00.000Z"),
+      ),
+    ).toBe(true);
+  });
+
+  it("denies ended periods and canceled rows", () => {
     const now = new Date("2026-09-01T00:00:00.000Z");
     expect(subscriptionGrantsAccess(sub(), now)).toBe(false);
     expect(
       subscriptionGrantsAccess(
         sub({
-          status: "past_due",
+          status: "canceled",
+          plan: "piloto",
           currentPeriodEnd: "2026-09-15T00:00:00.000Z",
         }),
         new Date("2026-09-01T00:00:00.000Z"),
