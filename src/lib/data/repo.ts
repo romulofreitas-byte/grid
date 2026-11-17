@@ -550,4 +550,9 @@ export type GridRepo = {
     userId: string,
     input: { phone: string; cnpj?: string | null; dealId?: string | null },
   ): Promise<{ deals: CrmDealCard[] }>;
+  revealCompanyPhones(
+    userId: string,
+    cnpj: string | null | undefined,
+    phones: readonly string[],
+  ): Promise<void>;
 };
