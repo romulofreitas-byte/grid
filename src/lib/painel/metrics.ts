@@ -5,6 +5,7 @@ import { getMockStore } from "@/lib/data/mock-store";
 import { isUndefinedColumnError, isUndefinedTableError, query } from "@/lib/data/pg";
 import { DEFAULT_CALL_GOAL } from "@/lib/pilot-profile";
 import type { CrmOutcome } from "@/lib/crm/types";
+import { resolveDecisorGoal } from "@/lib/calculadora/funnel";
 import { aggregatePainel, emptyPainelMetrics } from "@/lib/painel/aggregate";
 import type { PainelFilters } from "@/lib/painel/filters";
 import type {
@@ -66,12 +67,12 @@ async function loadPainelMetricsPg(
     activityRows,
     eventRows,
   ] = await Promise.all([
-    query<{ meta_ligacoes_dia: number | null }>(
-      `select meta_ligacoes_dia from profiles where id = $1`,
+    query<{ meta_ligacoes_dia: number | null; meta_decisor_dia: number | null }>(
+      `select meta_ligacoes_dia, meta_decisor_dia from profiles where id = $1`,
       [userId],
     ),
-    optionalQuery<{ created_at: string }>(
-      `select created_at from call_events
+    optionalQuery<{ created_at: string; outcome: string | null }>(
+      `select created_at, outcome from call_events
         where user_id = $1 and created_at >= $2::timestamptz`,
       [userId, new Date(now.getTime() - 120 * 86_400_000).toISOString()],
     ),
@@ -182,12 +183,25 @@ async function loadPainelMetricsPg(
     };
   });
 
+  const callGoal =
+    Number(profileRows.rows[0]?.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL) ||
+    DEFAULT_CALL_GOAL;
+  const decisorGoal = resolveDecisorGoal(
+    profileRows.rows[0]?.meta_decisor_dia == null
+      ? null
+      : Number(profileRows.rows[0].meta_decisor_dia),
+    callGoal,
+  );
   return aggregatePainel({
     now,
     range: filters.range,
     pipelineId,
-    callGoal: Number(profileRows.rows[0]?.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL) || DEFAULT_CALL_GOAL,
+    callGoal,
+    decisorGoal,
     callCreatedAt: callRows.map((row) => asIso(row.created_at)),
+    decisorCreatedAt: callRows
+      .filter((row) => row.outcome === "decisor")
+      .map((row) => asIso(row.created_at)),
     searches: searchRows.map((row) => ({
       created_at: asIso(row.created_at),
       saved: Boolean(row.saved),
@@ -256,13 +270,17 @@ function loadPainelMetricsMock(
       outcome: mapOutcomeEvent(row.meta.outcome),
     }));
   const profile = store.profiles.find((row) => row.id === userId);
+  const callGoal = profile?.meta_ligacoes_dia || DEFAULT_CALL_GOAL;
+  const events = store.call_events.filter((row) => row.user_id === userId);
   return aggregatePainel({
     now,
     range: filters.range,
     pipelineId,
-    callGoal: profile?.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
-    callCreatedAt: store.call_events
-      .filter((row) => row.user_id === userId)
+    callGoal,
+    decisorGoal: resolveDecisorGoal(profile?.meta_decisor_dia, callGoal),
+    callCreatedAt: events.map((row) => row.created_at),
+    decisorCreatedAt: events
+      .filter((row) => row.outcome === "decisor")
       .map((row) => row.created_at),
     searches: store.searches
       .filter((row) => row.user_id === userId)
@@ -314,6 +332,8 @@ export async function loadPainelMetrics(
       pipelines: core.pipelines,
       callGoal: core.kpis.callGoal,
       callsToday: core.kpis.callsToday,
+      decisorGoal: core.kpis.decisorGoal,
+      decisorToday: core.kpis.decisorToday,
       streak: core.kpis.streak,
       lists: core.lists,
       habit: core.habit,

@@ -36,8 +36,18 @@ export type PilotMeta = MetaInput & {
   updated_at: string;
 };
 
+export type DailyGoals = {
+  discagens: number;
+  decisor: number;
+};
+
 export type MetaApplyResult =
-  | { status: "ok"; meta: PilotMeta; metaLigacoesDia: number }
+  | {
+      status: "ok";
+      meta: PilotMeta;
+      metaLigacoesDia: number;
+      metaDecisorDia: number;
+    }
   | { status: "not_found" }
   | { status: "not_ready" };
 
@@ -78,10 +88,20 @@ export function funnelFromMeta(meta: MetaInput): FunnelPlan {
   };
 }
 
-export function dailyGoalFromMeta(meta: MetaInput, now = new Date()): number | null {
+export function dailyGoalsFromMeta(
+  meta: MetaInput,
+  now = new Date(),
+): DailyGoals | null {
   const result = calculateFunnel({ ...funnelFromMeta(meta), now });
   if (!result.ready || result.ligacoesPorDia < 1) return null;
-  return clampCallGoal(result.ligacoesPorDia);
+  return {
+    discagens: clampCallGoal(result.ligacoesPorDia),
+    decisor: clampCallGoal(Math.max(1, result.contatosDecisorPorDia)),
+  };
+}
+
+export function dailyGoalFromMeta(meta: MetaInput, now = new Date()): number | null {
+  return dailyGoalsFromMeta(meta, now)?.discagens ?? null;
 }
 
 export function sanitizeMetaCreate(

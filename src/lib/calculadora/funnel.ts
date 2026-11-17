@@ -50,6 +50,7 @@ export type FunnelResult = {
   semanas: number;
   diasProspeccao: number;
   ligacoesPorDia: number;
+  contatosDecisorPorDia: number;
   dataFinal: Date | null;
   ready: boolean;
 };
@@ -104,9 +105,21 @@ export function emptyFunnelResult(): FunnelResult {
     semanas: 0,
     diasProspeccao: 0,
     ligacoesPorDia: 0,
+    contatosDecisorPorDia: 0,
     dataFinal: null,
     ready: false,
   };
+}
+
+export function resolveDecisorGoal(
+  stored: number | null | undefined,
+  discagens: number,
+): number {
+  if (stored != null && Number.isFinite(stored) && stored >= 1) {
+    return Math.round(stored);
+  }
+  const dials = Number.isFinite(discagens) && discagens >= 1 ? discagens : 1;
+  return Math.max(1, Math.ceil(dials / DIALS_PER_EFFECTIVE));
 }
 
 export function calculateFunnel(input: FunnelInput): FunnelResult {
@@ -143,6 +156,7 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
       semanas: 0,
       diasProspeccao: 0,
       ligacoesPorDia: 0,
+      contatosDecisorPorDia: 0,
       dataFinal: null,
       ready: false,
     };
@@ -156,6 +170,7 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
   const diasProspeccao = semanas * PROSPECTING_DAYS_PER_WEEK;
   const ligacoesTotais = ligacoesDecisor * DIALS_PER_EFFECTIVE;
   const ligacoesPorDia = Math.ceil(ligacoesTotais / diasProspeccao);
+  const contatosDecisorPorDia = Math.ceil(ligacoesDecisor / diasProspeccao);
 
   return {
     contratos,
@@ -168,6 +183,7 @@ export function calculateFunnel(input: FunnelInput): FunnelResult {
     semanas,
     diasProspeccao,
     ligacoesPorDia,
+    contatosDecisorPorDia,
     dataFinal,
     ready: true,
   };

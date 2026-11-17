@@ -9,6 +9,7 @@ import {
   type BoxQueueSource,
 } from "@/lib/box/queue";
 import { buildBoxRhythm, type BoxRhythm } from "@/lib/box/rhythm";
+import { resolveDecisorGoal } from "@/lib/calculadora/funnel";
 import { isCrmStageKey } from "@/lib/crm/cadence";
 import { uniquePhones } from "@/lib/crm/dial";
 import { cnpjKey, phoneIsHidden } from "@/lib/hidden-phones";
@@ -222,12 +223,12 @@ function loadSourcesMock(userId: string): BoxQueueSource[] {
 async function loadRhythmPg(userId: string, now: Date): Promise<BoxRhythm> {
   const since = new Date(now.getTime() - 20 * 86_400_000).toISOString();
   const [profileRows, callRows, eventRows] = await Promise.all([
-    optionalQuery<{ meta_ligacoes_dia: number | null }>(
-      `select meta_ligacoes_dia from profiles where id = $1`,
+    optionalQuery<{ meta_ligacoes_dia: number | null; meta_decisor_dia: number | null }>(
+      `select meta_ligacoes_dia, meta_decisor_dia from profiles where id = $1`,
       [userId],
     ),
-    optionalQuery<{ created_at: string }>(
-      `select created_at from call_events
+    optionalQuery<{ created_at: string; outcome: string | null }>(
+      `select created_at, outcome from call_events
         where user_id = $1 and created_at >= $2::timestamptz`,
       [userId, since],
     ),
@@ -242,12 +243,22 @@ async function loadRhythmPg(userId: string, now: Date): Promise<BoxRhythm> {
       [userId, since],
     ),
   ]);
+  const callGoal =
+    Number(profileRows[0]?.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL) ||
+    DEFAULT_CALL_GOAL;
   return buildBoxRhythm({
     now,
-    callGoal:
-      Number(profileRows[0]?.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL) ||
-      DEFAULT_CALL_GOAL,
+    callGoal,
+    decisorGoal: resolveDecisorGoal(
+      profileRows[0]?.meta_decisor_dia == null
+        ? null
+        : Number(profileRows[0].meta_decisor_dia),
+      callGoal,
+    ),
     callCreatedAt: callRows.map((row) => asIso(row.created_at)),
+    decisorCreatedAt: callRows
+      .filter((row) => row.outcome === "decisor")
+      .map((row) => asIso(row.created_at)),
     crmEvents: eventRows.map((row) => ({
       kind: String(row.kind),
       created_at: asIso(row.created_at),
@@ -268,11 +279,15 @@ function loadRhythmMock(userId: string, now: Date): BoxRhythm {
       .filter((deal) => owned.has(deal.pipeline_id))
       .map((deal) => deal.id),
   );
+  const callGoal = profile?.meta_ligacoes_dia || DEFAULT_CALL_GOAL;
+  const events = store.call_events.filter((row) => row.user_id === userId);
   return buildBoxRhythm({
     now,
-    callGoal: profile?.meta_ligacoes_dia || DEFAULT_CALL_GOAL,
-    callCreatedAt: store.call_events
-      .filter((row) => row.user_id === userId)
+    callGoal,
+    decisorGoal: resolveDecisorGoal(profile?.meta_decisor_dia, callGoal),
+    callCreatedAt: events.map((row) => row.created_at),
+    decisorCreatedAt: events
+      .filter((row) => row.outcome === "decisor")
       .map((row) => row.created_at),
     crmEvents: store.crm_events
       .filter(

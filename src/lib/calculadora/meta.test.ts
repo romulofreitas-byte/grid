@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { dailyGoalFromMeta, sanitizeMetaCreate, sanitizeMetaUpdate, sortMetasForList } from "./meta";
+import {
+  dailyGoalFromMeta,
+  dailyGoalsFromMeta,
+  sanitizeMetaCreate,
+  sanitizeMetaUpdate,
+  sortMetasForList,
+} from "./meta";
 
 const ready = {
   nome: "Clínicas SP",
@@ -98,17 +104,20 @@ describe("sanitizeMetaUpdate", () => {
 });
 
 describe("dailyGoalFromMeta", () => {
-  it("returns the reverse-funnel daily goal when the plan is ready", () => {
+  it("returns discagens and decision-maker contacts for a ready plan", () => {
+    expect(
+      dailyGoalsFromMeta(ready, new Date("2026-09-03T12:00:00.000Z")),
+    ).toEqual({ discagens: 9, decisor: 3 });
     expect(
       dailyGoalFromMeta(ready, new Date("2026-09-03T12:00:00.000Z")),
     ).toBe(9);
     expect(dailyGoalFromMeta({ ...ready, prazoMeses: 0 })).toBeNull();
     expect(
-      dailyGoalFromMeta(
+      dailyGoalsFromMeta(
         { ...ready, taxaContato: 50, taxasOrigem: "manual" },
         new Date("2026-09-03T12:00:00.000Z"),
       ),
-    ).toBe(17);
+    ).toEqual({ discagens: 17, decisor: 6 });
   });
 });
 

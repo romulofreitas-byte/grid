@@ -25,6 +25,7 @@ describe("calculateFunnel", () => {
     expect(result.ligacoesDecisor).toBe(110);
     expect(result.ready).toBe(false);
     expect(result.ligacoesPorDia).toBe(0);
+    expect(result.contatosDecisorPorDia).toBe(0);
   });
 
   it("matches the original planning layer (×3 dials, 3 days/week)", () => {
@@ -44,6 +45,7 @@ describe("calculateFunnel", () => {
     expect(result.semanas).toBe(13);
     expect(result.diasProspeccao).toBe(39);
     expect(result.ligacoesPorDia).toBe(9);
+    expect(result.contatosDecisorPorDia).toBe(3);
     expect(result.ready).toBe(true);
     expect(result.dataFinal).not.toBeNull();
   });
@@ -110,6 +112,7 @@ describe("calculateFunnel", () => {
     expect(result.reunioesAgendadas).toBe(110);
     expect(result.ligacoesDecisor).toBe(220);
     expect(result.ligacoesTotais).toBe(660);
+    expect(result.contatosDecisorPorDia).toBe(6);
   });
 
   it("treats a missing booking rate as 100%", () => {

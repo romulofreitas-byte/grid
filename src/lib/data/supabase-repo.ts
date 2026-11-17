@@ -363,6 +363,10 @@ function mapProfile(r: Record<string, unknown>): Profile {
     promessa: r.promessa == null ? null : String(r.promessa),
     duracao_reuniao: Number(r.duracao_reuniao ?? DEFAULT_MEETING_MINUTES),
     meta_ligacoes_dia: Number(r.meta_ligacoes_dia ?? DEFAULT_CALL_GOAL),
+    meta_decisor_dia:
+      r.meta_decisor_dia == null || r.meta_decisor_dia === ""
+        ? null
+        : Number(r.meta_decisor_dia),
     active_meta_id: r.active_meta_id == null ? null : String(r.active_meta_id),
     onboarding_completed_at:
       r.onboarding_completed_at == null ? null : isoStr(r.onboarding_completed_at),
@@ -3958,7 +3962,8 @@ export const supabaseRepo: GridRepo = {
          documento = $10, documento_tipo = $11,
          foto_url = $12, como_chama = $13, tratamento = $14, promessa = $15,
          duracao_reuniao = $16, meta_ligacoes_dia = $17,
-         onboarding_completed_at = $18, active_meta_id = $19
+         meta_decisor_dia = $18,
+         onboarding_completed_at = $19, active_meta_id = $20
        where id = $1
        returning *`,
       [
@@ -3979,6 +3984,7 @@ export const supabaseRepo: GridRepo = {
         next.promessa,
         next.duracao_reuniao,
         next.meta_ligacoes_dia,
+        next.meta_decisor_dia,
         next.onboarding_completed_at,
         next.active_meta_id,
       ],
@@ -3987,12 +3993,18 @@ export const supabaseRepo: GridRepo = {
   },
 
   async recordCallEvent(userId, input) {
+    const outcome = input.outcome === "decisor" ? "decisor" : "discagem";
     const { rows } = await query(
-      `insert into call_events (user_id, cnpj, saved_lead_id, source)
-       values ($1, $2, $3, $4)
-       on conflict (user_id, cnpj, day_sp) do nothing
+      `insert into call_events (user_id, cnpj, saved_lead_id, source, outcome)
+       values ($1, $2, $3, $4, $5)
        returning id`,
-      [userId, digitsCnpj(input.cnpj), input.savedLeadId ?? null, input.source],
+      [
+        userId,
+        digitsCnpj(input.cnpj),
+        input.savedLeadId ?? null,
+        input.source,
+        outcome,
+      ],
     );
     return Boolean(rows[0]);
   },

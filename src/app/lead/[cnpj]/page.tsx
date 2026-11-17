@@ -966,7 +966,7 @@ export default function LeadPage() {
               decisorNome={d.decisor?.nome}
               volta={
                 statsQuery.data
-                  ? `${statsQuery.data.hoje}/${statsQuery.data.meta} ligações`
+                  ? `${statsQuery.data.hoje}/${statsQuery.data.meta} discagens`
                   : null
               }
             />

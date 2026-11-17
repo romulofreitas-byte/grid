@@ -44,6 +44,7 @@ import type { CompanyGridPlacement } from "@/lib/empresas/context";
 import type { GridRecorte, ListPerformance } from "@/lib/listas/performance";
 import type {
   CallEventSource,
+  CallOutcome,
   CompanyBrief,
   CompanySearchHit,
   CountMode,
@@ -201,6 +202,7 @@ export type GridRepo = {
       cnpj: string;
       savedLeadId?: string | null;
       source: CallEventSource;
+      outcome?: CallOutcome;
     },
   ): Promise<boolean>;
   listCallEventsToday(

@@ -1,4 +1,3 @@
-import { recordCompletedCall } from "@/lib/crm/record-call";
 import { getRepo } from "@/lib/data";
 import {
   cnpjsFromJobPayload,
@@ -192,18 +191,6 @@ export async function processIntegrationJob(job: IntegrationJobRecord): Promise<
         ...(result.callRef ? { call_ref: result.callRef } : {}),
       },
     });
-    if (!target.skipLeadRecord && dossier) {
-      await recordCompletedCall(repo, {
-        userId: job.user_id,
-        cnpj: target.cnpj,
-        savedLeadId: dossier.savedLeadId,
-        search: job.search_id
-          ? ((await repo.getSearch(job.search_id)) ?? null)
-          : null,
-        source: "dialer",
-        completeOpenLigar: false,
-      });
-    }
     await repo.updateIntegrationJob(job.id, {
       status: "done",
       result: {

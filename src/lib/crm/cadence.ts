@@ -123,6 +123,16 @@ export function callAdvanceTarget(
   return currentKey === "entrada" ? "tentando_contato" : null;
 }
 
+const BEFORE_DECISOR = new Set(["entrada", "tentando_contato", "contato_respondido"]);
+
+/** Spoke with the decision-maker. Later stages stay where they are. */
+export function decisorAdvanceTarget(
+  currentKey: string | null | undefined,
+): "followup_decisor" | null {
+  if (currentKey && BEFORE_DECISOR.has(currentKey)) return "followup_decisor";
+  return null;
+}
+
 export function dispositionAdvanceTarget(
   status: LeadStatus,
   currentKey: string | null | undefined,

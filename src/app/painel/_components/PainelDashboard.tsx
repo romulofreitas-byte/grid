@@ -19,7 +19,6 @@ import { CHART, formatInt } from "@/components/charts/chartTheme";
 import { GlassCard } from "@/components/GlassCard";
 import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
-import { VoltaRing } from "@/components/VoltaRing";
 import { formatBrl } from "@/lib/billing/catalog";
 import { withFrom } from "@/lib/billing/href";
 import { paywallCopy } from "@/lib/billing/paywall";
@@ -168,6 +167,36 @@ function TaskList({
   );
 }
 
+function DayMeter({
+  label,
+  hoje,
+  meta,
+}: {
+  label: string;
+  hoje: number;
+  meta: number;
+}) {
+  const pct = meta > 0 ? Math.min(100, Math.round((hoje / meta) * 100)) : 0;
+  return (
+    <div className="min-w-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
+          {label}
+        </p>
+        <p className="tabular-nums text-sm font-semibold text-podium-white">
+          {hoje}/{meta}
+        </p>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-podium-yellow"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PainelDashboard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -236,7 +265,11 @@ export function PainelDashboard() {
   const kpisReady = Boolean(k) && fetchedOnce.current;
   const callGoal = kpisReady && k ? k.callGoal : 0;
   const callsToday = kpisReady && k ? k.callsToday : 0;
+  const decisorGoal = kpisReady && k ? k.decisorGoal : 0;
+  const decisorToday = kpisReady && k ? k.decisorToday : 0;
   const missingCalls = kpisReady && k ? Math.max(0, k.callGoal - k.callsToday) : 0;
+  const missingDecisor = kpisReady && k ? Math.max(0, k.decisorGoal - k.decisorToday) : 0;
+  const dayOpen = missingCalls > 0 || missingDecisor > 0;
   const winWhole = (k?.wonPeriod ?? 0) + (k?.lostPeriod ?? 0);
   const rangeBadge = painelRangeLabel(filters.range);
   const allNiches = !filters.pipelineId;
@@ -353,31 +386,32 @@ export function PainelDashboard() {
       ) : null}
 
       <div className="grid items-stretch gap-3 lg:grid-cols-2">
-        <GlassCard className="p-3" hover={false} highlight={missingCalls > 0} data-tour="painel-meta">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative mx-auto shrink-0 sm:mx-0">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 scale-[1.55] bg-[radial-gradient(circle,rgba(245,179,1,0.16),transparent_62%)]"
-              />
-              <VoltaRing
-                hoje={callsToday}
-                meta={callGoal}
-                size="md"
-                className="relative"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
+        <GlassCard className="p-3" hover={false} highlight={dayOpen} data-tour="painel-meta">
+          <div className="flex flex-col gap-4">
+            <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-podium-muted">
                 Trabalho do dia
               </p>
               <p className="mt-1 text-lg font-semibold leading-tight">
                 {!kpisReady
                   ? "Carregando a meta…"
-                  : missingCalls > 0
-                    ? COPY.painelCallsLeft.replace("{n}", String(missingCalls))
+                  : dayOpen
+                    ? [
+                        missingDecisor > 0
+                          ? COPY.painelDecisorLeft.replace("{n}", String(missingDecisor))
+                          : null,
+                        missingCalls > 0
+                          ? COPY.painelCallsLeft.replace("{n}", String(missingCalls))
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" ")
                     : COPY.painelCallsDone}
               </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <DayMeter label="Discagens" hoje={callsToday} meta={callGoal} />
+                <DayMeter label="Com decisor" hoje={decisorToday} meta={decisorGoal} />
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] font-medium text-podium-gray">
                   <Flame className="h-3 w-3 text-podium-yellow" />

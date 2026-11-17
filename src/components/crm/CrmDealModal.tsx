@@ -106,7 +106,6 @@ import type {
 } from "@/lib/crm/types";
 import { formatCentsInput, maskDealAmountTyping, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
-import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import type { CallConnectionPick } from "@/lib/integrations/call-target";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
@@ -761,22 +760,18 @@ export function CrmDealModal({
     ]);
   }
 
-  async function recordCallAfterDial(callId?: string, phone?: string | null) {
+  async function refreshAfterCall(callId?: string) {
     if (callId) setRecordingWatch({ dealId: deal.id, callId });
     try {
-      const result = await recordCrmDialAfterCall(
-        deal,
-        callId,
-        phone?.trim() || undefined,
-      );
-      onChange(result.deal);
+      const [card, extra] = await Promise.all([
+        crmFetch<{ deal: CrmDealCard }>(`/api/crm/deals/${deal.id}`),
+        crmFetch<{ events: CrmEvent[] }>(`/api/crm/deals/${deal.id}/events`),
+      ]);
+      onChange(card.deal);
       void invalidateLiveStats(qc);
-      if (result.event) prependEvent(result.event);
-      if (result.events) {
-        historyGen.current += 1;
-        setCachedDealEvents(deal.id, result.events);
-        setEvents(result.events);
-      }
+      historyGen.current += 1;
+      setCachedDealEvents(deal.id, extra.events);
+      setEvents(extra.events);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não registrou a ligação.");
     }
@@ -1375,7 +1370,7 @@ export function CrmDealModal({
                 companyName={deal.company_name}
                 phoneLabel={formatPhoneDisplay(headerPhone)}
                 onConfirmOpenChange={setCallDialogOpen}
-                onCalled={(callId) => void recordCallAfterDial(callId, headerPhone)}
+                onCalled={(callId) => void refreshAfterCall(callId)}
               />
             ) : (
               <button
@@ -1586,7 +1581,7 @@ export function CrmDealModal({
                               companyName={deal.company_name}
                               phoneLabel={formatPhoneDisplay(headerPhone)}
                               onConfirmOpenChange={setCallDialogOpen}
-                              onCalled={(callId) => void recordCallAfterDial(callId, headerPhone)}
+                              onCalled={(callId) => void refreshAfterCall(callId)}
                             />
                           ) : (
                             <button

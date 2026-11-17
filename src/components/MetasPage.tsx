@@ -948,7 +948,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
           ) : (
             <LayoutGroup id="suas-metas">
               {metas.map((meta) => {
-                const daily = calculateFunnel(funnelFromMeta(meta)).ligacoesPorDia;
+                const daily = calculateFunnel(funnelFromMeta(meta));
                 const selected = meta.id === selectedId;
                 const onBox = meta.id === activeMetaId;
                 return (
@@ -960,7 +960,7 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
                     <MetaPickCard
                       title={meta.nome}
                       subtitle={meta.tipo_empresa || undefined}
-                      detail={`${formatBrl(meta.ticket)} · ${formatInt(daily)} lig/dia`}
+                      detail={`${formatBrl(meta.ticket)} · ${formatInt(daily.ligacoesPorDia)} disc./dia · ${formatInt(daily.contatosDecisorPorDia)} decisor`}
                       selected={selected}
                       onBox={onBox}
                       onSelect={() => selectMeta(meta)}
@@ -992,13 +992,23 @@ export function MetasPage({ initial }: { initial?: MetasPayload }) {
 
       <div id="meta-funil" className={workSplitPaneClass}>
         <div className="sticky top-0 z-20 mb-3 flex flex-wrap items-center gap-2 border-b border-white/10 bg-podium-navy/95 py-2 backdrop-blur-xl md:static md:z-auto">
-          <div className="min-w-[5.5rem] px-1">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
-              {COPY.calculadoraPorDia}
-            </p>
-            <p className="text-xl font-semibold tabular-nums text-podium-yellow">
-              {formatInt(result.ligacoesPorDia)}
-            </p>
+          <div className="flex min-w-0 items-end gap-4 px-1">
+            <div className="min-w-[5.5rem]">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+                {COPY.calculadoraPorDia}
+              </p>
+              <p className="text-xl font-semibold tabular-nums text-podium-yellow">
+                {formatInt(result.ligacoesPorDia)}
+              </p>
+            </div>
+            <div className="min-w-[5.5rem]">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-podium-muted">
+                {COPY.calculadoraPorDiaDecisor}
+              </p>
+              <p className="text-xl font-semibold tabular-nums text-podium-white">
+                {formatInt(result.contatosDecisorPorDia)}
+              </p>
+            </div>
           </div>
           {dirty ? (
             <span className="rounded-md border border-podium-yellow/40 bg-podium-yellow/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-podium-yellow">

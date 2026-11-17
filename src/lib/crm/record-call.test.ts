@@ -57,7 +57,7 @@ function cleanup() {
 describe("recordCompletedCall", () => {
   afterEach(cleanup);
 
-  it("writes call_events and Ligação feita, and does not double-count the same CNPJ today", async () => {
+  it("writes each attempt, including a second dial to the same CNPJ today", async () => {
     const store = getMockStore();
     const cnpj = store.establishments[0]!.cnpj;
     store.searches.push(searchRow("search-call"));
@@ -85,12 +85,13 @@ describe("recordCompletedCall", () => {
       source: "manual",
       crmWrites: true,
     });
-    expect(second.counted).toBe(false);
+    expect(second.counted).toBe(true);
 
     const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
-    expect(stats.hoje).toBe(1);
+    expect(stats.hoje).toBe(2);
     const today = await mockRepo.listCallEventsToday(USER, [cnpj]);
-    expect(today).toHaveLength(1);
+    expect(today).toHaveLength(2);
+    expect(store.call_events.every((row) => row.outcome === "discagem")).toBe(true);
 
     const lead = store.saved_leads.find((row) => row.id === "lead-call");
     expect(lead?.status).toBe("ligando");
@@ -103,6 +104,33 @@ describe("recordCompletedCall", () => {
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     const stage = board?.stages.find((row) => row.id === deal!.stage_id);
     expect(stage?.canonical_key).toBe("tentando_contato");
+  });
+
+  it("counts a decision-maker conversation as a dial and moves the card forward", async () => {
+    const store = getMockStore();
+    const cnpj = store.establishments[0]!.cnpj;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+      cnpj,
+    });
+
+    await recordCompletedCall(mockRepo, {
+      userId: USER,
+      cnpj,
+      source: "manual",
+      outcome: "decisor",
+      crmWrites: true,
+    });
+
+    const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
+    expect(stats.hoje).toBe(1);
+    expect(store.call_events[0]?.outcome).toBe("decisor");
+    const deal = await mockRepo.findCrmDealByCnpjForUser(USER, cnpj);
+    const board = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const stage = board?.stages.find((row) => row.id === deal!.stage_id);
+    expect(stage?.canonical_key).toBe("followup_decisor");
   });
 
   it("does not count updateLead(status ligando) toward the ring", async () => {

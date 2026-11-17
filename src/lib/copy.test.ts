@@ -269,14 +269,14 @@ describe("COPY crm", () => {
     expect(COPY.boxNoteEmpty).toMatch(/anote/i);
     expect(COPY.boxMeetingDue).toMatch(/horário/i);
     expect(COPY.boxSaveMeeting).toMatch(/agendar/i);
-    expect(COPY.boxRhythmCalls).toMatch(/ligações/i);
+    expect(COPY.boxRhythmCalls).toMatch(/discagens/i);
     expect(COPY.painelOpenBox).toMatch(/box/i);
     expect(COPY.painelHint).toBe("Aqui, o esforço aparece.");
     expect(COPY.crmOpening).toMatch(/CRM/);
     expect(COPY.metasOpening).toMatch(/Meta/);
     expect(COPY.calculadoraTaxa1).toMatch(/Reuniões agendadas/);
     expect(COPY.calculadoraPassoAgendada).toBe("Agendadas");
-    expect(COPY.calculadoraPassoDecisor).toBe("Contatos");
+    expect(COPY.calculadoraPassoDecisor).toBe("Com decisor");
     expect(COPY.calculadoraPlanoX3).toMatch(/3 discagens/);
     expect(COPY.calculadoraPlanoBarDiscagens).toBe("Discagens");
     expect(COPY.calculadoraPlanoBarDecisor).toBe("Decisor");

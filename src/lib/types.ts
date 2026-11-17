@@ -439,6 +439,13 @@ export type Tratamento = "o" | "a" | "e";
 
 export type CallEventSource = "status" | "dialer" | "manual" | "crm";
 
+export const CALL_OUTCOMES = ["discagem", "decisor"] as const;
+export type CallOutcome = (typeof CALL_OUTCOMES)[number];
+
+export function isCallOutcome(value: unknown): value is CallOutcome {
+  return value === "discagem" || value === "decisor";
+}
+
 export type Profile = {
   id: string;
   nome: string | null;
@@ -457,6 +464,8 @@ export type Profile = {
   promessa: string | null;
   duracao_reuniao: number;
   meta_ligacoes_dia: number;
+  /** Null until a meta is applied again. Readers fall back to ceil(discagens / 3). */
+  meta_decisor_dia: number | null;
   active_meta_id: string | null;
   onboarding_completed_at: string | null;
   created_at: string;
@@ -468,6 +477,7 @@ export type CallEvent = {
   cnpj: string;
   saved_lead_id: string | null;
   source: CallEventSource;
+  outcome: CallOutcome;
   created_at: string;
 };
 

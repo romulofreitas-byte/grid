@@ -106,10 +106,18 @@ function latestOutcomeAt(
   return matches[0]?.created_at ?? fallback;
 }
 
-function emptyKpis(callGoal: number, callsToday: number, streak: number): PainelKpis {
+function emptyKpis(
+  callGoal: number,
+  callsToday: number,
+  decisorGoal: number,
+  decisorToday: number,
+  streak: number,
+): PainelKpis {
   return {
     callsToday,
     callGoal,
+    decisorToday,
+    decisorGoal,
     streak,
     overdueFollowups: 0,
     billedPeriodCents: 0,
@@ -153,6 +161,8 @@ export function emptyPainelMetrics(partial: {
   pipelines?: PainelMetrics["pipelines"];
   callGoal?: number;
   callsToday?: number;
+  decisorGoal?: number;
+  decisorToday?: number;
   streak?: number;
   lists?: PainelMetrics["lists"];
   habit?: PainelMetrics["habit"];
@@ -167,6 +177,8 @@ export function emptyPainelMetrics(partial: {
     kpis: emptyKpis(
       partial.callGoal ?? 20,
       partial.callsToday ?? 0,
+      partial.decisorGoal ?? 0,
+      partial.decisorToday ?? 0,
       partial.streak ?? 0,
     ),
     ...emptyCrmCharts(),
@@ -186,6 +198,7 @@ export function aggregatePainel(input: PainelSnapshot): Omit<
   const startMs = periodStartMs(input.range, input.now);
   const today = saoPauloDay(input.now);
   const callsToday = callsOnDay(input.callCreatedAt, today);
+  const decisorToday = callsOnDay(input.decisorCreatedAt, today);
   const streak = callStreak(input.callCreatedAt, input.now);
   const habit = lastNDays(input.now, 14).map((day) => ({
     day,
@@ -348,6 +361,8 @@ export function aggregatePainel(input: PainelSnapshot): Omit<
     kpis: {
       callsToday,
       callGoal: input.callGoal,
+      decisorToday,
+      decisorGoal: input.decisorGoal,
       streak,
       overdueFollowups,
       billedPeriodCents,

@@ -8,7 +8,7 @@ import {
 import { openLigarActivity } from "@/lib/crm/activity";
 import type { CrmNextAction } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
-import type { CallEventSource, Search } from "@/lib/types";
+import type { CallEventSource, CallOutcome, Search } from "@/lib/types";
 
 export type RecordCompletedCallRepo = LeadCrmRepo &
   Pick<
@@ -28,6 +28,7 @@ export type RecordCompletedCallInput = {
   savedLeadId?: string | null;
   search?: Search | null;
   source: CallEventSource;
+  outcome?: CallOutcome;
   notes?: string;
   next?: CrmNextAction | null;
   phone?: string;
@@ -59,10 +60,12 @@ export async function recordCompletedCall(
     savedLeadId = lead?.id ?? null;
   }
 
+  const outcome: CallOutcome = input.outcome === "decisor" ? "decisor" : "discagem";
   const counted = await repo.recordCallEvent(input.userId, {
     cnpj,
     savedLeadId,
     source: input.source,
+    outcome,
   });
 
   if (savedLeadId) {
@@ -114,6 +117,7 @@ export async function recordCompletedCall(
       userId: input.userId,
       cnpj,
       search: input.search ?? null,
+      outcome,
     });
   } catch {
     // Ring still counts if the CRM card cannot move.

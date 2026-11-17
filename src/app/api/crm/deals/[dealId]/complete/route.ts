@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
-import { countConfirmedCrmCall } from "@/lib/crm/record-call";
 import { completeSchema } from "@/lib/crm/schema";
 import { getRepo } from "@/lib/data";
 
@@ -24,11 +23,5 @@ export async function POST(
   );
   if (!result) return jsonError("Negócio não encontrado.", 404);
   if (!result.event) return jsonError("Nenhuma atividade a concluir.");
-  await countConfirmedCrmCall(
-    repo,
-    gated.userId,
-    result.deal,
-    result.event.kind,
-  );
   return NextResponse.json(result);
 }

@@ -215,6 +215,7 @@ describe("recordCrmDialAfterCall", () => {
           cnpj: "12345678000199",
           dealId: "deal-1",
           phone: "(11) 4123-3244",
+          outcome: "discagem",
         }),
       }),
     );

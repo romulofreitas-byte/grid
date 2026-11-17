@@ -41,6 +41,7 @@ export async function recordCrmDialAfterCall(
       dealId: deal.id,
       ...(callId ? { callId } : {}),
       ...(dialed ? { phone: dialed } : {}),
+      outcome: "discagem",
     }),
   });
   const body = (await res.json()) as { error?: string };

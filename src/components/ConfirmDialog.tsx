@@ -19,6 +19,7 @@ export function ConfirmDialog({
   cancelLabel = COPY.confirmCancel,
   pending = false,
   confirmIcon,
+  actions,
   onClose,
   onConfirm,
 }: {
@@ -33,6 +34,7 @@ export function ConfirmDialog({
   cancelLabel?: string;
   pending?: boolean;
   confirmIcon?: ReactNode;
+  actions?: ReactNode;
   onClose: () => void;
   onConfirm: () => void;
 }) {
@@ -106,28 +108,30 @@ export function ConfirmDialog({
         {body ? (
           <p className="mt-3 text-sm text-podium-muted">{body}</p>
         ) : null}
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="md"
-            disabled={pending}
-            onClick={onClose}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            ref={primaryRef}
-            type="button"
-            variant="primary"
-            size="md"
-            disabled={pending}
-            onClick={onConfirm}
-          >
-            {confirmIcon}
-            {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
-          </Button>
-        </div>
+        {actions ?? (
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="md"
+              disabled={pending}
+              onClick={onClose}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              ref={primaryRef}
+              type="button"
+              variant="primary"
+              size="md"
+              disabled={pending}
+              onClick={onConfirm}
+            >
+              {confirmIcon}
+              {pending ? (pendingLabel ?? confirmLabel) : confirmLabel}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

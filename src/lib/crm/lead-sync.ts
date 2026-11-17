@@ -1,6 +1,7 @@
 import {
   canMoveFromFicha,
   callAdvanceTarget,
+  decisorAdvanceTarget,
   dispositionAdvanceTarget,
   firstMileStages,
   isCrmStageKey,
@@ -148,7 +149,12 @@ export async function moveLeadCrmFromFicha(
 
 export async function advanceCrmOnCall(
   repo: LeadCrmRepo,
-  input: { userId: string; cnpj: string; search?: Search | null },
+  input: {
+    userId: string;
+    cnpj: string;
+    search?: Search | null;
+    outcome?: "discagem" | "decisor";
+  },
 ): Promise<LeadCrmState | null> {
   const crm = await loadLeadCrm(repo, {
     userId: input.userId,
@@ -156,7 +162,10 @@ export async function advanceCrmOnCall(
     search: input.search ?? null,
   });
   if (!crm) return null;
-  const target = callAdvanceTarget(crm.stageKey);
+  const target =
+    input.outcome === "decisor"
+      ? decisorAdvanceTarget(crm.stageKey)
+      : callAdvanceTarget(crm.stageKey);
   if (!target) return crm;
   return moveDealToKey(
     repo,

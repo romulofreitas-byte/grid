@@ -92,6 +92,12 @@ export function BoxRhythmStrip({
           <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
             {`${rhythm.callsToday} / ${rhythm.callGoal}`}
           </p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-podium-muted">
+            {COPY.boxRhythmDecisor}
+          </p>
+          <p className="tabular-nums text-sm font-medium tracking-tight text-podium-white">
+            {`${rhythm.decisorToday} / ${rhythm.decisorGoal}`}
+          </p>
           <span className="hidden md:inline">
             <Spark values={rhythm.habit.map((point) => point.calls)} />
           </span>

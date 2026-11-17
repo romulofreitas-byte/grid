@@ -345,8 +345,9 @@ export const COPY = {
     "O Box executa o que está agendado no CRM. Libere o plano para ver a fila.",
   boxNextKind: "Próxima ação",
   boxSaveNext: "Salvar próxima",
-  boxRhythmCalls: "Ligações",
-  boxRhythmCallsHint: "Do dia contra a meta. A linha é o hábito de 14 dias.",
+  boxRhythmCalls: "Discagens",
+  boxRhythmDecisor: "Decisor",
+  boxRhythmCallsHint: "Discagens do dia contra a meta. A linha é o hábito de 14 dias.",
   boxRhythmDone: "Feitas hoje",
   boxRhythmDoneHint: "Ligar e WhatsApp registrados no CRM hoje.",
   boxRhythmAdvance: "Avanço",
@@ -745,10 +746,10 @@ export const COPY = {
   tourDemoListName: "Clínicas · Curitiba",
   tourStepPainelWelcomeTitle: "O dia começa no Painel",
   tourStepPainelWelcomeBody:
-    "Aqui fica o trabalho do dia: meta de ligações, o que está aberto no CRM e o ritmo das listas.",
+    "Aqui fica o trabalho do dia: discagens, contatos com o decisor, o que está aberto no CRM e o ritmo das listas.",
   tourStepPainelGoalTitle: "A meta de hoje",
   tourStepPainelGoalBody:
-    "As ligações do dia contra a meta. Faltando ou batida, você vê o que ainda tem pela frente.",
+    "Discagens e contatos com o decisor contra a meta. Faltando ou batida, você vê o que ainda tem pela frente.",
   tourStepPainelCallTitle: "Ligar agora",
   tourStepPainelCallBody:
     "Abre o Box: a lista de ligar e WhatsApp, na ordem de urgência.",
@@ -768,8 +769,9 @@ export const COPY = {
   tourStepGridSaveBody:
     "Salve a lista. Quem você qualificar entra sozinho no quadro, sem copiar lead por lead.",
   painelCtaTitle: "Agora",
-  painelCallsLeft: "Faltam {n} ligações hoje.",
-  painelCallsDone: "Ligações do dia batidas.",
+  painelCallsLeft: "Faltam {n} discagens.",
+  painelDecisorLeft: "Faltam {n} contatos com o decisor.",
+  painelCallsDone: "Discagens e contatos do dia batidos.",
   painelOverdueCta: "{n} follow-ups atrasados. Resolver no CRM.",
   painelNoNextCta: "{n} fichas sem próxima ação.",
   painelEmptyCrm: "Nenhum negócio no CRM ainda. Gere uma lista e avance as fichas.",
@@ -787,7 +789,13 @@ export const COPY = {
   confirmCancel: "Cancelar",
   callAskEyebrow: "Confirmar",
   callAskTitle: "Ligar agora?",
-  callAskBody: "Abre o telefone e conta na meta do dia.",
+  callAskBody: "Abre o telefone. A meta conta quando você marca o resultado.",
+  callClassifyTitle: "Como foi?",
+  callClassifyBody:
+    "Discagem é a tentativa. Falei com o decisor conta a conversa e também a discagem.",
+  callClassifyDiscagem: "Discagem",
+  callClassifyDecisor: "Falei com o decisor",
+  callClassifyPending: "Registrando…",
   callAskBodyVoip: "O Webphone vai tocar. Deixe a extensão online.",
   callVoipHint: "O Webphone toca. Deixe a extensão online.",
   api4comTestHint:
@@ -800,8 +808,8 @@ export const COPY = {
   callHangup: "Desligar",
   callHangupPending: "Desligando…",
   callHangupTitle: "Encerrar a ligação",
-  callConfirmHint: "Conta na meta e registra no CRM.",
-  callDialHint: "Confirme para abrir o telefone e contar na meta.",
+  callConfirmHint: "Marque discagem ou contato com o decisor para contar na meta.",
+  callDialHint: "Confirme para abrir o telefone. O resultado conta depois.",
   callConnectionsPending: "Carregando a telefonia…",
   gridCalledToday: "Ligou",
   conexoesStandbyBanner:
@@ -1021,7 +1029,7 @@ export const COPY = {
   calculadoraTitle: "Meta",
   calculadoraEyebrow: "Previsibilidade comercial",
   calculadoraLead:
-    "Calcule o funil, clique em Salvar meta e escolha qual define as ligações do dia.",
+    "Calcule o funil, clique em Salvar meta e escolha qual define as discagens e os contatos do dia.",
   calculadoraObjetivo: "Objetivo",
   calculadoraMetaFaturamento: "Meta de faturamento no período",
   calculadoraTicket: "Ticket médio do contrato",
@@ -1043,13 +1051,13 @@ export const COPY = {
   metasExcluir: "Excluir",
   metasNeedNome: "Dê um nome à meta para salvar.",
   metasConfirmDeleteTitle: "Apagar {nome}?",
-  metasConfirmDelete: "O histórico some; as ligações do dia não zeram.",
+  metasConfirmDelete: "O histórico some; as discagens do dia não zeram.",
   metasDeleteConfirm: "Apagar",
   metasDeletePending: "Apagando…",
   metasLoadError: "Não foi possível carregar as metas. Recarregue a página.",
   metasSalvar: "Salvar meta",
   metasSalvarHint:
-    "Salvar guarda em Suas metas. Nada salva sozinho. Salvar e usar no Box também define as ligações do dia.",
+    "Salvar guarda em Suas metas. Nada salva sozinho. Salvar e usar no Box também define as discagens e os contatos do dia.",
   metasSalva: "Meta na lista.",
   calculadoraTaxas: "Taxas do funil",
   calculadoraTaxasLead:
@@ -1081,7 +1089,7 @@ export const COPY = {
   calculadoraPassoR2: "R2s",
   calculadoraPassoR1: "R1s",
   calculadoraPassoAgendada: "Agendadas",
-  calculadoraPassoDecisor: "Contatos",
+  calculadoraPassoDecisor: "Com decisor",
   calculadoraPassoContratosShort: "contratos",
   calculadoraPassoNegociacoesShort: "negociação",
   calculadoraPassoR2Short: "R2",
@@ -1093,8 +1101,9 @@ export const COPY = {
   calculadoraPlano: "Plano do dia",
   calculadoraTotais: "Ligações totais (discagens)",
   calculadoraDecisor: "Contatos com decisor",
-  calculadoraPorDia: "Ligações por dia",
-  calculadoraPlanoHero: "É o que as ligações do dia vão pedir no Box.",
+  calculadoraPorDia: "Discagens por dia",
+  calculadoraPorDiaDecisor: "Com decisor",
+  calculadoraPlanoHero: "É o que as discagens e os contatos do dia vão pedir no Box.",
   calculadoraPlanoX3: "3 discagens por conversa com o decisor.",
   calculadoraPlanoHoje: "Hoje",
   calculadoraPlanoHojeValue: "{n} discagens/dia",
@@ -1117,16 +1126,16 @@ export const COPY = {
     "Discagens = contatos com decisor × 3. A cada 3 discagens, 1 conversa.",
   calculadoraPlanoComoDia:
     "O volume do dia reparte em 3 dias de prospecção por semana.",
-  calculadoraCta: "Usar {n} ligações/dia no Box",
+  calculadoraCta: "Usar {n} discagens/dia no Box",
   calculadoraCtaNeed: "Preencha meta, ticket e prazo para gerar o plano.",
-  calculadoraApplied: "Ligações do dia atualizadas.",
+  calculadoraApplied: "Discagens e contatos do dia atualizados.",
   calculadoraOpenBox: "Ver no Box",
   calculadoraContaLink: "Definir meta",
   metasNaoSalvo: "Não salvo",
   metasSalvarEUsar: "Salvar e usar no Box",
   boxMetaTitle: "Escolha a meta",
   boxMetaBody:
-    "Quantas ligações fecham a meta no período. As ligações do dia saem da meta que você aplicar.",
+    "Quantas discagens e contatos fecham a meta no período. Os números do dia saem da meta que você aplicar.",
   boxMetaCta: "Abrir meta",
 } as const;
 
@@ -1154,7 +1163,7 @@ export const CALCULADORA_GLOSSARIO = [
   {
     id: "taxas",
     title: "Taxas de conversão por etapa",
-    body: "Cada campo é o percentual de avanço: contato com decisor → reunião agendada → R1 realizada → R2 realizada → entrou em negociação (não recusou na proposta) → contrato. Quando uma taxa sobe, a demanda de ligações cai.",
+    body: "Cada campo é o percentual de avanço: contato com decisor → reunião agendada → R1 realizada → R2 realizada → entrou em negociação (não recusou na proposta) → contrato. Quando uma taxa sobe, a demanda de discagens cai.",
   },
   {
     id: "ticket-meta",

@@ -1,5 +1,5 @@
 import {
-  dailyGoalFromMeta,
+  dailyGoalsFromMeta,
   parseTaxasOrigem,
   type MetaInput,
   type MetaApplyResult,
@@ -74,13 +74,13 @@ async function syncDailyGoalIfActive(
   userId: string,
   meta: PilotMeta,
 ): Promise<void> {
-  const goal = dailyGoalFromMeta(meta);
-  if (goal == null) return;
+  const goals = dailyGoalsFromMeta(meta);
+  if (goals == null) return;
   await query(
     `update profiles
-        set meta_ligacoes_dia = $3
+        set meta_ligacoes_dia = $3, meta_decisor_dia = $4
       where id = $1 and active_meta_id = $2`,
-    [userId, meta.id, goal],
+    [userId, meta.id, goals.discagens, goals.decisor],
   );
 }
 
@@ -202,14 +202,19 @@ export const metasPgMethods = {
   ): Promise<MetaApplyResult> {
     const meta = await getOwnedMeta(userId, metaId);
     if (!meta) return { status: "not_found" };
-    const goal = dailyGoalFromMeta(meta);
-    if (goal == null) return { status: "not_ready" };
+    const goals = dailyGoalsFromMeta(meta);
+    if (goals == null) return { status: "not_ready" };
     await query(
       `update profiles
-          set active_meta_id = $2, meta_ligacoes_dia = $3
+          set active_meta_id = $2, meta_ligacoes_dia = $3, meta_decisor_dia = $4
         where id = $1`,
-      [userId, metaId, goal],
+      [userId, metaId, goals.discagens, goals.decisor],
     );
-    return { status: "ok", meta, metaLigacoesDia: goal };
+    return {
+      status: "ok",
+      meta,
+      metaLigacoesDia: goals.discagens,
+      metaDecisorDia: goals.decisor,
+    };
   },
 };

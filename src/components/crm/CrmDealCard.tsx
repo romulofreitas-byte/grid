@@ -20,8 +20,8 @@ import {
   formatPhoneDisplay,
   telHrefFromPhone,
 } from "@/lib/crm/dial";
+import { crmFetch } from "@/lib/crm/client";
 import { displayCrmName } from "@/lib/crm/display-name";
-import { recordCrmDialAfterCall } from "@/lib/crm/record-dial";
 import type { CrmDealCard as Deal } from "@/lib/crm/types";
 import type { CallConnectionPick } from "@/lib/integrations/call-target";
 import { invalidateLiveStats } from "@/lib/live-stats";
@@ -225,8 +225,8 @@ function DealCardFace({
             titleHint={COPY.crmCallNow}
             companyName={displayCrmName(deal.company_name)}
             phoneLabel={formatPhoneDisplay(phone)}
-            onCalled={(callId) => {
-              void recordCrmDialAfterCall(deal, callId)
+            onCalled={() => {
+              void crmFetch<{ deal: Deal }>(`/api/crm/deals/${deal.id}`)
                 .then((result) => {
                   onChange?.(result.deal);
                   void invalidateLiveStats(qc);

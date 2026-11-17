@@ -1,5 +1,5 @@
 import {
-  dailyGoalFromMeta,
+  dailyGoalsFromMeta,
   sortMetasForList,
   type MetaInput,
   type MetaApplyResult,
@@ -52,8 +52,11 @@ export const metasMockMethods = {
     Object.assign(meta, patch, { updated_at: nowIso() });
     const profile = getMockStore().profiles.find((row) => row.id === userId);
     if (profile?.active_meta_id === metaId) {
-      const goal = dailyGoalFromMeta(meta);
-      if (goal != null) profile.meta_ligacoes_dia = goal;
+      const goals = dailyGoalsFromMeta(meta);
+      if (goals != null) {
+        profile.meta_ligacoes_dia = goals.discagens;
+        profile.meta_decisor_dia = goals.decisor;
+      }
     }
     return clone(meta);
   },
@@ -81,13 +84,19 @@ export const metasMockMethods = {
       (row) => row.id === metaId && row.user_id === userId,
     );
     if (!meta) return { status: "not_found" };
-    const goal = dailyGoalFromMeta(meta);
-    if (goal == null) return { status: "not_ready" };
+    const goals = dailyGoalsFromMeta(meta);
+    if (goals == null) return { status: "not_ready" };
     const profile = store.profiles.find((row) => row.id === userId);
     if (profile) {
       profile.active_meta_id = meta.id;
-      profile.meta_ligacoes_dia = goal;
+      profile.meta_ligacoes_dia = goals.discagens;
+      profile.meta_decisor_dia = goals.decisor;
     }
-    return { status: "ok", meta: clone(meta), metaLigacoesDia: goal };
+    return {
+      status: "ok",
+      meta: clone(meta),
+      metaLigacoesDia: goals.discagens,
+      metaDecisorDia: goals.decisor,
+    };
   },
 };

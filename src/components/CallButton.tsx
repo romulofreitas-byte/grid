@@ -18,14 +18,20 @@ import {
 import { useConnections } from "@/hooks/useConnections";
 import { normalizeLeadCnpj } from "@/lib/lead-query";
 import { invalidateLiveStats } from "@/lib/live-stats";
+import type { CallOutcome } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const HANGUP_IDLE_MS = 90_000;
 const CALL_STATUS_POLL_MS = 3_000;
 
-async function recordManualCall(input: {
+async function recordClassifiedCall(input: {
   cnpj: string;
   searchId?: string | null;
+  dealId?: string | null;
+  callId?: string;
+  phone?: string;
+  outcome: CallOutcome;
+  completeOpenLigar?: boolean;
 }) {
   const res = await fetch("/api/profile/call", {
     method: "POST",
@@ -33,6 +39,11 @@ async function recordManualCall(input: {
     body: JSON.stringify({
       cnpj: normalizeLeadCnpj(input.cnpj),
       searchId: input.searchId ?? undefined,
+      dealId: input.dealId ?? undefined,
+      callId: input.callId,
+      phone: input.phone,
+      outcome: input.outcome,
+      completeOpenLigar: input.completeOpenLigar,
     }),
   });
   const body = (await res.json()) as { error?: string };
@@ -77,15 +88,20 @@ export function CallButton({
   titleHint?: string;
   companyName?: string | null;
   phoneLabel?: string | null;
-  /** CRM cards record via complete/log themselves. */
+  /** Kept for callers that used to record the call themselves. The classify step records it. */
   skipRecord?: boolean;
   iconOnly?: boolean;
   disabled?: boolean;
   onConfirmOpenChange?: (open: boolean) => void;
 }) {
   const qc = useQueryClient();
+  void skipRecord;
   const connectionsQuery = useConnections();
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"dial" | "classify">("dial");
+  const [placedCallId, setPlacedCallId] = useState<string | undefined>();
+  const [recordError, setRecordError] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
   const [liveCall, setLiveCall] = useState<{
     connectionId: string;
     externalId: string;
@@ -190,14 +206,11 @@ export function CallButton({
       }
       if (dialOnDevice && telHref) {
         window.location.href = telHref;
-        if (skipRecord || !dialCnpj) return { hangup: false as const, externalId: undefined };
-        await recordManualCall({ cnpj: dialCnpj, searchId });
         return { hangup: false as const, externalId: undefined };
       }
       throw new Error(originate ? "Não foi possível ligar" : "Sem telefone");
     },
     onSuccess: (result) => {
-      setConfirmOpen(false);
       const callRef = "callRef" in result ? result.callRef : undefined;
       if (result.hangup && result.externalId && liveConnection) {
         setLiveCall({
@@ -206,8 +219,14 @@ export function CallButton({
           ...(callRef ? { callRef } : {}),
         });
       }
-      onCalled?.(result.externalId);
-      if (originate || !skipRecord) invalidateAfterCall();
+      if (!dialCnpj) {
+        setConfirmOpen(false);
+        onCalled?.(result.externalId);
+        return;
+      }
+      setPlacedCallId(result.externalId);
+      setRecordError(null);
+      setStep("classify");
     },
   });
 
@@ -227,6 +246,32 @@ export function CallButton({
     },
     onSuccess: () => setLiveCall(null),
   });
+
+  async function classify(outcome: CallOutcome) {
+    if (!dialCnpj || recording) return;
+    setRecording(true);
+    setRecordError(null);
+    try {
+      await recordClassifiedCall({
+        cnpj: dialCnpj,
+        searchId,
+        dealId,
+        callId: placedCallId,
+        phone: to,
+        outcome,
+        completeOpenLigar: originate ? false : undefined,
+      });
+      const callId = placedCallId;
+      setStep("dial");
+      setConfirmOpen(false);
+      onCalled?.(callId);
+      invalidateAfterCall();
+    } catch (err) {
+      setRecordError(err instanceof Error ? err.message : "Não foi possível registrar");
+    } finally {
+      setRecording(false);
+    }
+  }
 
   const canTel = Boolean(telHref);
   if (!connectionsPending && !originate && !canTel) return null;
@@ -295,6 +340,8 @@ export function CallButton({
               hangupMutation.mutate();
               return;
             }
+            setStep("dial");
+            setRecordError(null);
             setConfirmOpen(true);
           }}
           aria-label={title}
@@ -331,14 +378,29 @@ export function CallButton({
               open={open}
               companyName={companyName}
               phoneLabel={phoneLabel}
-              pending={callMutation.isPending}
+              pending={step === "classify" ? recording : callMutation.isPending}
               voip={originate}
-              error={callMutation.error?.message ?? null}
+              step={step}
+              error={
+                step === "classify"
+                  ? recordError
+                  : (callMutation.error?.message ?? null)
+              }
               onClose={() => {
-                if (callMutation.isPending) return;
+                if (callMutation.isPending || recording) return;
+                setStep("dial");
                 setConfirmOpen(false);
               }}
               onConfirm={() => callMutation.mutate()}
+              onOutcome={(outcome) => void classify(outcome)}
+              onHangup={
+                liveCall
+                  ? () => {
+                      hangupMutation.mutate();
+                    }
+                  : undefined
+              }
+              hangupPending={hangupMutation.isPending}
             />,
             document.body,
           )

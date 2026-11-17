@@ -42,6 +42,8 @@ export type PainelPipelineOption = {
 export type PainelKpis = {
   callsToday: number;
   callGoal: number;
+  decisorToday: number;
+  decisorGoal: number;
   streak: number;
   overdueFollowups: number;
   billedPeriodCents: number;
@@ -106,7 +108,9 @@ export type PainelSnapshot = {
   range: PainelRange;
   pipelineId: string | null;
   callGoal: number;
+  decisorGoal: number;
   callCreatedAt: string[];
+  decisorCreatedAt: string[];
   searches: { created_at: string; saved: boolean }[];
   leads: { status: string }[];
   pipelines: PainelPipelineOption[];

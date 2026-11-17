@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   callAdvanceTarget,
+  decisorAdvanceTarget,
   canMoveFromFicha,
   cloneDefaultCadence,
   DEFAULT_CADENCE,
@@ -66,6 +67,15 @@ describe("first-mile mapping", () => {
     expect(callAdvanceTarget("entrada")).toBe("tentando_contato");
     expect(callAdvanceTarget("tentando_contato")).toBeNull();
     expect(callAdvanceTarget("reuniao_agendada")).toBeNull();
+  });
+
+  it("moves a gatekeeper card to the decision-maker and leaves later stages", () => {
+    expect(decisorAdvanceTarget("entrada")).toBe("followup_decisor");
+    expect(decisorAdvanceTarget("tentando_contato")).toBe("followup_decisor");
+    expect(decisorAdvanceTarget("contato_respondido")).toBe("followup_decisor");
+    expect(decisorAdvanceTarget("followup_decisor")).toBeNull();
+    expect(decisorAdvanceTarget("reuniao_agendada")).toBeNull();
+    expect(decisorAdvanceTarget("reuniao_realizada")).toBeNull();
   });
 
   it("blocks ficha moves after Reunião Agendada", () => {
