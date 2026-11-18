@@ -18,6 +18,7 @@ import {
   loginConfirmNotice,
 } from "@/lib/auth/messages";
 import { safeInternalPath } from "@/lib/auth/next-path";
+import { applyShellRailLoginOpen } from "@/lib/shell-rail";
 import { modeFromParams, type EntrarMode } from "@/lib/auth/entrar-mode";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
 import { buttonClassName } from "@/components/ui/Button";
@@ -164,6 +165,7 @@ function EntrarInner() {
   }, [searchParams]);
 
   async function lightsOutThenGo(dest = next) {
+    applyShellRailLoginOpen();
     void router.prefetch(dest);
     if (reduce) {
       router.push(dest);

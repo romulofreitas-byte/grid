@@ -31,6 +31,8 @@ import {
   type ShellNavItem,
 } from "@/lib/shell-nav";
 import {
+  applyShellRailLoginOpen,
+  consumeShellRailLoginMarker,
   readShellRailExpanded,
   readShellRailOpen,
   shellRailWidthClass,
@@ -105,8 +107,16 @@ type ShellRailOpenValue = {
 
 const ShellRailOpenContext = createContext<ShellRailOpenValue | null>(null);
 
+function readInitialShellRailOpen(): boolean {
+  if (consumeShellRailLoginMarker()) {
+    applyShellRailLoginOpen();
+    return true;
+  }
+  return readShellRailOpen();
+}
+
 function useLocalShellRailOpen(): ShellRailOpenValue {
-  const [open, setOpenState] = useState(readShellRailOpen);
+  const [open, setOpenState] = useState(readInitialShellRailOpen);
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next);
     writeShellRailOpen(next);

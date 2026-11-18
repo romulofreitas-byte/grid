@@ -3,6 +3,10 @@ import { parseCallbackParams } from "@/lib/auth/callback-params";
 import { resolveAuthLanding } from "@/lib/auth/landing";
 import { callbackErrorQuery, postVerifyPath } from "@/lib/auth/messages";
 import { APP_HOME, SETUP_PATH, safeInternalPath } from "@/lib/auth/next-path";
+import {
+  SHELL_RAIL_LOGIN_COOKIE,
+  SHELL_RAIL_LOGIN_MAX_AGE_SECONDS,
+} from "@/lib/shell-rail";
 import { createRouteClient, requestOrigin } from "@/lib/supabase/route-client";
 
 function withLights(dest: string): string {
@@ -19,8 +23,18 @@ export async function GET(request: NextRequest) {
   const next = safeInternalPath(searchParams.get("next"), "/entrar?go=1");
   const { supabase, applyCookies } = createRouteClient(request);
 
-  const redirect = (path: string) =>
-    applyCookies(NextResponse.redirect(`${origin}${path}`));
+  const redirect = (path: string, openRail = false) => {
+    const response = applyCookies(NextResponse.redirect(`${origin}${path}`));
+    if (openRail) {
+      response.cookies.set(SHELL_RAIL_LOGIN_COOKIE, "1", {
+        path: "/",
+        maxAge: SHELL_RAIL_LOGIN_MAX_AGE_SECONDS,
+        sameSite: "lax",
+        httpOnly: false,
+      });
+    }
+    return response;
+  };
 
   if (!supabase) return redirect("/entrar?error=config");
 
@@ -40,7 +54,7 @@ export async function GET(request: NextRequest) {
     const landing = data.user
       ? await resolveAuthLanding(data.user.id, verified)
       : verified;
-    return redirect(withLights(landing));
+    return redirect(withLights(landing), true);
   }
 
   if (params.kind === "oauth") {
@@ -53,7 +67,7 @@ export async function GET(request: NextRequest) {
     const landing = data.user
       ? await resolveAuthLanding(data.user.id, next)
       : next;
-    return redirect(withLights(landing));
+    return redirect(withLights(landing), true);
   }
 
   return redirect("/entrar?error=session");

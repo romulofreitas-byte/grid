@@ -26,12 +26,13 @@ import { CRM_FIELD, crmFetch } from "@/lib/crm/client";
 import type { PipelineRemovalPreview } from "@/lib/crm/pipeline-removal";
 import type { CrmPipelineSummary } from "@/lib/crm/types";
 import {
+  CRM_NICHO_RAIL_STORAGE_KEY,
   exclusiveCrmRails,
   readShellRailOpen,
 } from "@/lib/shell-rail";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "grid-crm-nicho-rail";
+const STORAGE_KEY = CRM_NICHO_RAIL_STORAGE_KEY;
 const COLLAPSED = 36;
 const MIN_OPEN = 148;
 const MAX_OPEN = 240;

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  crmNichoRailClosedForLogin,
   exclusiveCrmRails,
   parseShellRailExpanded,
   parseShellRailOpen,
+  resolveShellRailOpen,
   serializeShellRailOpen,
+  shellRailLoginMarkerPresent,
   shellRailWidthClass,
 } from "./shell-rail";
 
@@ -19,6 +22,45 @@ describe("shell rail persistence", () => {
     expect(parseShellRailOpen("0")).toBe(false);
     expect(serializeShellRailOpen(true)).toBe("1");
     expect(serializeShellRailOpen(false)).toBe("0");
+  });
+});
+
+describe("resolveShellRailOpen", () => {
+  it("opens on login even when the rail was collapsed", () => {
+    expect(resolveShellRailOpen("0", true)).toBe(true);
+  });
+
+  it("keeps a collapsed rail when this visit is not a login", () => {
+    expect(resolveShellRailOpen("0", false)).toBe(false);
+  });
+
+  it("stays open when nothing was stored", () => {
+    expect(resolveShellRailOpen(null, false)).toBe(true);
+    expect(resolveShellRailOpen("", false)).toBe(true);
+  });
+});
+
+describe("shell rail login marker", () => {
+  it("reads only the login cookie", () => {
+    expect(shellRailLoginMarkerPresent(null)).toBe(false);
+    expect(shellRailLoginMarkerPresent("")).toBe(false);
+    expect(shellRailLoginMarkerPresent("grid-shell-rail-login=0")).toBe(false);
+    expect(
+      shellRailLoginMarkerPresent("other=1; grid-shell-rail-login=1"),
+    ).toBe(true);
+  });
+});
+
+describe("crmNichoRailClosedForLogin", () => {
+  it("closes the nicho rail and keeps its width", () => {
+    expect(
+      crmNichoRailClosedForLogin(JSON.stringify({ open: true, width: 200 })),
+    ).toBe(JSON.stringify({ open: false, width: 200 }));
+  });
+
+  it("leaves a missing pref alone", () => {
+    expect(crmNichoRailClosedForLogin(null)).toBeNull();
+    expect(crmNichoRailClosedForLogin("not-json")).toBeNull();
   });
 });
 
