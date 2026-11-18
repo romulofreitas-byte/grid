@@ -68,13 +68,11 @@ export async function uploadNoteImage(
   return message;
 }
 
-export async function downloadNoteImage(
-  path: string,
-): Promise<{ bytes: Uint8Array } | null> {
+export async function downloadNoteImage(path: string): Promise<ArrayBuffer | null> {
   for (const client of await noteStorageClients()) {
     const { data, error } = await client.storage.from(NOTE_BUCKET).download(path);
     if (error || !data) continue;
-    return { bytes: new Uint8Array(await data.arrayBuffer()) };
+    return data.arrayBuffer();
   }
   return null;
 }

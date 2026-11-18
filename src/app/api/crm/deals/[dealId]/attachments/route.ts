@@ -31,7 +31,7 @@ export async function GET(
   if (!deal) return jsonError("Negócio não encontrado.", 404);
   const file = await downloadNoteImage(path);
   if (!file) return jsonError("Imagem não encontrada.", 404);
-  return new NextResponse(file.bytes, {
+  return new NextResponse(new Uint8Array(file), {
     headers: {
       "Content-Type": mimeForPath(path),
       "Cache-Control": "private, max-age=3600",
