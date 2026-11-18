@@ -1,43 +1,19 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { parseNoteImageDataUrl } from "@/lib/crm/note-image-parse";
 import {
-  NOTE_IMAGE_MAX_BYTES,
   extForNoteMime,
   isOwnedNoteImagePath,
   noteImageObjectPath,
 } from "@/lib/crm/note-images";
+import { downloadNoteImage, uploadNoteImage } from "@/lib/crm/note-storage";
 import { getRepo } from "@/lib/data";
-
-const BUCKET = "crm-notes";
-
-function storageAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key);
-}
 
 function mimeForPath(path: string): string {
   if (path.endsWith(".png")) return "image/png";
   if (path.endsWith(".webp")) return "image/webp";
   return "image/jpeg";
-}
-
-function bucketMissing(message: string): boolean {
-  return /bucket not found|bucket does not exist/i.test(message);
-}
-
-async function ensureNoteBucket(admin: SupabaseClient): Promise<boolean> {
-  const { error } = await admin.storage.createBucket(BUCKET, {
-    public: false,
-    fileSizeLimit: NOTE_IMAGE_MAX_BYTES,
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-  });
-  if (!error) return true;
-  return /already exists|duplicate/i.test(error.message);
 }
 
 export async function GET(
@@ -53,12 +29,9 @@ export async function GET(
   }
   const deal = await getRepo().getCrmDeal(gated.userId, dealId);
   if (!deal) return jsonError("Negócio não encontrado.", 404);
-  const admin = storageAdmin();
-  if (!admin) return jsonError("Imagem não encontrada.", 404);
-  const { data, error } = await admin.storage.from(BUCKET).download(path);
-  if (error || !data) return jsonError("Imagem não encontrada.", 404);
-  const bytes = new Uint8Array(await data.arrayBuffer());
-  return new NextResponse(bytes, {
+  const file = await downloadNoteImage(path);
+  if (!file) return jsonError("Imagem não encontrada.", 404);
+  return new NextResponse(file.bytes, {
     headers: {
       "Content-Type": mimeForPath(path),
       "Cache-Control": "private, max-age=3600",
@@ -86,21 +59,10 @@ export async function POST(
     ? noteImageObjectPath(gated.userId, dealId, crypto.randomUUID(), ext)
     : null;
   if (!path) return jsonError("Imagem inválida.");
-  const admin = storageAdmin();
-  if (!admin) return jsonError("Não foi possível guardar a imagem.", 503);
   const bytes = new Uint8Array(parsed.bytes);
-  let { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
-    contentType: parsed.mime,
-    upsert: false,
-  });
-  if (error && bucketMissing(error.message) && (await ensureNoteBucket(admin))) {
-    ({ error } = await admin.storage.from(BUCKET).upload(path, bytes, {
-      contentType: parsed.mime,
-      upsert: false,
-    }));
-  }
-  if (error) {
-    console.error("crm note image upload", error.message);
+  const uploadError = await uploadNoteImage(path, bytes, parsed.mime);
+  if (uploadError) {
+    console.error("crm note image upload", uploadError);
     return jsonError("Não foi possível guardar a imagem.", 503);
   }
   return NextResponse.json({ path, mime: parsed.mime });
