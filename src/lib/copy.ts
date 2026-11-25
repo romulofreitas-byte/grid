@@ -601,7 +601,7 @@ export const COPY = {
   crmDeletePipelineWarn:
     "Isso apaga o nicho inteiro: negócios de todas as etapas, anotações e automações deste quadro.",
   crmDeletePipelineLists:
-    "As listas salvas ficam. Qualificar de novo não monta este nicho. Criar o nicho com este nome libera de novo.",
+    "As listas salvas ficam. Qualificar de novo não monta este nicho nem o próximo número. Criar o nicho com este nome libera de novo.",
   crmDeletePipelineConfirm: "Excluir",
   crmTransferPipeline: "Mover para outro nicho",
   crmTransferPipelineHint: "O negócio vai para o quadro escolhido, na etapa equivalente.",

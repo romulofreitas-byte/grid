@@ -29,13 +29,27 @@ describe("saved list pipeline names", () => {
     expect(pipelineSeriesRank(pipelineNomeForSeries(base, 2), base)).toBe(2);
   });
 
-  it("skips taken and deleted names", async () => {
-    const nome = await nextSavedListPipelineNome(
+  it("skips names that still exist and stops when one was deleted", async () => {
+    const next = await nextSavedListPipelineNome(
+      "Clínicas BH",
+      ["Clínicas BH"],
+      async () => false,
+    );
+    expect(next).toBe("Clínicas BH 2");
+
+    const stopped = await nextSavedListPipelineNome(
       "Clínicas BH",
       ["Clínicas BH", "Clínicas BH 2"],
       async (candidate) => candidate === "Clínicas BH 3",
     );
-    expect(nome).toBe("Clínicas BH 4");
+    expect(stopped).toBeNull();
+
+    const deletedBase = await nextSavedListPipelineNome(
+      "Clínicas BH",
+      [],
+      async (candidate) => candidate === "Clínicas BH",
+    );
+    expect(deletedBase).toBeNull();
   });
 
   it("does not treat another list's suffix as this series", () => {

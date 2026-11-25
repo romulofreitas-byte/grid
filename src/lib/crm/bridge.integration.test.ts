@@ -319,25 +319,18 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 
-  it("uses the next suffix when the list name was deleted", async () => {
-    const createCrmPipeline = vi.fn(async (_userId: string, nome: string) => ({
-      id: "pipe-2",
-      user_id: "user-1",
-      nome,
-      position: 0,
-      created_at: new Date().toISOString(),
-      deal_count: 0,
-    }));
+  it("does not open a numbered pipeline when the list name was deleted", async () => {
+    const createCrmPipeline = vi.fn();
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline,
       isCrmPipelineNameBlocked: vi.fn(
         async (_userId: string, nome: string) => nome === "Lista · Clínicas",
       ),
-      findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
+      findCrmDealByCnpj: vi.fn(),
       createCrmDeal: vi.fn(),
-      getDossier: vi.fn().mockResolvedValue(null),
-      listCompanyBriefs: vi.fn().mockResolvedValue([]),
+      getDossier: vi.fn(),
+      listCompanyBriefs: vi.fn(),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
     };
     const out = await bridgeQualifiedLeadsToCrm(repo, {
@@ -345,11 +338,14 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       search: search(),
       cnpjs: ["12345678000190"],
     });
-    expect(createCrmPipeline).toHaveBeenCalledWith(
-      "user-1",
-      "Lista · Clínicas 2",
-    );
-    expect(out.pipelineNome).toBe("Lista · Clínicas 2");
-    expect(out.pipelineId).toBe("pipe-2");
+    expect(out).toMatchObject({
+      created: 0,
+      skipped: 1,
+      failed: 0,
+      pipelineId: null,
+      pipelineNome: null,
+    });
+    expect(createCrmPipeline).not.toHaveBeenCalled();
+    expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 });

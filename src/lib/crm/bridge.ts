@@ -62,7 +62,10 @@ export function latestPipelineNomeForList(
   return best?.nome ?? null;
 }
 
-/** Next free title for this list. Taken and deleted (blocked) names are skipped. */
+/**
+ * Next free title for this list. A name that still exists is skipped.
+ * A deleted (blocked) name stops the series, so the list does not open Nome 2.
+ */
 export async function nextSavedListPipelineNome(
   searchNome: string,
   existingNomes: string[],
@@ -73,7 +76,7 @@ export async function nextSavedListPipelineNome(
   for (let index = 1; index <= PIPELINE_SERIES_MAX; index += 1) {
     const nome = pipelineNomeForSeries(base, index);
     if (taken.has(pipelineNomeKey(nome))) continue;
-    if (await isBlocked(nome)) continue;
+    if (await isBlocked(nome)) return null;
     return nome;
   }
   return null;
@@ -137,8 +140,9 @@ function localMeta(
 
 /**
  * Each send of a saved list opens a new pipeline named after the list.
- * A taken or deleted name gets the next free suffix. Deals land on
- * Entrada de Lista. A CNPJ already in this new pipeline is skipped.
+ * A name that still exists gets the next free suffix. A deleted name
+ * stops the series. Deals land on Entrada de Lista. A CNPJ already in
+ * this new pipeline is skipped.
  */
 export async function bridgeQualifiedLeadsToCrm(
   repo: CrmBridgeRepo,
