@@ -232,7 +232,7 @@ function insertEvent(
   store.crm_events.push(row);
   const deal = store.crm_deals.find((entry) => entry.id === dealId);
   if (deal) {
-    if (syncDealNotes && body.trim()) deal.notes = body;
+    if (body.trim()) deal.notes = body;
     deal.updated_at = now;
   }
   return row;
@@ -1167,7 +1167,7 @@ export const crmMockMethods = {
     event.body = body;
     if (meta) event.meta = { ...event.meta, ...meta };
     event.updated_at = nowIso();
-    if (body.trim()) deal.notes = body;
+    if (syncDealNotes && body.trim()) deal.notes = body;
     deal.updated_at = event.updated_at;
     return { deal: toCard(store, deal), event };
   },
