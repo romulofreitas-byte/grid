@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_FILTERS, type SavedLead, type Search } from "@/lib/types";
-import { recordCompletedCall, countConfirmedCrmCall } from "./record-call";
+import {
+  countConfirmedCrmCall,
+  reclassifyCrmCall,
+  recordCompletedCall,
+} from "./record-call";
 import { mockRepo } from "@/lib/data/mock-repo";
 import { getMockStore } from "@/lib/data/mock-store";
 
@@ -99,7 +103,12 @@ describe("recordCompletedCall", () => {
     const deal = await mockRepo.findCrmDealByCnpjForUser(USER, cnpj);
     expect(deal).not.toBeNull();
     const events = await mockRepo.listCrmEvents(USER, deal!.id);
-    expect(events?.filter((row) => row.kind === "ligar").length).toBeGreaterThanOrEqual(1);
+    const ligar = events?.filter((row) => row.kind === "ligar") ?? [];
+    expect(ligar.length).toBeGreaterThanOrEqual(1);
+    expect(ligar.every((row) => row.meta.call_outcome === "discagem")).toBe(true);
+    expect(ligar.map((row) => row.meta.call_event_id).sort()).toEqual(
+      store.call_events.map((row) => row.id).sort(),
+    );
 
     const board = await mockRepo.getCrmBoard(USER, pipeline.id);
     const stage = board?.stages.find((row) => row.id === deal!.stage_id);
@@ -190,15 +199,77 @@ describe("recordCompletedCall", () => {
       source: "dialer",
       crmWrites: true,
       completeOpenLigar: false,
+      callId: "voip-call-1",
+      phone: "31999990000",
     });
     expect(result.counted).toBe(true);
 
     const card = await mockRepo.getCrmDeal(USER, created!.id);
     expect(card?.next_activity?.kind).toBe("ligar");
     const events = await mockRepo.listCrmEvents(USER, created!.id);
-    expect(events?.filter((row) => row.kind === "ligar")).toHaveLength(0);
+    const ligar = events?.filter((row) => row.kind === "ligar") ?? [];
+    expect(ligar).toHaveLength(1);
+    expect(ligar[0]?.meta.call_outcome).toBe("discagem");
+    expect(ligar[0]?.meta.call_event_id).toBe(store.call_events[0]?.id);
+    expect(ligar[0]?.meta.call_id).toBe("voip-call-1");
     const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
     expect(stats.hoje).toBe(1);
+
+    await mockRepo.completeCrmActivity(USER, created!.id, card!.next_activity!.id);
+    const after = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(after?.filter((row) => row.kind === "ligar")).toHaveLength(1);
+    expect(store.call_events).toHaveLength(1);
+  });
+
+  it("switches the same call to decisor and back without a second dial", async () => {
+    const store = getMockStore();
+    const cnpj = store.establishments[0]!.cnpj;
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+      cnpj,
+    });
+
+    await recordCompletedCall(mockRepo, {
+      userId: USER,
+      cnpj,
+      source: "manual",
+      crmWrites: true,
+    });
+
+    const deal = await mockRepo.findCrmDealByCnpjForUser(USER, cnpj);
+    const events = await mockRepo.listCrmEvents(USER, deal!.id);
+    const ligar = events?.find((row) => row.kind === "ligar");
+    expect(ligar?.meta.call_outcome).toBe("discagem");
+
+    const marked = await reclassifyCrmCall(mockRepo, {
+      userId: USER,
+      dealId: deal!.id,
+      eventId: ligar!.id,
+      outcome: "decisor",
+    });
+    expect(store.call_events).toHaveLength(1);
+    expect(store.call_events[0]?.outcome).toBe("decisor");
+    expect(marked?.event.meta.call_outcome).toBe("decisor");
+    expect(marked?.event.meta.call_event_id).toBe(store.call_events[0]?.id);
+
+    const forward = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const forwardStage = forward?.stages.find((row) => row.id === marked!.deal.stage_id);
+    expect(forwardStage?.canonical_key).toBe("followup_decisor");
+
+    const back = await reclassifyCrmCall(mockRepo, {
+      userId: USER,
+      dealId: deal!.id,
+      eventId: ligar!.id,
+      outcome: "discagem",
+    });
+    expect(store.call_events).toHaveLength(1);
+    expect(store.call_events[0]?.outcome).toBe("discagem");
+    expect(back?.event.meta.call_outcome).toBe("discagem");
+    const stayed = await mockRepo.getCrmBoard(USER, pipeline.id);
+    const stayedStage = stayed?.stages.find((row) => row.id === back!.deal.stage_id);
+    expect(stayedStage?.canonical_key).toBe("followup_decisor");
   });
 });
 

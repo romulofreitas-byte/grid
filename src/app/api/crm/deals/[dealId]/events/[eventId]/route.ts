@@ -4,6 +4,7 @@ import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
 import { claimNoteImages, isOwnedNoteImagePath } from "@/lib/crm/note-images";
 import { removeNoteImages } from "@/lib/crm/note-storage";
+import { reclassifyCrmCall } from "@/lib/crm/record-call";
 import { eventPatchSchema } from "@/lib/crm/schema";
 import type { CrmEvent } from "@/lib/crm/types";
 
@@ -27,6 +28,17 @@ export async function PATCH(
   const { dealId, eventId } = await ctx.params;
   const parsed = eventPatchSchema.safeParse(await readJson(req));
   if (!parsed.success) return jsonError("Payload inválido.");
+  if (parsed.data.callOutcome && parsed.data.body === undefined) {
+    const marked = await reclassifyCrmCall(getRepo(), {
+      userId: gated.userId,
+      dealId,
+      eventId,
+      outcome: parsed.data.callOutcome,
+    });
+    if (!marked) return jsonError("Não foi possível marcar a ligação.", 404);
+    return NextResponse.json(marked);
+  }
+  if (parsed.data.body === undefined) return jsonError("Payload inválido.");
   let meta: CrmEvent["meta"] | undefined;
   if (parsed.data.images) {
     const images = claimNoteImages(gated.userId, dealId, parsed.data.images);

@@ -204,6 +204,12 @@ export type GridRepo = {
       source: CallEventSource;
       outcome?: CallOutcome;
     },
+  ): Promise<string | null>;
+  /** Changes the outcome of one attempt. Does not insert another dial. */
+  updateCallEventOutcome(
+    userId: string,
+    callEventId: string,
+    outcome: CallOutcome,
   ): Promise<boolean>;
   listCallEventsToday(
     userId: string,
@@ -461,6 +467,7 @@ export type GridRepo = {
     eventId: string,
     body: string,
     meta?: CrmEvent["meta"],
+    syncDealNotes?: boolean,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null>;
   setCrmDealOutcome(
     userId: string,

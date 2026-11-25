@@ -1,4 +1,5 @@
 import type { CrmStageKey, FichaMoveKey } from "@/lib/crm/cadence";
+import type { CallOutcome } from "@/lib/types";
 
 export const CRM_ACTIVITY_KINDS = [
   "ligar",
@@ -308,6 +309,10 @@ export type CrmEventMeta = {
   call_id?: string;
   /** Last time we asked API4COM for this row's file. */
   recording_checked_at?: string;
+  /** Discagem or decisor. Absent on rows written before the history mark. */
+  call_outcome?: CallOutcome;
+  /** call_events.id, so the history mark updates this same attempt. */
+  call_event_id?: string;
   images?: CrmEventImage[];
 };
 

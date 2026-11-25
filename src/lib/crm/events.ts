@@ -30,6 +30,9 @@ export const CRM_RECORDING_SYNC_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 /** Hangup and the history row can be this far apart and still be the same call. */
 export const CRM_RECORDING_MATCH_WINDOW_MS = 30 * 60 * 1000;
 
+const CALL_EVENT_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function normalizeCallId(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim() ?? "";
   if (!trimmed || trimmed.length > CRM_CALL_ID_MAX) return null;
@@ -53,6 +56,15 @@ export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
     typeof raw.call_id === "string" ? raw.call_id : null,
   );
   if (callId) meta.call_id = callId;
+  if (raw.call_outcome === "discagem" || raw.call_outcome === "decisor") {
+    meta.call_outcome = raw.call_outcome;
+  }
+  if (
+    typeof raw.call_event_id === "string" &&
+    CALL_EVENT_ID.test(raw.call_event_id.trim())
+  ) {
+    meta.call_event_id = raw.call_event_id.trim();
+  }
   if (
     typeof raw.recording_checked_at === "string" &&
     /^\d{4}-\d{2}-\d{2}T/.test(raw.recording_checked_at)
@@ -62,6 +74,20 @@ export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
   const images = readNoteImages(raw.images);
   if (images.length) meta.images = images;
   return meta;
+}
+
+/** A planned ligar completed later should reuse the row written when the call started. */
+export function findReusableLigarEvent(
+  events: CrmEvent[],
+  activityCreatedAt: string,
+): CrmEvent | undefined {
+  let match: CrmEvent | undefined;
+  for (const event of events) {
+    if (event.kind !== "ligar" || !event.meta.call_event_id) continue;
+    if (event.created_at < activityCreatedAt) continue;
+    if (!match || event.created_at > match.created_at) match = event;
+  }
+  return match;
 }
 
 export function findLigarByCallId(

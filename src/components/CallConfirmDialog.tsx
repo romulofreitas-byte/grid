@@ -3,9 +3,7 @@
 import { Phone } from "lucide-react";
 import { useEffect, useState, type MouseEvent } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Button } from "@/components/ui/Button";
 import { COPY } from "@/lib/copy";
-import type { CallOutcome } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function CallConfirmDialog({
@@ -15,12 +13,8 @@ export function CallConfirmDialog({
   pending = false,
   voip = false,
   error = null,
-  step = "dial",
   onClose,
   onConfirm,
-  onOutcome,
-  onHangup,
-  hangupPending = false,
 }: {
   open: boolean;
   companyName?: string | null;
@@ -28,12 +22,8 @@ export function CallConfirmDialog({
   pending?: boolean;
   voip?: boolean;
   error?: string | null;
-  step?: "dial" | "classify";
   onClose: () => void;
   onConfirm: () => void;
-  onOutcome?: (outcome: CallOutcome) => void;
-  onHangup?: () => void;
-  hangupPending?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -54,70 +44,18 @@ export function CallConfirmDialog({
   }
 
   const copyLabel = copied ? COPY.callAskCopied : COPY.callAskCopyPhone;
-  const classify = step === "classify";
 
   return (
     <ConfirmDialog
       open={open}
       eyebrowIcon={<Phone className="h-3.5 w-3.5" />}
-      title={classify ? COPY.callClassifyTitle : COPY.callAskTitle}
-      body={
-        classify
-          ? COPY.callClassifyBody
-          : voip
-            ? COPY.callAskBodyVoip
-            : COPY.callAskBody
-      }
+      title={COPY.callAskTitle}
+      body={voip ? COPY.callAskBodyVoip : COPY.callAskBody}
       confirmLabel={COPY.callAskConfirm}
-      pendingLabel={classify ? COPY.callClassifyPending : COPY.callAskPending}
+      pendingLabel={COPY.callAskPending}
       pending={pending}
       confirmIcon={<Phone className="h-3.5 w-3.5" />}
-      cancelLabel={classify ? "Agora não" : COPY.callAskCancel}
-      actions={
-        classify ? (
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="md"
-              disabled={pending}
-              onClick={onClose}
-            >
-              Agora não
-            </Button>
-            {onHangup ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                disabled={pending || hangupPending}
-                onClick={onHangup}
-              >
-                {hangupPending ? COPY.callHangupPending : COPY.callHangup}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              disabled={pending}
-              onClick={() => onOutcome?.("decisor")}
-            >
-              {pending ? COPY.callClassifyPending : COPY.callClassifyDecisor}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              disabled={pending}
-              autoFocus
-              onClick={() => onOutcome?.("discagem")}
-            >
-              {pending ? COPY.callClassifyPending : COPY.callClassifyDiscagem}
-            </Button>
-          </div>
-        ) : undefined
-      }
+      cancelLabel={COPY.callAskCancel}
       onClose={onClose}
       onConfirm={onConfirm}
     >

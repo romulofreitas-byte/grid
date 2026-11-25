@@ -3994,7 +3994,7 @@ export const supabaseRepo: GridRepo = {
 
   async recordCallEvent(userId, input) {
     const outcome = input.outcome === "decisor" ? "decisor" : "discagem";
-    const { rows } = await query(
+    const { rows } = await query<{ id: string }>(
       `insert into call_events (user_id, cnpj, saved_lead_id, source, outcome)
        values ($1, $2, $3, $4, $5)
        returning id`,
@@ -4005,6 +4005,18 @@ export const supabaseRepo: GridRepo = {
         input.source,
         outcome,
       ],
+    );
+    return rows[0] ? String(rows[0].id) : null;
+  },
+
+  async updateCallEventOutcome(userId, callEventId, outcome) {
+    const next = outcome === "decisor" ? "decisor" : "discagem";
+    const { rows } = await query<{ id: string }>(
+      `update call_events
+          set outcome = $3
+        where id = $1::uuid and user_id = $2
+        returning id`,
+      [callEventId, userId, next],
     );
     return Boolean(rows[0]);
   },

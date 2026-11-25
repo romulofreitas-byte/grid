@@ -91,6 +91,18 @@ describe("readCrmEventMeta", () => {
     expect(readCrmEventMeta({ call_id: "" })).toEqual({});
     expect(
       readCrmEventMeta({
+        call_outcome: "decisor",
+        call_event_id: "2ee13fa4-975c-499d-bbb8-5177ff418316",
+      }),
+    ).toEqual({
+      call_outcome: "decisor",
+      call_event_id: "2ee13fa4-975c-499d-bbb8-5177ff418316",
+    });
+    expect(readCrmEventMeta({ call_outcome: "ganho", call_event_id: "nope" })).toEqual(
+      {},
+    );
+    expect(
+      readCrmEventMeta({
         images: [
           {
             path: "user_1/deal_1/print.png",

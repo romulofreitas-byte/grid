@@ -1798,6 +1798,22 @@ export const crmPgMethods = {
           if (!deal) return null;
           return { deal, event: mapEvent(prior.rows[0]) };
         }
+      } else if (current.kind === "ligar") {
+        const prior = await q(
+          `select * from crm_events
+            where deal_id = $1
+              and kind = 'ligar'
+              and coalesce(meta->>'call_event_id', '') <> ''
+              and created_at >= $2
+            order by created_at desc
+            limit 1`,
+          [dealId, open.rows[0]?.created_at],
+        );
+        if (prior.rows[0]) {
+          const deal = await loadCard(q, dealId);
+          if (!deal) return null;
+          return { deal, event: mapEvent(prior.rows[0]) };
+        }
       }
       const event = await insertEvent(
         q,
@@ -1887,6 +1903,7 @@ export const crmPgMethods = {
     eventId: string,
     body: string,
     meta?: CrmEvent["meta"],
+    syncDealNotes = true,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     return withTransaction(async (q) => {
       if (!(await ownedDeal(q, userId, dealId))) return null;
@@ -1903,7 +1920,7 @@ export const crmPgMethods = {
         [eventId, dealId, body, meta ? JSON.stringify(meta) : null],
       );
       if (!updated.rows[0]) return null;
-      if (body.trim()) {
+      if (syncDealNotes && body.trim()) {
         await q(
           `update crm_deals set notes = $2, updated_at = now() where id = $1`,
           [dealId, body],

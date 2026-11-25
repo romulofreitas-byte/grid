@@ -30,6 +30,7 @@ import { CrmStageChevronBar } from "@/components/crm/CrmStageChevronBar";
 import { CrmWinCelebration } from "@/components/crm/CrmWinCelebration";
 import { GridPresenceIcons } from "@/components/GridPresenceIcons";
 import { CallButton } from "@/components/CallButton";
+import { CrmCallOutcomeToggle } from "@/components/crm/CrmCallOutcomeToggle";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { requestHidePhone } from "@/components/HidePhoneButton";
 import { Select } from "@/components/ui/Select";
@@ -107,6 +108,7 @@ import type {
 import { formatCentsInput, maskDealAmountTyping, parseBrlToCents } from "@/lib/crm/money";
 import { normalizePhoneBR, phonesMatch } from "@/lib/phone";
 import type { CallConnectionPick } from "@/lib/integrations/call-target";
+import type { CallOutcome } from "@/lib/types";
 import { invalidateLiveStats } from "@/lib/live-stats";
 import { cn } from "@/lib/utils";
 
@@ -410,6 +412,7 @@ export function CrmDealModal({
     callId: string;
   } | null>(null);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [outcomePendingId, setOutcomePendingId] = useState<string | null>(null);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [actionDueDrafts, setActionDueDrafts] = useState<Record<string, string>>(
@@ -750,6 +753,28 @@ export function CrmDealModal({
       setCachedDealEvents(deal.id, next);
       return next;
     });
+  }
+
+  async function setCallOutcome(event: CrmEvent, outcome: CallOutcome) {
+    if (event.meta.call_outcome === outcome || outcomePendingId) return;
+    setOutcomePendingId(event.id);
+    setError(null);
+    try {
+      const res = await crmFetch<{ deal: CrmDealCard; event: CrmEvent }>(
+        `/api/crm/deals/${deal.id}/events/${event.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ callOutcome: outcome }),
+        },
+      );
+      updateEvent(res.event);
+      onChange(res.deal);
+      void invalidateLiveStats(qc);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não marcou a ligação.");
+    } finally {
+      setOutcomePendingId(null);
+    }
   }
 
   function dialTargets(): string[] {
@@ -1715,10 +1740,10 @@ export function CrmDealModal({
                         key={event.id}
                         className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2"
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <button
                           type="button"
-                          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                          className="flex min-w-[9rem] flex-1 items-start gap-2 text-left"
                           onClick={() => {
                             const opening = !expanded;
                             setExpandedEventId(opening ? event.id : null);
@@ -1749,10 +1774,21 @@ export function CrmDealModal({
                               </span>
                             ) : null}
                           </span>
-                          <span className="shrink-0 text-[10px] text-podium-muted">
-                            {formatEventWhen(event.created_at)}
-                          </span>
                         </button>
+                        {event.kind === "ligar" && event.meta.call_event_id ? (
+                          <CrmCallOutcomeToggle
+                            outcome={
+                              event.meta.call_outcome === "decisor"
+                                ? "decisor"
+                                : "discagem"
+                            }
+                            pending={outcomePendingId === event.id}
+                            onChange={(outcome) => void setCallOutcome(event, outcome)}
+                          />
+                        ) : null}
+                        <span className="shrink-0 text-[10px] text-podium-muted">
+                          {formatEventWhen(event.created_at)}
+                        </span>
                         {confirmDeleteEventId === event.id ? null : (
                           <button
                             type="button"

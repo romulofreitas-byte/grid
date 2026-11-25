@@ -1595,8 +1595,9 @@ export const mockRepo: GridRepo = {
   async recordCallEvent(userId, input) {
     const store = getMockStore();
     const cnpj = digitsCnpj(input.cnpj);
+    const id = randomId();
     store.call_events.push({
-      id: randomId(),
+      id,
       user_id: userId,
       cnpj,
       saved_lead_id: input.savedLeadId ?? null,
@@ -1604,6 +1605,15 @@ export const mockRepo: GridRepo = {
       outcome: input.outcome === "decisor" ? "decisor" : "discagem",
       created_at: new Date().toISOString(),
     });
+    return id;
+  },
+
+  async updateCallEventOutcome(userId, callEventId, outcome) {
+    const row = getMockStore().call_events.find(
+      (event) => event.id === callEventId && event.user_id === userId,
+    );
+    if (!row) return false;
+    row.outcome = outcome === "decisor" ? "decisor" : "discagem";
     return true;
   },
 

@@ -24,6 +24,7 @@ import { shouldRemoveEntradaDeal } from "@/lib/crm/pipeline-removal";
 import {
   CRM_EVENT_HISTORY_LIMIT,
   findLigarByCallId,
+  findReusableLigarEvent,
   normalizeCallId,
 } from "@/lib/crm/events";
 import {
@@ -231,7 +232,7 @@ function insertEvent(
   store.crm_events.push(row);
   const deal = store.crm_deals.find((entry) => entry.id === dealId);
   if (deal) {
-    if (body.trim()) deal.notes = body;
+    if (syncDealNotes && body.trim()) deal.notes = body;
     deal.updated_at = now;
   }
   return row;
@@ -1066,9 +1067,12 @@ export const crmMockMethods = {
     );
     if (!open) return { deal: toCard(store, deal), event: null };
     open.status = "done";
-    const existing =
-      open.kind === "ligar"
-        ? findLigarByCallId(store.crm_events.filter((row) => row.deal_id === dealId), callId)
+    const dealEvents = store.crm_events.filter((row) => row.deal_id === dealId);
+    const callIdNorm = open.kind === "ligar" ? normalizeCallId(callId) : null;
+    const existing = callIdNorm
+      ? findLigarByCallId(dealEvents, callIdNorm)
+      : open.kind === "ligar"
+        ? findReusableLigarEvent(dealEvents, open.created_at)
         : undefined;
     if (existing) return { deal: toCard(store, deal), event: existing };
     const event = insertEvent(
@@ -1151,6 +1155,7 @@ export const crmMockMethods = {
     eventId: string,
     body: string,
     meta?: CrmEvent["meta"],
+    syncDealNotes = true,
   ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
     const store = getMockStore();
     const deal = ownDeal(store, userId, dealId);

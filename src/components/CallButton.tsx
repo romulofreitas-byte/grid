@@ -88,7 +88,7 @@ export function CallButton({
   titleHint?: string;
   companyName?: string | null;
   phoneLabel?: string | null;
-  /** Kept for callers that used to record the call themselves. The classify step records it. */
+  /** Kept for callers that used to record the call themselves. Confirming records it. */
   skipRecord?: boolean;
   iconOnly?: boolean;
   disabled?: boolean;
@@ -98,8 +98,6 @@ export function CallButton({
   void skipRecord;
   const connectionsQuery = useConnections();
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"dial" | "classify">("dial");
-  const [placedCallId, setPlacedCallId] = useState<string | undefined>();
   const [recordError, setRecordError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [liveCall, setLiveCall] = useState<{
@@ -219,14 +217,13 @@ export function CallButton({
           ...(callRef ? { callRef } : {}),
         });
       }
+      setConfirmOpen(false);
       if (!dialCnpj) {
-        setConfirmOpen(false);
         onCalled?.(result.externalId);
         return;
       }
-      setPlacedCallId(result.externalId);
-      setRecordError(null);
-      setStep("classify");
+      setRecording(true);
+      void recordDiscagem(result.externalId);
     },
   });
 
@@ -247,23 +244,22 @@ export function CallButton({
     onSuccess: () => setLiveCall(null),
   });
 
-  async function classify(outcome: CallOutcome) {
-    if (!dialCnpj || recording) return;
-    setRecording(true);
+  async function recordDiscagem(callId?: string) {
+    if (!dialCnpj) {
+      setRecording(false);
+      return;
+    }
     setRecordError(null);
     try {
       await recordClassifiedCall({
         cnpj: dialCnpj,
         searchId,
         dealId,
-        callId: placedCallId,
+        callId,
         phone: to,
-        outcome,
+        outcome: "discagem",
         completeOpenLigar: originate ? false : undefined,
       });
-      const callId = placedCallId;
-      setStep("dial");
-      setConfirmOpen(false);
       onCalled?.(callId);
       invalidateAfterCall();
     } catch (err) {
@@ -286,6 +282,8 @@ export function CallButton({
     : undefined;
   const pending = live ? hangupMutation.isPending : callMutation.isPending;
   const actionError = live ? hangupMutation.error : callMutation.error;
+  const inlineError =
+    recordError ?? (actionError && !open ? actionError.message : null);
 
   const base =
     variant === "card"
@@ -334,13 +332,12 @@ export function CallButton({
       >
         <button
           type="button"
-          disabled={pending || disabled || connectionsPending}
+          disabled={pending || disabled || connectionsPending || (recording && !live)}
           onClick={() => {
             if (live) {
               hangupMutation.mutate();
               return;
             }
-            setStep("dial");
             setRecordError(null);
             setConfirmOpen(true);
           }}
@@ -368,8 +365,8 @@ export function CallButton({
                 : "Ligando…"
               : idleLabel}
         </button>
-        {actionError && !open ? (
-          <p className="max-w-64 text-[11px] text-podium-alert">{actionError.message}</p>
+        {inlineError ? (
+          <p className="max-w-64 text-[11px] text-podium-alert">{inlineError}</p>
         ) : null}
       </span>
       {open
@@ -378,29 +375,14 @@ export function CallButton({
               open={open}
               companyName={companyName}
               phoneLabel={phoneLabel}
-              pending={step === "classify" ? recording : callMutation.isPending}
+              pending={callMutation.isPending}
               voip={originate}
-              step={step}
-              error={
-                step === "classify"
-                  ? recordError
-                  : (callMutation.error?.message ?? null)
-              }
+              error={callMutation.error?.message ?? null}
               onClose={() => {
-                if (callMutation.isPending || recording) return;
-                setStep("dial");
+                if (callMutation.isPending) return;
                 setConfirmOpen(false);
               }}
               onConfirm={() => callMutation.mutate()}
-              onOutcome={(outcome) => void classify(outcome)}
-              onHangup={
-                liveCall
-                  ? () => {
-                      hangupMutation.mutate();
-                    }
-                  : undefined
-              }
-              hangupPending={hangupMutation.isPending}
             />,
             document.body,
           )

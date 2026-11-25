@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_DEAL_AMOUNT_CENTS } from "@/lib/crm/money";
+import { CALL_OUTCOMES } from "@/lib/types";
 import {
   CRM_ACTIVITY_KINDS,
   CRM_DEAL_SOURCES,
@@ -272,10 +273,15 @@ export const eventCreateSchema = z.object({
   images: z.array(noteImageSchema).max(3).optional(),
 });
 
-export const eventPatchSchema = z.object({
-  body: z.string().max(4000),
-  images: z.array(noteImageSchema).max(3).optional(),
-});
+export const eventPatchSchema = z
+  .object({
+    body: z.string().max(4000).optional(),
+    images: z.array(noteImageSchema).max(3).optional(),
+    callOutcome: z.enum(CALL_OUTCOMES).optional(),
+  })
+  .refine((value) => value.body !== undefined || value.callOutcome !== undefined, {
+    message: "Payload inválido",
+  });
 
 export const outcomeSchema = z.object({
   outcome: z.enum(CRM_OUTCOMES),

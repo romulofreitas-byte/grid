@@ -6,7 +6,7 @@ import {
   type LeadCrmRepo,
 } from "@/lib/crm/lead-sync";
 import { openLigarActivity } from "@/lib/crm/activity";
-import type { CrmNextAction } from "@/lib/crm/types";
+import type { CrmDealCard, CrmEvent, CrmNextAction } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 import type { CallEventSource, CallOutcome, Search } from "@/lib/types";
 
@@ -14,12 +14,15 @@ export type RecordCompletedCallRepo = LeadCrmRepo &
   Pick<
     GridRepo,
     | "recordCallEvent"
+    | "updateCallEventOutcome"
     | "updateLead"
     | "findSavedLeadForOutcome"
     | "findCrmDealByCnpjForUser"
     | "getCrmDeal"
     | "logCrmCall"
     | "completeCrmActivity"
+    | "updateCrmEvent"
+    | "listCrmEvents"
   >;
 
 export type RecordCompletedCallInput = {
@@ -38,8 +41,8 @@ export type RecordCompletedCallInput = {
   /** Skip getBalance; CRM routes already gated. */
   crmWrites?: boolean;
   /**
-   * VoIP originate should count the ring and leave the Box `ligar` open
-   * so the pilot can write a note before Concluir.
+   * VoIP originate counts the ring and leaves the Box `ligar` open.
+   * The history row is still written so the decisor mark is on the card.
    */
   completeOpenLigar?: boolean;
   /** API4COM call id stamped on the ligar history row. */
@@ -61,12 +64,13 @@ export async function recordCompletedCall(
   }
 
   const outcome: CallOutcome = input.outcome === "decisor" ? "decisor" : "discagem";
-  const counted = await repo.recordCallEvent(input.userId, {
+  const callEventId = await repo.recordCallEvent(input.userId, {
     cnpj,
     savedLeadId,
     source: input.source,
     outcome,
   });
+  const counted = Boolean(callEventId);
 
   if (savedLeadId) {
     await repo.updateLead(savedLeadId, { status: "ligando" });
@@ -91,26 +95,31 @@ export async function recordCompletedCall(
           );
       if (deal) {
         const ligar = openLigarActivity(deal);
-        if (ligar) {
-          if (input.completeOpenLigar !== false) {
-            await repo.completeCrmActivity(
-              input.userId,
-              deal.id,
-              ligar.id,
-              input.callId,
-              input.phone,
-            );
-          }
-        } else {
-          await repo.logCrmCall(
-            input.userId,
-            deal.id,
-            input.notes ?? "",
-            input.next ?? null,
-            input.phone,
-            input.callId,
-          );
-        }
+        const written =
+          ligar && input.completeOpenLigar !== false
+            ? await repo.completeCrmActivity(
+                input.userId,
+                deal.id,
+                ligar.id,
+                input.callId,
+                input.phone,
+              )
+            : await repo.logCrmCall(
+                input.userId,
+                deal.id,
+                input.notes ?? "",
+                input.next ?? null,
+                input.phone,
+                input.callId,
+              );
+        await stampCallOnEvent(
+          repo,
+          input.userId,
+          deal.id,
+          written?.event,
+          outcome,
+          callEventId,
+        );
       }
     }
     await advanceCrmOnCall(repo, {
@@ -124,6 +133,73 @@ export async function recordCompletedCall(
   }
 
   return { counted };
+}
+
+async function stampCallOnEvent(
+  repo: RecordCompletedCallRepo,
+  userId: string,
+  dealId: string,
+  event: CrmEvent | null | undefined,
+  outcome: CallOutcome,
+  callEventId: string | null,
+): Promise<void> {
+  if (!event || !callEventId) return;
+  await repo.updateCrmEvent(
+    userId,
+    dealId,
+    event.id,
+    event.body,
+    { call_outcome: outcome, call_event_id: callEventId },
+    false,
+  );
+}
+
+/** Switches one history row between discagem and decisor. The dial stays a single row. */
+export async function reclassifyCrmCall(
+  repo: RecordCompletedCallRepo,
+  input: {
+    userId: string;
+    dealId: string;
+    eventId: string;
+    outcome: CallOutcome;
+  },
+): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
+  const events = await repo.listCrmEvents(input.userId, input.dealId);
+  const event = events?.find((row) => row.id === input.eventId);
+  const callEventId =
+    event?.kind === "ligar" ? event.meta.call_event_id : undefined;
+  if (!event || !callEventId) return null;
+  const outcome: CallOutcome = input.outcome === "decisor" ? "decisor" : "discagem";
+  const updated = await repo.updateCallEventOutcome(
+    input.userId,
+    callEventId,
+    outcome,
+  );
+  if (!updated) return null;
+  const saved = await repo.updateCrmEvent(
+    input.userId,
+    input.dealId,
+    event.id,
+    event.body,
+    { call_outcome: outcome },
+    false,
+  );
+  if (!saved) return null;
+  if (outcome !== "decisor") return saved;
+  const cnpj = saved.deal.cnpj;
+  if (cnpj) {
+    try {
+      await advanceCrmOnCall(repo, {
+        userId: input.userId,
+        cnpj,
+        outcome: "decisor",
+      });
+    } catch {
+      return saved;
+    }
+  }
+  const deal = await repo.getCrmDeal(input.userId, input.dealId);
+  return { deal: deal ?? saved.deal, event: saved.event };
 }
 
 /** After a CRM write that already created a `ligar` event. */
