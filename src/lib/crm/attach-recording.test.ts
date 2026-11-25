@@ -107,6 +107,39 @@ describe("attachCallRecordingToDeal", () => {
     expect(events?.find((row) => row.id === newer!.event.id)?.meta.record_url).toBeUndefined();
   });
 
+  it("pins the hangup file on the row with the same call_ref", async () => {
+    const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
+    const created = await mockRepo.createCrmDeal(USER, {
+      pipelineId: pipeline.id,
+      company_name: "Padaria",
+    });
+    const callRef = "cr-1";
+    const matched = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Desta chamada",
+      meta: { call_id: "dialer-id", call_ref: callRef },
+    });
+    const newer = await mockRepo.createCrmEvent(USER, created!.id, {
+      kind: "ligar",
+      body: "Ligação seguinte",
+    });
+
+    const result = await attachCallRecordingToDeal(mockRepo, {
+      userId: USER,
+      dealId: created!.id,
+      recordingUrl: MP3,
+      callId: "real-hangup-id",
+      callRef,
+    });
+
+    expect(result?.event.id).toBe(matched!.event.id);
+    expect(result?.event.meta.record_url).toBe(MP3);
+    expect(result?.event.meta.call_id).toBe("dialer-id");
+    expect(result?.event.meta.call_ref).toBe(callRef);
+    const events = await mockRepo.listCrmEvents(USER, created!.id);
+    expect(events?.find((row) => row.id === newer!.event.id)?.meta.record_url).toBeUndefined();
+  });
+
   it("keeps a single ligar row when the webhook already stored the call", async () => {
     const pipeline = await mockRepo.createCrmPipeline(USER, "Clínicas");
     const created = await mockRepo.createCrmDeal(USER, {

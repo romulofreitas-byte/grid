@@ -307,6 +307,8 @@ export type CrmEventMeta = {
   record_url?: string;
   /** API4COM call id, so the hangup recording lands on this row. */
   call_id?: string;
+  /** UUID sent as metadata.call_ref. The recorded call uses another id. */
+  call_ref?: string;
   /** Last time we asked API4COM for this row's file. */
   recording_checked_at?: string;
   /** Discagem or decisor. Absent on rows written before the history mark. */

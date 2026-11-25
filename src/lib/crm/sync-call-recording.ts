@@ -17,12 +17,22 @@ export function pickRecordingForEvent(
   used: Set<string>,
 ): { recordUrl: string; callId: string } | null {
   const ownId = event.meta.call_id;
+  const ownRef = event.meta.call_ref;
+  if (ownRef) {
+    const linked = calls.find(
+      (row) =>
+        row.callRef === ownRef && row.recordUrl && !used.has(row.recordUrl),
+    );
+    if (linked?.recordUrl) {
+      return { recordUrl: linked.recordUrl, callId: ownId ?? linked.id };
+    }
+    if (calls.some((row) => row.callRef === ownRef)) return null;
+  }
   if (ownId) {
     const exact = calls.find((row) => row.id === ownId);
     if (exact?.recordUrl && !used.has(exact.recordUrl)) {
       return { recordUrl: exact.recordUrl, callId: ownId };
     }
-    if (exact) return null;
   }
 
   const created = new Date(event.created_at).getTime();

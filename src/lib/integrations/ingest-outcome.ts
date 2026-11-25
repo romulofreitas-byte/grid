@@ -86,6 +86,7 @@ export async function ingestCallOutcome(input: {
         recordingUrl,
         phone: input.e164,
         callId: input.externalId,
+        callRef: input.callRef,
       });
     }
   } catch {

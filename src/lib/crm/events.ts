@@ -56,6 +56,10 @@ export function readCrmEventMeta(value: unknown): CrmEvent["meta"] {
     typeof raw.call_id === "string" ? raw.call_id : null,
   );
   if (callId) meta.call_id = callId;
+  const callRef = normalizeCallId(
+    typeof raw.call_ref === "string" ? raw.call_ref : null,
+  );
+  if (callRef) meta.call_ref = callRef;
   if (raw.call_outcome === "discagem" || raw.call_outcome === "decisor") {
     meta.call_outcome = raw.call_outcome;
   }

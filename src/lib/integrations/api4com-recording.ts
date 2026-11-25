@@ -13,6 +13,17 @@ export type Api4comCallRow = {
   callRef?: string | null;
 };
 
+/** API4COM sends `2025-01-01 00:00:00` (space, no zone). */
+export function parseApi4comInstant(raw: string | null | undefined): number | null {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) return null;
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(trimmed)
+    ? trimmed.replace(" ", "T")
+    : trimmed;
+  const parsed = Date.parse(normalized);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
   const root = asRecord(json);
   const rawRows = Array.isArray(json)
@@ -27,10 +38,6 @@ export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
     const id = pickString(rec, ["id"]);
     if (!id) continue;
     const meta = asRecord(rec.metadata);
-    const startedRaw = pickString(rec, ["started_at", "startedAt"]);
-    const startedAt = startedRaw ? Date.parse(startedRaw) : Number.NaN;
-    const endedRaw = pickString(rec, ["ended_at", "endedAt"]);
-    const endedAt = endedRaw ? Date.parse(endedRaw) : Number.NaN;
     rows.push({
       id,
       recordUrl: safeRecordingUrl(
@@ -40,8 +47,10 @@ export function parseApi4comCallList(json: unknown): Api4comCallRow[] {
         pickString(meta, ["deal_id", "dealId"]) ??
         pickString(rec, ["deal_id", "dealId"]) ??
         null,
-      startedAt: Number.isNaN(startedAt) ? null : startedAt,
-      endedAt: Number.isNaN(endedAt) ? null : endedAt,
+      startedAt: parseApi4comInstant(
+        pickString(rec, ["started_at", "startedAt"]),
+      ),
+      endedAt: parseApi4comInstant(pickString(rec, ["ended_at", "endedAt"])),
       hangupCause:
         pickString(rec, ["hangup_cause", "hangupCause"]) ?? null,
       callRef:

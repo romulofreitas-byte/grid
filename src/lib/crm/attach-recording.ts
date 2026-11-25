@@ -32,6 +32,7 @@ export async function attachCallRecordingToDeal(
     recordingUrl?: string | null;
     phone?: string;
     callId?: string | null;
+    callRef?: string | null;
   },
 ): Promise<{ deal: CrmDealCard; event: CrmEvent } | null> {
   const recordUrl = safeRecordingUrl(input.recordingUrl);
@@ -45,15 +46,21 @@ export async function attachCallRecordingToDeal(
   if (!deal) return null;
 
   const callId = normalizeCallId(input.callId);
+  const callRef = normalizeCallId(input.callRef);
   const events = (await repo.listCrmEvents(input.userId, deal.id)) ?? [];
-  const matched = callId
+  const matchedByRef = callRef
+    ? events.find((row) => row.kind === "ligar" && row.meta.call_ref === callRef)
+    : undefined;
+  const matchedById = callId
     ? events.find((row) => row.kind === "ligar" && row.meta.call_id === callId)
     : undefined;
+  const matched = matchedByRef ?? matchedById;
   const latestLigar = events.find((row) => row.kind === "ligar");
   const meta: CrmEventMeta = {
     record_url: recordUrl,
     ...(input.phone ? { phone: input.phone } : {}),
-    ...(callId ? { call_id: callId } : {}),
+    ...(callRef ? { call_ref: callRef } : {}),
+    ...(callId && !matched?.meta.call_id ? { call_id: callId } : {}),
   };
 
   if (matched) {

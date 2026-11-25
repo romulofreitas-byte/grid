@@ -12,6 +12,7 @@ const schema = z.object({
   searchId: z.string().uuid().optional(),
   dealId: z.string().uuid().optional(),
   callId: z.string().trim().min(1).max(120).optional(),
+  callRef: z.string().trim().min(1).max(120).optional(),
   phone: z.string().trim().max(24).optional(),
   outcome: z.enum(CALL_OUTCOMES),
   completeOpenLigar: z.boolean().optional(),
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
     outcome: parsed.data.outcome,
     dealId: parsed.data.dealId,
     callId: parsed.data.callId,
+    callRef: parsed.data.callRef,
     phone: parsed.data.phone,
     completeOpenLigar: parsed.data.completeOpenLigar,
   });

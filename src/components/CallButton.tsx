@@ -29,6 +29,7 @@ async function recordClassifiedCall(input: {
   searchId?: string | null;
   dealId?: string | null;
   callId?: string;
+  callRef?: string;
   phone?: string;
   outcome: CallOutcome;
   completeOpenLigar?: boolean;
@@ -41,6 +42,7 @@ async function recordClassifiedCall(input: {
       searchId: input.searchId ?? undefined,
       dealId: input.dealId ?? undefined,
       callId: input.callId,
+      callRef: input.callRef,
       phone: input.phone,
       outcome: input.outcome,
       completeOpenLigar: input.completeOpenLigar,
@@ -223,7 +225,7 @@ export function CallButton({
         return;
       }
       setRecording(true);
-      void recordDiscagem(result.externalId);
+      void recordDiscagem(result.externalId, callRef);
     },
   });
 
@@ -244,7 +246,7 @@ export function CallButton({
     onSuccess: () => setLiveCall(null),
   });
 
-  async function recordDiscagem(callId?: string) {
+  async function recordDiscagem(callId?: string, callRef?: string) {
     if (!dialCnpj) {
       setRecording(false);
       return;
@@ -256,6 +258,7 @@ export function CallButton({
         searchId,
         dealId,
         callId,
+        callRef,
         phone: to,
         outcome: "discagem",
         completeOpenLigar: originate ? false : undefined,

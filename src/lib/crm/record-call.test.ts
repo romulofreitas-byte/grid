@@ -200,6 +200,7 @@ describe("recordCompletedCall", () => {
       crmWrites: true,
       completeOpenLigar: false,
       callId: "voip-call-1",
+      callRef: "cr-voip-1",
       phone: "31999990000",
     });
     expect(result.counted).toBe(true);
@@ -212,6 +213,7 @@ describe("recordCompletedCall", () => {
     expect(ligar[0]?.meta.call_outcome).toBe("discagem");
     expect(ligar[0]?.meta.call_event_id).toBe(store.call_events[0]?.id);
     expect(ligar[0]?.meta.call_id).toBe("voip-call-1");
+    expect(ligar[0]?.meta.call_ref).toBe("cr-voip-1");
     const stats = await mockRepo.getPilotStats(USER, { includeNext: false });
     expect(stats.hoje).toBe(1);
 

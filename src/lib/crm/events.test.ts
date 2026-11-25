@@ -74,6 +74,7 @@ describe("readCrmEventMeta", () => {
     expect(
       readCrmEventMeta({
         call_id: " 2ee13fa4-975c-499d-bbb8-5177ff418316 ",
+        call_ref: " cr-1 ",
         record_url:
           "https://listener.api4com.com/files/listen/2ee13fa4-975c-499d-bbb8-5177ff418316.mp3",
         phone: "11999990000",
@@ -81,6 +82,7 @@ describe("readCrmEventMeta", () => {
       }),
     ).toEqual({
       call_id: "2ee13fa4-975c-499d-bbb8-5177ff418316",
+      call_ref: "cr-1",
       record_url:
         "https://listener.api4com.com/files/listen/2ee13fa4-975c-499d-bbb8-5177ff418316.mp3",
       phone: "11999990000",

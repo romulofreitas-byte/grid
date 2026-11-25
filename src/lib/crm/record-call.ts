@@ -6,6 +6,7 @@ import {
   type LeadCrmRepo,
 } from "@/lib/crm/lead-sync";
 import { openLigarActivity } from "@/lib/crm/activity";
+import { normalizeCallId } from "@/lib/crm/events";
 import type { CrmDealCard, CrmEvent, CrmNextAction } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 import type { CallEventSource, CallOutcome, Search } from "@/lib/types";
@@ -47,6 +48,8 @@ export type RecordCompletedCallInput = {
   completeOpenLigar?: boolean;
   /** API4COM call id stamped on the ligar history row. */
   callId?: string;
+  /** UUID sent to API4COM, so the recording can find this row. */
+  callRef?: string | null;
 };
 
 export async function recordCompletedCall(
@@ -119,6 +122,7 @@ export async function recordCompletedCall(
           written?.event,
           outcome,
           callEventId,
+          input.callRef,
         );
       }
     }
@@ -142,16 +146,18 @@ async function stampCallOnEvent(
   event: CrmEvent | null | undefined,
   outcome: CallOutcome,
   callEventId: string | null,
+  callRef?: string | null,
 ): Promise<void> {
-  if (!event || !callEventId) return;
-  await repo.updateCrmEvent(
-    userId,
-    dealId,
-    event.id,
-    event.body,
-    { call_outcome: outcome, call_event_id: callEventId },
-    false,
-  );
+  if (!event) return;
+  const ref = normalizeCallId(callRef);
+  if (!callEventId && !ref) return;
+  const meta: CrmEvent["meta"] = {};
+  if (callEventId) {
+    meta.call_outcome = outcome;
+    meta.call_event_id = callEventId;
+  }
+  if (ref) meta.call_ref = ref;
+  await repo.updateCrmEvent(userId, dealId, event.id, event.body, meta, false);
 }
 
 /** Switches one history row between discagem and decisor. The dial stays a single row. */
