@@ -5,16 +5,15 @@ import { COPY } from "@/lib/copy";
 import { saoPauloDay } from "@/lib/call-stats";
 import {
   WEEKDAYS,
-  completeTimeDigits,
   formatDateInput,
   formatDatetimeLocal,
   formatTimeInput,
   maskDateDigits,
   maskTimeDigits,
+  parseCompleteTimeDigits,
   monthCells,
   parseDateInput,
   parseDatetimeLocal,
-  parseTimeInput,
   shiftMonth,
   dateDigits,
   timeDigits,
@@ -69,6 +68,7 @@ export function CrmDateTimePicker({
   const clock = formatTimeInput(parts.hours, parts.minutes);
   const [editingTime, setEditingTime] = useState(false);
   const [timeDraft, setTimeDraft] = useState("");
+  const timeDraftRef = useRef("");
   const [editingDate, setEditingDate] = useState(false);
   const [dateDraft, setDateDraft] = useState("");
   const timeRef = useRef<HTMLInputElement>(null);
@@ -112,7 +112,7 @@ export function CrmDateTimePicker({
   }
 
   function applyTimeDigits(raw: string) {
-    const parsed = parseTimeInput(maskTimeDigits(completeTimeDigits(raw)));
+    const parsed = parseCompleteTimeDigits(raw);
     if (!parsed) return;
     commit({ ...parts, ...parsed });
   }
@@ -394,6 +394,7 @@ export function CrmDateTimePicker({
           value={editingTime ? maskTimeDigits(timeDraft) : clock}
           onMouseDown={() => {
             if (editingTime) return;
+            timeDraftRef.current = "";
             flushSync(() => {
               setEditingTime(true);
               setTimeDraft("");
@@ -405,6 +406,7 @@ export function CrmDateTimePicker({
           }}
           onChange={(event) => {
             const next = timeDigits(event.target.value);
+            timeDraftRef.current = next;
             setTimeDraft(next);
             requestAnimationFrame(() => {
               const el = timeRef.current;
@@ -419,7 +421,9 @@ export function CrmDateTimePicker({
             }
           }}
           onBlur={() => {
-            if (timeDraft.length > 0) applyTimeDigits(timeDraft);
+            const draft = timeDraftRef.current;
+            if (draft.length === 4) applyTimeDigits(draft);
+            timeDraftRef.current = "";
             setEditingTime(false);
             setTimeDraft("");
           }}

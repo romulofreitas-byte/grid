@@ -9,6 +9,7 @@ import {
   maskDateDigits,
   maskTimeDigits,
   completeTimeDigits,
+  parseCompleteTimeDigits,
   shiftMonth,
 } from "./datetime";
 
@@ -85,5 +86,16 @@ describe("datetime local", () => {
       hours: 9,
       minutes: 0,
     });
+  });
+
+  it("commits any minute only when hour and minute are complete", () => {
+    expect(parseCompleteTimeDigits("1015")).toEqual({ hours: 10, minutes: 15 });
+    expect(parseCompleteTimeDigits("1007")).toEqual({ hours: 10, minutes: 7 });
+    expect(parseCompleteTimeDigits("0930")).toEqual({ hours: 9, minutes: 30 });
+    expect(parseCompleteTimeDigits("2359")).toEqual({ hours: 23, minutes: 59 });
+    expect(parseCompleteTimeDigits("101")).toBeNull();
+    expect(parseCompleteTimeDigits("10")).toBeNull();
+    expect(parseCompleteTimeDigits("1060")).toBeNull();
+    expect(parseCompleteTimeDigits("2500")).toBeNull();
   });
 });

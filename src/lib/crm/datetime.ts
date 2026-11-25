@@ -142,6 +142,14 @@ export function maskTimeDigits(digits: string): string {
   return `${d.slice(0, 2)}:${d.slice(2)}`;
 }
 
+export function parseCompleteTimeDigits(
+  raw: string,
+): { hours: number; minutes: number } | null {
+  const digits = timeDigits(raw);
+  if (digits.length !== 4) return null;
+  return parseTimeInput(maskTimeDigits(digits));
+}
+
 export function completeTimeDigits(digits: string): string {
   const d = timeDigits(digits);
   if (d.length === 0) return "";
