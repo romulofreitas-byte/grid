@@ -330,7 +330,6 @@ function LargadaWizard() {
   const [mode, setMode] = useState<"nova" | "continuar" | "ajustar">("nova");
   const [sourceNome, setSourceNome] = useState<string | null>(null);
   const [sourceSearchId, setSourceSearchId] = useState<string | null>(null);
-  const [moreFilters, setMoreFilters] = useState(false);
   const [volumeExpanded, setVolumeExpanded] = useState(false);
   const autoOpenedNiche = useRef(false);
   /** Evita reaplicar o default de CNAEs no mesmo escopo (segmento/intenção). */
@@ -368,7 +367,6 @@ function LargadaWizard() {
           setQueuePosition(0);
           setSourceNome(null);
           setSourceSearchId(null);
-          setMoreFilters(false);
           setVolumeExpanded(false);
           if (intentParam.length >= 2) {
             setFilters(
@@ -1843,21 +1841,10 @@ function LargadaWizard() {
                 />
               </GlassCard>
 
-              <button
-                type="button"
-                onClick={() => setMoreFilters((v) => !v)}
-                className="flex w-full items-center justify-between rounded-md border border-white/10 px-3 py-2 text-sm font-semibold text-podium-gray hover:border-white/20"
-              >
+              <div className="flex w-full items-center rounded-md border border-white/10 px-3 py-2 text-sm font-semibold text-podium-gray">
                 Mais filtros
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 text-podium-muted transition",
-                    moreFilters && "rotate-180",
-                  )}
-                />
-              </button>
+              </div>
 
-              {moreFilters ? (
               <GlassCard className="space-y-3 p-3">
                 <div>
                   <h3 className="font-semibold">Porte</h3>
@@ -1925,7 +1912,6 @@ function LargadaWizard() {
                   />
                 </div>
               </GlassCard>
-              ) : null}
 
               <Button
                 variant="primary"
