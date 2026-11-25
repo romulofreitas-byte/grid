@@ -14,7 +14,7 @@ import {
   UserRound,
   Wallet,
 } from "lucide-react";
-import { INTEGRACOES_TELEFONIA } from "@/lib/back";
+import { INTEGRACOES_TELEFONIA, largadaNovaHref } from "@/lib/back";
 
 export type ShellNavItem = {
   href: string;
@@ -42,7 +42,7 @@ export const SHELL_WORK_NAV: readonly ShellNavItem[] = [
   { href: "/metas", label: "Meta", icon: Target },
   { href: "/box", label: "Ligar", icon: Phone },
   { href: "/crm", label: "CRM", icon: Columns3 },
-  { href: "/largada", label: "Nova lista", icon: Flag, tour: "nova-lista" },
+  { href: largadaNovaHref, label: "Nova lista", icon: Flag, tour: "nova-lista" },
   { href: "/listas", label: "Listas", icon: List },
   { href: "/empresas", label: "Empresas", icon: Search },
 ];
@@ -57,7 +57,7 @@ export const SHELL_MOBILE_NAV: readonly ShellNavItem[] = [
 
 export const SHELL_MORE_NAV: readonly ShellNavItem[] = [
   { href: "/metas", label: "Meta", icon: Target },
-  { href: "/largada", label: "Nova lista", icon: Flag, tour: "nova-lista" },
+  { href: largadaNovaHref, label: "Nova lista", icon: Flag, tour: "nova-lista" },
   { href: "/empresas", label: "Empresas", icon: Search },
 ];
 
@@ -86,7 +86,8 @@ export const SHELL_FOOTER_NAV: readonly ShellFooterItem[] = [
 ];
 
 export function isShellNavActive(href: string, pathname: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const path = href.split("?")[0] || href;
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
 
 export function showsOpeningNav(href: string): boolean {

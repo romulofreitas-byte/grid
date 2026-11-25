@@ -1003,7 +1003,7 @@ describe("crm deal transfer and list entrada", () => {
       search: {
         id: "11111111-1111-4111-8111-111111111111",
         user_id: USER,
-        nome: "Lista · Origem",
+        nome: "Origem",
         filtros: { ...DEFAULT_FILTERS, intentQuery: "Origem" },
         total_found: 1,
         created_at: "2026-08-17T12:00:00.000Z",
@@ -1011,10 +1011,12 @@ describe("crm deal transfer and list entrada", () => {
       },
       cnpjs: ["12345678000190"],
     });
-    expect(bridged).toMatchObject({ created: 0, skipped: 1, pipelineId: null });
+    expect(bridged.pipelineNome).toBe("Origem 2");
+    expect(bridged.pipelineId).toBeTruthy();
+    expect(await mockRepo.isCrmPipelineNameBlocked(USER, "Origem")).toBe(true);
     expect(
-      (await mockRepo.listCrmPipelines(USER)).map((row) => row.nome),
-    ).toEqual(["Destino"]);
+      (await mockRepo.listCrmPipelines(USER)).map((row) => row.nome).sort(),
+    ).toEqual(["Destino", "Origem 2"]);
 
     const renamed = await mockRepo.updateCrmPipeline(USER, to.id, {
       nome: "Origem",

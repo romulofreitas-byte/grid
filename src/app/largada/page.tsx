@@ -339,7 +339,7 @@ function LargadaWizard() {
   const autoStemScopeKey = useRef<string | null>(null);
 
   useEffect(() => {
-    if (hydrated) return;
+    if (hydrated && !novaParam && intentParam.length < 2) return;
     let cancelled = false;
 
     async function hydrate() {
@@ -353,6 +353,23 @@ function LargadaWizard() {
       if (source === "nova") {
         clearDraft();
         if (!cancelled) {
+          autoOpenedNiche.current = false;
+          autoCnaeScopeKey.current = null;
+          autoStemScopeKey.current = null;
+          setStep(1);
+          setOpenNiche(null);
+          setSegmentQuery("");
+          setMunQuery("");
+          setMunLetter(null);
+          setCitiesOpen(false);
+          setCnaeDraft("");
+          setCompanyLabels({});
+          setCnaeLabels({});
+          setQueuePosition(0);
+          setSourceNome(null);
+          setSourceSearchId(null);
+          setMoreFilters(false);
+          setVolumeExpanded(false);
           if (intentParam.length >= 2) {
             setFilters(
               mergeFilters({
@@ -362,6 +379,10 @@ function LargadaWizard() {
             );
             setIntentDraft(intentParam);
             setShowCnaePanel(true);
+          } else {
+            setFilters({ ...DEFAULT_FILTERS });
+            setIntentDraft("");
+            setShowCnaePanel(false);
           }
           setMode("nova");
           setHydrated(true);

@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_FILTERS, type Search } from "@/lib/types";
 import { canMoveFromFicha } from "./cadence";
-import { buildLeadCrmState } from "./lead-sync";
+import {
+  buildLeadCrmState,
+  preferredCrmPipelineId,
+  type LeadCrmRepo,
+} from "./lead-sync";
 
 describe("buildLeadCrmState", () => {
   const stages = [
@@ -60,5 +65,30 @@ describe("buildLeadCrmState", () => {
     expect(crm.pastFirstMile).toBe(true);
     expect(crm.stageNome).toBe("Reunião Realizada (R1)");
     expect(canMoveFromFicha(crm.stageKey, "entrada")).toBe(false);
+  });
+});
+
+describe("preferredCrmPipelineId", () => {
+  it("prefers the latest pipeline named after the list", async () => {
+    const repo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([
+        { id: "old", nome: "Clínicas BH" },
+        { id: "latest", nome: "Clínicas BH 2" },
+        { id: "other", nome: "Contábil" },
+      ]),
+    } as unknown as LeadCrmRepo;
+    const search: Search = {
+      id: "s",
+      user_id: "u",
+      nome: "Clínicas BH",
+      filtros: DEFAULT_FILTERS,
+      total_found: 1,
+      created_at: "2026-09-01T00:00:00.000Z",
+      saved: true,
+    };
+    await expect(preferredCrmPipelineId(repo, "u", search)).resolves.toBe(
+      "latest",
+    );
+    await expect(preferredCrmPipelineId(repo, "u", null)).resolves.toBeNull();
   });
 });

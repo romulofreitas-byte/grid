@@ -21,13 +21,13 @@ describe("shell work nav", () => {
       "/metas",
       "/box",
       "/crm",
-      "/largada",
+      "/largada?nova=1",
       "/listas",
       "/empresas",
     ]);
-    expect(SHELL_WORK_NAV.find((item) => item.href === "/largada")?.tour).toBe(
-      "nova-lista",
-    );
+    expect(
+      SHELL_WORK_NAV.find((item) => item.href === "/largada?nova=1")?.tour,
+    ).toBe("nova-lista");
   });
 });
 
@@ -41,12 +41,12 @@ describe("shell mobile nav", () => {
     ]);
     expect(SHELL_MORE_NAV.map((item) => item.href)).toEqual([
       "/metas",
-      "/largada",
+      "/largada?nova=1",
       "/empresas",
     ]);
-    expect(SHELL_MORE_NAV.find((item) => item.href === "/largada")?.tour).toBe(
-      "nova-lista",
-    );
+    expect(
+      SHELL_MORE_NAV.find((item) => item.href === "/largada?nova=1")?.tour,
+    ).toBe("nova-lista");
   });
 
   it("lights Mais on Meta, Nova lista, and Empresas — not Painel", () => {
@@ -104,6 +104,7 @@ describe("isShellNavActive", () => {
     expect(isShellNavActive("/painel", "/painel")).toBe(true);
     expect(isShellNavActive("/crm", "/crm")).toBe(true);
     expect(isShellNavActive("/largada", "/largada")).toBe(true);
+    expect(isShellNavActive("/largada?nova=1", "/largada")).toBe(true);
     expect(isShellNavActive("/listas", "/listas/abc")).toBe(true);
     expect(isShellNavActive("/painel", "/")).toBe(false);
     expect(isShellNavActive("/listas", "/listas-x")).toBe(false);

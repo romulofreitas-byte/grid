@@ -1,86 +1,72 @@
 import { describe, expect, it } from "vitest";
 import {
   digitsCnpj,
+  latestPipelineNomeForList,
+  nextSavedListPipelineNome,
   normalizePipelineNome,
   pickDefaultCrmPipeline,
+  pipelineNomeForSeries,
+  pipelineSeriesRank,
   pistaNomeForSearch,
-  resolveCrmPipelineNome,
+  savedListPipelineBase,
 } from "./bridge";
 import { DEFAULT_PIPELINE_NAME } from "./cadence";
 
-describe("resolveCrmPipelineNome", () => {
-  it("prefers segment name over intent and list title", () => {
-    expect(
-      resolveCrmPipelineNome({
-        segmentNome: "Clínicas estética",
-        intentQuery: "outro",
-        searchNome: "Lista · SP",
-      }),
-    ).toBe("Clínicas estética");
+describe("saved list pipeline names", () => {
+  it("uses the typed list title and falls back when it is empty", () => {
+    expect(savedListPipelineBase("  Clínicas   BH  ")).toBe("Clínicas BH");
+    expect(savedListPipelineBase("Lista · Marmoraria")).toBe(
+      "Lista · Marmoraria",
+    );
+    expect(savedListPipelineBase("   ")).toBe(DEFAULT_PIPELINE_NAME);
   });
 
-  it("falls back to intent then stripped list nome", () => {
-    expect(
-      resolveCrmPipelineNome({
-        segmentNome: null,
-        intentQuery: "pet shop",
-        searchNome: "Lista · pet shop",
-      }),
-    ).toBe("pet shop");
-    expect(
-      resolveCrmPipelineNome({
-        segmentNome: null,
-        intentQuery: null,
-        searchNome: "Lista · Marmoraria",
-      }),
-    ).toBe("Marmoraria");
+  it("keeps a numeric suffix inside 80 characters", () => {
+    const base = "A".repeat(90);
+    expect(pipelineNomeForSeries(base, 1)).toHaveLength(80);
+    expect(pipelineNomeForSeries(base, 2)).toBe(`${"A".repeat(78)} 2`);
+    expect(pipelineNomeForSeries(base, 2)).toHaveLength(80);
+    expect(pipelineSeriesRank(pipelineNomeForSeries(base, 2), base)).toBe(2);
   });
 
-  it("uses default when nothing useful", () => {
-    expect(
-      resolveCrmPipelineNome({
-        segmentNome: "  ",
-        intentQuery: "a",
-        searchNome: "Lista · ",
-      }),
-    ).toBe(DEFAULT_PIPELINE_NAME);
+  it("skips taken and deleted names", async () => {
+    const nome = await nextSavedListPipelineNome(
+      "Clínicas BH",
+      ["Clínicas BH", "Clínicas BH 2"],
+      async (candidate) => candidate === "Clínicas BH 3",
+    );
+    expect(nome).toBe("Clínicas BH 4");
   });
 
-  it("ignores CNAE/company names on a CNPJ-only avulsa list", () => {
-    expect(
-      resolveCrmPipelineNome({
-        segmentNome: null,
-        intentQuery: "Comércio varejista de mercadorias em geral",
-        searchNome: "Padaria do Zé",
-        cnpjOnly: true,
-      }),
-    ).toBe(DEFAULT_PIPELINE_NAME);
+  it("does not treat another list's suffix as this series", () => {
+    expect(pipelineSeriesRank("Foo 2", "Foo 2")).toBe(1);
+    expect(pipelineSeriesRank("Foo 2 2", "Foo 2")).toBe(2);
+    expect(pipelineSeriesRank("Foo 22", "Foo 2")).toBeNull();
+    expect(pipelineSeriesRank("Foo", "Foo 2")).toBeNull();
   });
 });
 
 describe("pistaNomeForSearch", () => {
-  it("matches a resolved nicho against existing pipelines", () => {
-    const search = {
-      nome: "Lista · Clínicas estética",
-      filtros: { intentQuery: null as string | null },
-    };
-    expect(pistaNomeForSearch(search, ["Clínicas estética", "Contábil"])).toBe(
-      "Clínicas estética",
-    );
+  it("shows the latest pipeline of that list", () => {
+    expect(
+      pistaNomeForSearch({ nome: "Clínicas BH" }, [
+        "Clínicas BH",
+        "Clínicas BH 2",
+        "Contábil",
+      ]),
+    ).toBe("Clínicas BH 2");
+    expect(
+      latestPipelineNomeForList("Clínicas BH", ["Contábil"]),
+    ).toBeNull();
   });
 
-  it("maps a CNPJ-only list to Meu nicho", () => {
-    const search = {
-      nome: "Padaria do Zé",
-      filtros: {
-        intentQuery: "Padaria e confeitaria",
-        cnpjs: ["12345678000190"],
-        segmentIds: [] as string[],
-      },
-    };
-    expect(pistaNomeForSearch(search, [DEFAULT_PIPELINE_NAME, "Contábil"])).toBe(
-      DEFAULT_PIPELINE_NAME,
-    );
+  it("does not map a list onto a niche pipeline with another name", () => {
+    expect(
+      pistaNomeForSearch({ nome: "Padaria do Zé" }, [
+        DEFAULT_PIPELINE_NAME,
+        "Contábil",
+      ]),
+    ).toBeNull();
   });
 });
 

@@ -1,7 +1,4 @@
-import {
-  isCnpjOnlySearch,
-  resolveCrmPipelineNome,
-} from "@/lib/crm/bridge";
+import { pipelineSeriesRank } from "@/lib/crm/bridge";
 import type {
   CrmBoard,
   CrmDealSource,
@@ -9,7 +6,7 @@ import type {
   CrmOutcome,
   CrmPipelineSummary,
 } from "@/lib/crm/types";
-import type { NichePreset, Search } from "@/lib/types";
+import type { Search } from "@/lib/types";
 
 export const USER_OWNED_DEAL_SOURCES: readonly CrmDealSource[] = [
   "import",
@@ -97,21 +94,11 @@ export function summarizePipelineRemoval(input: {
 export function matchingSavedListCount(
   searches: Search[],
   pipelineNome: string,
-  segmentNomeById: Map<string, string>,
 ): number {
-  const needle = pipelineNome.trim().toLowerCase();
-  if (!needle) return 0;
+  if (!pipelineNome.trim()) return 0;
   return searches.filter((search) => {
     if (!search.saved) return false;
-    const segmentId = search.filtros.segmentIds[0] ?? search.filtros.presetId;
-    const segmentNome = segmentId ? segmentNomeById.get(segmentId) : undefined;
-    const resolved = resolveCrmPipelineNome({
-      segmentNome,
-      intentQuery: search.filtros.intentQuery,
-      searchNome: search.nome,
-      cnpjOnly: isCnpjOnlySearch(search.filtros) && !segmentNome,
-    });
-    return resolved.trim().toLowerCase() === needle;
+    return pipelineSeriesRank(pipelineNome, search.nome) != null;
   }).length;
 }
 
@@ -135,7 +122,6 @@ export type PipelineRemovalRepo = {
     userId: string,
     opts?: { limit?: number; saved?: boolean },
   ) => Promise<Search[]>;
-  getPreset: (id: string) => Promise<NichePreset | undefined>;
   deleteCrmPipeline: (userId: string, pipelineId: string) => Promise<boolean>;
 };
 
@@ -151,21 +137,6 @@ export async function loadPipelineRemovalPreview(
   ]);
   if (!board) return null;
   const searches = await repo.listRecentSearches(userId, { saved: true });
-  const segmentIds = [
-    ...new Set(
-      searches.flatMap((search) => {
-        const id = search.filtros.segmentIds[0] ?? search.filtros.presetId;
-        return id ? [id] : [];
-      }),
-    ),
-  ];
-  const segmentNomeById = new Map<string, string>();
-  await Promise.all(
-    segmentIds.map(async (id) => {
-      const preset = await repo.getPreset(id);
-      if (preset) segmentNomeById.set(id, preset.nome);
-    }),
-  );
   const stageById = new Map(
     board.stages.map((stage) => [stage.id, stage] as const),
   );
@@ -176,7 +147,6 @@ export async function loadPipelineRemovalPreview(
     matchingSavedListCount: matchingSavedListCount(
       searches,
       board.pipeline.nome,
-      segmentNomeById,
     ),
     deals: board.deals.map((deal) => ({
       outcome: deal.outcome,

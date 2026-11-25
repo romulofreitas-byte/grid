@@ -15,37 +15,68 @@ export function pipelineNomeKey(nome: string): string {
   return normalizePipelineNome(nome).toLowerCase();
 }
 
-export function resolveCrmPipelineNome(input: {
-  segmentNome: string | null | undefined;
-  intentQuery: string | null | undefined;
-  searchNome: string;
-  cnpjOnly?: boolean;
-}): string {
-  const segment = input.segmentNome?.trim();
-  if (segment) return normalizePipelineNome(segment);
+const PIPELINE_SERIES_MAX = 99;
 
-  if (input.cnpjOnly) return DEFAULT_PIPELINE_NAME;
-
-  const intent = input.intentQuery?.trim();
-  if (intent && intent.length >= 2) return normalizePipelineNome(intent);
-
-  const stripped = input.searchNome
-    .replace(/^Lista\s*[·•\-–]\s*/i, "")
-    .trim();
-  if (stripped) return normalizePipelineNome(stripped);
-
-  return DEFAULT_PIPELINE_NAME;
+/** Name typed on the saved list. Empty titles fall back to the default pista. */
+export function savedListPipelineBase(searchNome: string): string {
+  return normalizePipelineNome(searchNome) || DEFAULT_PIPELINE_NAME;
 }
 
-export function isCnpjOnlySearch(filtros: {
-  cnpjs?: string[];
-  segmentIds?: string[];
-  presetId?: string | null;
-}): boolean {
-  return (
-    (filtros.cnpjs?.length ?? 0) > 0 &&
-    !(filtros.segmentIds?.[0] || filtros.presetId)
-  );
+/** `index` 1 is the list title. Later sends use `Nome 2`, `Nome 3`, still within 80 chars. */
+export function pipelineNomeForSeries(base: string, index: number): string {
+  const normalized = savedListPipelineBase(base);
+  if (index <= 1) return normalized;
+  const suffix = ` ${index}`;
+  const room = Math.max(1, 80 - suffix.length);
+  const stem = normalized.slice(0, room).trimEnd();
+  return `${stem}${suffix}`.slice(0, 80);
+}
+
+/** 1 when the pipeline is the list title, 2+ when it is that title plus a numeric suffix. */
+export function pipelineSeriesRank(
+  pipelineNome: string,
+  listNome: string,
+): number | null {
+  const key = pipelineNomeKey(pipelineNome);
+  if (!key) return null;
+  const base = savedListPipelineBase(listNome);
+  if (key === pipelineNomeKey(pipelineNomeForSeries(base, 1))) return 1;
+  const match = key.match(/^(.*) ([1-9]\d*)$/);
+  if (!match?.[2]) return null;
+  const index = Number(match[2]);
+  if (!Number.isSafeInteger(index) || index < 2) return null;
+  if (pipelineNomeKey(pipelineNomeForSeries(base, index)) !== key) return null;
+  return index;
+}
+
+export function latestPipelineNomeForList(
+  listNome: string,
+  pipelineNomes: string[],
+): string | null {
+  let best: { nome: string; rank: number } | null = null;
+  for (const nome of pipelineNomes) {
+    const rank = pipelineSeriesRank(nome, listNome);
+    if (rank == null) continue;
+    if (!best || rank > best.rank) best = { nome, rank };
+  }
+  return best?.nome ?? null;
+}
+
+/** Next free title for this list. Taken and deleted (blocked) names are skipped. */
+export async function nextSavedListPipelineNome(
+  searchNome: string,
+  existingNomes: string[],
+  isBlocked: (nome: string) => Promise<boolean>,
+): Promise<string | null> {
+  const taken = new Set(existingNomes.map((nome) => pipelineNomeKey(nome)));
+  const base = savedListPipelineBase(searchNome);
+  for (let index = 1; index <= PIPELINE_SERIES_MAX; index += 1) {
+    const nome = pipelineNomeForSeries(base, index);
+    if (taken.has(pipelineNomeKey(nome))) continue;
+    if (await isBlocked(nome)) continue;
+    return nome;
+  }
+  return null;
 }
 
 export function pickDefaultCrmPipeline<T extends { deal_count: number }>(
@@ -64,36 +95,11 @@ export function digitsCnpj(cnpj: string): string {
 }
 
 export function pistaNomeForSearch(
-  search: {
-    nome: string;
-    filtros: {
-      intentQuery?: string | null;
-      cnpjs?: string[];
-      segmentIds?: string[];
-      presetId?: string | null;
-    };
-  },
+  search: { nome: string },
   pipelineNomes: string[],
-  segmentNome?: string | null,
 ): string | null {
   if (pipelineNomes.length === 0) return null;
-  const resolved = resolveCrmPipelineNome({
-    segmentNome,
-    intentQuery: search.filtros.intentQuery,
-    searchNome: search.nome,
-    cnpjOnly: isCnpjOnlySearch(search.filtros) && !segmentNome,
-  });
-  const hit = pipelineNomes.find(
-    (nome) => nome.trim().toLowerCase() === resolved.toLowerCase(),
-  );
-  if (hit) return hit;
-  const haystack = search.nome.toLowerCase();
-  return (
-    pipelineNomes.find((nome) => {
-      const needle = nome.trim().toLowerCase();
-      return needle.length >= 3 && haystack.includes(needle);
-    }) ?? null
-  );
+  return latestPipelineNomeForList(search.nome, pipelineNomes);
 }
 
 export type CrmBridgeRepo = Pick<
@@ -104,7 +110,6 @@ export type CrmBridgeRepo = Pick<
   | "findCrmDealByCnpj"
   | "createCrmDeal"
   | "getDossier"
-  | "getPreset"
   | "listCompanyBriefs"
   | "listHiddenPhones"
 >;
@@ -131,8 +136,9 @@ function localMeta(
 }
 
 /**
- * After qualify on a saved list: ensure niche pipeline and upsert deals
- * at Entrada de Lista (first stage). Cities stay in meta — never new pipelines.
+ * Each send of a saved list opens a new pipeline named after the list.
+ * A taken or deleted name gets the next free suffix. Deals land on
+ * Entrada de Lista. A CNPJ already in this new pipeline is skipped.
  */
 export async function bridgeQualifiedLeadsToCrm(
   repo: CrmBridgeRepo,
@@ -153,24 +159,13 @@ export async function bridgeQualifiedLeadsToCrm(
   if (!input.search.saved) return empty;
   if (!input.cnpjs.length) return empty;
 
-  const segmentId =
-    input.search.filtros.segmentIds[0] ?? input.search.filtros.presetId;
-  const preset = segmentId ? await repo.getPreset(segmentId) : null;
-  const pipelineNome = resolveCrmPipelineNome({
-    segmentNome: preset?.nome,
-    intentQuery: input.search.filtros.intentQuery,
-    searchNome: input.search.nome,
-    cnpjOnly: isCnpjOnlySearch(input.search.filtros),
-  });
-
   const pipelines = await repo.listCrmPipelines(input.userId);
-  const existing = pipelines.find(
-    (p) => pipelineNomeKey(p.nome) === pipelineNomeKey(pipelineNome),
+  const pipelineNome = await nextSavedListPipelineNome(
+    input.search.nome,
+    pipelines.map((pipeline) => pipeline.nome),
+    (nome) => repo.isCrmPipelineNameBlocked(input.userId, nome),
   );
-  if (
-    !existing &&
-    (await repo.isCrmPipelineNameBlocked(input.userId, pipelineNome))
-  ) {
+  if (!pipelineNome) {
     return {
       created: 0,
       skipped: input.cnpjs.length,
@@ -179,8 +174,7 @@ export async function bridgeQualifiedLeadsToCrm(
       pipelineNome: null,
     };
   }
-  const pipeline =
-    existing ?? (await repo.createCrmPipeline(input.userId, pipelineNome));
+  const pipeline = await repo.createCrmPipeline(input.userId, pipelineNome);
 
   const meta = localMeta(
     input.search.filtros,

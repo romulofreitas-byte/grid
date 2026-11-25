@@ -33,7 +33,6 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       getDossier: vi.fn(),
       listCompanyBriefs: vi.fn(),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn(),
     } satisfies CrmBridgeRepo;
 
     const out = await bridgeQualifiedLeadsToCrm(repo, {
@@ -45,7 +44,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 
-  it("creates a niche pipeline deal and skips duplicates", async () => {
+  it("names the pipeline after the list and opens another on the next send", async () => {
     const pipeline: CrmPipelineSummary = {
       id: "pipe-1",
       user_id: "user-1",
@@ -82,11 +81,22 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const findCrmDealByCnpj = vi
       .fn()
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(deal);
+      .mockResolvedValueOnce(deal)
+      .mockResolvedValueOnce(null);
+    const createdPipelines: CrmPipelineSummary[] = [];
+    const createCrmPipeline = vi.fn(async (_userId: string, nome: string) => {
+      const row: CrmPipelineSummary = {
+        ...pipeline,
+        id: `pipe-${createdPipelines.length + 1}`,
+        nome,
+      };
+      createdPipelines.push(row);
+      return row as CrmPipeline;
+    });
 
     const repo: CrmBridgeRepo = {
-      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
-      createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      listCrmPipelines: vi.fn(async () => [...createdPipelines]),
+      createCrmPipeline,
       isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj,
       createCrmDeal,
@@ -101,19 +111,17 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       } as unknown as LeadDossier),
       listCompanyBriefs: vi.fn().mockResolvedValue([]),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn().mockResolvedValue({
-        id: "seg-1",
-        nome: "Clínicas estética",
-      }),
     };
 
     const first = await bridgeQualifiedLeadsToCrm(repo, {
       userId: "user-1",
       search: search(),
-      cnpjs: ["12345678000190"],
+      cnpjs: ["12345678000190", "12345678000190"],
     });
     expect(first.created).toBe(1);
-    expect(first.pipelineNome).toBe("Clínicas estética");
+    expect(first.skipped).toBe(1);
+    expect(first.pipelineNome).toBe("Lista · Clínicas");
+    expect(createCrmPipeline).toHaveBeenCalledWith("user-1", "Lista · Clínicas");
     expect(createCrmDeal).toHaveBeenCalledWith(
       "user-1",
       expect.objectContaining({
@@ -132,10 +140,15 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       search: search(),
       cnpjs: ["12345678000190"],
     });
-    expect(second.created).toBe(0);
-    expect(second.skipped).toBe(1);
+    expect(second.created).toBe(1);
+    expect(second.skipped).toBe(0);
     expect(second.failed).toBe(0);
-    expect(createCrmDeal).toHaveBeenCalledTimes(1);
+    expect(second.pipelineNome).toBe("Lista · Clínicas 2");
+    expect(createCrmPipeline).toHaveBeenLastCalledWith(
+      "user-1",
+      "Lista · Clínicas 2",
+    );
+    expect(createCrmDeal).toHaveBeenCalledTimes(2);
   });
 
   it("creates deals from company briefs when dossier is missing", async () => {
@@ -191,10 +204,6 @@ describe("bridgeQualifiedLeadsToCrm", () => {
         })),
       ),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn().mockResolvedValue({
-        id: "seg-1",
-        nome: "Clínicas estética",
-      }),
     };
 
     const out = await bridgeQualifiedLeadsToCrm(repo, {
@@ -206,16 +215,19 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(repo.getDossier).not.toHaveBeenCalled();
   });
 
-  it("lands a CNPJ-only avulsa list on Meu nicho instead of the CNAE name", async () => {
+  it("names a CNPJ-only list after the saved title, not the CNAE", async () => {
     const pipeline: CrmPipelineSummary = {
       id: "pipe-default",
       user_id: "user-1",
-      nome: "Meu nicho",
+      nome: "Padaria do Zé",
       position: 0,
       created_at: new Date().toISOString(),
       deal_count: 0,
     };
-    const createCrmPipeline = vi.fn().mockResolvedValue(pipeline as CrmPipeline);
+    const createCrmPipeline = vi.fn(async (_userId: string, nome: string) => ({
+      ...pipeline,
+      nome,
+    }));
     const createCrmDeal = vi.fn().mockResolvedValue({
       id: "deal-avulsa",
       pipeline_id: pipeline.id,
@@ -254,7 +266,6 @@ describe("bridgeQualifiedLeadsToCrm", () => {
         },
       ]),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn().mockResolvedValue(null),
     };
 
     const out = await bridgeQualifiedLeadsToCrm(repo, {
@@ -271,8 +282,8 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       cnpjs: ["12345678000190"],
     });
     expect(out.created).toBe(1);
-    expect(out.pipelineNome).toBe("Meu nicho");
-    expect(createCrmPipeline).toHaveBeenCalledWith("user-1", "Meu nicho");
+    expect(out.pipelineNome).toBe("Padaria do Zé");
+    expect(createCrmPipeline).toHaveBeenCalledWith("user-1", "Padaria do Zé");
   });
 
   it("counts missing company data as failed, not skipped", async () => {
@@ -293,10 +304,6 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       getDossier: vi.fn().mockResolvedValue(null),
       listCompanyBriefs: vi.fn().mockResolvedValue([]),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn().mockResolvedValue({
-        id: "seg-1",
-        nome: "Clínicas estética",
-      }),
     };
     const out = await bridgeQualifiedLeadsToCrm(repo, {
       userId: "user-1",
@@ -312,35 +319,37 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 
-  it("skips a deleted niche name instead of creating it again", async () => {
-    const createCrmPipeline = vi.fn();
+  it("uses the next suffix when the list name was deleted", async () => {
+    const createCrmPipeline = vi.fn(async (_userId: string, nome: string) => ({
+      id: "pipe-2",
+      user_id: "user-1",
+      nome,
+      position: 0,
+      created_at: new Date().toISOString(),
+      deal_count: 0,
+    }));
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline,
-      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(true),
-      findCrmDealByCnpj: vi.fn(),
+      isCrmPipelineNameBlocked: vi.fn(
+        async (_userId: string, nome: string) => nome === "Lista · Clínicas",
+      ),
+      findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
       createCrmDeal: vi.fn(),
-      getDossier: vi.fn(),
-      listCompanyBriefs: vi.fn(),
+      getDossier: vi.fn().mockResolvedValue(null),
+      listCompanyBriefs: vi.fn().mockResolvedValue([]),
       listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
-      getPreset: vi.fn().mockResolvedValue({
-        id: "seg-1",
-        nome: "Clínicas estética",
-      }),
     };
     const out = await bridgeQualifiedLeadsToCrm(repo, {
       userId: "user-1",
       search: search(),
-      cnpjs: ["12345678000190", "12345678000191"],
+      cnpjs: ["12345678000190"],
     });
-    expect(out).toMatchObject({
-      created: 0,
-      skipped: 2,
-      failed: 0,
-      pipelineId: null,
-      pipelineNome: null,
-    });
-    expect(createCrmPipeline).not.toHaveBeenCalled();
-    expect(repo.createCrmDeal).not.toHaveBeenCalled();
+    expect(createCrmPipeline).toHaveBeenCalledWith(
+      "user-1",
+      "Lista · Clínicas 2",
+    );
+    expect(out.pipelineNome).toBe("Lista · Clínicas 2");
+    expect(out.pipelineId).toBe("pipe-2");
   });
 });

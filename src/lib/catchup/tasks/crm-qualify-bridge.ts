@@ -14,7 +14,6 @@ export type QualifyBridgeRepo = Pick<
   | "findCrmDealByCnpj"
   | "createCrmDeal"
   | "getDossier"
-  | "getPreset"
   | "listCompanyBriefs"
   | "listHiddenPhones"
 >;

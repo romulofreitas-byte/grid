@@ -21,6 +21,7 @@ import { Hint } from "@/components/Hint";
 import { SectionTitle } from "@/components/SectionTitle";
 import { formatBrl } from "@/lib/billing/catalog";
 import { withFrom } from "@/lib/billing/href";
+import { largadaNovaHref } from "@/lib/back";
 import { paywallCopy } from "@/lib/billing/paywall";
 import { COPY } from "@/lib/copy";
 import { LIVE_STATS_QUERY_OPTIONS } from "@/lib/live-stats";
@@ -547,7 +548,7 @@ export function PainelDashboard() {
       ) : null}
       {!mdUp ? (
         <Link
-          href="/largada"
+          href={largadaNovaHref}
           className={buttonClassName({
             variant: "secondary",
             size: "md",
@@ -771,7 +772,7 @@ function PainelNumbersBlock({
               </div>
             </dl>
             <Link
-              href="/largada"
+              href={largadaNovaHref}
               className={buttonClassName({
                 variant: "primary",
                 size: "md",

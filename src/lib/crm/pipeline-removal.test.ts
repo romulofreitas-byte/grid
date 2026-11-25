@@ -170,7 +170,7 @@ describe("shouldRemoveEntradaDeal", () => {
 });
 
 describe("matchingSavedListCount", () => {
-  it("counts saved lists that resolve to the nicho nome", () => {
+  it("counts saved lists whose title matches the pipeline or a numeric suffix", () => {
     const search = {
       id: "s1",
       user_id: "u",
@@ -183,18 +183,17 @@ describe("matchingSavedListCount", () => {
       created_at: "2026-09-01T00:00:00.000Z",
       saved: true,
     };
+    expect(matchingSavedListCount([search], "Lista · Clínicas estética")).toBe(
+      1,
+    );
     expect(
-      matchingSavedListCount(
-        [search],
-        "Clínicas estética",
-        new Map([["seg-1", "Clínicas estética"]]),
-      ),
+      matchingSavedListCount([search], "Lista · Clínicas estética 2"),
     ).toBe(1);
+    expect(matchingSavedListCount([search], "Clínicas estética")).toBe(0);
     expect(
       matchingSavedListCount(
         [{ ...search, saved: false }],
-        "Clínicas estética",
-        new Map([["seg-1", "Clínicas estética"]]),
+        "Lista · Clínicas estética",
       ),
     ).toBe(0);
   });

@@ -10,7 +10,11 @@ import {
   leadStatusFromStageKey,
   type FichaMoveKey,
 } from "@/lib/crm/cadence";
-import { digitsCnpj, isCnpjOnlySearch, resolveCrmPipelineNome } from "@/lib/crm/bridge";
+import {
+  digitsCnpj,
+  latestPipelineNomeForList,
+  pipelineNomeKey,
+} from "@/lib/crm/bridge";
 import type { LeadCrmFirstMileStage, LeadCrmState } from "@/lib/crm/types";
 import type { GridRepo } from "@/lib/data/repo";
 import type { LeadStatus, Search } from "@/lib/types";
@@ -19,7 +23,6 @@ export type LeadCrmRepo = Pick<
   GridRepo,
   | "listCrmPipelines"
   | "getCrmBoard"
-  | "getPreset"
   | "findCrmDealByCnpjForUser"
   | "moveCrmDeal"
   | "updateCrmDeal"
@@ -68,19 +71,16 @@ export async function preferredCrmPipelineId(
   search: Search | null,
 ): Promise<string | null> {
   if (!search) return null;
-  const segmentId = search.filtros.segmentIds[0] ?? search.filtros.presetId;
-  const preset = segmentId ? await repo.getPreset(segmentId) : null;
-  const nome = resolveCrmPipelineNome({
-    segmentNome: preset?.nome,
-    intentQuery: search.filtros.intentQuery,
-    searchNome: search.nome,
-    cnpjOnly: isCnpjOnlySearch(search.filtros),
-  });
   const pipelines = await repo.listCrmPipelines(userId);
+  const nome = latestPipelineNomeForList(
+    search.nome,
+    pipelines.map((pipeline) => pipeline.nome),
+  );
+  if (!nome) return null;
+  const key = pipelineNomeKey(nome);
   return (
-    pipelines.find(
-      (pipeline) => pipeline.nome.trim().toLowerCase() === nome.toLowerCase(),
-    )?.id ?? null
+    pipelines.find((pipeline) => pipelineNomeKey(pipeline.nome) === key)?.id ??
+    null
   );
 }
 
