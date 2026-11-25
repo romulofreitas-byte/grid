@@ -590,6 +590,7 @@ function LargadaWizard() {
     enabled:
       canUseNameQuery(namePreviewQ) &&
       filters.segmentIds.length === 0 &&
+      filters.cnaes.length === 0 &&
       !filters.intentQuery &&
       !filters.nameQuery,
   });
@@ -762,10 +763,16 @@ function LargadaWizard() {
     setStep(2);
   }
 
+  const cnaeOnlyNiche =
+    filters.cnaes.length > 0 &&
+    filters.segmentIds.length === 0 &&
+    !filters.intentQuery &&
+    !filters.nameQuery;
+
   function onSegmentSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (!segmentSearch) return;
+    if (!segmentSearch || cnaeOnlyNiche) return;
     const ranked = matchedNicheTree
       .flatMap((n) => n.segments.map((s) => ({ nicheId: n.id, seg: s, niche: n })))
       .map((x) => ({
@@ -867,17 +874,18 @@ function LargadaWizard() {
     autoCnaeScopeKey.current = null;
     autoStemScopeKey.current = null;
     setCnaeLabels((m) => ({ ...m, [codigo]: descricao }));
-    setFilters((f) => ({
-      ...f,
-      presetId: null,
-      segmentIds: [],
-      intentQuery: null,
-      nameQuery: null,
-      matchNameStems: false,
-      cnaes: [codigo],
-    }));
-    setSegmentQuery("");
-    setShowCnaePanel(true);
+    setFilters((f) => {
+      const has = f.cnaes.includes(codigo);
+      return {
+        ...f,
+        presetId: null,
+        segmentIds: [],
+        intentQuery: null,
+        nameQuery: null,
+        matchNameStems: false,
+        cnaes: has ? f.cnaes.filter((c) => c !== codigo) : [...f.cnaes, codigo],
+      };
+    });
   }
 
   function pickNameCnae(codigo: string, descricao: string) {
@@ -1178,16 +1186,49 @@ function LargadaWizard() {
                         value={segmentQuery}
                         onChange={(e) => setSegmentQuery(e.target.value)}
                         onKeyDown={onSegmentSearchKeyDown}
-                        placeholder="Buscar nicho (ex.: barbearia, churrasqueiro, tapiocaria)"
+                        placeholder={
+                          cnaeOnlyNiche
+                            ? "Buscar mais atividades (código ou descrição)"
+                            : "Buscar nicho (ex.: barbearia, churrasqueiro, tapiocaria)"
+                        }
                         className="w-full rounded-md border border-white/10 bg-podium-panel py-1.5 pl-10 pr-3 text-sm outline-none focus:border-podium-yellow/40"
                       />
                     </div>
+                    {cnaeOnlyNiche ? (
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {filters.cnaes.map((codigo) => (
+                            <button
+                              key={codigo}
+                              type="button"
+                              title={cnaeLabels[codigo] ?? codigo}
+                              onClick={() => toggleCnae(codigo)}
+                            >
+                              <Badge variant="accent">
+                                {formatCnae(codigo) ?? codigo} ×
+                              </Badge>
+                            </button>
+                          ))}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={clearNichePick}
+                          >
+                            Trocar nicho
+                          </Button>
+                        </div>
+                        <Hint className="mt-2">
+                          Marque mais atividades na lista. Toque de novo para
+                          tirar.
+                        </Hint>
+                      </div>
+                    ) : null}
                     {filters.segmentIds.length === 0 &&
                     !filters.intentQuery &&
                     !filters.nameQuery &&
                     segmentSearch.length >= 2 ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        {canUseNameQuery(segmentQuery) ? (
+                        {!cnaeOnlyNiche && canUseNameQuery(segmentQuery) ? (
                           <Button
                             size="sm"
                             variant="primary"
@@ -1197,30 +1238,41 @@ function LargadaWizard() {
                           </Button>
                         ) : null}
                         <Hint>
-                          {matchedSegmentCount > 0
-                            ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"}`
-                            : "Nenhum segmento com esse nome"}
-                          {pickerCnaes.length > 0
-                            ? ` · ${pickerCnaes.length} atividade${pickerCnaes.length === 1 ? "" : "s"} da Receita`
-                            : ""}
-                          {namePreviewQuery.isFetching
-                            ? " · buscando no nome…"
-                            : namePreview.timedOut
-                              ? " · prévia de nome lenta"
-                              : namePreview.total > 0
-                                ? ` · ${namePreview.sampled ? `${namePreview.total}+` : namePreview.total} no nome`
+                          {cnaeOnlyNiche ? (
+                            pickerCnaes.length > 0 ? (
+                              `${pickerCnaes.length} atividade${pickerCnaes.length === 1 ? "" : "s"} da Receita`
+                            ) : (
+                              "Nenhuma atividade com esse texto"
+                            )
+                          ) : (
+                            <>
+                              {matchedSegmentCount > 0
+                                ? `${matchedSegmentCount} segmento${matchedSegmentCount === 1 ? "" : "s"}`
+                                : "Nenhum segmento com esse nome"}
+                              {pickerCnaes.length > 0
+                                ? ` · ${pickerCnaes.length} atividade${pickerCnaes.length === 1 ? "" : "s"} da Receita`
+                                : ""}
+                              {namePreviewQuery.isFetching
+                                ? " · buscando no nome…"
+                                : namePreview.timedOut
+                                  ? " · prévia de nome lenta"
+                                  : namePreview.total > 0
+                                    ? ` · ${namePreview.sampled ? `${namePreview.total}+` : namePreview.total} no nome`
+                                    : canUseNameQuery(segmentQuery)
+                                      ? " · recorte pelo nome"
+                                      : ""}
+                              {matchedSegmentCount > 0
+                                ? " · Enter seleciona o melhor match"
                                 : canUseNameQuery(segmentQuery)
-                                  ? " · recorte pelo nome"
+                                  ? " · Enter recorta pelo nome"
                                   : ""}
-                          {matchedSegmentCount > 0
-                            ? " · Enter seleciona o melhor match"
-                            : canUseNameQuery(segmentQuery)
-                              ? " · Enter recorta pelo nome"
-                              : ""}
+                            </>
+                          )}
                         </Hint>
                       </div>
                     ) : null}
                     {filters.segmentIds.length === 0 &&
+                    filters.cnaes.length === 0 &&
                     !filters.intentQuery &&
                     !filters.nameQuery &&
                     canUseNameQuery(segmentQuery) ? (
@@ -1314,6 +1366,7 @@ function LargadaWizard() {
                     ) : null}
                   </div>
                   {filters.segmentIds.length === 0 &&
+                  filters.cnaes.length === 0 &&
                   !filters.intentQuery &&
                   !filters.nameQuery ? (
                     <>
@@ -1361,7 +1414,6 @@ function LargadaWizard() {
 
               {(filters.segmentIds.length > 0 ||
                 !!filters.nameQuery ||
-                filters.cnaes.length > 0 ||
                 !!filters.intentQuery) && (
               <GlassCard className="p-3" highlight>
                 <div className="flex flex-wrap items-center justify-between gap-3">
