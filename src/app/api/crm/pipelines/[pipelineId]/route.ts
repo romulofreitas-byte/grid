@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isGuardReject } from "@/lib/auth/api-guard";
 import { guardCrmApi, jsonError, readJson } from "@/app/api/crm/_http";
 import { getRepo } from "@/lib/data";
-import { pipelineDeleteSchema, pipelinePatchSchema } from "@/lib/crm/schema";
+import { pipelinePatchSchema } from "@/lib/crm/schema";
 import { executePipelineRemoval } from "@/lib/crm/pipeline-removal";
 
 export async function GET(
@@ -42,13 +42,10 @@ export async function DELETE(
   const gated = await guardCrmApi(req, "crm");
   if (isGuardReject(gated)) return gated;
   const { pipelineId } = await ctx.params;
-  const parsed = pipelineDeleteSchema.safeParse((await readJson(req)) ?? {});
-  if (!parsed.success) return jsonError("Payload inválido.");
   const result = await executePipelineRemoval(
     getRepo(),
     gated.userId,
     pipelineId,
-    parsed.data.transferToPipelineId,
   );
   if (!result.ok) {
     return NextResponse.json(

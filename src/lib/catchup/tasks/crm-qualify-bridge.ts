@@ -10,6 +10,7 @@ export type QualifyBridgeRepo = Pick<
   | "getSearch"
   | "listCrmPipelines"
   | "createCrmPipeline"
+  | "isCrmPipelineNameBlocked"
   | "findCrmDealByCnpj"
   | "createCrmDeal"
   | "getDossier"

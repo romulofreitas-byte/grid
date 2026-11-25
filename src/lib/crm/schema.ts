@@ -233,10 +233,6 @@ export const dealTransferSchema = z.object({
   pipelineId: z.string().uuid(),
 });
 
-export const pipelineDeleteSchema = z.object({
-  transferToPipelineId: z.string().uuid().optional(),
-});
-
 export const searchDeleteSchema = z.object({
   removeEntrada: z.boolean().optional(),
 });

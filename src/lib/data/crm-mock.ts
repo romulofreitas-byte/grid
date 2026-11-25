@@ -1,5 +1,5 @@
 import { earliestOpenActivity, sortOpenActivities } from "@/lib/crm/activity";
-import { digitsCnpj } from "@/lib/crm/bridge";
+import { digitsCnpj, pipelineNomeKey } from "@/lib/crm/bridge";
 import { applyCadenceToOtherPipelines } from "@/lib/crm/cadence-apply";
 import { cloneDefaultCadenceEntries, pickCreateStage } from "@/lib/crm/cadence";
 import {
@@ -243,6 +243,17 @@ function compactPipelinePositions(store: MockStore, userId: string): void {
   });
 }
 
+function clearPipelineNameBlock(
+  store: MockStore,
+  userId: string,
+  nome: string,
+): void {
+  const key = pipelineNomeKey(nome);
+  store.crm_pipeline_name_blocks = store.crm_pipeline_name_blocks.filter(
+    (row) => !(row.user_id === userId && row.nome_key === key),
+  );
+}
+
 function createPipelineWithCadence(
   store: MockStore,
   userId: string,
@@ -347,7 +358,17 @@ export const crmMockMethods = {
     userId: string,
     nome: string,
   ): Promise<CrmPipeline> {
-    return createPipelineWithCadence(getMockStore(), userId, nome);
+    const store = getMockStore();
+    const pipeline = createPipelineWithCadence(store, userId, nome);
+    clearPipelineNameBlock(store, userId, nome);
+    return pipeline;
+  },
+
+  async isCrmPipelineNameBlocked(userId: string, nome: string): Promise<boolean> {
+    const key = pipelineNomeKey(nome);
+    return getMockStore().crm_pipeline_name_blocks.some(
+      (row) => row.user_id === userId && row.nome_key === key,
+    );
   },
 
   async updateCrmPipeline(
@@ -358,7 +379,10 @@ export const crmMockMethods = {
     const store = getMockStore();
     const pipeline = ownPipeline(store, userId, pipelineId);
     if (!pipeline) return null;
-    if (patch.nome !== undefined) pipeline.nome = patch.nome;
+    if (patch.nome !== undefined) {
+      pipeline.nome = patch.nome;
+      clearPipelineNameBlock(store, userId, patch.nome);
+    }
     if (patch.position !== undefined) pipeline.position = patch.position;
     return pipeline;
   },
@@ -406,9 +430,35 @@ export const crmMockMethods = {
     store.crm_stages = store.crm_stages.filter(
       (row) => row.pipeline_id !== pipelineId,
     );
+    const endpointIds = new Set(
+      store.crm_inbound_endpoints
+        .filter((row) => row.pipeline_id === pipelineId)
+        .map((row) => row.id),
+    );
+    store.crm_inbound_events = store.crm_inbound_events.filter(
+      (row) => !endpointIds.has(row.endpoint_id),
+    );
+    store.crm_inbound_endpoints = store.crm_inbound_endpoints.filter(
+      (row) => row.pipeline_id !== pipelineId,
+    );
+    for (const run of store.crm_import_runs) {
+      if (run.pipeline_id === pipelineId) run.pipeline_id = null;
+    }
     store.crm_pipelines = store.crm_pipelines.filter(
       (row) => row.id !== pipelineId,
     );
+    const key = pipelineNomeKey(pipeline.nome);
+    const stillNamed = pipelinesOf(store, userId).some(
+      (row) => pipelineNomeKey(row.nome) === key,
+    );
+    if (
+      !stillNamed &&
+      !store.crm_pipeline_name_blocks.some(
+        (row) => row.user_id === userId && row.nome_key === key,
+      )
+    ) {
+      store.crm_pipeline_name_blocks.push({ user_id: userId, nome_key: key });
+    }
     compactPipelinePositions(store, userId);
     return true;
   },

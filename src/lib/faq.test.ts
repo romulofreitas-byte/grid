@@ -26,7 +26,7 @@ describe("crm-nativo FAQ", () => {
     const item = FAQ_ITEMS.find((entry) => entry.id === "crm-nativo");
     expect(item?.answer).toMatch(/Plano Piloto/);
     expect(item?.answer).toMatch(/Excluir uma lista não apaga o CRM/);
-    expect(item?.answer).toMatch(/Transfira os negócios|transfere os negócios/);
+    expect(item?.answer).toMatch(/Apagar o nicho apaga o quadro inteiro/);
     expect(item?.answer).toMatch(/sem criar uma lista de um lead/);
   });
 });

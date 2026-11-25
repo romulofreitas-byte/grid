@@ -325,6 +325,7 @@ export type GridRepo = {
   getCrmBoard(userId: string, pipelineId: string): Promise<CrmBoard | null>;
   listCrmStages(userId: string, pipelineId: string): Promise<CrmStage[] | null>;
   createCrmPipeline(userId: string, nome: string): Promise<CrmPipeline>;
+  isCrmPipelineNameBlocked(userId: string, nome: string): Promise<boolean>;
   updateCrmPipeline(
     userId: string,
     pipelineId: string,

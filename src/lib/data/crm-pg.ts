@@ -1,5 +1,5 @@
 import { earliestOpenActivity, sortOpenActivities } from "@/lib/crm/activity";
-import { digitsCnpj } from "@/lib/crm/bridge";
+import { digitsCnpj, pipelineNomeKey } from "@/lib/crm/bridge";
 import {
   briefingAssetsFromFields,
   briefingPresenceFromFields,
@@ -606,7 +606,26 @@ export const crmPgMethods = {
   },
 
   async createCrmPipeline(userId: string, nome: string): Promise<CrmPipeline> {
-    return withTransaction((q) => createPipelineRow(q, userId, nome));
+    return withTransaction(async (q) => {
+      const pipeline = await createPipelineRow(q, userId, nome);
+      await q(
+        `delete from crm_pipeline_name_blocks
+          where user_id = $1 and nome_key = $2`,
+        [userId, pipelineNomeKey(nome)],
+      );
+      return pipeline;
+    });
+  },
+
+  async isCrmPipelineNameBlocked(userId: string, nome: string): Promise<boolean> {
+    const { rows } = await query(
+      `select 1
+         from crm_pipeline_name_blocks
+        where user_id = $1 and nome_key = $2
+        limit 1`,
+      [userId, pipelineNomeKey(nome)],
+    );
+    return rows.length > 0;
   },
 
   async updateCrmPipeline(
@@ -622,7 +641,15 @@ export const crmPgMethods = {
         returning *`,
       [pipelineId, userId, patch.nome ?? null, patch.position ?? null],
     );
-    return rows[0] ? mapPipeline(rows[0]) : null;
+    const pipeline = rows[0] ? mapPipeline(rows[0]) : null;
+    if (pipeline && patch.nome) {
+      await query(
+        `delete from crm_pipeline_name_blocks
+          where user_id = $1 and nome_key = $2`,
+        [userId, pipelineNomeKey(patch.nome)],
+      );
+    }
+    return pipeline;
   },
 
   async reorderCrmPipelines(
@@ -665,6 +692,22 @@ export const crmPgMethods = {
         pipelineId,
         userId,
       ]);
+      const remaining = await q(
+        `select nome from crm_pipelines where user_id = $1`,
+        [userId],
+      );
+      const key = pipelineNomeKey(pipeline.nome);
+      const stillNamed = remaining.rows.some(
+        (row) => pipelineNomeKey(String(row.nome)) === key,
+      );
+      if (!stillNamed) {
+        await q(
+          `insert into crm_pipeline_name_blocks (user_id, nome_key)
+           values ($1, $2)
+           on conflict (user_id, nome_key) do nothing`,
+          [userId, key],
+        );
+      }
       await compactPipelinePositions(q, userId);
       return true;
     });

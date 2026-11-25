@@ -2,8 +2,6 @@ import {
   isCnpjOnlySearch,
   resolveCrmPipelineNome,
 } from "@/lib/crm/bridge";
-import { pickEntradaStage } from "@/lib/crm/cadence";
-import type { CrmDealTransferResult } from "@/lib/crm/transfer";
 import type {
   CrmBoard,
   CrmDealSource,
@@ -42,20 +40,12 @@ export type PipelineRemovalPreview = {
   matchingSavedListCount: number;
 };
 
-export type PipelineRemovalTransferReason =
-  | "advanced"
-  | "user_owned"
-  | "inbound"
-  | "last";
+export type PipelineRemovalTransferReason = "last";
 
 export function pipelineRemovalTransferReason(
   preview: PipelineRemovalPreview,
 ): PipelineRemovalTransferReason | null {
-  if (preview.canDeleteDirectly) return null;
   if (preview.isLastPipeline) return "last";
-  if (preview.advancedCount > 0) return "advanced";
-  if (preview.userOwnedCount > 0) return "user_owned";
-  if (preview.inboundCount > 0) return "inbound";
   return null;
 }
 
@@ -91,11 +81,7 @@ export function summarizePipelineRemoval(input: {
     if (isAdvancedDeal(deal)) advancedCount += 1;
     else entradaCount += 1;
   }
-  const canDeleteDirectly =
-    !input.isLastPipeline &&
-    input.inboundCount === 0 &&
-    userOwnedCount === 0 &&
-    advancedCount === 0;
+  const canDeleteDirectly = !input.isLastPipeline;
   return {
     canDeleteDirectly,
     isLastPipeline: input.isLastPipeline,
@@ -150,16 +136,6 @@ export type PipelineRemovalRepo = {
     opts?: { limit?: number; saved?: boolean },
   ) => Promise<Search[]>;
   getPreset: (id: string) => Promise<NichePreset | undefined>;
-  transferCrmDeal: (
-    userId: string,
-    dealId: string,
-    toPipelineId: string,
-  ) => Promise<CrmDealTransferResult | null>;
-  updateCrmInboundEndpoint: (
-    userId: string,
-    endpointId: string,
-    input: { pipelineId?: string; stage_id?: string | null },
-  ) => Promise<CrmInboundEndpoint | null>;
   deleteCrmPipeline: (userId: string, pipelineId: string) => Promise<boolean>;
 };
 
@@ -215,7 +191,7 @@ export type PipelineRemovalResult =
   | { ok: true; pipelines: CrmPipelineSummary[] }
   | {
       ok: false;
-      status: 400 | 404 | 409;
+      status: 400 | 404;
       error: string;
       preview?: PipelineRemovalPreview;
     };
@@ -224,7 +200,6 @@ export async function executePipelineRemoval(
   repo: PipelineRemovalRepo,
   userId: string,
   pipelineId: string,
-  transferToPipelineId?: string | null,
 ): Promise<PipelineRemovalResult> {
   const preview = await loadPipelineRemovalPreview(repo, userId, pipelineId);
   if (!preview) {
@@ -232,66 +207,6 @@ export async function executePipelineRemoval(
   }
   if (preview.isLastPipeline) {
     return { ok: false, status: 400, error: "Não dá para excluir o último nicho." };
-  }
-  if (transferToPipelineId) {
-    if (transferToPipelineId === pipelineId) {
-      return { ok: false, status: 400, error: "Escolha outro nicho." };
-    }
-    const pipelines = await repo.listCrmPipelines(userId);
-    if (!pipelines.some((row) => row.id === transferToPipelineId)) {
-      return { ok: false, status: 404, error: "Nicho de destino não encontrado." };
-    }
-    const board = await repo.getCrmBoard(userId, pipelineId);
-    if (!board) {
-      return { ok: false, status: 404, error: "Nicho não encontrado." };
-    }
-    for (const deal of board.deals) {
-      const moved = await repo.transferCrmDeal(
-        userId,
-        deal.id,
-        transferToPipelineId,
-      );
-      if (!moved) {
-        return {
-          ok: false,
-          status: 400,
-          error: "Não foi possível transferir todos os negócios.",
-        };
-      }
-    }
-    const destBoard = await repo.getCrmBoard(userId, transferToPipelineId);
-    const entradaId = destBoard
-      ? pickEntradaStage(destBoard.stages)?.id ?? null
-      : null;
-    const inbound = await repo.listCrmInboundEndpoints(userId);
-    for (const endpoint of inbound.filter(
-      (row) => row.pipeline_id === pipelineId,
-    )) {
-      const updated = await repo.updateCrmInboundEndpoint(userId, endpoint.id, {
-        pipelineId: transferToPipelineId,
-        stage_id: entradaId,
-      });
-      if (!updated) {
-        return {
-          ok: false,
-          status: 400,
-          error: "Não foi possível mover as automações deste nicho.",
-        };
-      }
-    }
-    const deleted = await repo.deleteCrmPipeline(userId, pipelineId);
-    if (!deleted) {
-      return { ok: false, status: 400, error: "Não deu para excluir o nicho." };
-    }
-    return { ok: true, pipelines: await repo.listCrmPipelines(userId) };
-  }
-  if (!preview.canDeleteDirectly) {
-    return {
-      ok: false,
-      status: 409,
-      error: "Transfira os negócios para outro nicho antes de excluir.",
-      preview,
-    };
   }
   const deleted = await repo.deleteCrmPipeline(userId, pipelineId);
   if (!deleted) {

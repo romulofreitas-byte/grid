@@ -24,21 +24,21 @@ describe("summarizePipelineRemoval", () => {
     expect(preview.matchingSavedListCount).toBe(2);
   });
 
-  it("blocks a direct delete when a deal advanced, is user-owned, inbound exists, or it is the last nicho", () => {
-    expect(
-      summarizePipelineRemoval({
-        isLastPipeline: false,
-        inboundCount: 0,
-        matchingSavedListCount: 0,
-        deals: [
-          {
-            outcome: "open",
-            source: "qualify_bridge",
-            canonicalKey: "tentando_contato",
-          },
-        ],
-      }).canDeleteDirectly,
-    ).toBe(false);
+  it("counts advanced and user-owned deals and only blocks the last nicho", () => {
+    const advanced = summarizePipelineRemoval({
+      isLastPipeline: false,
+      inboundCount: 0,
+      matchingSavedListCount: 0,
+      deals: [
+        {
+          outcome: "open",
+          source: "qualify_bridge",
+          canonicalKey: "tentando_contato",
+        },
+      ],
+    });
+    expect(advanced.advancedCount).toBe(1);
+    expect(advanced.canDeleteDirectly).toBe(true);
     expect(
       summarizePipelineRemoval({
         isLastPipeline: false,
@@ -58,7 +58,7 @@ describe("summarizePipelineRemoval", () => {
           { outcome: "open", source: "qualify_bridge", canonicalKey: "entrada" },
         ],
       }).canDeleteDirectly,
-    ).toBe(false);
+    ).toBe(true);
     expect(
       summarizePipelineRemoval({
         isLastPipeline: true,
@@ -77,8 +77,8 @@ describe("summarizePipelineRemoval", () => {
       deals: [],
     });
     expect(inboundOnly.advancedCount).toBe(0);
-    expect(inboundOnly.canDeleteDirectly).toBe(false);
-    expect(pipelineRemovalTransferReason(inboundOnly)).toBe("inbound");
+    expect(inboundOnly.canDeleteDirectly).toBe(true);
+    expect(pipelineRemovalTransferReason(inboundOnly)).toBe(null);
 
     const userOwned = summarizePipelineRemoval({
       isLastPipeline: false,
@@ -87,7 +87,7 @@ describe("summarizePipelineRemoval", () => {
       deals: [{ outcome: "open", source: "import", canonicalKey: "entrada" }],
     });
     expect(userOwned.advancedCount).toBe(0);
-    expect(pipelineRemovalTransferReason(userOwned)).toBe("user_owned");
+    expect(pipelineRemovalTransferReason(userOwned)).toBe(null);
 
     const emptyLast = summarizePipelineRemoval({
       isLastPipeline: true,
@@ -109,7 +109,7 @@ describe("summarizePipelineRemoval", () => {
     expect(pipelineRemovalTransferReason(empty)).toBe(null);
   });
 
-  it("names advanced deals as the transfer reason when a card left Entrada", () => {
+  it("still counts a card that left Entrada as advanced", () => {
     const preview = summarizePipelineRemoval({
       isLastPipeline: false,
       inboundCount: 1,
@@ -123,7 +123,8 @@ describe("summarizePipelineRemoval", () => {
       ],
     });
     expect(preview.advancedCount).toBe(1);
-    expect(pipelineRemovalTransferReason(preview)).toBe("advanced");
+    expect(preview.canDeleteDirectly).toBe(true);
+    expect(pipelineRemovalTransferReason(preview)).toBe(null);
   });
 });
 

@@ -84,6 +84,7 @@ export type MockStore = {
   integration_jobs: import("@/lib/integrations/records").IntegrationJobRecord[];
   integration_events: import("@/lib/integrations/records").IntegrationEventRecord[];
   crm_pipelines: CrmPipeline[];
+  crm_pipeline_name_blocks: Array<{ user_id: string; nome_key: string }>;
   crm_stages: CrmStage[];
   crm_deals: CrmDeal[];
   crm_activities: CrmActivity[];
@@ -687,6 +688,7 @@ function createMockStore(): MockStore {
     integration_jobs: [],
     integration_events: [],
     crm_pipelines: [],
+    crm_pipeline_name_blocks: [],
     crm_stages: [],
     crm_deals: [],
     crm_activities: [],
@@ -763,7 +765,7 @@ function seedApproachDoorsEnrichment(store: MockStore): void {
   });
 }
 
-const MOCK_STORE_VERSION = 15;
+const MOCK_STORE_VERSION = 16;
 
 const globalForMock = globalThis as typeof globalThis & {
   __gridMockStore?: MockStore;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { activitySignal } from "@/lib/crm/activity";
+import { bridgeQualifiedLeadsToCrm } from "@/lib/crm/bridge";
 import { advanceCrmOnCall, moveLeadCrmFromFicha } from "@/lib/crm/lead-sync";
 import {
   executePipelineRemoval,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/crm/pipeline-removal";
 import { mockRepo } from "@/lib/data/mock-repo";
 import { getMockStore } from "@/lib/data/mock-store";
+import { DEFAULT_FILTERS } from "@/lib/types";
 
 const USER = "crm-board-user";
 
@@ -27,6 +29,9 @@ describe("crm mock board", () => {
     store.crm_deals = store.crm_deals.filter((row) => !ids.has(row.pipeline_id));
     store.crm_stages = store.crm_stages.filter((row) => !ids.has(row.pipeline_id));
     store.crm_pipelines = store.crm_pipelines.filter((row) => row.user_id !== USER);
+    store.crm_pipeline_name_blocks = store.crm_pipeline_name_blocks.filter(
+      (row) => row.user_id !== USER,
+    );
   });
 
   it("creates the default cadence with canonical keys when asked", async () => {
@@ -969,7 +974,7 @@ describe("crm deal transfer and list entrada", () => {
     expect(board?.deals.map((deal) => deal.company_name)).toEqual(["Import Lead"]);
   });
 
-  it("deletes a GRID-only Entrada nicho and transfers when a deal has advanced", async () => {
+  it("deletes a nicho with advanced deals and keeps that name from coming back", async () => {
     const from = await mockRepo.createCrmPipeline(USER, "Origem");
     const to = await mockRepo.createCrmPipeline(USER, "Destino");
     const entrada = await mockRepo.createCrmDeal(USER, {
@@ -977,28 +982,50 @@ describe("crm deal transfer and list entrada", () => {
       company_name: "Só GRID",
       meta: { source: "qualify_bridge" },
     });
-    const preview = await loadPipelineRemovalPreview(mockRepo, USER, from.id);
-    expect(preview?.canDeleteDirectly).toBe(true);
     const fromBoard = await mockRepo.getCrmBoard(USER, from.id);
     const tentando = fromBoard!.stages.find(
       (stage) => stage.canonical_key === "tentando_contato",
     )!;
     await mockRepo.moveCrmDeal(USER, entrada!.id, tentando.id, 0);
-    const blocked = await executePipelineRemoval(mockRepo, USER, from.id);
-    expect(blocked.ok).toBe(false);
-    if (blocked.ok) throw new Error("expected block");
-    expect(blocked.status).toBe(409);
-    const moved = await executePipelineRemoval(
-      mockRepo,
-      USER,
-      from.id,
-      to.id,
-    );
-    expect(moved.ok).toBe(true);
+    const preview = await loadPipelineRemovalPreview(mockRepo, USER, from.id);
+    expect(preview?.canDeleteDirectly).toBe(true);
+    expect(preview?.advancedCount).toBe(1);
+    const removed = await executePipelineRemoval(mockRepo, USER, from.id);
+    expect(removed.ok).toBe(true);
     expect(await mockRepo.getCrmBoard(USER, from.id)).toBeNull();
     const dest = await mockRepo.getCrmBoard(USER, to.id);
     expect(dest?.deals.some((deal) => deal.company_name === "Só GRID")).toBe(
-      true,
+      false,
     );
+    expect(await mockRepo.isCrmPipelineNameBlocked(USER, "Origem")).toBe(true);
+    const bridged = await bridgeQualifiedLeadsToCrm(mockRepo, {
+      userId: USER,
+      search: {
+        id: "11111111-1111-4111-8111-111111111111",
+        user_id: USER,
+        nome: "Lista · Origem",
+        filtros: { ...DEFAULT_FILTERS, intentQuery: "Origem" },
+        total_found: 1,
+        created_at: "2026-08-17T12:00:00.000Z",
+        saved: true,
+      },
+      cnpjs: ["12345678000190"],
+    });
+    expect(bridged).toMatchObject({ created: 0, skipped: 1, pipelineId: null });
+    expect(
+      (await mockRepo.listCrmPipelines(USER)).map((row) => row.nome),
+    ).toEqual(["Destino"]);
+
+    const renamed = await mockRepo.updateCrmPipeline(USER, to.id, {
+      nome: "Origem",
+    });
+    expect(renamed?.nome).toBe("Origem");
+    expect(await mockRepo.isCrmPipelineNameBlocked(USER, "Origem")).toBe(false);
+
+    const extra = await mockRepo.createCrmPipeline(USER, "Extra");
+    expect(await mockRepo.deleteCrmPipeline(USER, extra.id)).toBe(true);
+    expect(await mockRepo.isCrmPipelineNameBlocked(USER, "Extra")).toBe(true);
+    await mockRepo.createCrmPipeline(USER, "extra");
+    expect(await mockRepo.isCrmPipelineNameBlocked(USER, "Extra")).toBe(false);
   });
 });

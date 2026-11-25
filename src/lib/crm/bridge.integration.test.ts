@@ -27,6 +27,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const repo = {
       listCrmPipelines: vi.fn(),
       createCrmPipeline: vi.fn(),
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj: vi.fn(),
       createCrmDeal: vi.fn(),
       getDossier: vi.fn(),
@@ -86,6 +87,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj,
       createCrmDeal,
       getDossier: vi.fn().mockResolvedValue({
@@ -174,6 +176,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
       createCrmDeal,
       getDossier: vi.fn().mockResolvedValue(null),
@@ -236,6 +239,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline,
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
       createCrmDeal,
       getDossier: vi.fn().mockResolvedValue(null),
@@ -283,6 +287,7 @@ describe("bridgeQualifiedLeadsToCrm", () => {
     const repo: CrmBridgeRepo = {
       listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
       createCrmPipeline: vi.fn().mockResolvedValue(pipeline as CrmPipeline),
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(false),
       findCrmDealByCnpj: vi.fn().mockResolvedValue(null),
       createCrmDeal: vi.fn(),
       getDossier: vi.fn().mockResolvedValue(null),
@@ -304,6 +309,38 @@ describe("bridgeQualifiedLeadsToCrm", () => {
       failed: 1,
       pipelineId: "pipe-1",
     });
+    expect(repo.createCrmDeal).not.toHaveBeenCalled();
+  });
+
+  it("skips a deleted niche name instead of creating it again", async () => {
+    const createCrmPipeline = vi.fn();
+    const repo: CrmBridgeRepo = {
+      listCrmPipelines: vi.fn().mockResolvedValue([] as CrmPipelineSummary[]),
+      createCrmPipeline,
+      isCrmPipelineNameBlocked: vi.fn().mockResolvedValue(true),
+      findCrmDealByCnpj: vi.fn(),
+      createCrmDeal: vi.fn(),
+      getDossier: vi.fn(),
+      listCompanyBriefs: vi.fn(),
+      listHiddenPhones: vi.fn().mockResolvedValue(new Map()),
+      getPreset: vi.fn().mockResolvedValue({
+        id: "seg-1",
+        nome: "Clínicas estética",
+      }),
+    };
+    const out = await bridgeQualifiedLeadsToCrm(repo, {
+      userId: "user-1",
+      search: search(),
+      cnpjs: ["12345678000190", "12345678000191"],
+    });
+    expect(out).toMatchObject({
+      created: 0,
+      skipped: 2,
+      failed: 0,
+      pipelineId: null,
+      pipelineNome: null,
+    });
+    expect(createCrmPipeline).not.toHaveBeenCalled();
     expect(repo.createCrmDeal).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,10 @@ export function normalizePipelineNome(nome: string): string {
   return nome.trim().replace(/\s+/g, " ").slice(0, 80);
 }
 
+export function pipelineNomeKey(nome: string): string {
+  return normalizePipelineNome(nome).toLowerCase();
+}
+
 export function resolveCrmPipelineNome(input: {
   segmentNome: string | null | undefined;
   intentQuery: string | null | undefined;
@@ -96,6 +100,7 @@ export type CrmBridgeRepo = Pick<
   GridRepo,
   | "listCrmPipelines"
   | "createCrmPipeline"
+  | "isCrmPipelineNameBlocked"
   | "findCrmDealByCnpj"
   | "createCrmDeal"
   | "getDossier"
@@ -160,8 +165,20 @@ export async function bridgeQualifiedLeadsToCrm(
 
   const pipelines = await repo.listCrmPipelines(input.userId);
   const existing = pipelines.find(
-    (p) => p.nome.trim().toLowerCase() === pipelineNome.toLowerCase(),
+    (p) => pipelineNomeKey(p.nome) === pipelineNomeKey(pipelineNome),
   );
+  if (
+    !existing &&
+    (await repo.isCrmPipelineNameBlocked(input.userId, pipelineNome))
+  ) {
+    return {
+      created: 0,
+      skipped: input.cnpjs.length,
+      failed: 0,
+      pipelineId: null,
+      pipelineNome: null,
+    };
+  }
   const pipeline =
     existing ?? (await repo.createCrmPipeline(input.userId, pipelineNome));
 

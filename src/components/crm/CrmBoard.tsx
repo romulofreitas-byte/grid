@@ -721,24 +721,15 @@ export function CrmBoard({
                 : current,
             );
           }}
-          onDelete={async (pipelineId, opts) => {
+          onDelete={async (pipelineId) => {
             setError(null);
             try {
               const res = await crmFetch<{ pipelines: CrmPipelineSummary[] }>(
                 `/api/crm/pipelines/${pipelineId}`,
-                {
-                  method: "DELETE",
-                  body: JSON.stringify({
-                    transferToPipelineId: opts?.transferToPipelineId,
-                  }),
-                },
+                { method: "DELETE" },
               );
               setPipelines(res.pipelines);
-              const destId = opts?.transferToPipelineId;
-              const next =
-                (destId &&
-                  res.pipelines.find((row) => row.id === destId)) ||
-                res.pipelines[0];
+              const next = res.pipelines[0];
               if (next) await loadPipeline(next.id);
             } catch (err) {
               setError(
