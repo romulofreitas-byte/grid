@@ -69,15 +69,18 @@ export function CrmNoteImageStrip({
 export function CrmNoteImageButton({
   disabled,
   onFiles,
+  className,
 }: {
   disabled?: boolean;
   onFiles: (files: File[]) => void;
+  className?: string;
 }) {
   return (
     <label
       className={cn(
-        "inline-flex cursor-pointer items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-[11px] text-podium-muted hover:border-white/20 hover:text-podium-white",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-md border border-white/10 px-2 py-1 text-[11px] leading-4 text-podium-muted hover:border-white/20 hover:text-podium-white",
         disabled && "pointer-events-none opacity-50",
+        className,
       )}
     >
       <Paperclip className="h-3 w-3" />

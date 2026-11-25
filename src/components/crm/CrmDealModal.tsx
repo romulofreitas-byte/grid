@@ -122,6 +122,10 @@ const COMPOSER_ICONS: Record<CrmComposerKind, typeof Phone> = {
 
 const DEAL_MODAL_EASE = [0.16, 1, 0.3, 1] as const;
 
+/** Mesma caixa do prazo e do horário: borda, py-1 e text-xs. */
+const CRM_DATETIME_ACTION =
+  "inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-md border border-podium-yellow bg-podium-yellow px-2.5 py-1 text-xs font-medium leading-4 text-podium-navy hover:brightness-110 disabled:opacity-50";
+
 const COMPOSER_TAB_LABELS: Record<CrmComposerKind, string> = {
   nota: "Nota",
   ligar: "Ligar",
@@ -1463,7 +1467,7 @@ export function CrmDealModal({
                         )
                       }
                     />
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="mt-2 flex flex-wrap items-end gap-2">
                       {composerKind !== "nota" ? (
                         <CrmDateTimePicker
                           value={dueLocal || defaultNextDueLocal()}
@@ -1473,6 +1477,7 @@ export function CrmDealModal({
                       <CrmNoteImageButton
                         disabled={saving}
                         onFiles={(files) => void addComposerImages(files)}
+                        className="px-2 py-1 text-xs leading-4"
                       />
                       <button
                         type="button"
@@ -1485,7 +1490,7 @@ export function CrmDealModal({
                               : COPY.crmScheduleHint
                         }
                         onClick={() => void saveComposer()}
-                        className="ml-auto rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                        className={cn(CRM_DATETIME_ACTION, "ml-auto")}
                       >
                         {COPY.crmSaveHistory}
                       </button>
@@ -1629,7 +1634,7 @@ export function CrmDealModal({
                         </label>
                       </div>
                       {expanded ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="mt-2 flex flex-wrap items-end gap-2">
                           <CrmDateTimePicker
                             value={
                               actionDueDrafts[activity.id] ??
@@ -1649,7 +1654,7 @@ export function CrmDealModal({
                             onClick={() =>
                               void saveReschedule(activity.id, activity.kind)
                             }
-                            className="rounded-md bg-podium-yellow px-2.5 py-1 text-[11px] font-medium text-podium-navy hover:brightness-110 disabled:opacity-50"
+                            className={CRM_DATETIME_ACTION}
                           >
                             {COPY.crmSaveHistory}
                           </button>
